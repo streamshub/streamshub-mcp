@@ -15,7 +15,7 @@ public record ToolError(
     }
 
     public static ToolError of(String error, Exception e) {
-        return new ToolError(error, e.getMessage());
+        return new ToolError(error, e != null ? e.getMessage() : null);
     }
 
     public static ToolError validation(String message) {
