@@ -1,8 +1,10 @@
 package io.strimzi.mcp.service;
 
+import io.strimzi.mcp.config.LlmConfigurationDetector;
 import io.strimzi.mcp.dto.ChatRequest;
 import io.strimzi.mcp.dto.ChatResponse;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -16,7 +18,10 @@ public class ChatService {
     private static final Logger LOG = Logger.getLogger(ChatService.class);
 
     @Inject
-    StrimziChatAssistant assistant;
+    Instance<StrimziChatAssistant> assistantInstance;
+
+    @Inject
+    LlmConfigurationDetector llmDetector;
 
     @ConfigProperty(name = "app.llm.provider", defaultValue = "ollama")
     String llmProvider;
@@ -25,11 +30,21 @@ public class ChatService {
      * Process a chat message using the configured LLM provider.
      */
     public ChatResponse chat(ChatRequest request) {
+        // Check if LLM is available
+        if (!llmDetector.isLlmAvailable()) {
+            throw new LlmNotAvailableException(llmDetector.getLlmUnavailableReason());
+        }
+
+        if (assistantInstance.isUnsatisfied()) {
+            throw new LlmNotAvailableException("LLM assistant not available - check provider configuration");
+        }
+
         try {
             LOG.infof("Processing chat message with provider: %s", llmProvider);
             LOG.debugf("Message: %s", request.message());
 
             // Use the AI service (provider is configured automatically by Quarkus)
+            StrimziChatAssistant assistant = assistantInstance.get();
             String response = assistant.chat(request.message());
 
             LOG.infof("Generated response with %s (%d chars)", llmProvider, response.length());
@@ -63,8 +78,17 @@ public class ChatService {
      * Check if the LLM provider is healthy.
      */
     public boolean isHealthy() {
+        if (!llmDetector.isLlmAvailable()) {
+            return false;
+        }
+
+        if (assistantInstance.isUnsatisfied()) {
+            return false;
+        }
+
         try {
             // Simple health check - try a basic chat
+            StrimziChatAssistant assistant = assistantInstance.get();
             assistant.chat("Hello");
             return true;
         } catch (Exception e) {

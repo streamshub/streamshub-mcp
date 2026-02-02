@@ -76,10 +76,6 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-jackson</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-picocli</artifactId>
-        </dependency>
         <!-- Strimzi API for Kafka custom resources -->
         <dependency>
             <groupId>io.strimzi</groupId>
