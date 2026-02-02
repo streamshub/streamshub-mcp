@@ -40,7 +40,7 @@ public class StrimziDiscoveryService {
      * This is only used as a fallback when no namespace can be determined from user input.
      */
     public String getDefaultNamespace() {
-        return System.getenv().getOrDefault("K8S_NAMESPACE", "default");
+        return System.getenv().getOrDefault("K8S_NAMESPACE", "strimzi-operator");
     }
 
     /**

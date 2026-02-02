@@ -24,14 +24,14 @@ public class StrimziMcpApplication {
             System.exit(new StrimziCliApplication().runCli(cliArgs));
         } else {
             // Server mode
-            System.out.println("🚀 Starting Strimzi MCP & Chat Server");
+            System.out.println("Starting Strimzi MCP & Chat Server");
             System.out.println();
-            System.out.println("📡 Endpoints available at:");
+            System.out.println("Endpoints available at:");
             System.out.println("  • Chat API:    http://localhost:8080/api/chat");
             System.out.println("  • MCP Server:  http://localhost:8080/mcp");
             System.out.println("  • Health:      http://localhost:8080/api/chat/health");
             System.out.println();
-            System.out.println("💡 Use Ctrl+C to stop the server");
+            System.out.println("Use Ctrl+C to stop the server");
             System.out.println("─".repeat(60));
 
             Quarkus.run();

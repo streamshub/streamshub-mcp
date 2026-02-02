@@ -165,7 +165,7 @@ class ToolErrorTest {
         assertEquals(longMessage, longError.error());
 
         // Unicode characters
-        String unicodeMessage = "Ошибка: соединение прервано 🚨";
+        String unicodeMessage = "Ошибка: соединение прервано";
         ToolError unicodeError = ToolError.of(unicodeMessage);
         assertEquals(unicodeMessage, unicodeError.error());
 

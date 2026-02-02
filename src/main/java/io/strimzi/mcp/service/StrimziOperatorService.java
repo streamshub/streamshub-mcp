@@ -130,9 +130,9 @@ public class StrimziOperatorService {
 
                     // Show errors first if any
                     if (!errorLines.isEmpty()) {
-                        allLogs.append("🚨 ERRORS/WARNINGS FOUND:\n");
+                        allLogs.append("ERRORS/WARNINGS FOUND:\n");
                         for (String errorLine : errorLines) {
-                            allLogs.append("  ⚠️  ").append(errorLine).append("\n");
+                            allLogs.append("  WARNING: ").append(errorLine).append("\n");
                         }
                         allLogs.append("\n");
                     }
