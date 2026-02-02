@@ -1,5 +1,6 @@
 package io.strimzi.mcp.service;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -8,9 +9,10 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -54,6 +56,71 @@ public class StrimziDiscoveryService {
     }
 
     /**
+     * Find deployments by name pattern across all namespaces.
+     */
+    private List<Deployment> findDeploymentsByNamePattern(Predicate<String> nameFilter) {
+        try {
+            return kubernetesClient.apps().deployments()
+                .inAnyNamespace()
+                .list()
+                .getItems()
+                .stream()
+                .filter(deployment -> nameFilter.test(deployment.getMetadata().getName()))
+                .collect(Collectors.toList());
+        } catch (Exception e) {
+            LOG.debugf("Error finding deployments: %s", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Find pods by labels across all namespaces.
+     */
+    private List<Pod> findPodsByLabels(String labelKey, String labelValue) {
+        try {
+            return kubernetesClient.pods()
+                .inAnyNamespace()
+                .withLabel(labelKey, labelValue)
+                .list()
+                .getItems();
+        } catch (Exception e) {
+            LOG.debugf("Error finding pods: %s", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Query resources either in a specific namespace or across all namespaces.
+     */
+    private <T extends HasMetadata> List<T> queryResources(Class<T> resourceClass, String namespace) {
+        try {
+            if (namespace != null) {
+                return kubernetesClient.resources(resourceClass)
+                    .inNamespace(namespace)
+                    .list()
+                    .getItems();
+            } else {
+                return kubernetesClient.resources(resourceClass)
+                    .inAnyNamespace()
+                    .list()
+                    .getItems();
+            }
+        } catch (Exception e) {
+            LOG.debugf("Error querying %s resources: %s", resourceClass.getSimpleName(), e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Extract unique namespaces from a list of Kubernetes resources.
+     */
+    private Set<String> extractNamespaces(List<? extends HasMetadata> resources) {
+        return resources.stream()
+            .map(resource -> resource.getMetadata().getNamespace())
+            .collect(Collectors.toSet());
+    }
+
+    /**
      * Discover namespaces that contain Strimzi operator.
      * Returns list of namespaces where Strimzi operator is deployed.
      */
@@ -61,54 +128,22 @@ public class StrimziDiscoveryService {
         try {
             LOG.debug("Discovering Strimzi operator across all namespaces...");
 
-            List<String> strimziNamespaces = new ArrayList<>();
-
             // Method 1: Look for operator deployments
-            List<Deployment> allDeployments = kubernetesClient.apps().deployments()
-                .inAnyNamespace()
-                .list()
-                .getItems();
-
-            Set<String> namespacesWithOperator = allDeployments.stream()
-                .filter(deployment -> {
-                    String name = deployment.getMetadata().getName();
-                    return name.contains("strimzi") && name.contains("operator");
-                })
-                .map(deployment -> deployment.getMetadata().getNamespace())
-                .collect(Collectors.toSet());
-
-            strimziNamespaces.addAll(namespacesWithOperator);
+            List<Deployment> operatorDeployments = findDeploymentsByNamePattern(name ->
+                name.contains("strimzi") && name.contains("operator"));
+            Set<String> strimziNamespaces = new HashSet<>(extractNamespaces(operatorDeployments));
 
             // Method 2: Look for operator pods if deployments not found
             if (strimziNamespaces.isEmpty()) {
-                List<Pod> allPods = kubernetesClient.pods()
-                    .inAnyNamespace()
-                    .withLabel("name", "strimzi-cluster-operator")
-                    .list()
-                    .getItems();
-
-                Set<String> namespacesWithPods = allPods.stream()
-                    .map(pod -> pod.getMetadata().getNamespace())
-                    .collect(Collectors.toSet());
-
-                strimziNamespaces.addAll(namespacesWithPods);
+                List<Pod> operatorPods = findPodsByLabels("name", "strimzi-cluster-operator");
+                strimziNamespaces.addAll(extractNamespaces(operatorPods));
             }
 
             // Method 3: Look for Kafka custom resources
             if (strimziNamespaces.isEmpty()) {
-                try {
-                    List<Kafka> kafkaResources = kubernetesClient.resources(Kafka.class)
-                        .inAnyNamespace()
-                        .list()
-                        .getItems();
-
-                    Set<String> namespacesWithKafka = kafkaResources.stream()
-                        .map(kafka -> kafka.getMetadata().getNamespace())
-                        .collect(Collectors.toSet());
-
-                    strimziNamespaces.addAll(namespacesWithKafka);
-                } catch (Exception e) {
-                    LOG.debugf("Could not query Kafka CRDs (may not be installed): %s", e.getMessage());
+                List<Kafka> kafkaResources = queryResources(Kafka.class, null);
+                if (!kafkaResources.isEmpty()) {
+                    strimziNamespaces.addAll(extractNamespaces(kafkaResources));
                 }
             }
 
@@ -125,37 +160,21 @@ public class StrimziDiscoveryService {
      * Get Strimzi Kafka clusters across all namespaces or in specific namespace.
      */
     public List<KafkaClusterInfo> discoverKafkaClusters(String namespace) {
-        List<KafkaClusterInfo> clusters = new ArrayList<>();
-
         try {
-            List<Kafka> kafkaResources;
+            List<Kafka> kafkaResources = queryResources(Kafka.class, namespace);
 
-            if (namespace != null) {
-                kafkaResources = kubernetesClient.resources(Kafka.class)
-                    .inNamespace(namespace)
-                    .list()
-                    .getItems();
-            } else {
-                kafkaResources = kubernetesClient.resources(Kafka.class)
-                    .inAnyNamespace()
-                    .list()
-                    .getItems();
-            }
-
-            for (Kafka kafka : kafkaResources) {
-                KafkaClusterInfo info = new KafkaClusterInfo(
+            return kafkaResources.stream()
+                .map(kafka -> new KafkaClusterInfo(
                     kafka.getMetadata().getName(),
                     kafka.getMetadata().getNamespace(),
                     kafka.getStatus() != null ? kafka.getStatus().getConditions() : List.of()
-                );
-                clusters.add(info);
-            }
+                ))
+                .collect(Collectors.toList());
 
         } catch (Exception e) {
             LOG.warnf("Error discovering Kafka clusters: %s", e.getMessage());
+            return List.of();
         }
-
-        return clusters;
     }
 
     /**
