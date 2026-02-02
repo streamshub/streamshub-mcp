@@ -41,7 +41,7 @@ public class ChatCliCommand implements Callable<Integer> {
     public Integer call() throws Exception {
         // Check if server is running
         if (!checkServerHealth()) {
-            System.err.println("❌ Server not running at " + parent.getServerUrl());
+            System.err.println("ERROR: Server not running at " + parent.getServerUrl());
             System.err.println("Start the server first:");
             System.err.println("  mvn quarkus:dev");
             return 1;
@@ -74,23 +74,23 @@ public class ChatCliCommand implements Callable<Integer> {
     private Integer sendMessage(String messageText) {
         try {
             if (parent.isVerbose()) {
-                System.out.println("🔧 Server: " + parent.getServerUrl());
+                System.out.println("Server: " + parent.getServerUrl());
                 System.out.println();
             }
 
-            System.out.println("💬 User: " + messageText);
+            System.out.println("User: " + messageText);
             System.out.println();
 
             String response = callChatApi(messageText);
 
-            System.out.println("🤖 Assistant:");
+            System.out.println("Assistant:");
             System.out.println(response);
             System.out.println();
 
             return 0;
 
         } catch (Exception e) {
-            System.err.println("❌ Error: " + e.getMessage());
+            System.err.println("ERROR: " + e.getMessage());
             if (parent.isVerbose()) {
                 e.printStackTrace();
             }
@@ -99,7 +99,7 @@ public class ChatCliCommand implements Callable<Integer> {
     }
 
     private Integer interactiveChat() {
-        System.out.println("🚀 Strimzi Interactive Chat");
+        System.out.println("Strimzi Interactive Chat");
         System.out.println("Server: " + parent.getServerUrl());
         System.out.println("Type 'exit' or 'quit' to end the chat, 'help' for commands");
         System.out.println("─".repeat(60));
@@ -109,11 +109,11 @@ public class ChatCliCommand implements Callable<Integer> {
 
         while (true) {
             try {
-                System.out.print("💬 You: ");
+                System.out.print("You: ");
                 String input = reader.readLine();
 
                 if (input == null || input.trim().equalsIgnoreCase("exit") || input.trim().equalsIgnoreCase("quit")) {
-                    System.out.println("👋 Goodbye!");
+                    System.out.println("Goodbye!");
                     break;
                 }
 
@@ -135,15 +135,15 @@ public class ChatCliCommand implements Callable<Integer> {
                 System.out.println();
                 String response = callChatApi(input.trim());
 
-                System.out.println("🤖 Assistant:");
+                System.out.println("Assistant:");
                 System.out.println(response);
                 System.out.println();
 
             } catch (IOException e) {
-                System.err.println("❌ IO Error: " + e.getMessage());
+                System.err.println("IO ERROR: " + e.getMessage());
                 return 1;
             } catch (Exception e) {
-                System.err.println("❌ Error: " + e.getMessage());
+                System.err.println("ERROR: " + e.getMessage());
                 if (parent.isVerbose()) {
                     e.printStackTrace();
                 }
@@ -156,13 +156,13 @@ public class ChatCliCommand implements Callable<Integer> {
 
     private void printHelp() {
         System.out.println();
-        System.out.println("🛠️  Available Commands:");
+        System.out.println("Available Commands:");
         System.out.println("  help   - Show this help");
         System.out.println("  clear  - Clear the screen");
         System.out.println("  exit   - Exit chat mode");
         System.out.println("  quit   - Exit chat mode");
         System.out.println();
-        System.out.println("💡 Example questions:");
+        System.out.println("Example questions:");
         System.out.println("  • What Kafka pods are running in the kafka namespace?");
         System.out.println("  • Show me operator logs from default namespace");
         System.out.println("  • Check operator status in kafka namespace");
