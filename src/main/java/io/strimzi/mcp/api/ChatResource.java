@@ -1,8 +1,10 @@
 package io.strimzi.mcp.api;
 
+import io.strimzi.mcp.config.LlmConfigurationDetector;
 import io.strimzi.mcp.dto.ChatRequest;
 import io.strimzi.mcp.dto.ChatResponse;
 import io.strimzi.mcp.service.ChatService;
+import io.strimzi.mcp.service.LlmNotAvailableException;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -25,6 +27,9 @@ public class ChatResource {
     @Inject
     ChatService chatService;
 
+    @Inject
+    LlmConfigurationDetector llmDetector;
+
     /**
      * Send a chat message to the LLM.
      *
@@ -33,11 +38,32 @@ public class ChatResource {
      */
     @POST
     public Response chat(ChatRequest request) {
+        if (!llmDetector.isLlmAvailable()) {
+            return Response.status(503)
+                .entity(Map.of(
+                    "error", "LLM service unavailable",
+                    "message", llmDetector.getLlmUnavailableReason(),
+                    "suggestion", "Set ENABLE_LLM=true and configure a provider",
+                    "available_endpoints", Map.of("mcp", "/mcp"),
+                    "timestamp", Instant.now()
+                ))
+                .build();
+        }
+
         try {
             LOG.infof("Received chat request: %s", request.message());
 
             ChatResponse response = chatService.chat(request);
             return Response.ok(response).build();
+
+        } catch (LlmNotAvailableException e) {
+            return Response.status(503)
+                .entity(Map.of(
+                    "error", "LLM configuration error",
+                    "message", e.getMessage(),
+                    "timestamp", Instant.now()
+                ))
+                .build();
 
         } catch (IllegalArgumentException e) {
             LOG.warnf("Invalid chat request: %s", e.getMessage());
@@ -69,6 +95,17 @@ public class ChatResource {
     @GET
     @Path("/health")
     public Response health() {
+        if (!llmDetector.isLlmAvailable()) {
+            return Response.status(503)
+                .entity(Map.of(
+                    "status", "unavailable",
+                    "message", llmDetector.getLlmUnavailableReason(),
+                    "suggestion", "Set ENABLE_LLM=true and configure a provider",
+                    "timestamp", Instant.now()
+                ))
+                .build();
+        }
+
         try {
             String provider = chatService.getProvider();
             boolean healthy = chatService.isHealthy();
@@ -102,6 +139,26 @@ public class ChatResource {
     @GET
     @Path("/info")
     public Response info() {
+        if (!llmDetector.isLlmAvailable()) {
+            return Response.status(503)
+                .entity(Map.of(
+                    "error", "LLM service unavailable",
+                    "message", llmDetector.getLlmUnavailableReason(),
+                    "suggestion", "Set ENABLE_LLM=true and configure a provider",
+                    "available_endpoints", Map.of("mcp", "/mcp"),
+                    "mcp_endpoint", "/mcp",
+                    "tools", new String[]{
+                        "strimzi_kafka_clusters",
+                        "strimzi_cluster_pods",
+                        "strimzi_kafka_topics",
+                        "strimzi_operator_status",
+                        "strimzi_operator_logs"
+                    },
+                    "timestamp", Instant.now()
+                ))
+                .build();
+        }
+
         return Response.ok(Map.of(
             "current_provider", chatService.getProvider(),
             "available_providers", new String[]{"openai", "ollama"},
@@ -114,7 +171,9 @@ public class ChatResource {
             "tools", new String[]{
                 "readLogsFromOperator",
                 "getKafkaClusterPods",
-                "getOperatorStatus"
+                "getOperatorStatus",
+                "getKafkaClusters",
+                "getKafkaTopics"
             },
             "timestamp", Instant.now()
         )).build();
