@@ -146,7 +146,7 @@ public class KafkaClusterService {
                 .getItems();
 
             // Also include operator pods
-            List<Pod> operatorPods = findOperatorPodsViaService(namespace);
+            List<Pod> operatorPods = discoveryService.findOperatorPods(namespace);
             List<Pod> allPods = new ArrayList<>(clusterPods);
             allPods.addAll(operatorPods);
             return allPods;
@@ -162,29 +162,6 @@ public class KafkaClusterService {
         }
     }
 
-    private List<Pod> findOperatorPodsViaService(String namespace) {
-        List<Pod> operatorPods = kubernetesClient.pods()
-            .inNamespace(namespace)
-            .withLabel("name", "strimzi-cluster-operator")
-            .list()
-            .getItems();
-
-        if (operatorPods.isEmpty()) {
-            // Try alternative selectors
-            operatorPods = kubernetesClient.pods()
-                .inNamespace(namespace)
-                .list()
-                .getItems()
-                .stream()
-                .filter(pod -> {
-                    String name = pod.getMetadata().getName();
-                    return name.contains("strimzi") && name.contains("operator");
-                })
-                .toList();
-        }
-
-        return operatorPods;
-    }
 
     private boolean isKafkaRelatedPod(Pod pod) {
         Map<String, String> labels = pod.getMetadata().getLabels();
