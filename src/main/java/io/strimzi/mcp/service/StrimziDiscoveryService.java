@@ -178,6 +178,114 @@ public class StrimziDiscoveryService {
     }
 
     /**
+     * Find Strimzi operator pods in a specific namespace.
+     * Uses standard Strimzi labels with fallback to name-based filtering.
+     */
+    public List<Pod> findOperatorPods(String namespace) {
+        try {
+            // Primary: Try standard Kubernetes label
+            List<Pod> operatorPods = kubernetesClient.pods()
+                .inNamespace(namespace)
+                .withLabel("app.kubernetes.io/name", "strimzi-cluster-operator")
+                .list()
+                .getItems();
+
+            if (operatorPods.isEmpty()) {
+                // Secondary: Try legacy Strimzi label
+                operatorPods = kubernetesClient.pods()
+                    .inNamespace(namespace)
+                    .withLabel("name", "strimzi-cluster-operator")
+                    .list()
+                    .getItems();
+            }
+
+            if (operatorPods.isEmpty()) {
+                // Tertiary: Try Strimzi-specific label
+                operatorPods = kubernetesClient.pods()
+                    .inNamespace(namespace)
+                    .withLabel("strimzi.io/kind", "cluster-operator")
+                    .list()
+                    .getItems();
+            }
+
+            return operatorPods;
+        } catch (Exception e) {
+            LOG.debugf("Error finding operator pods in namespace %s: %s", namespace, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Find Strimzi operator deployments in a specific namespace.
+     * Uses standard Strimzi labels with fallback to name-based filtering.
+     */
+    public List<Deployment> findOperatorDeployments(String namespace) {
+        try {
+            // Primary: Try standard Strimzi operator label
+            List<Deployment> operatorDeployments = kubernetesClient.apps().deployments()
+                .inNamespace(namespace)
+                .withLabel("app.kubernetes.io/name", "strimzi-cluster-operator")
+                .list()
+                .getItems();
+
+            if (operatorDeployments.isEmpty()) {
+                // Secondary: Try alternative Strimzi labels
+                operatorDeployments = kubernetesClient.apps().deployments()
+                    .inNamespace(namespace)
+                    .withLabel("strimzi.io/kind", "cluster-operator")
+                    .list()
+                    .getItems();
+            }
+
+            return operatorDeployments;
+        } catch (Exception e) {
+            LOG.debugf("Error finding operator deployments in namespace %s: %s", namespace, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Extract version from deployment container image.
+     */
+    public String extractVersionFromDeployment(Deployment deployment) {
+        if (deployment.getSpec().getTemplate().getSpec().getContainers() != null &&
+            !deployment.getSpec().getTemplate().getSpec().getContainers().isEmpty()) {
+            String image = deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getImage();
+            if (image.contains(":")) {
+                return image.substring(image.lastIndexOf(":") + 1);
+            }
+        }
+        return "unknown";
+    }
+
+    /**
+     * Extract full image name from deployment.
+     */
+    public String extractImageFromDeployment(Deployment deployment) {
+        if (deployment.getSpec().getTemplate().getSpec().getContainers() != null &&
+            !deployment.getSpec().getTemplate().getSpec().getContainers().isEmpty()) {
+            return deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getImage();
+        }
+        return "unknown";
+    }
+
+    /**
+     * Calculate deployment uptime in minutes.
+     */
+    public Long calculateDeploymentUptimeMinutes(Deployment deployment) {
+        try {
+            if (deployment.getMetadata().getCreationTimestamp() != null) {
+                java.time.Instant created = java.time.Instant.parse(deployment.getMetadata().getCreationTimestamp());
+                return java.time.temporal.ChronoUnit.MINUTES.between(created, java.time.Instant.now());
+            }
+        } catch (Exception e) {
+            LOG.debugf("Could not calculate uptime for deployment %s: %s",
+                      deployment.getMetadata().getName(), e.getMessage());
+        }
+        return null;
+    }
+
+    /**
      * Simple record to hold Kafka cluster information.
      */
     public record KafkaClusterInfo(

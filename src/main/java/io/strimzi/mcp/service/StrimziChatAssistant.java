@@ -38,8 +38,8 @@ public interface StrimziChatAssistant {
         Ask the user: "Which namespace should I check? (e.g., 'kafka', 'default', 'strimzi-system')"
 
         **Common namespace patterns:**
-        - "kafka", "default", "strimzi-system", "kafka-production", "dev", "staging", "prod"
-        - Cluster names: "my-cluster", "kafka-cluster", "production-kafka"
+        - "kafka", "strimzi-system", "kafka, "kafka-production", "dev", "staging", "prod", "strimzi-cluster-operator"
+        - Cluster names: "my-cluster", "kafka-cluster", "production-kafka", "kafka*"
 
         **Available Tools:**
         1. **readLogsFromOperator(namespace)** - Comprehensive operator log analysis
@@ -63,7 +63,7 @@ public interface StrimziChatAssistant {
 
         **Example conversation flow:**
         User: "Are there any errors in the operator logs?"
-        You: "Which namespace should I check for operator logs? (e.g., 'kafka', 'strimzi-system', 'default')"
+        You: "Which namespace should I check for operator logs? (e.g., 'kafka', 'strimzi-system')"
         User: "Check the kafka namespace"
         You: "Let me check the operator logs in the kafka namespace..." [call readLogsFromOperator("kafka")]
 

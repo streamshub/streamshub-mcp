@@ -9,8 +9,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -79,7 +77,7 @@ public class StrimziOperatorService {
 
         try {
             // Find Strimzi operator pods
-            List<Pod> operatorPods = findOperatorPods(normalizedNamespace);
+            List<Pod> operatorPods = discoveryService.findOperatorPods(normalizedNamespace);
 
             if (operatorPods.isEmpty()) {
                 return OperatorLogsResult.notFound(normalizedNamespace);
@@ -193,7 +191,7 @@ public class StrimziOperatorService {
         LOG.infof("StrimziOperatorService: getOperatorStatus (namespace=%s)", normalizedNamespace);
 
         try {
-            List<Deployment> operatorDeployments = findOperatorDeployments(normalizedNamespace);
+            List<Deployment> operatorDeployments = discoveryService.findOperatorDeployments(normalizedNamespace);
 
             if (operatorDeployments.isEmpty()) {
                 return OperatorStatusResult.notFound(normalizedNamespace);
@@ -206,9 +204,9 @@ public class StrimziOperatorService {
                 deployment.getStatus().getReadyReplicas() : 0;
             boolean ready = readyReplicas > 0 && replicas == readyReplicas;
 
-            String version = extractVersionFromImage(deployment);
-            String image = extractImageName(deployment);
-            Long uptimeMinutes = calculateUptimeMinutes(deployment);
+            String version = discoveryService.extractVersionFromDeployment(deployment);
+            String image = discoveryService.extractImageFromDeployment(deployment);
+            Long uptimeMinutes = discoveryService.calculateDeploymentUptimeMinutes(deployment);
 
             return OperatorStatusResult.of(normalizedNamespace, deploymentName, ready,
                                          replicas, readyReplicas, version, image, uptimeMinutes);
@@ -221,42 +219,6 @@ public class StrimziOperatorService {
 
     // Private helper methods
 
-    private List<Pod> findOperatorPods(String namespace) {
-        List<Pod> operatorPods = kubernetesClient.pods()
-            .inNamespace(namespace)
-            .withLabel("name", "strimzi-cluster-operator")
-            .list()
-            .getItems();
-
-        if (operatorPods.isEmpty()) {
-            // Try alternative selectors
-            operatorPods = kubernetesClient.pods()
-                .inNamespace(namespace)
-                .list()
-                .getItems()
-                .stream()
-                .filter(pod -> {
-                    String name = pod.getMetadata().getName();
-                    return name.contains("strimzi") && name.contains("operator");
-                })
-                .toList();
-        }
-
-        return operatorPods;
-    }
-
-    private List<Deployment> findOperatorDeployments(String namespace) {
-        return kubernetesClient.apps().deployments()
-            .inNamespace(namespace)
-            .list()
-            .getItems()
-            .stream()
-            .filter(deployment -> {
-                String name = deployment.getMetadata().getName();
-                return name.contains("strimzi") && name.contains("operator");
-            })
-            .toList();
-    }
 
     private boolean containsError(String line) {
         String lowerLine = line.toLowerCase();
@@ -266,35 +228,4 @@ public class StrimziOperatorService {
                lowerLine.contains("warn");
     }
 
-    private String extractVersionFromImage(Deployment deployment) {
-        if (deployment.getSpec().getTemplate().getSpec().getContainers() != null &&
-            !deployment.getSpec().getTemplate().getSpec().getContainers().isEmpty()) {
-            String image = deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getImage();
-            if (image.contains(":")) {
-                return image.substring(image.lastIndexOf(":") + 1);
-            }
-        }
-        return "unknown";
-    }
-
-    private String extractImageName(Deployment deployment) {
-        if (deployment.getSpec().getTemplate().getSpec().getContainers() != null &&
-            !deployment.getSpec().getTemplate().getSpec().getContainers().isEmpty()) {
-            return deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getImage();
-        }
-        return "unknown";
-    }
-
-    private Long calculateUptimeMinutes(Deployment deployment) {
-        try {
-            if (deployment.getMetadata().getCreationTimestamp() != null) {
-                Instant created = Instant.parse(deployment.getMetadata().getCreationTimestamp());
-                return ChronoUnit.MINUTES.between(created, Instant.now());
-            }
-        } catch (Exception e) {
-            LOG.debugf("Could not calculate uptime for deployment %s: %s",
-                      deployment.getMetadata().getName(), e.getMessage());
-        }
-        return null;
-    }
 }
