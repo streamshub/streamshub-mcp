@@ -1,7 +1,7 @@
 package io.strimzi.mcp.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.strimzi.mcp.service.StrimziDiscoveryService.KafkaClusterInfo;
+import io.strimzi.mcp.service.infra.StrimziDiscoveryService.KafkaClusterInfo;
 
 import java.time.Instant;
 import java.util.List;

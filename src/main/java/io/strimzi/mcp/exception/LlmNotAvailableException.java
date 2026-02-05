@@ -1,4 +1,4 @@
-package io.strimzi.mcp.service;
+package io.strimzi.mcp.exception;
 
 /**
  * Exception thrown when LLM functionality is requested but not available.

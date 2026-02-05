@@ -1,4 +1,4 @@
-package io.strimzi.mcp.service;
+package io.strimzi.mcp.service.infra;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.Deployment;

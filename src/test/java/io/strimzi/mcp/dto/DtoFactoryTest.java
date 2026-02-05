@@ -1,6 +1,6 @@
 package io.strimzi.mcp.dto;
 
-import io.strimzi.mcp.service.StrimziDiscoveryService.KafkaClusterInfo;
+import io.strimzi.mcp.service.infra.StrimziDiscoveryService.KafkaClusterInfo;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;

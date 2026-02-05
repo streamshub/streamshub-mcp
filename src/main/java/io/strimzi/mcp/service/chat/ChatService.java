@@ -1,8 +1,9 @@
-package io.strimzi.mcp.service;
+package io.strimzi.mcp.service.chat;
 
 import io.strimzi.mcp.config.LlmConfigurationDetector;
 import io.strimzi.mcp.dto.ChatRequest;
 import io.strimzi.mcp.dto.ChatResponse;
+import io.strimzi.mcp.exception.LlmNotAvailableException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;

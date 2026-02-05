@@ -1,4 +1,4 @@
-package io.strimzi.mcp.tool;
+package io.strimzi.mcp.exception;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
