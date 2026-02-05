@@ -3,6 +3,9 @@ package io.strimzi.mcp.service;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.mcp.dto.BootstrapServersResult;
+import io.strimzi.mcp.dto.BootstrapServersResult.BootstrapServerInfo;
 import io.strimzi.mcp.dto.ClusterPodsResult;
 import io.strimzi.mcp.dto.KafkaClustersResult;
 import io.strimzi.mcp.service.StrimziDiscoveryService.KafkaClusterInfo;
@@ -233,5 +236,96 @@ public class KafkaClusterService {
                 ClusterPodsResult.PodInfo::component,
                 Collectors.collectingAndThen(Collectors.counting(), Math::toIntExact)
             ));
+    }
+
+    /**
+     * Get bootstrap servers for a Kafka cluster from its Custom Resource.
+     */
+    public BootstrapServersResult getBootstrapServers(String namespace, String clusterName) {
+        String normalizedNamespace = discoveryService.normalizeNamespace(namespace);
+        String normalizedClusterName = discoveryService.normalizeClusterName(clusterName);
+
+        // Auto-discover namespace if not specified
+        if (normalizedNamespace == null) {
+            List<String> discoveredNamespaces = discoveryService.discoverStrimziNamespaces();
+            if (discoveredNamespaces.size() == 1) {
+                normalizedNamespace = discoveredNamespaces.get(0);
+                LOG.infof("Auto-discovered Strimzi in namespace: %s", normalizedNamespace);
+            } else if (!discoveredNamespaces.isEmpty()) {
+                String namespaceList = String.join(", ", discoveredNamespaces);
+                return BootstrapServersResult.error(null, normalizedClusterName,
+                    String.format("Found Strimzi in multiple namespaces: %s. " +
+                        "Please specify: 'Get bootstrap servers for %s in the %s namespace'",
+                        namespaceList, normalizedClusterName, discoveredNamespaces.get(0)));
+            } else {
+                return BootstrapServersResult.error(null, normalizedClusterName,
+                    "No Strimzi installation found. Please ensure Kafka is deployed.");
+            }
+        }
+
+        if (normalizedClusterName == null) {
+            return BootstrapServersResult.error(normalizedNamespace, null,
+                "Cluster name is required. Please specify a cluster name like 'my-cluster'");
+        }
+
+        LOG.infof("KafkaClusterService: getBootstrapServers (namespace=%s, cluster=%s)",
+                 normalizedNamespace, normalizedClusterName);
+
+        try {
+            Kafka kafka = kubernetesClient.resources(Kafka.class)
+                .inNamespace(normalizedNamespace)
+                .withName(normalizedClusterName)
+                .get();
+
+            if (kafka == null) {
+                return BootstrapServersResult.notFound(normalizedNamespace, normalizedClusterName);
+            }
+
+            List<BootstrapServerInfo> bootstrapServers = extractBootstrapServers(kafka);
+
+            if (bootstrapServers.isEmpty()) {
+                return BootstrapServersResult.empty(normalizedNamespace, normalizedClusterName);
+            }
+
+            return BootstrapServersResult.of(normalizedNamespace, normalizedClusterName, bootstrapServers);
+
+        } catch (Exception e) {
+            LOG.errorf(e, "Error retrieving bootstrap servers for cluster %s in namespace %s",
+                      normalizedClusterName, normalizedNamespace);
+            return BootstrapServersResult.error(normalizedNamespace, normalizedClusterName, e.getMessage());
+        }
+    }
+
+    private List<BootstrapServerInfo> extractBootstrapServers(Kafka kafka) {
+        List<BootstrapServerInfo> servers = new ArrayList<>();
+
+        if (kafka.getStatus() == null || kafka.getStatus().getListeners() == null) {
+            return servers;
+        }
+
+        // Extract from listeners status
+        kafka.getStatus().getListeners().forEach(listener -> {
+            String listenerName = listener.getName();
+            String listenerType = listener.getType();
+
+            if (listener.getAddresses() != null) {
+                listener.getAddresses().forEach(address -> {
+                    String host = address.getHost();
+                    Integer port = address.getPort();
+
+                    if (host != null && port != null) {
+                        servers.add(new BootstrapServerInfo(
+                            host,
+                            port,
+                            listenerName,
+                            listenerType,
+                            String.format("%s:%d", host, port)
+                        ));
+                    }
+                });
+            }
+        });
+
+        return servers;
     }
 }

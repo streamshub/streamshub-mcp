@@ -114,4 +114,23 @@ public class StrimziOperatorTools {
     public KafkaTopicsResult getKafkaTopics(String namespace, String clusterName) {
         return topicService.getKafkaTopics(namespace, clusterName);
     }
+
+    /**
+     * Get Kafka bootstrap servers (connection endpoints) from Kafka Custom Resource.
+     *
+     * Extracts all available listener addresses and ports for client connections from
+     * the Kafka Custom Resource status. Returns bootstrap server URLs for internal,
+     * external, and other configured listeners that clients can use to connect.
+     *
+     * Smart discovery: If namespace not specified, automatically searches for
+     * Strimzi installations across all namespaces.
+     *
+     * @param namespace namespace of the Kafka cluster (optional - auto-discovered if not specified)
+     * @param clusterName name of the Kafka cluster to query (required, e.g., 'my-cluster')
+     * @return structured result with bootstrap server endpoints, listeners, and connection details
+     */
+    @Tool("Get Kafka bootstrap servers for client connections. Extracts listener endpoints from Kafka Custom Resource.")
+    public BootstrapServersResult getBootstrapServers(String namespace, String clusterName) {
+        return clusterService.getBootstrapServers(namespace, clusterName);
+    }
 }

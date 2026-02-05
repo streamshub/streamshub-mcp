@@ -111,6 +111,7 @@ All tools support **smart discovery** - if you don't specify a namespace, they a
 - **`strimzi_kafka_clusters`** - Discover and list all Kafka clusters
 - **`strimzi_cluster_pods`** - Get cluster pod status and health
 - **`strimzi_kafka_topics`** - Get topic configuration and status
+- **`strimzi_bootstrap_servers`** - Get Kafka bootstrap servers for client connections
 - **`strimzi_operator_status`** - Check operator deployment health
 - **`strimzi_operator_logs`** - Get operator logs with error analysis
 
