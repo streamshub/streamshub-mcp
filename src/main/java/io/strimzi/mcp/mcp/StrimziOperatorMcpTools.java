@@ -120,4 +120,24 @@ public class StrimziOperatorMcpTools {
             return ToolError.of("Failed to retrieve Kafka topics", e);
         }
     }
+
+    @Tool(
+        name = "strimzi_bootstrap_servers",
+        description = "Get Kafka bootstrap servers (connection endpoints) from Kafka Custom Resource. " +
+                     "Extracts all available listener addresses and ports for client connections. " +
+                     "Returns bootstrap server URLs for internal, external, and other configured listeners. " +
+                     "Smart discovery: If namespace not specified, automatically searches for Strimzi installations."
+    )
+    public Object getBootstrapServers(
+        @ToolArg(description = "Namespace of the Kafka cluster (optional - auto-discovered if not specified)")
+        String namespace,
+        @ToolArg(description = "Name of the Kafka cluster to query (required, e.g., 'my-cluster')")
+        String clusterName
+    ) {
+        try {
+            return clusterService.getBootstrapServers(namespace, clusterName);
+        } catch (Exception e) {
+            return ToolError.of("Failed to get bootstrap servers", e);
+        }
+    }
 }
