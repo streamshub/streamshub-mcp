@@ -1,4 +1,4 @@
-package io.strimzi.mcp.service;
+package io.strimzi.mcp.service.infra;
 
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -8,7 +8,7 @@ import io.strimzi.mcp.dto.BootstrapServersResult;
 import io.strimzi.mcp.dto.BootstrapServersResult.BootstrapServerInfo;
 import io.strimzi.mcp.dto.ClusterPodsResult;
 import io.strimzi.mcp.dto.KafkaClustersResult;
-import io.strimzi.mcp.service.StrimziDiscoveryService.KafkaClusterInfo;
+import io.strimzi.mcp.service.infra.StrimziDiscoveryService.KafkaClusterInfo;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;

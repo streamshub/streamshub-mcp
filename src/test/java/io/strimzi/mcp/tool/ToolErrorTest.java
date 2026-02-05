@@ -1,5 +1,6 @@
 package io.strimzi.mcp.tool;
 
+import io.strimzi.mcp.exception.ToolError;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

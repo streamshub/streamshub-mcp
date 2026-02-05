@@ -3,10 +3,14 @@ package io.strimzi.mcp.api;
 import io.strimzi.mcp.config.LlmConfigurationDetector;
 import io.strimzi.mcp.dto.ChatRequest;
 import io.strimzi.mcp.dto.ChatResponse;
-import io.strimzi.mcp.service.ChatService;
-import io.strimzi.mcp.service.LlmNotAvailableException;
+import io.strimzi.mcp.service.chat.ChatService;
+import io.strimzi.mcp.exception.LlmNotAvailableException;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.jboss.logging.Logger;
@@ -152,7 +156,8 @@ public class ChatResource {
                         "strimzi_cluster_pods",
                         "strimzi_kafka_topics",
                         "strimzi_operator_status",
-                        "strimzi_operator_logs"
+                        "strimzi_operator_logs",
+                        "strimzi_bootstrap_servers"
                     },
                     "timestamp", Instant.now()
                 ))
@@ -173,7 +178,8 @@ public class ChatResource {
                 "getKafkaClusterPods",
                 "getOperatorStatus",
                 "getKafkaClusters",
-                "getKafkaTopics"
+                "getKafkaTopics",
+                "getBootstrapServers"
             },
             "timestamp", Instant.now()
         )).build();

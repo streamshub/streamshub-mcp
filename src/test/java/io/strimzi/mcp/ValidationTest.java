@@ -1,8 +1,13 @@
 package io.strimzi.mcp;
 
-import io.strimzi.mcp.dto.*;
-import io.strimzi.mcp.service.StrimziDiscoveryService;
-import io.strimzi.mcp.service.StrimziDiscoveryService.KafkaClusterInfo;
+import io.strimzi.mcp.dto.ClusterPodsResult;
+import io.strimzi.mcp.dto.KafkaClustersResult;
+import io.strimzi.mcp.dto.KafkaTopicsResult;
+import io.strimzi.mcp.dto.OperatorLogsResult;
+import io.strimzi.mcp.dto.OperatorStatusResult;
+import io.strimzi.mcp.dto.TopicInfo;
+import io.strimzi.mcp.service.infra.StrimziDiscoveryService;
+import io.strimzi.mcp.service.infra.StrimziDiscoveryService.KafkaClusterInfo;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;

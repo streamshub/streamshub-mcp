@@ -1,6 +1,7 @@
 package io.strimzi.mcp.service;
 
-import io.strimzi.mcp.service.StrimziDiscoveryService.KafkaClusterInfo;
+import io.strimzi.mcp.service.infra.StrimziDiscoveryService;
+import io.strimzi.mcp.service.infra.StrimziDiscoveryService.KafkaClusterInfo;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
