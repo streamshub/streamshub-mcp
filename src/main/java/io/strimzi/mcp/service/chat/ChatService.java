@@ -1,3 +1,7 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.service.chat;
 
 import io.strimzi.mcp.config.LlmConfigurationDetector;
@@ -27,8 +31,14 @@ public class ChatService {
     @ConfigProperty(name = "app.llm.provider", defaultValue = "ollama")
     String llmProvider;
 
+    ChatService() {
+    }
+
     /**
      * Process a chat message using the configured LLM provider.
+     *
+     * @param request the chat request containing the user message
+     * @return the chat response from the LLM
      */
     public ChatResponse chat(ChatRequest request) {
         // Check if LLM is available
@@ -70,6 +80,8 @@ public class ChatService {
 
     /**
      * Get the current LLM provider.
+     *
+     * @return the LLM provider name
      */
     public String getProvider() {
         return llmProvider;
@@ -77,6 +89,8 @@ public class ChatService {
 
     /**
      * Check if the LLM provider is healthy.
+     *
+     * @return true if the LLM provider is healthy and responding
      */
     public boolean isHealthy() {
         if (!llmDetector.isLlmAvailable()) {

@@ -1,3 +1,7 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -7,6 +11,14 @@ import java.util.List;
 
 /**
  * Result object for Kafka topics operations.
+ *
+ * @param namespace the Kubernetes namespace
+ * @param clusterName the Kafka cluster name
+ * @param topics the list of topics found
+ * @param totalTopics the total number of topics
+ * @param status the status of the operation
+ * @param message a human-readable message describing the result
+ * @param timestamp the time this result was generated
  */
 public record KafkaTopicsResult(
     @JsonProperty("namespace") String namespace,
@@ -17,6 +29,14 @@ public record KafkaTopicsResult(
     @JsonProperty("message") String message,
     @JsonProperty("timestamp") Instant timestamp
 ) {
+    /**
+     * Creates a successful result with the discovered topics.
+     *
+     * @param namespace the Kubernetes namespace
+     * @param clusterName the Kafka cluster name
+     * @param topics the list of discovered topics
+     * @return a successful KafkaTopicsResult
+     */
     public static KafkaTopicsResult of(String namespace, String clusterName, List<TopicInfo> topics) {
         String message;
         if (clusterName != null) {
@@ -37,6 +57,13 @@ public record KafkaTopicsResult(
         );
     }
 
+    /**
+     * Creates an empty result when no topics are found.
+     *
+     * @param namespace the Kubernetes namespace
+     * @param clusterName the Kafka cluster name
+     * @return an empty KafkaTopicsResult
+     */
     public static KafkaTopicsResult empty(String namespace, String clusterName) {
         String message;
         if (clusterName != null) {
@@ -56,6 +83,14 @@ public record KafkaTopicsResult(
         );
     }
 
+    /**
+     * Creates an error result when topic retrieval fails.
+     *
+     * @param namespace the Kubernetes namespace
+     * @param clusterName the Kafka cluster name
+     * @param errorMessage the error description
+     * @return an error KafkaTopicsResult
+     */
     public static KafkaTopicsResult error(String namespace, String clusterName, String errorMessage) {
         return new KafkaTopicsResult(
             namespace,

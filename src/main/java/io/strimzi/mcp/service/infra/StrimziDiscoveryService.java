@@ -1,3 +1,7 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.service.infra;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
@@ -5,12 +9,17 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.mcp.dto.KafkaClusterInfo;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.AbstractMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -21,38 +30,60 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class StrimziDiscoveryService {
 
+    /**
+     * Creates a new StrimziDiscoveryService instance.
+     */
+    public StrimziDiscoveryService() {
+    }
+
     private static final Logger LOG = Logger.getLogger(StrimziDiscoveryService.class);
+
+    /**
+     * Ordered label strategies for finding operator Deployments (matched against deployment metadata.labels).
+     * Stock Strimzi YAML only has "app: strimzi" on the Deployment metadata; Helm adds app.kubernetes.io/name.
+     */
+    static final List<Map.Entry<String, String>> OPERATOR_DEPLOYMENT_LABELS = List.of(
+        new AbstractMap.SimpleImmutableEntry<>("app.kubernetes.io/name", "strimzi-cluster-operator"),
+        new AbstractMap.SimpleImmutableEntry<>("app", "strimzi")
+    );
+
+    /**
+     * Ordered label strategies for finding operator Pods (matched against pod metadata.labels).
+     * Pod template labels differ from deployment metadata labels in stock Strimzi YAML.
+     */
+    static final List<Map.Entry<String, String>> OPERATOR_POD_LABELS = List.of(
+        new AbstractMap.SimpleImmutableEntry<>("app.kubernetes.io/name", "strimzi-cluster-operator"),
+        new AbstractMap.SimpleImmutableEntry<>("name", "strimzi-cluster-operator"),
+        new AbstractMap.SimpleImmutableEntry<>("strimzi.io/kind", "cluster-operator")
+    );
+
+    /**
+     * Name-based predicate for identifying operator resources as a last-resort fallback.
+     */
+    static final Predicate<String> OPERATOR_NAME_PATTERN = name ->
+        name != null && name.contains("strimzi") && name.contains("operator");
+
+    /**
+     * Check whether a resource name matches the operator naming convention.
+     *
+     * @param name the resource name to check
+     * @return true if the name matches the operator naming convention
+     */
+    public static boolean isOperatorName(String name) {
+        return OPERATOR_NAME_PATTERN.test(name);
+    }
 
     @Inject
     KubernetesClient kubernetesClient;
 
     /**
-     * Normalize namespace to handle various input formats.
-     * Returns null if no namespace is provided, allowing tools to prompt for it.
-     */
-    public String normalizeNamespace(String namespace) {
-        if (namespace == null || namespace.isBlank()) {
-            return null; // Let the caller handle missing namespace
-        }
-        return namespace.toLowerCase().trim();
-    }
-
-    /**
      * Get default namespace from environment if needed.
      * This is only used as a fallback when no namespace can be determined from user input.
+     *
+     * @return the default namespace from environment or "strimzi-operator"
      */
     public String getDefaultNamespace() {
         return System.getenv().getOrDefault("K8S_NAMESPACE", "strimzi-operator");
-    }
-
-    /**
-     * Normalize cluster name to handle various input formats.
-     */
-    public String normalizeClusterName(String clusterName) {
-        if (clusterName == null || clusterName.isBlank()) {
-            return null;
-        }
-        return clusterName.toLowerCase().trim();
     }
 
     /**
@@ -123,41 +154,64 @@ public class StrimziDiscoveryService {
     /**
      * Discover namespaces that contain Strimzi operator.
      * Returns list of namespaces where Strimzi operator is deployed.
+     * Uses label-based searches first (fast, server-side), then name-based fallback.
+     *
+     * @return sorted list of namespaces containing the Strimzi operator
      */
     public List<String> discoverStrimziNamespaces() {
         try {
-            LOG.debug("Discovering Strimzi operator across all namespaces...");
+            LOG.debug("Discovering Strimzi Operator across all namespaces...");
+            Set<String> strimziNamespaces = new HashSet<>();
 
-            // Method 1: Look for operator deployments
-            List<Deployment> operatorDeployments = findDeploymentsByNamePattern(name ->
-                name.contains("strimzi") && name.contains("operator"));
-            Set<String> strimziNamespaces = new HashSet<>(extractNamespaces(operatorDeployments));
-
-            // Method 2: Look for operator pods if deployments not found
-            if (strimziNamespaces.isEmpty()) {
-                List<Pod> operatorPods = findPodsByLabels("name", "strimzi-cluster-operator");
-                strimziNamespaces.addAll(extractNamespaces(operatorPods));
-            }
-
-            // Method 3: Look for Kafka custom resources
-            if (strimziNamespaces.isEmpty()) {
-                List<Kafka> kafkaResources = queryResources(Kafka.class, null);
-                if (!kafkaResources.isEmpty()) {
-                    strimziNamespaces.addAll(extractNamespaces(kafkaResources));
+            // Method 1: Label-based deployment search (fast path, server-side)
+            for (Map.Entry<String, String> label : OPERATOR_DEPLOYMENT_LABELS) {
+                try {
+                    List<Deployment> deployments = kubernetesClient.apps().deployments()
+                        .inAnyNamespace()
+                        .withLabel(label.getKey(), label.getValue())
+                        .list()
+                        .getItems();
+                    strimziNamespaces.addAll(extractNamespaces(deployments));
+                } catch (Exception e) {
+                    LOG.debugf("Error searching deployments with label %s=%s: %s",
+                              label.getKey(), label.getValue(), e.getMessage());
+                }
+                if (!strimziNamespaces.isEmpty()) {
+                    break;
                 }
             }
 
-            LOG.debugf("Discovered Strimzi in namespaces: %s", strimziNamespaces);
+            // Method 2: Name-based deployment search (reliable fallback, client-side)
+            if (strimziNamespaces.isEmpty()) {
+                List<Deployment> operatorDeployments = findDeploymentsByNamePattern(OPERATOR_NAME_PATTERN);
+                strimziNamespaces.addAll(extractNamespaces(operatorDeployments));
+            }
+
+            // Method 3: Look for operator pods by labels
+            if (strimziNamespaces.isEmpty()) {
+                for (Map.Entry<String, String> label : OPERATOR_POD_LABELS) {
+                    List<Pod> operatorPods = findPodsByLabels(label.getKey(), label.getValue());
+                    strimziNamespaces.addAll(extractNamespaces(operatorPods));
+                    if (!strimziNamespaces.isEmpty()) {
+                        break;
+                    }
+                }
+            }
+
+            LOG.debugf("Discovered Strimzi Operator in namespaces: %s", strimziNamespaces);
             return strimziNamespaces.stream().sorted().collect(Collectors.toList());
 
         } catch (Exception e) {
-            LOG.warnf("Error discovering Strimzi namespaces: %s", e.getMessage());
+            LOG.warnf("Error discovering Strimzi Operator namespaces: %s", e.getMessage());
             return List.of();
         }
     }
 
     /**
      * Get Strimzi Kafka clusters across all namespaces or in specific namespace.
+     *
+     * @param namespace the namespace to search in, or null for all namespaces
+     * @return list of discovered Kafka cluster information
      */
     public List<KafkaClusterInfo> discoverKafkaClusters(String namespace) {
         try {
@@ -179,36 +233,41 @@ public class StrimziDiscoveryService {
 
     /**
      * Find Strimzi operator pods in a specific namespace.
-     * Uses standard Strimzi labels with fallback to name-based filtering.
+     * Tries each label strategy in order (server-side), then falls back to name-based matching (client-side).
+     *
+     * @param namespace the namespace to search in
+     * @return list of operator pods found
      */
     public List<Pod> findOperatorPods(String namespace) {
         try {
-            // Primary: Try standard Kubernetes label
-            List<Pod> operatorPods = kubernetesClient.pods()
+            // Try each label strategy (server-side filtering, fast)
+            for (Map.Entry<String, String> label : OPERATOR_POD_LABELS) {
+                List<Pod> operatorPods = kubernetesClient.pods()
+                    .inNamespace(namespace)
+                    .withLabel(label.getKey(), label.getValue())
+                    .list()
+                    .getItems();
+
+                if (!operatorPods.isEmpty()) {
+                    LOG.debugf("Found operator pods in namespace %s via label %s=%s",
+                              namespace, label.getKey(), label.getValue());
+                    return operatorPods;
+                }
+            }
+
+            // Fallback: name-based matching (client-side)
+            List<Pod> allPods = kubernetesClient.pods()
                 .inNamespace(namespace)
-                .withLabel("app.kubernetes.io/name", "strimzi-cluster-operator")
                 .list()
-                .getItems();
+                .getItems()
+                .stream()
+                .filter(p -> isOperatorName(p.getMetadata().getName()))
+                .collect(Collectors.toList());
 
-            if (operatorPods.isEmpty()) {
-                // Secondary: Try legacy Strimzi label
-                operatorPods = kubernetesClient.pods()
-                    .inNamespace(namespace)
-                    .withLabel("name", "strimzi-cluster-operator")
-                    .list()
-                    .getItems();
+            if (!allPods.isEmpty()) {
+                LOG.debugf("Found operator pods in namespace %s via name-based fallback", namespace);
             }
-
-            if (operatorPods.isEmpty()) {
-                // Tertiary: Try Strimzi-specific label
-                operatorPods = kubernetesClient.pods()
-                    .inNamespace(namespace)
-                    .withLabel("strimzi.io/kind", "cluster-operator")
-                    .list()
-                    .getItems();
-            }
-
-            return operatorPods;
+            return allPods;
         } catch (Exception e) {
             LOG.debugf("Error finding operator pods in namespace %s: %s", namespace, e.getMessage());
             return List.of();
@@ -217,27 +276,41 @@ public class StrimziDiscoveryService {
 
     /**
      * Find Strimzi operator deployments in a specific namespace.
-     * Uses standard Strimzi labels with fallback to name-based filtering.
+     * Tries each label strategy in order (server-side), then falls back to name-based matching (client-side).
+     *
+     * @param namespace the namespace to search in
+     * @return list of operator deployments found
      */
     public List<Deployment> findOperatorDeployments(String namespace) {
         try {
-            // Primary: Try standard Strimzi operator label
-            List<Deployment> operatorDeployments = kubernetesClient.apps().deployments()
-                .inNamespace(namespace)
-                .withLabel("app.kubernetes.io/name", "strimzi-cluster-operator")
-                .list()
-                .getItems();
-
-            if (operatorDeployments.isEmpty()) {
-                // Secondary: Try alternative Strimzi labels
-                operatorDeployments = kubernetesClient.apps().deployments()
+            // Try each label strategy (server-side filtering, fast)
+            for (Map.Entry<String, String> label : OPERATOR_DEPLOYMENT_LABELS) {
+                List<Deployment> operatorDeployments = kubernetesClient.apps().deployments()
                     .inNamespace(namespace)
-                    .withLabel("strimzi.io/kind", "cluster-operator")
+                    .withLabel(label.getKey(), label.getValue())
                     .list()
                     .getItems();
+
+                if (!operatorDeployments.isEmpty()) {
+                    LOG.debugf("Found operator deployments in namespace %s via label %s=%s",
+                              namespace, label.getKey(), label.getValue());
+                    return operatorDeployments;
+                }
             }
 
-            return operatorDeployments;
+            // Fallback: name-based matching (client-side)
+            List<Deployment> allDeployments = kubernetesClient.apps().deployments()
+                .inNamespace(namespace)
+                .list()
+                .getItems()
+                .stream()
+                .filter(d -> isOperatorName(d.getMetadata().getName()))
+                .collect(Collectors.toList());
+
+            if (!allDeployments.isEmpty()) {
+                LOG.debugf("Found operator deployments in namespace %s via name-based fallback", namespace);
+            }
+            return allDeployments;
         } catch (Exception e) {
             LOG.debugf("Error finding operator deployments in namespace %s: %s", namespace, e.getMessage());
             return List.of();
@@ -246,6 +319,9 @@ public class StrimziDiscoveryService {
 
     /**
      * Extract version from deployment container image.
+     *
+     * @param deployment the deployment to extract version from
+     * @return the version string or "unknown"
      */
     public String extractVersionFromDeployment(Deployment deployment) {
         if (deployment.getSpec().getTemplate().getSpec().getContainers() != null &&
@@ -260,6 +336,9 @@ public class StrimziDiscoveryService {
 
     /**
      * Extract full image name from deployment.
+     *
+     * @param deployment the deployment to extract image from
+     * @return the image name or "unknown"
      */
     public String extractImageFromDeployment(Deployment deployment) {
         if (deployment.getSpec().getTemplate().getSpec().getContainers() != null &&
@@ -271,30 +350,20 @@ public class StrimziDiscoveryService {
 
     /**
      * Calculate deployment uptime in minutes.
+     *
+     * @param deployment the deployment to calculate uptime for
+     * @return uptime in minutes, or null if it cannot be calculated
      */
     public Long calculateDeploymentUptimeMinutes(Deployment deployment) {
         try {
             if (deployment.getMetadata().getCreationTimestamp() != null) {
-                java.time.Instant created = java.time.Instant.parse(deployment.getMetadata().getCreationTimestamp());
-                return java.time.temporal.ChronoUnit.MINUTES.between(created, java.time.Instant.now());
+                Instant created = Instant.parse(deployment.getMetadata().getCreationTimestamp());
+                return ChronoUnit.MINUTES.between(created, Instant.now());
             }
         } catch (Exception e) {
             LOG.debugf("Could not calculate uptime for deployment %s: %s",
                       deployment.getMetadata().getName(), e.getMessage());
         }
         return null;
-    }
-
-    /**
-     * Simple record to hold Kafka cluster information.
-     */
-    public record KafkaClusterInfo(
-        String name,
-        String namespace,
-        List<?> conditions
-    ) {
-        public String getDisplayName() {
-            return String.format("%s (namespace: %s)", name, namespace);
-        }
     }
 }

@@ -1,3 +1,7 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.config;
 
 /**
@@ -105,6 +109,14 @@ public final class StrimziAssistantPrompts {
     public static final String MCP_CLUSTER_NAME_PARAM_DESC =
         "Kafka cluster name (e.g., 'my-cluster') or null for all clusters. " +
         "Extract cluster name only if user specifically mentions it";
+
+    /**
+     * Standard sections parameter description for pod-describe tools.
+     */
+    public static final String MCP_SECTIONS_PARAM_DESC =
+        "Comma-separated list of detail sections to include: " +
+        "node, labels, env, resources, volumes, conditions, full. " +
+        "Omit or leave empty for summary only (name, phase, ready, component, restarts, age).";
 
     private StrimziAssistantPrompts() {
         // Utility class - no instantiation

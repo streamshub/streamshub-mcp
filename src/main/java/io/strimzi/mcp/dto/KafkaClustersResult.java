@@ -1,13 +1,22 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.strimzi.mcp.service.infra.StrimziDiscoveryService.KafkaClusterInfo;
 
 import java.time.Instant;
 import java.util.List;
 
 /**
  * Result object for Kafka clusters discovery operations.
+ *
+ * @param clusters the list of discovered Kafka clusters
+ * @param totalClusters the total number of clusters found
+ * @param status the status of the operation
+ * @param message a human-readable message describing the result
+ * @param timestamp the time this result was generated
  */
 public record KafkaClustersResult(
     @JsonProperty("clusters") List<KafkaClusterInfo> clusters,
@@ -16,6 +25,12 @@ public record KafkaClustersResult(
     @JsonProperty("message") String message,
     @JsonProperty("timestamp") Instant timestamp
 ) {
+    /**
+     * Creates a successful result with the discovered clusters.
+     *
+     * @param clusters the list of discovered Kafka clusters
+     * @return a successful KafkaClustersResult
+     */
     public static KafkaClustersResult of(List<KafkaClusterInfo> clusters) {
         String message = clusters.size() == 1 ?
             String.format("Found 1 Kafka cluster: %s", clusters.get(0).getDisplayName()) :
@@ -30,6 +45,12 @@ public record KafkaClustersResult(
         );
     }
 
+    /**
+     * Creates an empty result when no clusters are found in the namespace.
+     *
+     * @param namespace the Kubernetes namespace that was searched
+     * @return an empty KafkaClustersResult
+     */
     public static KafkaClustersResult empty(String namespace) {
         return new KafkaClustersResult(
             List.of(),
@@ -40,6 +61,13 @@ public record KafkaClustersResult(
         );
     }
 
+    /**
+     * Creates an error result when cluster discovery fails.
+     *
+     * @param namespace the Kubernetes namespace that was searched
+     * @param errorMessage the error description
+     * @return an error KafkaClustersResult
+     */
     public static KafkaClustersResult error(String namespace, String errorMessage) {
         return new KafkaClustersResult(
             List.of(),

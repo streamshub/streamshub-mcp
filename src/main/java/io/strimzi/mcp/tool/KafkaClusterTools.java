@@ -1,12 +1,17 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.tool;
 
 import dev.langchain4j.agent.tool.Tool;
 import io.strimzi.mcp.dto.BootstrapServersResult;
-import io.strimzi.mcp.dto.ClusterPodsResult;
 import io.strimzi.mcp.dto.KafkaClustersResult;
 import io.strimzi.mcp.dto.KafkaTopicsResult;
+import io.strimzi.mcp.dto.PodsResult;
 import io.strimzi.mcp.service.infra.KafkaClusterService;
 import io.strimzi.mcp.service.infra.KafkaTopicService;
+import io.strimzi.mcp.service.infra.PodsService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -18,11 +23,17 @@ import jakarta.inject.Inject;
 @ApplicationScoped
 public class KafkaClusterTools {
 
+    KafkaClusterTools() {
+    }
+
     @Inject
     KafkaClusterService clusterService;
 
     @Inject
     KafkaTopicService topicService;
+
+    @Inject
+    PodsService podsService;
 
     /**
      * Discover and list all Kafka clusters across namespaces with their status.
@@ -53,8 +64,8 @@ public class KafkaClusterTools {
      * @param clusterName name of the specific cluster to query, or null/empty for all clusters in namespace
      * @return structured result with pod details, health status, and component analysis
      */
-    @Tool("Get comprehensive status of Kafka cluster pods with health analysis. Auto-discovers clusters if namespace not specified.")
-    public ClusterPodsResult getKafkaClusterPods(String namespace, String clusterName) {
+    @Tool("Get lightweight summaries of all Kafka cluster pods. Returns name, phase, ready, component, restarts, and age. Use describeClusterPod with sections parameter for details.")
+    public PodsResult getKafkaClusterPods(String namespace, String clusterName) {
         return clusterService.getClusterPods(namespace, clusterName);
     }
 
@@ -94,5 +105,22 @@ public class KafkaClusterTools {
     @Tool("Get Kafka bootstrap servers for client connections. Extracts listener endpoints from Kafka Custom Resource.")
     public BootstrapServersResult getBootstrapServers(String namespace, String clusterName) {
         return clusterService.getBootstrapServers(namespace, clusterName);
+    }
+
+    /**
+     * Get detailed description of a Kafka cluster pod.
+     *
+     * Returns kubectl-describe-equivalent information including environment variables,
+     * container specs, resource requests/limits, volume mounts, and node placement.
+     * Use this to drill down from cluster pod summaries into detailed pod info.
+     *
+     * @param namespace namespace where the pod is deployed (optional - auto-discovered if not specified)
+     * @param podName name of the specific pod to describe (e.g., 'my-cluster-kafka-0')
+     * @param sections comma-separated detail sections: node, labels, env, resources, volumes, conditions, full (optional - summary only if omitted)
+     * @return structured pod description with container details, env vars, volumes, and resource info
+     */
+    @Tool("Get detailed description of a Kafka cluster pod including environment variables, container specs, resource limits, and volumes. Auto-discovers namespace if not specified.")
+    public PodsResult describeClusterPod(String namespace, String podName, String sections) {
+        return podsService.describePod(namespace, podName, sections);
     }
 }

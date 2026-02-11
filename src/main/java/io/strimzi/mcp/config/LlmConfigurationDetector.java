@@ -1,3 +1,7 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.config;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -9,6 +13,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Locale;
 
 /**
  * Service to detect if LLM configuration is properly set up.
@@ -33,8 +38,13 @@ public class LlmConfigurationDetector {
 
     private Boolean llmAvailable = null;
 
+    LlmConfigurationDetector() {
+    }
+
     /**
      * Check if LLM is properly configured and available.
+     *
+     * @return true if LLM is available and configured
      */
     public boolean isLlmAvailable() {
         if (llmAvailable != null) {
@@ -54,6 +64,8 @@ public class LlmConfigurationDetector {
 
     /**
      * Get the configured LLM provider.
+     *
+     * @return the LLM provider name
      */
     public String getLlmProvider() {
         return llmProvider;
@@ -61,13 +73,15 @@ public class LlmConfigurationDetector {
 
     /**
      * Get the reason why LLM is not available (for logging).
+     *
+     * @return a human-readable reason why LLM is unavailable
      */
     public String getLlmUnavailableReason() {
         if (!llmEnabled) {
             return "LLM functionality disabled (set ENABLE_LLM=true to enable)";
         }
 
-        return switch (llmProvider.toLowerCase()) {
+        return switch (llmProvider.toLowerCase(Locale.ENGLISH)) {
             case "none" -> "LLM provider disabled (set LLM_PROVIDER=openai or LLM_PROVIDER=ollama to enable)";
             case "openai" -> openaiApiKey == null || "not-set".equals(openaiApiKey) ?
                 "OpenAI API key not configured (set OPENAI_API_KEY environment variable)" :
@@ -80,7 +94,7 @@ public class LlmConfigurationDetector {
 
     private boolean checkLlmConfiguration() {
         try {
-            return switch (llmProvider.toLowerCase()) {
+            return switch (llmProvider.toLowerCase(Locale.ENGLISH)) {
                 case "none" -> {
                     LOG.debug("LLM provider is disabled (none)");
                     yield false;

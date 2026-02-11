@@ -1,20 +1,29 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp;
 
-import io.strimzi.mcp.dto.ClusterPodsResult;
+import io.strimzi.mcp.dto.KafkaClusterInfo;
 import io.strimzi.mcp.dto.KafkaClustersResult;
 import io.strimzi.mcp.dto.KafkaTopicsResult;
 import io.strimzi.mcp.dto.OperatorLogsResult;
 import io.strimzi.mcp.dto.OperatorStatusResult;
+import io.strimzi.mcp.dto.PodsResult;
 import io.strimzi.mcp.dto.TopicInfo;
-import io.strimzi.mcp.service.infra.StrimziDiscoveryService;
-import io.strimzi.mcp.service.infra.StrimziDiscoveryService.KafkaClusterInfo;
+import io.strimzi.mcp.util.InputUtils;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests validation logic and edge cases that could occur in real usage scenarios.
@@ -22,7 +31,8 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class ValidationTest {
 
-    private final StrimziDiscoveryService discoveryService = new StrimziDiscoveryService();
+    ValidationTest() {
+    }
 
     @Test
     void namespace_validation_against_kubernetes_rules() {
@@ -39,9 +49,9 @@ class ValidationTest {
         };
 
         for (String name : validNames) {
-            String normalized = discoveryService.normalizeNamespace(name);
+            String normalized = InputUtils.normalizeNamespace(name);
             assertNotNull(normalized, "Valid name should not be null: " + name);
-            assertEquals(name.toLowerCase(), normalized);
+            assertEquals(name.toLowerCase(Locale.ENGLISH), normalized);
         }
     }
 
@@ -58,47 +68,45 @@ class ValidationTest {
         };
 
         for (String name : validNames) {
-            String normalized = discoveryService.normalizeClusterName(name);
+            String normalized = InputUtils.normalizeClusterName(name);
             assertNotNull(normalized, "Valid cluster name should not be null: " + name);
-            assertEquals(name.toLowerCase(), normalized);
+            assertEquals(name.toLowerCase(Locale.ENGLISH), normalized);
         }
     }
 
     @Test
     void input_sanitization_for_special_characters() {
-        StrimziDiscoveryService service = new StrimziDiscoveryService();
-
         // Names with underscores (valid in Kubernetes)
-        assertEquals("my_namespace", service.normalizeNamespace("MY_NAMESPACE"));
-        assertEquals("cluster_name", service.normalizeClusterName("CLUSTER_NAME"));
+        assertEquals("my_namespace", InputUtils.normalizeNamespace("MY_NAMESPACE"));
+        assertEquals("cluster_name", InputUtils.normalizeClusterName("CLUSTER_NAME"));
 
         // Names with dots (valid in Kubernetes)
-        assertEquals("team.prod.v1", service.normalizeNamespace("TEAM.PROD.V1"));
-        assertEquals("main.cluster", service.normalizeClusterName("Main.Cluster"));
+        assertEquals("team.prod.v1", InputUtils.normalizeNamespace("TEAM.PROD.V1"));
+        assertEquals("main.cluster", InputUtils.normalizeClusterName("Main.Cluster"));
 
         // Names with numbers
-        assertEquals("ns123", service.normalizeNamespace("NS123"));
-        assertEquals("kafka2", service.normalizeClusterName("KAFKA2"));
+        assertEquals("ns123", InputUtils.normalizeNamespace("NS123"));
+        assertEquals("kafka2", InputUtils.normalizeClusterName("KAFKA2"));
 
         // Mixed case with special chars
-        assertEquals("my-team.kafka_v1", service.normalizeNamespace("My-Team.Kafka_V1"));
+        assertEquals("my-team.kafka_v1", InputUtils.normalizeNamespace("My-Team.Kafka_V1"));
     }
 
     @Test
     void boundary_value_testing() {
         // Test minimum valid inputs
-        assertNotNull(discoveryService.normalizeNamespace("a"));
-        assertNotNull(discoveryService.normalizeClusterName("x"));
+        assertNotNull(InputUtils.normalizeNamespace("a"));
+        assertNotNull(InputUtils.normalizeClusterName("x"));
 
         // Test maximum length inputs (Kubernetes limit is 253 chars for some resources, 63 for others)
         String maxLength = "a".repeat(63);
-        assertEquals(maxLength, discoveryService.normalizeNamespace(maxLength.toUpperCase()));
-        assertEquals(maxLength, discoveryService.normalizeClusterName(maxLength.toUpperCase()));
+        assertEquals(maxLength, InputUtils.normalizeNamespace(maxLength.toUpperCase(Locale.ENGLISH)));
+        assertEquals(maxLength, InputUtils.normalizeClusterName(maxLength.toUpperCase(Locale.ENGLISH)));
 
         // Test very long inputs (beyond reasonable limits)
         String veryLong = "namespace".repeat(50); // 450 characters
-        String normalizedLong = discoveryService.normalizeNamespace(veryLong.toUpperCase());
-        assertEquals(veryLong.toLowerCase(), normalizedLong);
+        String normalizedLong = InputUtils.normalizeNamespace(veryLong.toUpperCase(Locale.ENGLISH));
+        assertEquals(veryLong.toLowerCase(Locale.ENGLISH), normalizedLong);
     }
 
     @Test
@@ -130,27 +138,27 @@ class ValidationTest {
     @Test
     void pod_info_validation() {
         // Valid pod scenarios
-        ClusterPodsResult.PodInfo healthyPod = new ClusterPodsResult.PodInfo(
+        PodsResult.PodInfo healthyPod = PodsResult.PodInfo.summary(
             "kafka-0", "Running", true, "kafka", 0, 3600
         );
         assertTrue(healthyPod.ready());
         assertEquals(0, healthyPod.restarts());
 
         // Pod with many restarts (troubleshooting scenario)
-        ClusterPodsResult.PodInfo troublePod = new ClusterPodsResult.PodInfo(
+        PodsResult.PodInfo troublePod = PodsResult.PodInfo.summary(
             "kafka-1", "CrashLoopBackOff", false, "kafka", 25, 120
         );
         assertFalse(troublePod.ready());
         assertEquals(25, troublePod.restarts());
 
         // Very old pod
-        ClusterPodsResult.PodInfo ancientPod = new ClusterPodsResult.PodInfo(
+        PodsResult.PodInfo ancientPod = PodsResult.PodInfo.summary(
             "kafka-legacy", "Running", true, "kafka", 2, 525600 // 1 year in minutes
         );
         assertEquals(525600, ancientPod.ageMinutes());
 
         // Edge case: negative age or restarts (shouldn't happen but handle gracefully)
-        ClusterPodsResult.PodInfo edgePod = new ClusterPodsResult.PodInfo(
+        PodsResult.PodInfo edgePod = PodsResult.PodInfo.summary(
             "edge-case", "Unknown", false, "unknown", -1, -1
         );
         assertEquals(-1, edgePod.restarts());
@@ -163,7 +171,7 @@ class ValidationTest {
 
         // Create multiple DTOs and verify all timestamps are reasonable
         OperatorLogsResult logs = OperatorLogsResult.notFound("test");
-        ClusterPodsResult pods = ClusterPodsResult.empty("test", "test");
+        PodsResult pods = PodsResult.empty("test", "test");
         OperatorStatusResult status = OperatorStatusResult.notFound("test");
         KafkaTopicsResult topics = KafkaTopicsResult.empty("test", "test");
         KafkaClustersResult clusters = KafkaClustersResult.empty("test");
@@ -193,7 +201,7 @@ class ValidationTest {
         assertEquals(0, emptyTopics.totalTopics());
         assertTrue(emptyTopics.topics().isEmpty());
 
-        ClusterPodsResult emptyPods = ClusterPodsResult.of("ns", "cluster", List.of(), Map.of());
+        PodsResult emptyPods = PodsResult.of("ns", "cluster", List.of());
         assertEquals(0, emptyPods.totalPods());
         assertTrue(emptyPods.pods().isEmpty());
 
@@ -245,26 +253,20 @@ class ValidationTest {
 
     @Test
     void component_breakdown_validation() {
-        List<ClusterPodsResult.PodInfo> mixedPods = List.of(
-            new ClusterPodsResult.PodInfo("kafka-0", "Running", true, "kafka", 0, 60),
-            new ClusterPodsResult.PodInfo("kafka-1", "Running", true, "kafka", 0, 58),
-            new ClusterPodsResult.PodInfo("zk-0", "Running", true, "zookeeper", 1, 65),
-            new ClusterPodsResult.PodInfo("zk-1", "Running", false, "zookeeper", 3, 62),
-            new ClusterPodsResult.PodInfo("operator-1", "Running", true, "operator", 0, 120),
-            new ClusterPodsResult.PodInfo("unknown-pod", "Pending", false, "unknown", 0, 5)
+        List<PodsResult.PodInfo> mixedPods = List.of(
+            PodsResult.PodInfo.summary("kafka-0", "Running", true, "kafka", 0, 60),
+            PodsResult.PodInfo.summary("kafka-1", "Running", true, "kafka", 0, 58),
+            PodsResult.PodInfo.summary("zk-0", "Running", true, "zookeeper", 1, 65),
+            PodsResult.PodInfo.summary("zk-1", "Running", false, "zookeeper", 3, 62),
+            PodsResult.PodInfo.summary("operator-1", "Running", true, "operator", 0, 120),
+            PodsResult.PodInfo.summary("unknown-pod", "Pending", false, "unknown", 0, 5)
         );
 
-        Map<String, Integer> breakdown = Map.of(
-            "kafka", 2,
-            "zookeeper", 2,
-            "operator", 1,
-            "unknown", 1
-        );
-
-        ClusterPodsResult result = ClusterPodsResult.of("kafka", "test", mixedPods, breakdown);
+        PodsResult result = PodsResult.of("kafka", "test", mixedPods);
 
         // Validate counts match
         assertEquals(6, result.totalPods());
+        Map<String, Integer> breakdown = result.componentBreakdown();
         assertEquals(2, breakdown.get("kafka"));
         assertEquals(2, breakdown.get("zookeeper"));
         assertEquals(1, breakdown.get("operator"));
@@ -310,7 +312,7 @@ class ValidationTest {
         assertTrue(multipleFound.message().contains("kafka, strimzi-system, production"));
 
         // Permission denied scenario
-        ClusterPodsResult accessDenied = ClusterPodsResult.error("production", "my-cluster",
+        PodsResult accessDenied = PodsResult.error("production", "my-cluster",
             "pods is forbidden: User \"alice\" cannot list resource \"pods\" in API group \"\" in the namespace \"production\"");
 
         assertTrue(accessDenied.message().contains("production"));
@@ -335,20 +337,20 @@ class ValidationTest {
 
         // Unicode characters (should be preserved after lowercasing)
         String unicodeInput = "Κafka-Ñamespace"; // Greek K, Spanish Ñ
-        String normalized = discoveryService.normalizeNamespace(unicodeInput);
-        assertEquals(unicodeInput.toLowerCase(), normalized);
+        String normalized = InputUtils.normalizeNamespace(unicodeInput);
+        assertEquals(unicodeInput.toLowerCase(Locale.ENGLISH), normalized);
 
         // Mixed whitespace
-        assertEquals("kafka", discoveryService.normalizeNamespace(" \t kafka \n "));
-        assertEquals("cluster", discoveryService.normalizeClusterName(" \r cluster \t "));
+        assertEquals("kafka", InputUtils.normalizeNamespace(" \t kafka \n "));
+        assertEquals("cluster", InputUtils.normalizeClusterName(" \r cluster \t "));
 
         // Already normalized input (idempotent)
         String alreadyNormalized = "already-normalized";
-        assertEquals(alreadyNormalized, discoveryService.normalizeNamespace(alreadyNormalized));
-        assertEquals(alreadyNormalized, discoveryService.normalizeClusterName(alreadyNormalized));
+        assertEquals(alreadyNormalized, InputUtils.normalizeNamespace(alreadyNormalized));
+        assertEquals(alreadyNormalized, InputUtils.normalizeClusterName(alreadyNormalized));
 
         // Input with leading/trailing special characters
-        assertEquals("test.namespace", discoveryService.normalizeNamespace(" test.namespace "));
-        assertEquals("my-cluster_v1", discoveryService.normalizeClusterName(" my-cluster_v1 "));
+        assertEquals("test.namespace", InputUtils.normalizeNamespace(" test.namespace "));
+        assertEquals("my-cluster_v1", InputUtils.normalizeClusterName(" my-cluster_v1 "));
     }
 }

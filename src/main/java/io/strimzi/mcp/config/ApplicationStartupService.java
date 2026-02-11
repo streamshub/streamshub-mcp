@@ -1,3 +1,7 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.config;
 
 import io.quarkus.runtime.StartupEvent;
@@ -23,11 +27,19 @@ public class ApplicationStartupService {
 
     private boolean mcpOnlyMode = false;
 
+    ApplicationStartupService() {
+    }
+
     void onStart(@Observes StartupEvent ev) {
         detectRunningMode();
         displayStartupBanner();
     }
 
+    /**
+     * Check whether the application is running in MCP-only mode.
+     *
+     * @return true if running in MCP-only mode without LLM
+     */
     public boolean isMcpOnlyMode() {
         return mcpOnlyMode;
     }
