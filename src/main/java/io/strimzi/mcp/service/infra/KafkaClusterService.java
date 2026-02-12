@@ -1,23 +1,24 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.service.infra;
 
-import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.mcp.dto.BootstrapServersResult;
 import io.strimzi.mcp.dto.BootstrapServersResult.BootstrapServerInfo;
-import io.strimzi.mcp.dto.ClusterPodsResult;
+import io.strimzi.mcp.dto.KafkaClusterInfo;
 import io.strimzi.mcp.dto.KafkaClustersResult;
-import io.strimzi.mcp.service.infra.StrimziDiscoveryService.KafkaClusterInfo;
+import io.strimzi.mcp.dto.PodsResult;
+import io.strimzi.mcp.util.InputUtils;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -29,6 +30,9 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class KafkaClusterService {
 
+    KafkaClusterService() {
+    }
+
     private static final Logger LOG = Logger.getLogger(KafkaClusterService.class);
 
     @Inject
@@ -38,82 +42,84 @@ public class KafkaClusterService {
     StrimziDiscoveryService discoveryService;
 
     @Inject
-    StrimziOperatorService operatorService;
+    PodsService podsService;
 
     /**
      * Get cluster pods with structured result.
+     *
+     * @param namespace the namespace to search in, or null for auto-discovery
+     * @param clusterName the cluster name to filter by, or null for all clusters
+     * @return structured result containing pod information
      */
-    public ClusterPodsResult getClusterPods(String namespace, String clusterName) {
-        String normalizedNamespace = discoveryService.normalizeNamespace(namespace);
+    public PodsResult getClusterPods(String namespace, String clusterName) {
+        String normalizedNamespace = InputUtils.normalizeNamespace(namespace);
 
-        // If no namespace specified, try to auto-discover Strimzi operator and clusters
+        // If no namespace specified, auto-discover from Kafka CRs
         if (normalizedNamespace == null) {
-            List<String> discoveredNamespaces = discoveryService.discoverStrimziNamespaces();
+            List<KafkaClusterInfo> discoveredClusters = discoveryService.discoverKafkaClusters(null);
 
-            if (discoveredNamespaces.isEmpty()) {
-                return ClusterPodsResult.error("not-found", clusterName,
-                    "No Strimzi installation found in any namespace. Please ensure Strimzi is deployed. " +
+            if (discoveredClusters.isEmpty()) {
+                return PodsResult.error("not-found", clusterName,
+                    "No Kafka clusters found in any namespace. Please ensure Kafka is deployed. " +
                     "You can specify a namespace explicitly: 'Show me pods in the kafka namespace'");
             }
 
-            if (discoveredNamespaces.size() == 1) {
-                // Auto-use the single namespace found
-                normalizedNamespace = discoveredNamespaces.get(0);
-                LOG.infof("Auto-discovered Strimzi installation in namespace: %s", normalizedNamespace);
+            // Deduplicate namespaces
+            List<String> distinctNamespaces = discoveredClusters.stream()
+                .map(KafkaClusterInfo::namespace)
+                .distinct()
+                .toList();
+
+            if (distinctNamespaces.size() == 1) {
+                normalizedNamespace = distinctNamespaces.get(0);
+                LOG.infof("Auto-discovered Kafka cluster in namespace: %s", normalizedNamespace);
             } else {
-                // Multiple namespaces found, suggest with clusters
-                List<KafkaClusterInfo> allClusters = discoveryService.discoverKafkaClusters(null);
-                if (!allClusters.isEmpty()) {
-                    String clusterSuggestions = allClusters.stream()
-                        .limit(3)
-                        .map(KafkaClusterInfo::getDisplayName)
-                        .collect(Collectors.joining(", "));
-                    return ClusterPodsResult.error("multiple-found", clusterName,
-                        String.format("Found Kafka clusters in multiple namespaces: %s. " +
-                            "Please specify: 'Show me pods for %s'",
-                            clusterSuggestions, allClusters.get(0).getDisplayName()));
-                } else {
-                    String namespaceList = String.join(", ", discoveredNamespaces);
-                    return ClusterPodsResult.error("multiple-found", clusterName,
-                        String.format("Found Strimzi in multiple namespaces: %s. " +
-                            "Please specify: 'Show me pods in the %s namespace'",
-                            namespaceList, discoveredNamespaces.get(0)));
-                }
+                String clusterSuggestions = discoveredClusters.stream()
+                    .limit(3)
+                    .map(KafkaClusterInfo::getDisplayName)
+                    .collect(Collectors.joining(", "));
+                return PodsResult.error("multiple-found", clusterName,
+                    String.format("Found Kafka clusters in multiple namespaces: %s. " +
+                        "Please specify: 'Show me pods for %s'",
+                        clusterSuggestions, discoveredClusters.get(0).getDisplayName()));
             }
         }
 
-        String normalizedClusterName = discoveryService.normalizeClusterName(clusterName);
+        String normalizedClusterName = InputUtils.normalizeClusterName(clusterName);
 
         LOG.infof("KafkaClusterService: getClusterPods (namespace=%s, cluster=%s)",
                  normalizedNamespace, normalizedClusterName);
 
+        final String effectiveNamespace = normalizedNamespace;
+
         try {
-            List<Pod> allPods = findKafkaPods(normalizedNamespace, normalizedClusterName);
+            List<Pod> allPods = findKafkaPods(effectiveNamespace, normalizedClusterName);
 
             if (allPods.isEmpty()) {
-                return ClusterPodsResult.empty(normalizedNamespace, normalizedClusterName);
+                return PodsResult.empty(effectiveNamespace, normalizedClusterName);
             }
 
-            List<ClusterPodsResult.PodInfo> podInfos = allPods.stream()
-                .map(this::convertToPodInfo)
-                .sorted(Comparator.comparing(ClusterPodsResult.PodInfo::name))
+            List<PodsResult.PodInfo> podInfos = allPods.stream()
+                .map(pod -> podsService.extractPodSummary(effectiveNamespace, pod))
+                .sorted(Comparator.comparing(PodsResult.PodInfo::name))
                 .toList();
 
-            Map<String, Integer> componentBreakdown = calculateComponentBreakdown(podInfos);
-
-            return ClusterPodsResult.of(normalizedNamespace, normalizedClusterName, podInfos, componentBreakdown);
+            return PodsResult.of(effectiveNamespace, normalizedClusterName, podInfos);
 
         } catch (Exception e) {
-            LOG.errorf(e, "Error retrieving cluster pods from namespace: %s", normalizedNamespace);
-            return ClusterPodsResult.error(normalizedNamespace, normalizedClusterName, e.getMessage());
+            LOG.errorf(e, "Error retrieving cluster pods from namespace: %s", effectiveNamespace);
+            return PodsResult.error(effectiveNamespace, normalizedClusterName, e.getMessage());
         }
     }
 
     /**
      * Get Kafka clusters in namespace or auto-discover across namespaces.
+     *
+     * @param namespace the namespace to search in, or null for auto-discovery
+     * @return structured result containing cluster information
      */
     public KafkaClustersResult getKafkaClusters(String namespace) {
-        String normalizedNamespace = discoveryService.normalizeNamespace(namespace);
+        String normalizedNamespace = InputUtils.normalizeNamespace(namespace);
 
         LOG.infof("KafkaClusterService: getKafkaClusters (namespace=%s)", normalizedNamespace);
 
@@ -165,101 +171,65 @@ public class KafkaClusterService {
         }
     }
 
-
     private boolean isKafkaRelatedPod(Pod pod) {
         Map<String, String> labels = pod.getMetadata().getLabels();
         String name = pod.getMetadata().getName();
-        return (labels != null && (
-            labels.containsKey("strimzi.io/cluster") ||
-            labels.containsKey("strimzi.io/kind") ||
-            labels.containsKey("app.kubernetes.io/name") && labels.get("app.kubernetes.io/name").contains("strimzi")
-        )) || name.contains("kafka") || name.contains("zookeeper") || name.contains("strimzi");
+
+        if (hasStrimziLabels(labels)) {
+            return true;
+        }
+
+        return name.contains("kafka") || name.contains("zookeeper") || name.contains("strimzi");
     }
 
-    private ClusterPodsResult.PodInfo convertToPodInfo(Pod pod) {
-        String name = pod.getMetadata().getName();
-        String phase = pod.getStatus().getPhase();
-        Map<String, String> labels = pod.getMetadata().getLabels() != null ?
-            pod.getMetadata().getLabels() : new HashMap<>();
-
-        // Check if pod is ready
-        boolean ready = false;
-        if (pod.getStatus().getConditions() != null) {
-            ready = pod.getStatus().getConditions().stream()
-                .anyMatch(condition ->
-                    "Ready".equals(condition.getType()) && "True".equals(condition.getStatus()));
+    private boolean hasStrimziLabels(Map<String, String> labels) {
+        if (labels == null) {
+            return false;
         }
-
-        // Determine component type
-        String component = determineComponent(name, labels);
-
-        // Count restarts
-        int restarts = 0;
-        if (pod.getStatus().getContainerStatuses() != null) {
-            restarts = pod.getStatus().getContainerStatuses().stream()
-                .mapToInt(ContainerStatus::getRestartCount)
-                .sum();
+        if (labels.containsKey("strimzi.io/cluster") || labels.containsKey("strimzi.io/kind")) {
+            return true;
         }
-
-        // Calculate age
-        long ageMinutes = 0;
-        if (pod.getMetadata().getCreationTimestamp() != null) {
-            Instant created = Instant.parse(pod.getMetadata().getCreationTimestamp());
-            ageMinutes = ChronoUnit.MINUTES.between(created, Instant.now());
-        }
-
-        return new ClusterPodsResult.PodInfo(name, phase, ready, component, restarts, ageMinutes);
-    }
-
-    private String determineComponent(String name, Map<String, String> labels) {
-        if (labels.containsKey("strimzi.io/kind")) {
-            return labels.get("strimzi.io/kind").toLowerCase();
-        }
-        if (name.contains("kafka-operator") || name.contains("strimzi-cluster-operator")) {
-            return "operator";
-        }
-        if (name.contains("entity-operator")) {
-            return "entity-operator";
-        }
-        if (name.contains("kafka") && !name.contains("zookeeper")) {
-            return "kafka";
-        }
-        if (name.contains("zookeeper")) {
-            return "zookeeper";
-        }
-        return "unknown";
-    }
-
-    private Map<String, Integer> calculateComponentBreakdown(List<ClusterPodsResult.PodInfo> pods) {
-        return pods.stream()
-            .collect(Collectors.groupingBy(
-                ClusterPodsResult.PodInfo::component,
-                Collectors.collectingAndThen(Collectors.counting(), Math::toIntExact)
-            ));
+        return labels.containsKey("app.kubernetes.io/name")
+            && labels.get("app.kubernetes.io/name").contains("strimzi");
     }
 
     /**
      * Get bootstrap servers for a Kafka cluster from its Custom Resource.
+     *
+     * @param namespace the namespace to search in, or null for auto-discovery
+     * @param clusterName the cluster name to query
+     * @return structured result containing bootstrap server information
      */
     public BootstrapServersResult getBootstrapServers(String namespace, String clusterName) {
-        String normalizedNamespace = discoveryService.normalizeNamespace(namespace);
-        String normalizedClusterName = discoveryService.normalizeClusterName(clusterName);
+        String normalizedNamespace = InputUtils.normalizeNamespace(namespace);
+        String normalizedClusterName = InputUtils.normalizeClusterName(clusterName);
 
-        // Auto-discover namespace if not specified
+        // Auto-discover namespace from Kafka CRs if not specified
         if (normalizedNamespace == null) {
-            List<String> discoveredNamespaces = discoveryService.discoverStrimziNamespaces();
-            if (discoveredNamespaces.size() == 1) {
-                normalizedNamespace = discoveredNamespaces.get(0);
-                LOG.infof("Auto-discovered Strimzi in namespace: %s", normalizedNamespace);
-            } else if (!discoveredNamespaces.isEmpty()) {
-                String namespaceList = String.join(", ", discoveredNamespaces);
+            List<KafkaClusterInfo> discoveredClusters = discoveryService.discoverKafkaClusters(null);
+
+            if (discoveredClusters.isEmpty()) {
                 return BootstrapServersResult.error(null, normalizedClusterName,
-                    String.format("Found Strimzi in multiple namespaces: %s. " +
-                        "Please specify: 'Get bootstrap servers for %s in the %s namespace'",
-                        namespaceList, normalizedClusterName, discoveredNamespaces.get(0)));
+                    "No Kafka clusters found. Please ensure Kafka is deployed.");
+            }
+
+            List<String> distinctNamespaces = discoveredClusters.stream()
+                .map(KafkaClusterInfo::namespace)
+                .distinct()
+                .toList();
+
+            if (distinctNamespaces.size() == 1) {
+                normalizedNamespace = distinctNamespaces.get(0);
+                LOG.infof("Auto-discovered Kafka cluster in namespace: %s", normalizedNamespace);
             } else {
+                String clusterSuggestions = discoveredClusters.stream()
+                    .limit(3)
+                    .map(KafkaClusterInfo::getDisplayName)
+                    .collect(Collectors.joining(", "));
                 return BootstrapServersResult.error(null, normalizedClusterName,
-                    "No Strimzi installation found. Please ensure Kafka is deployed.");
+                    String.format("Found Kafka clusters in multiple namespaces: %s. " +
+                        "Please specify: 'Get bootstrap servers for %s in the %s namespace'",
+                        clusterSuggestions, normalizedClusterName, distinctNamespaces.get(0)));
             }
         }
 

@@ -1,15 +1,25 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.dto;
 
-import io.strimzi.mcp.service.infra.StrimziDiscoveryService.KafkaClusterInfo;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DtoFactoryTest {
+
+    DtoFactoryTest() {
+    }
 
     @Test
     void operatorLogsResult_successful_creation() {
@@ -69,33 +79,30 @@ class DtoFactoryTest {
     }
 
     @Test
-    void clusterPodsResult_healthy_cluster() {
-        List<ClusterPodsResult.PodInfo> pods = List.of(
-            new ClusterPodsResult.PodInfo("kafka-0", "Running", true, "kafka", 0, 120),
-            new ClusterPodsResult.PodInfo("kafka-1", "Running", true, "kafka", 2, 118),
-            new ClusterPodsResult.PodInfo("zk-0", "Running", true, "zookeeper", 0, 125),
-            new ClusterPodsResult.PodInfo("operator-1", "Running", true, "operator", 1, 200)
+    void podsResult_healthy_cluster() {
+        List<PodsResult.PodInfo> pods = List.of(
+            PodsResult.PodInfo.summary("kafka-0", "Running", true, "kafka", 0, 120),
+            PodsResult.PodInfo.summary("kafka-1", "Running", true, "kafka", 2, 118),
+            PodsResult.PodInfo.summary("zk-0", "Running", true, "zookeeper", 0, 125),
+            PodsResult.PodInfo.summary("operator-1", "Running", true, "operator", 1, 200)
         );
 
-        Map<String, Integer> breakdown = Map.of(
-            "kafka", 2,
-            "zookeeper", 1,
-            "operator", 1
-        );
-
-        ClusterPodsResult result = ClusterPodsResult.of("kafka", "my-cluster", pods, breakdown);
+        PodsResult result = PodsResult.of("kafka", "my-cluster", pods);
 
         assertEquals("kafka", result.namespace());
         assertEquals("my-cluster", result.clusterName());
         assertEquals(4, result.totalPods());
         assertEquals(pods, result.pods());
-        assertEquals(breakdown, result.componentBreakdown());
+        assertNotNull(result.componentBreakdown());
+        assertEquals(2, result.componentBreakdown().get("kafka"));
+        assertEquals(1, result.componentBreakdown().get("zookeeper"));
+        assertEquals(1, result.componentBreakdown().get("operator"));
         assertNotNull(result.timestamp());
     }
 
     @Test
-    void clusterPodsResult_pod_info_validation() {
-        ClusterPodsResult.PodInfo healthyPod = new ClusterPodsResult.PodInfo(
+    void podsResult_pod_info_validation() {
+        PodsResult.PodInfo healthyPod = PodsResult.PodInfo.summary(
             "kafka-0", "Running", true, "kafka", 0, 60
         );
 
@@ -107,7 +114,7 @@ class DtoFactoryTest {
         assertEquals(60, healthyPod.ageMinutes());
 
         // Test unhealthy pod
-        ClusterPodsResult.PodInfo failingPod = new ClusterPodsResult.PodInfo(
+        PodsResult.PodInfo failingPod = PodsResult.PodInfo.summary(
             "kafka-1", "CrashLoopBackOff", false, "kafka", 15, 30
         );
 
@@ -117,8 +124,33 @@ class DtoFactoryTest {
     }
 
     @Test
-    void clusterPodsResult_empty_cluster() {
-        ClusterPodsResult result = ClusterPodsResult.empty("kafka", "my-cluster");
+    void podInfo_summary_nulls_all_detail_fields() {
+        PodsResult.PodInfo pod = PodsResult.PodInfo.summary("kafka-0", "Running", true, "kafka", 0, 120);
+
+        // Summary fields set
+        assertEquals("kafka-0", pod.name());
+        assertEquals("Running", pod.phase());
+        assertTrue(pod.ready());
+        assertEquals("kafka", pod.component());
+        assertEquals(0, pod.restarts());
+        assertEquals(120, pod.ageMinutes());
+
+        // All detail fields null
+        assertNull(pod.nodeName());
+        assertNull(pod.hostIP());
+        assertNull(pod.podIP());
+        assertNull(pod.serviceAccount());
+        assertNull(pod.labels());
+        assertNull(pod.annotations());
+        assertNull(pod.containers());
+        assertNull(pod.volumes());
+        assertNull(pod.conditions());
+        assertNull(pod.startTime());
+    }
+
+    @Test
+    void podsResult_empty_cluster() {
+        PodsResult result = PodsResult.empty("kafka", "my-cluster");
 
         assertEquals("kafka", result.namespace());
         assertEquals("my-cluster", result.clusterName());
@@ -287,7 +319,7 @@ class DtoFactoryTest {
 
         // Create various results
         OperatorLogsResult logs = OperatorLogsResult.notFound("test");
-        ClusterPodsResult pods = ClusterPodsResult.empty("test", "test");
+        PodsResult pods = PodsResult.empty("test", "test");
         OperatorStatusResult status = OperatorStatusResult.notFound("test");
         KafkaTopicsResult topics = KafkaTopicsResult.empty("test", "test");
         KafkaClustersResult clusters = KafkaClustersResult.empty("test");
@@ -307,10 +339,10 @@ class DtoFactoryTest {
         // Empty collections should work
         assertDoesNotThrow(() -> KafkaTopicsResult.of("ns", "cluster", List.of()));
         assertDoesNotThrow(() -> KafkaClustersResult.of(List.of()));
-        assertDoesNotThrow(() -> ClusterPodsResult.of("ns", "cluster", List.of(), Map.of()));
+        assertDoesNotThrow(() -> PodsResult.of("ns", "cluster", List.of()));
 
         // Large numbers should be handled
-        ClusterPodsResult.PodInfo veryOldPod = new ClusterPodsResult.PodInfo(
+        PodsResult.PodInfo veryOldPod = PodsResult.PodInfo.summary(
             "ancient-pod", "Running", true, "kafka",
             Integer.MAX_VALUE, Long.MAX_VALUE / 60 // Max minutes that fit in long
         );
@@ -361,7 +393,7 @@ class DtoFactoryTest {
         assertTrue(apiError.message().contains("Error retrieving operator logs"));
 
         // Context preservation in messages
-        ClusterPodsResult emptyCluster = ClusterPodsResult.empty("staging", "main-cluster");
+        PodsResult emptyCluster = PodsResult.empty("staging", "main-cluster");
         assertTrue(emptyCluster.message().contains("staging"));
         assertTrue(emptyCluster.message().contains("main-cluster"));
     }

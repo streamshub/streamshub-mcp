@@ -1,9 +1,14 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.service.infra;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import io.strimzi.mcp.dto.KafkaTopicsResult;
 import io.strimzi.mcp.dto.TopicInfo;
+import io.strimzi.mcp.util.InputUtils;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -18,6 +23,9 @@ import java.util.List;
 @ApplicationScoped
 public class KafkaTopicService {
 
+    KafkaTopicService() {
+    }
+
     private static final Logger LOG = Logger.getLogger(KafkaTopicService.class);
 
     @Inject
@@ -28,10 +36,14 @@ public class KafkaTopicService {
 
     /**
      * Get Kafka topics for a specific cluster and namespace.
+     *
+     * @param namespace the namespace to search in, or null for auto-discovery
+     * @param clusterName the cluster name to filter topics by, or null for all clusters
+     * @return structured result containing topic information
      */
     public KafkaTopicsResult getKafkaTopics(String namespace, String clusterName) {
-        String normalizedNamespace = discoveryService.normalizeNamespace(namespace);
-        String normalizedClusterName = discoveryService.normalizeClusterName(clusterName);
+        String normalizedNamespace = InputUtils.normalizeNamespace(namespace);
+        String normalizedClusterName = InputUtils.normalizeClusterName(clusterName);
 
         // Auto-discover namespace if not specified
         if (normalizedNamespace == null) {
@@ -91,6 +103,9 @@ public class KafkaTopicService {
 
     /**
      * Get topics for all clusters in a namespace.
+     *
+     * @param namespace the namespace to search in
+     * @return structured result containing topic information for all clusters
      */
     public KafkaTopicsResult getAllTopicsInNamespace(String namespace) {
         return getKafkaTopics(namespace, null);
@@ -98,9 +113,14 @@ public class KafkaTopicService {
 
     /**
      * Get topic configuration details for a specific topic.
+     *
+     * @param namespace the namespace to search in, or null for auto-discovery
+     * @param clusterName the cluster name (unused in current implementation)
+     * @param topicName the name of the topic to retrieve details for
+     * @return topic details or null if not found
      */
     public TopicInfo getTopicDetails(String namespace, String clusterName, String topicName) {
-        String normalizedNamespace = discoveryService.normalizeNamespace(namespace);
+        String normalizedNamespace = InputUtils.normalizeNamespace(namespace);
 
         if (normalizedNamespace == null) {
             List<String> discoveredNamespaces = discoveryService.discoverStrimziNamespaces();

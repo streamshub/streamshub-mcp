@@ -1,3 +1,7 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.service.infra;
 
 import io.fabric8.kubernetes.api.model.Pod;
@@ -5,6 +9,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.strimzi.mcp.dto.OperatorLogsResult;
 import io.strimzi.mcp.dto.OperatorStatusResult;
+import io.strimzi.mcp.util.InputUtils;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -12,6 +17,7 @@ import org.jboss.logging.Logger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Service for Strimzi Kafka operator operations.
@@ -19,6 +25,9 @@ import java.util.List;
  */
 @ApplicationScoped
 public class StrimziOperatorService {
+
+    StrimziOperatorService() {
+    }
 
     private static final Logger LOG = Logger.getLogger(StrimziOperatorService.class);
 
@@ -35,6 +44,9 @@ public class StrimziOperatorService {
     /**
      * Get operator logs with structured result.
      * If namespace is null, automatically discovers Strimzi operator across all namespaces.
+     *
+     * @param namespace the namespace to search in, or null for auto-discovery
+     * @return structured result containing operator logs
      */
     public OperatorLogsResult getOperatorLogs(String namespace) {
         return getOperatorLogs(namespace, DEFAULT_LOG_LINES);
@@ -42,9 +54,13 @@ public class StrimziOperatorService {
 
     /**
      * Get operator logs with custom line limit.
+     *
+     * @param namespace the namespace to search in, or null for auto-discovery
+     * @param maxLines the maximum number of log lines to retrieve
+     * @return structured result containing operator logs
      */
     public OperatorLogsResult getOperatorLogs(String namespace, int maxLines) {
-        String normalizedNamespace = discoveryService.normalizeNamespace(namespace);
+        String normalizedNamespace = InputUtils.normalizeNamespace(namespace);
 
         // If no namespace specified, try to auto-discover Strimzi operator
         if (normalizedNamespace == null) {
@@ -160,9 +176,12 @@ public class StrimziOperatorService {
 
     /**
      * Get operator status with structured result.
+     *
+     * @param namespace the namespace to search in, or null for auto-discovery
+     * @return structured result containing operator status
      */
     public OperatorStatusResult getOperatorStatus(String namespace) {
-        String normalizedNamespace = discoveryService.normalizeNamespace(namespace);
+        String normalizedNamespace = InputUtils.normalizeNamespace(namespace);
 
         // If no namespace specified, try to auto-discover Strimzi operator
         if (normalizedNamespace == null) {
@@ -217,11 +236,11 @@ public class StrimziOperatorService {
         }
     }
 
+
     // Private helper methods
 
-
     private boolean containsError(String line) {
-        String lowerLine = line.toLowerCase();
+        String lowerLine = line.toLowerCase(Locale.ENGLISH);
         return lowerLine.contains("error") ||
                lowerLine.contains("exception") ||
                lowerLine.contains("failed") ||

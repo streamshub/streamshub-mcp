@@ -24,6 +24,70 @@ A Quarkus application that provides Strimzi Kafka management tools via **MCP (Mo
 - **Features**: MCP + Chat API with AI assistance
 - **Requires**: LLM provider configuration (OpenAI or Ollama)
 
+## Prerequisites
+
+### Kubernetes Cluster with Strimzi
+
+The MCP server requires access to a Kubernetes cluster with Strimzi installed. 
+Example manifests are provided in `examples/strimzi/`.
+
+**Deploy using the setup script (recommended):**
+```bash
+./hack/setup-strimzi.sh
+```
+
+The script deploys the Strimzi operator and Kafka cluster sequentially, waiting for each component to become ready before proceeding.
+
+**Or deploy manually:**
+```bash
+# 1. Deploy the Strimzi operator (CRDs, RBAC, operator deployment)
+kubectl apply -k examples/strimzi/strimzi-operator/
+
+# 2. Wait for the operator to be ready
+kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n strimzi --timeout=120s
+
+# 3. Deploy the Kafka cluster
+kubectl apply -k examples/strimzi/kafka/
+
+# 4. Wait for the Kafka cluster to be ready
+kubectl wait kafka/mcp-cluster --for=condition=Ready -n strimzi-kafka --timeout=300s
+```
+
+**Tear down:**
+```bash
+./hack/setup-strimzi.sh teardown
+```
+
+### Local Ollama Setup (Optional)
+
+If you want to use the AI chat functionality with a local LLM, a helper script is provided to run Ollama via Podman:
+
+```bash
+# Start Ollama and pull the default model (llama3.2:3b)
+./hack/run-ollama.sh start
+
+# Start with a different model
+./hack/run-ollama.sh start codellama:7b
+
+# Check status
+./hack/run-ollama.sh status
+
+# List downloaded models
+./hack/run-ollama.sh models
+
+# Pull an additional model
+./hack/run-ollama.sh pull llama3.2:1b
+
+# View logs
+./hack/run-ollama.sh logs
+
+# Stop Ollama
+./hack/run-ollama.sh stop
+```
+
+The script requires [Podman](https://podman.io/getting-started/installation). 
+It creates a persistent volume (`ollama-data`) so models survive container restarts.
+
 ## Quick Start
 
 ### 1. Start the Server

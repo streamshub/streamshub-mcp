@@ -1,3 +1,7 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -7,6 +11,18 @@ import java.time.Instant;
 
 /**
  * Structured result for operator status query.
+ *
+ * @param namespace the Kubernetes namespace
+ * @param deploymentName the name of the operator deployment
+ * @param status the operator status string
+ * @param ready whether the operator is ready
+ * @param replicas the desired number of replicas
+ * @param readyReplicas the number of ready replicas
+ * @param version the operator version
+ * @param image the container image used by the operator
+ * @param uptimeHours the operator uptime in hours
+ * @param timestamp the time this result was generated
+ * @param message a human-readable message describing the result
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record OperatorStatusResult(
@@ -23,6 +39,19 @@ public record OperatorStatusResult(
     @JsonProperty("message") String message
 ) {
 
+    /**
+     * Creates a successful result with operator status information.
+     *
+     * @param namespace the Kubernetes namespace
+     * @param deploymentName the name of the operator deployment
+     * @param ready whether the operator is ready
+     * @param replicas the desired number of replicas
+     * @param readyReplicas the number of ready replicas
+     * @param version the operator version
+     * @param image the container image
+     * @param uptimeMinutes the uptime in minutes
+     * @return an OperatorStatusResult with the status data
+     */
     public static OperatorStatusResult of(String namespace, String deploymentName,
                                          boolean ready, int replicas, int readyReplicas,
                                          String version, String image, Long uptimeMinutes) {
@@ -45,6 +74,12 @@ public record OperatorStatusResult(
         );
     }
 
+    /**
+     * Creates a not-found result when no operator deployment exists.
+     *
+     * @param namespace the Kubernetes namespace
+     * @return a not-found OperatorStatusResult
+     */
     public static OperatorStatusResult notFound(String namespace) {
         return new OperatorStatusResult(
             namespace,
@@ -62,6 +97,13 @@ public record OperatorStatusResult(
         );
     }
 
+    /**
+     * Creates an error result when status check fails.
+     *
+     * @param namespace the Kubernetes namespace
+     * @param errorMessage the error description
+     * @return an error OperatorStatusResult
+     */
     public static OperatorStatusResult error(String namespace, String errorMessage) {
         return new OperatorStatusResult(
             namespace,

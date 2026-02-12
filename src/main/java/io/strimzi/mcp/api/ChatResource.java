@@ -1,10 +1,14 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.api;
 
 import io.strimzi.mcp.config.LlmConfigurationDetector;
 import io.strimzi.mcp.dto.ChatRequest;
 import io.strimzi.mcp.dto.ChatResponse;
-import io.strimzi.mcp.service.chat.ChatService;
 import io.strimzi.mcp.exception.LlmNotAvailableException;
+import io.strimzi.mcp.service.chat.ChatService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -33,6 +37,9 @@ public class ChatResource {
 
     @Inject
     LlmConfigurationDetector llmDetector;
+
+    ChatResource() {
+    }
 
     /**
      * Send a chat message to the LLM.

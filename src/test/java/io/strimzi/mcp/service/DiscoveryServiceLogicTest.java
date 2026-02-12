@@ -1,12 +1,29 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.service;
 
+import io.strimzi.mcp.dto.KafkaClusterInfo;
+import io.strimzi.mcp.service.infra.PodsService;
 import io.strimzi.mcp.service.infra.StrimziDiscoveryService;
-import io.strimzi.mcp.service.infra.StrimziDiscoveryService.KafkaClusterInfo;
+import io.strimzi.mcp.util.InputUtils;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests the business logic methods in StrimziDiscoveryService that don't require Kubernetes client.
@@ -14,75 +31,72 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class DiscoveryServiceLogicTest {
 
+    DiscoveryServiceLogicTest() {
+    }
+
     @Test
     void normalizeNamespace_handles_various_inputs() {
-        StrimziDiscoveryService service = new StrimziDiscoveryService();
-
         // Standard cases
-        assertEquals("kafka", service.normalizeNamespace("kafka"));
-        assertEquals("production", service.normalizeNamespace("production"));
+        assertEquals("kafka", InputUtils.normalizeNamespace("kafka"));
+        assertEquals("production", InputUtils.normalizeNamespace("production"));
 
         // Case normalization
-        assertEquals("kafka", service.normalizeNamespace("KAFKA"));
-        assertEquals("kafka", service.normalizeNamespace("Kafka"));
-        assertEquals("strimzi-system", service.normalizeNamespace("STRIMZI-SYSTEM"));
+        assertEquals("kafka", InputUtils.normalizeNamespace("KAFKA"));
+        assertEquals("kafka", InputUtils.normalizeNamespace("Kafka"));
+        assertEquals("strimzi-system", InputUtils.normalizeNamespace("STRIMZI-SYSTEM"));
 
         // Whitespace handling
-        assertEquals("kafka", service.normalizeNamespace(" kafka "));
-        assertEquals("kafka", service.normalizeNamespace("  kafka  "));
-        assertEquals("my-namespace", service.normalizeNamespace(" My-NAMESPACE "));
+        assertEquals("kafka", InputUtils.normalizeNamespace(" kafka "));
+        assertEquals("kafka", InputUtils.normalizeNamespace("  kafka  "));
+        assertEquals("my-namespace", InputUtils.normalizeNamespace(" My-NAMESPACE "));
 
         // Empty/null handling
-        assertNull(service.normalizeNamespace(null));
-        assertNull(service.normalizeNamespace(""));
-        assertNull(service.normalizeNamespace(" "));
-        assertNull(service.normalizeNamespace("   "));
+        assertNull(InputUtils.normalizeNamespace(null));
+        assertNull(InputUtils.normalizeNamespace(""));
+        assertNull(InputUtils.normalizeNamespace(" "));
+        assertNull(InputUtils.normalizeNamespace("   "));
 
         // Complex namespace names
-        assertEquals("kafka-prod-v1", service.normalizeNamespace("KAFKA-PROD-V1"));
-        assertEquals("team.namespace", service.normalizeNamespace("Team.Namespace"));
+        assertEquals("kafka-prod-v1", InputUtils.normalizeNamespace("KAFKA-PROD-V1"));
+        assertEquals("team.namespace", InputUtils.normalizeNamespace("Team.Namespace"));
     }
 
     @Test
     void normalizeNamespace_preserves_valid_kubernetes_names() {
-        StrimziDiscoveryService service = new StrimziDiscoveryService();
-
         // Kubernetes valid names should be preserved (after lowercasing)
-        assertEquals("abc", service.normalizeNamespace("abc"));
-        assertEquals("a-b-c", service.normalizeNamespace("a-b-c"));
-        assertEquals("namespace123", service.normalizeNamespace("namespace123"));
-        assertEquals("team.kafka", service.normalizeNamespace("team.kafka"));
+        assertEquals("abc", InputUtils.normalizeNamespace("abc"));
+        assertEquals("a-b-c", InputUtils.normalizeNamespace("a-b-c"));
+        assertEquals("namespace123", InputUtils.normalizeNamespace("namespace123"));
+        assertEquals("team.kafka", InputUtils.normalizeNamespace("team.kafka"));
 
         // With different cases
-        assertEquals("my-prod-kafka", service.normalizeNamespace("My-Prod-Kafka"));
-        assertEquals("ns.v2.prod", service.normalizeNamespace("NS.V2.PROD"));
+        assertEquals("my-prod-kafka", InputUtils.normalizeNamespace("My-Prod-Kafka"));
+        assertEquals("ns.v2.prod", InputUtils.normalizeNamespace("NS.V2.PROD"));
     }
 
     @Test
     void normalizeClusterName_handles_various_inputs() {
-        StrimziDiscoveryService service = new StrimziDiscoveryService();
-
         // Standard cases
-        assertEquals("my-cluster", service.normalizeClusterName("my-cluster"));
-        assertEquals("production", service.normalizeClusterName("production"));
+        assertEquals("my-cluster", InputUtils.normalizeClusterName("my-cluster"));
+        assertEquals("production", InputUtils.normalizeClusterName("production"));
 
         // Case normalization
-        assertEquals("my-cluster", service.normalizeClusterName("MY-CLUSTER"));
-        assertEquals("kafkacluster", service.normalizeClusterName("KafkaCluster"));
+        assertEquals("my-cluster", InputUtils.normalizeClusterName("MY-CLUSTER"));
+        assertEquals("kafkacluster", InputUtils.normalizeClusterName("KafkaCluster"));
 
         // Whitespace handling
-        assertEquals("my-cluster", service.normalizeClusterName(" my-cluster "));
-        assertEquals("cluster-name", service.normalizeClusterName("  CLUSTER-NAME  "));
+        assertEquals("my-cluster", InputUtils.normalizeClusterName(" my-cluster "));
+        assertEquals("cluster-name", InputUtils.normalizeClusterName("  CLUSTER-NAME  "));
 
         // Empty/null handling
-        assertNull(service.normalizeClusterName(null));
-        assertNull(service.normalizeClusterName(""));
-        assertNull(service.normalizeClusterName(" "));
-        assertNull(service.normalizeClusterName("   "));
+        assertNull(InputUtils.normalizeClusterName(null));
+        assertNull(InputUtils.normalizeClusterName(""));
+        assertNull(InputUtils.normalizeClusterName(" "));
+        assertNull(InputUtils.normalizeClusterName("   "));
 
         // Complex cluster names
-        assertEquals("prod-events-v2", service.normalizeClusterName("PROD-EVENTS-V2"));
-        assertEquals("team.main", service.normalizeClusterName("Team.Main"));
+        assertEquals("prod-events-v2", InputUtils.normalizeClusterName("PROD-EVENTS-V2"));
+        assertEquals("team.main", InputUtils.normalizeClusterName("Team.Main"));
     }
 
     @Test
@@ -140,20 +154,18 @@ class DiscoveryServiceLogicTest {
 
     @Test
     void normalization_consistency_and_idempotence() {
-        StrimziDiscoveryService service = new StrimziDiscoveryService();
-
         // Test idempotence - normalizing twice should give same result
         String input = "  My-CLUSTER-Name  ";
-        String normalized = service.normalizeClusterName(input);
-        String normalizedTwice = service.normalizeClusterName(normalized);
+        String normalized = InputUtils.normalizeClusterName(input);
+        String normalizedTwice = InputUtils.normalizeClusterName(normalized);
 
         assertEquals(normalized, normalizedTwice);
         assertEquals("my-cluster-name", normalized);
 
         // Test namespace idempotence
         String nsInput = "  KAFKA-PRODUCTION  ";
-        String nsNormalized = service.normalizeNamespace(nsInput);
-        String nsNormalizedTwice = service.normalizeNamespace(nsNormalized);
+        String nsNormalized = InputUtils.normalizeNamespace(nsInput);
+        String nsNormalizedTwice = InputUtils.normalizeNamespace(nsNormalized);
 
         assertEquals(nsNormalized, nsNormalizedTwice);
         assertEquals("kafka-production", nsNormalized);
@@ -161,29 +173,25 @@ class DiscoveryServiceLogicTest {
 
     @Test
     void normalization_handles_edge_cases() {
-        StrimziDiscoveryService service = new StrimziDiscoveryService();
-
         // Very long names
         String longName = "a".repeat(100);
-        assertEquals(longName.toLowerCase(), service.normalizeNamespace(longName.toUpperCase()));
+        assertEquals(longName.toLowerCase(Locale.ENGLISH), InputUtils.normalizeNamespace(longName.toUpperCase(Locale.ENGLISH)));
 
         // Names with numbers
-        assertEquals("kafka123", service.normalizeNamespace("KAFKA123"));
-        assertEquals("cluster-v2", service.normalizeClusterName("Cluster-V2"));
+        assertEquals("kafka123", InputUtils.normalizeNamespace("KAFKA123"));
+        assertEquals("cluster-v2", InputUtils.normalizeClusterName("Cluster-V2"));
 
         // Names with special characters
-        assertEquals("my-cluster.v1", service.normalizeNamespace("My-Cluster.V1"));
-        assertEquals("team_kafka", service.normalizeClusterName("TEAM_KAFKA"));
+        assertEquals("my-cluster.v1", InputUtils.normalizeNamespace("My-Cluster.V1"));
+        assertEquals("team_kafka", InputUtils.normalizeClusterName("TEAM_KAFKA"));
 
         // Single character names
-        assertEquals("a", service.normalizeNamespace("A"));
-        assertEquals("x", service.normalizeClusterName(" X "));
+        assertEquals("a", InputUtils.normalizeNamespace("A"));
+        assertEquals("x", InputUtils.normalizeClusterName(" X "));
     }
 
     @Test
     void business_logic_validation() {
-        StrimziDiscoveryService service = new StrimziDiscoveryService();
-
         // Test that normalization preserves valid Kubernetes naming
         // Kubernetes names must be lowercase alphanumeric with dashes and dots
         String[] validInputs = {
@@ -195,8 +203,8 @@ class DiscoveryServiceLogicTest {
         };
 
         for (int i = 0; i < validInputs.length; i++) {
-            assertEquals(expectedOutputs[i], service.normalizeNamespace(validInputs[i]));
-            assertEquals(expectedOutputs[i], service.normalizeClusterName(validInputs[i]));
+            assertEquals(expectedOutputs[i], InputUtils.normalizeNamespace(validInputs[i]));
+            assertEquals(expectedOutputs[i], InputUtils.normalizeClusterName(validInputs[i]));
         }
 
         // Test case conversion for uppercase inputs
@@ -209,8 +217,8 @@ class DiscoveryServiceLogicTest {
         };
 
         for (int i = 0; i < uppercaseInputs.length; i++) {
-            assertEquals(expectedLowercase[i], service.normalizeNamespace(uppercaseInputs[i]));
-            assertEquals(expectedLowercase[i], service.normalizeClusterName(uppercaseInputs[i]));
+            assertEquals(expectedLowercase[i], InputUtils.normalizeNamespace(uppercaseInputs[i]));
+            assertEquals(expectedLowercase[i], InputUtils.normalizeClusterName(uppercaseInputs[i]));
         }
     }
 
@@ -219,13 +227,13 @@ class DiscoveryServiceLogicTest {
         StrimziDiscoveryService service = new StrimziDiscoveryService();
 
         // All normalization methods should handle null safely
-        assertNull(service.normalizeNamespace(null));
-        assertNull(service.normalizeClusterName(null));
+        assertNull(InputUtils.normalizeNamespace(null));
+        assertNull(InputUtils.normalizeClusterName(null));
 
         // Should not throw exceptions
         assertDoesNotThrow(() -> {
-            service.normalizeNamespace(null);
-            service.normalizeClusterName(null);
+            InputUtils.normalizeNamespace(null);
+            InputUtils.normalizeClusterName(null);
             service.getDefaultNamespace();
         });
 
@@ -237,10 +245,84 @@ class DiscoveryServiceLogicTest {
         assertEquals("test (namespace: ns)", clusterWithNullConditions.getDisplayName());
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "strimzi-cluster-operator",
+        "strimzi-cluster-operator-v2",
+        "my-strimzi-operator",
+        "strimzi-operator",
+        "prefix-strimzi-cluster-operator-suffix"
+    })
+    void isOperatorName_positive_matches(String name) {
+        assertTrue(StrimziDiscoveryService.isOperatorName(name),
+            "Expected operator name match for: " + name);
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {
+        "strimzi-kafka-broker",
+        "kafka-operator",
+        "strimzi-bridge",
+        "strimzi-entity-topic",
+        "my-deployment"
+    })
+    void isOperatorName_negative_matches(String name) {
+        assertFalse(StrimziDiscoveryService.isOperatorName(name),
+            "Expected no operator name match for: " + name);
+    }
+
+    @Test
+    void parseSections_null_returns_empty_set() {
+        assertEquals(Set.of(), PodsService.parseSections(null));
+    }
+
+    @Test
+    void parseSections_blank_returns_empty_set() {
+        assertEquals(Set.of(), PodsService.parseSections(""));
+        assertEquals(Set.of(), PodsService.parseSections("   "));
+        assertEquals(Set.of(), PodsService.parseSections("\t"));
+    }
+
+    @Test
+    void parseSections_single_section() {
+        assertEquals(Set.of("env"), PodsService.parseSections("env"));
+        assertEquals(Set.of("full"), PodsService.parseSections("full"));
+    }
+
+    @Test
+    void parseSections_multiple_sections() {
+        assertEquals(Set.of("env", "resources"), PodsService.parseSections("env,resources"));
+        assertEquals(Set.of("node", "labels", "conditions"),
+            PodsService.parseSections("node,labels,conditions"));
+    }
+
+    @Test
+    void parseSections_trims_whitespace() {
+        assertEquals(Set.of("env", "resources"),
+            PodsService.parseSections("  env , resources  "));
+        assertEquals(Set.of("node"),
+            PodsService.parseSections("  node  "));
+    }
+
+    @Test
+    void parseSections_lowercases_input() {
+        assertEquals(Set.of("env", "resources"),
+            PodsService.parseSections("ENV,Resources"));
+        assertEquals(Set.of("full"),
+            PodsService.parseSections("FULL"));
+    }
+
+    @Test
+    void parseSections_ignores_empty_segments() {
+        assertEquals(Set.of("env"), PodsService.parseSections("env,"));
+        assertEquals(Set.of("env", "resources"),
+            PodsService.parseSections("env,,resources"));
+        assertEquals(Set.of("env"), PodsService.parseSections(",env,"));
+    }
+
     @Test
     void input_validation_scenarios() {
-        StrimziDiscoveryService service = new StrimziDiscoveryService();
-
         // Test realistic input scenarios that users might provide
         String[][] testCases = {
             // Input, Expected namespace, Expected cluster
@@ -258,9 +340,9 @@ class DiscoveryServiceLogicTest {
             String expectedNs = testCase[1];
             String expectedCluster = testCase[2];
 
-            assertEquals(expectedNs, service.normalizeNamespace(input),
+            assertEquals(expectedNs, InputUtils.normalizeNamespace(input),
                 "Namespace normalization failed for: " + input);
-            assertEquals(expectedCluster, service.normalizeClusterName(input),
+            assertEquals(expectedCluster, InputUtils.normalizeClusterName(input),
                 "Cluster normalization failed for: " + input);
         }
 
@@ -268,9 +350,9 @@ class DiscoveryServiceLogicTest {
         String[] invalidInputs = {null, "", " ", "   ", "\t", "\n"};
 
         for (String invalid : invalidInputs) {
-            assertNull(service.normalizeNamespace(invalid),
+            assertNull(InputUtils.normalizeNamespace(invalid),
                 "Should return null for invalid namespace: '" + invalid + "'");
-            assertNull(service.normalizeClusterName(invalid),
+            assertNull(InputUtils.normalizeClusterName(invalid),
                 "Should return null for invalid cluster: '" + invalid + "'");
         }
     }

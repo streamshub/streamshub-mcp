@@ -1,3 +1,7 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
 package io.strimzi.mcp.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -9,6 +13,15 @@ import java.util.List;
 /**
  * Structured result for operator logs query.
  * Following the pattern from realtime-context-demo.
+ *
+ * @param namespace the Kubernetes namespace
+ * @param operatorPods the list of operator pod names
+ * @param hasErrors whether errors were found in the logs
+ * @param errorCount the number of errors found
+ * @param logLines the number of log lines retrieved
+ * @param logs the raw log content
+ * @param timestamp the time this result was generated
+ * @param message a human-readable message describing the result
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record OperatorLogsResult(
@@ -22,6 +35,17 @@ public record OperatorLogsResult(
     @JsonProperty("message") String message
 ) {
 
+    /**
+     * Creates a successful result with operator log data.
+     *
+     * @param namespace the Kubernetes namespace
+     * @param logs the raw log content
+     * @param podNames the list of operator pod names
+     * @param hasErrors whether errors were found
+     * @param errorCount the number of errors found
+     * @param logLines the number of log lines retrieved
+     * @return an OperatorLogsResult with the log data
+     */
     public static OperatorLogsResult of(String namespace, String logs, List<String> podNames,
                                        boolean hasErrors, int errorCount, int logLines) {
         return new OperatorLogsResult(
@@ -38,6 +62,12 @@ public record OperatorLogsResult(
         );
     }
 
+    /**
+     * Creates a not-found result when no operator pods exist.
+     *
+     * @param namespace the Kubernetes namespace
+     * @return a not-found OperatorLogsResult
+     */
     public static OperatorLogsResult notFound(String namespace) {
         return new OperatorLogsResult(
             namespace,
@@ -51,6 +81,13 @@ public record OperatorLogsResult(
         );
     }
 
+    /**
+     * Creates an error result when log retrieval fails.
+     *
+     * @param namespace the Kubernetes namespace
+     * @param errorMessage the error description
+     * @return an error OperatorLogsResult
+     */
     public static OperatorLogsResult error(String namespace, String errorMessage) {
         return new OperatorLogsResult(
             namespace,
