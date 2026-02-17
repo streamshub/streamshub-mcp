@@ -10,12 +10,12 @@ import java.util.List;
 /**
  * Result object for Kafka bootstrap servers information.
  *
- * @param status the status of the result
- * @param namespace the Kubernetes namespace
- * @param clusterName the Kafka cluster name
+ * @param status           the status of the result
+ * @param namespace        the Kubernetes namespace
+ * @param clusterName      the Kafka cluster name
  * @param bootstrapServers the list of bootstrap server endpoints
- * @param message a human-readable message describing the result
- * @param timestamp the time this result was generated
+ * @param message          a human-readable message describing the result
+ * @param timestamp        the time this result was generated
  */
 public record BootstrapServersResult(
     String status,
@@ -29,9 +29,9 @@ public record BootstrapServersResult(
     /**
      * Creates a successful result with bootstrap servers.
      *
-     * @param namespace the Kubernetes namespace
+     * @param namespace   the Kubernetes namespace
      * @param clusterName the Kafka cluster name
-     * @param servers the list of discovered bootstrap servers
+     * @param servers     the list of discovered bootstrap servers
      * @return a successful BootstrapServersResult
      */
     public static BootstrapServersResult of(String namespace, String clusterName, List<BootstrapServerInfo> servers) {
@@ -48,7 +48,7 @@ public record BootstrapServersResult(
     /**
      * Creates an empty result when no bootstrap servers are found.
      *
-     * @param namespace the Kubernetes namespace
+     * @param namespace   the Kubernetes namespace
      * @param clusterName the Kafka cluster name
      * @return an empty BootstrapServersResult
      */
@@ -66,7 +66,7 @@ public record BootstrapServersResult(
     /**
      * Creates a not-found result when the Kafka cluster does not exist.
      *
-     * @param namespace the Kubernetes namespace
+     * @param namespace   the Kubernetes namespace
      * @param clusterName the Kafka cluster name
      * @return a not-found BootstrapServersResult
      */
@@ -84,8 +84,8 @@ public record BootstrapServersResult(
     /**
      * Creates an error result when bootstrap server retrieval fails.
      *
-     * @param namespace the Kubernetes namespace
-     * @param clusterName the Kafka cluster name
+     * @param namespace    the Kubernetes namespace
+     * @param clusterName  the Kafka cluster name
      * @param errorMessage the error description
      * @return an error BootstrapServersResult
      */
@@ -103,11 +103,11 @@ public record BootstrapServersResult(
     /**
      * Information about a Kafka bootstrap server.
      *
-     * @param host the server hostname
-     * @param port the server port number
+     * @param host         the server hostname
+     * @param port         the server port number
      * @param listenerName the name of the Kafka listener
      * @param listenerType the type of the Kafka listener
-     * @param address the full address string
+     * @param address      the full address string
      */
     public record BootstrapServerInfo(
         String host,

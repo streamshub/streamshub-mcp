@@ -12,11 +12,11 @@ import java.util.List;
 /**
  * Result object for Kafka clusters discovery operations.
  *
- * @param clusters the list of discovered Kafka clusters
+ * @param clusters      the list of discovered Kafka clusters
  * @param totalClusters the total number of clusters found
- * @param status the status of the operation
- * @param message a human-readable message describing the result
- * @param timestamp the time this result was generated
+ * @param status        the status of the operation
+ * @param message       a human-readable message describing the result
+ * @param timestamp     the time this result was generated
  */
 public record KafkaClustersResult(
     @JsonProperty("clusters") List<KafkaClusterInfo> clusters,
@@ -32,9 +32,21 @@ public record KafkaClustersResult(
      * @return a successful KafkaClustersResult
      */
     public static KafkaClustersResult of(List<KafkaClusterInfo> clusters) {
-        String message = clusters.size() == 1 ?
-            String.format("Found 1 Kafka cluster: %s", clusters.get(0).getDisplayName()) :
-            String.format("Found %d Kafka clusters", clusters.size());
+        String message;
+        if (clusters.size() == 1) {
+            KafkaClusterInfo cluster = clusters.get(0);
+            if (cluster.nodePools().isEmpty()) {
+                message = String.format("Found 1 Kafka cluster: %s (no node pools)", cluster.getDisplayName());
+            } else {
+                message = String.format("Found 1 Kafka cluster: %s with node pools: %s",
+                    cluster.getDisplayName(), String.join(", ", cluster.nodePools()));
+            }
+        } else {
+            long totalNodePools = clusters.stream()
+                .mapToLong(cluster -> cluster.nodePools().size())
+                .sum();
+            message = String.format("Found %d Kafka clusters with %d total node pools", clusters.size(), totalNodePools);
+        }
 
         return new KafkaClustersResult(
             clusters,
@@ -64,7 +76,7 @@ public record KafkaClustersResult(
     /**
      * Creates an error result when cluster discovery fails.
      *
-     * @param namespace the Kubernetes namespace that was searched
+     * @param namespace    the Kubernetes namespace that was searched
      * @param errorMessage the error description
      * @return an error KafkaClustersResult
      */

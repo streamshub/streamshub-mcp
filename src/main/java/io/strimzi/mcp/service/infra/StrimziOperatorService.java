@@ -56,7 +56,7 @@ public class StrimziOperatorService {
      * Get operator logs with custom line limit.
      *
      * @param namespace the namespace to search in, or null for auto-discovery
-     * @param maxLines the maximum number of log lines to retrieve
+     * @param maxLines  the maximum number of log lines to retrieve
      * @return structured result containing operator logs
      */
     public OperatorLogsResult getOperatorLogs(String namespace, int maxLines) {
@@ -69,27 +69,27 @@ public class StrimziOperatorService {
             if (discoveredNamespaces.isEmpty()) {
                 return OperatorLogsResult.error("not-found",
                     "No Strimzi operator found in any namespace. Please ensure Strimzi is deployed. " +
-                    "You can specify a namespace explicitly: 'Show me operator logs from the kafka namespace'");
+                        "You can specify a namespace explicitly: 'Show me operator logs from the kafka namespace'");
             }
 
             if (discoveredNamespaces.size() == 1) {
                 // Auto-use the single namespace found
-                normalizedNamespace = discoveredNamespaces.get(0);
+                normalizedNamespace = discoveredNamespaces.getFirst();
                 LOG.infof("Auto-discovered Strimzi operator in namespace: %s", normalizedNamespace);
             } else {
                 // Multiple namespaces found, ask user to be specific
                 String namespaceList = String.join(", ", discoveredNamespaces);
                 return OperatorLogsResult.error("multiple-found",
                     String.format("Found Strimzi operator in multiple namespaces: %s. " +
-                        "Please specify which one: 'Show me operator logs from the %s namespace'",
-                        namespaceList, discoveredNamespaces.get(0)));
+                            "Please specify which one: 'Show me operator logs from the %s namespace'",
+                        namespaceList, discoveredNamespaces.getFirst()));
             }
         }
 
         int limitedLines = Math.min(maxLines, MAX_LOG_LINES);
 
         LOG.infof("StrimziOperatorService: getOperatorLogs (namespace=%s, maxLines=%d)",
-                 normalizedNamespace, limitedLines);
+            normalizedNamespace, limitedLines);
 
         try {
             // Find Strimzi operator pods
@@ -166,7 +166,7 @@ public class StrimziOperatorService {
             }
 
             return OperatorLogsResult.of(normalizedNamespace, allLogs.toString(), podNames,
-                                       hasErrors, errorCount, totalLogLines);
+                hasErrors, errorCount, totalLogLines);
 
         } catch (Exception e) {
             LOG.errorf(e, "Error retrieving operator logs from namespace: %s", normalizedNamespace);
@@ -190,7 +190,7 @@ public class StrimziOperatorService {
             if (discoveredNamespaces.isEmpty()) {
                 return OperatorStatusResult.error("not-found",
                     "No Strimzi operator found in any namespace. Please ensure Strimzi is deployed. " +
-                    "You can specify a namespace explicitly: 'Check operator status in the kafka namespace'");
+                        "You can specify a namespace explicitly: 'Check operator status in the kafka namespace'");
             }
 
             if (discoveredNamespaces.size() == 1) {
@@ -202,7 +202,7 @@ public class StrimziOperatorService {
                 String namespaceList = String.join(", ", discoveredNamespaces);
                 return OperatorStatusResult.error("multiple-found",
                     String.format("Found Strimzi operator in multiple namespaces: %s. " +
-                        "Please specify which one: 'Check operator status in the %s namespace'",
+                            "Please specify which one: 'Check operator status in the %s namespace'",
                         namespaceList, discoveredNamespaces.get(0)));
             }
         }
@@ -216,7 +216,7 @@ public class StrimziOperatorService {
                 return OperatorStatusResult.notFound(normalizedNamespace);
             }
 
-            Deployment deployment = operatorDeployments.get(0);
+            Deployment deployment = operatorDeployments.getFirst();
             String deploymentName = deployment.getMetadata().getName();
             int replicas = deployment.getSpec().getReplicas();
             int readyReplicas = deployment.getStatus().getReadyReplicas() != null ?
@@ -228,7 +228,7 @@ public class StrimziOperatorService {
             Long uptimeMinutes = discoveryService.calculateDeploymentUptimeMinutes(deployment);
 
             return OperatorStatusResult.of(normalizedNamespace, deploymentName, ready,
-                                         replicas, readyReplicas, version, image, uptimeMinutes);
+                replicas, readyReplicas, version, image, uptimeMinutes);
 
         } catch (Exception e) {
             LOG.errorf(e, "Error retrieving operator status from namespace: %s", normalizedNamespace);
@@ -242,9 +242,9 @@ public class StrimziOperatorService {
     private boolean containsError(String line) {
         String lowerLine = line.toLowerCase(Locale.ENGLISH);
         return lowerLine.contains("error") ||
-               lowerLine.contains("exception") ||
-               lowerLine.contains("failed") ||
-               lowerLine.contains("warn");
+            lowerLine.contains("exception") ||
+            lowerLine.contains("failed") ||
+            lowerLine.contains("warn");
     }
 
 }

@@ -49,7 +49,7 @@ public class KafkaTopicService {
         if (normalizedNamespace == null) {
             List<String> discoveredNamespaces = discoveryService.discoverStrimziNamespaces();
             if (discoveredNamespaces.size() == 1) {
-                normalizedNamespace = discoveredNamespaces.get(0);
+                normalizedNamespace = discoveredNamespaces.getFirst();
                 LOG.infof("Auto-discovered Strimzi in namespace: %s", normalizedNamespace);
             } else if (!discoveredNamespaces.isEmpty()) {
                 String namespaceList = String.join(", ", discoveredNamespaces);
@@ -57,7 +57,7 @@ public class KafkaTopicService {
                     String.format("Found Strimzi in multiple namespaces: %s. " +
                         "Please specify: 'Show topics for %s in the %s namespace'",
                         namespaceList, normalizedClusterName != null ? normalizedClusterName : "my-cluster",
-                        discoveredNamespaces.get(0)));
+                        discoveredNamespaces.getFirst()));
             } else {
                 return KafkaTopicsResult.error("not-found", normalizedClusterName,
                     "No Strimzi installation found. Please ensure Kafka is deployed.");
@@ -125,7 +125,7 @@ public class KafkaTopicService {
         if (normalizedNamespace == null) {
             List<String> discoveredNamespaces = discoveryService.discoverStrimziNamespaces();
             if (discoveredNamespaces.size() == 1) {
-                normalizedNamespace = discoveredNamespaces.get(0);
+                normalizedNamespace = discoveredNamespaces.getFirst();
             } else {
                 return null; // Cannot determine namespace
             }

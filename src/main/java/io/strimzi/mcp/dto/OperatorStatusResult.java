@@ -12,17 +12,17 @@ import java.time.Instant;
 /**
  * Structured result for operator status query.
  *
- * @param namespace the Kubernetes namespace
+ * @param namespace      the Kubernetes namespace
  * @param deploymentName the name of the operator deployment
- * @param status the operator status string
- * @param ready whether the operator is ready
- * @param replicas the desired number of replicas
- * @param readyReplicas the number of ready replicas
- * @param version the operator version
- * @param image the container image used by the operator
- * @param uptimeHours the operator uptime in hours
- * @param timestamp the time this result was generated
- * @param message a human-readable message describing the result
+ * @param status         the operator status string
+ * @param ready          whether the operator is ready
+ * @param replicas       the desired number of replicas
+ * @param readyReplicas  the number of ready replicas
+ * @param version        the operator version
+ * @param image          the container image used by the operator
+ * @param uptimeHours    the operator uptime in hours
+ * @param timestamp      the time this result was generated
+ * @param message        a human-readable message describing the result
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record OperatorStatusResult(
@@ -42,19 +42,19 @@ public record OperatorStatusResult(
     /**
      * Creates a successful result with operator status information.
      *
-     * @param namespace the Kubernetes namespace
+     * @param namespace      the Kubernetes namespace
      * @param deploymentName the name of the operator deployment
-     * @param ready whether the operator is ready
-     * @param replicas the desired number of replicas
-     * @param readyReplicas the number of ready replicas
-     * @param version the operator version
-     * @param image the container image
-     * @param uptimeMinutes the uptime in minutes
+     * @param ready          whether the operator is ready
+     * @param replicas       the desired number of replicas
+     * @param readyReplicas  the number of ready replicas
+     * @param version        the operator version
+     * @param image          the container image
+     * @param uptimeMinutes  the uptime in minutes
      * @return an OperatorStatusResult with the status data
      */
     public static OperatorStatusResult of(String namespace, String deploymentName,
-                                         boolean ready, int replicas, int readyReplicas,
-                                         String version, String image, Long uptimeMinutes) {
+                                          boolean ready, int replicas, int readyReplicas,
+                                          String version, String image, Long uptimeMinutes) {
         String status = determineStatus(ready, replicas, readyReplicas);
         String uptimeHours = uptimeMinutes != null ? String.format("%.1f", uptimeMinutes / 60.0) : "unknown";
         String message = generateMessage(deploymentName, status, replicas, readyReplicas);
@@ -100,7 +100,7 @@ public record OperatorStatusResult(
     /**
      * Creates an error result when status check fails.
      *
-     * @param namespace the Kubernetes namespace
+     * @param namespace    the Kubernetes namespace
      * @param errorMessage the error description
      * @return an error OperatorStatusResult
      */

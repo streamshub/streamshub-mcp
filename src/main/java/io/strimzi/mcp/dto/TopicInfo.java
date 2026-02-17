@@ -9,11 +9,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * Information about a Kafka topic.
  *
- * @param name the topic name
- * @param cluster the Kafka cluster this topic belongs to
+ * @param name       the topic name
+ * @param cluster    the Kafka cluster this topic belongs to
  * @param partitions the number of partitions
- * @param replicas the number of replicas
- * @param status the topic status
+ * @param replicas   the number of replicas
+ * @param status     the topic status
  */
 public record TopicInfo(
     @JsonProperty("name") String name,

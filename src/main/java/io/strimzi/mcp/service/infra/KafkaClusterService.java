@@ -47,7 +47,7 @@ public class KafkaClusterService {
     /**
      * Get cluster pods with structured result.
      *
-     * @param namespace the namespace to search in, or null for auto-discovery
+     * @param namespace   the namespace to search in, or null for auto-discovery
      * @param clusterName the cluster name to filter by, or null for all clusters
      * @return structured result containing pod information
      */
@@ -61,7 +61,7 @@ public class KafkaClusterService {
             if (discoveredClusters.isEmpty()) {
                 return PodsResult.error("not-found", clusterName,
                     "No Kafka clusters found in any namespace. Please ensure Kafka is deployed. " +
-                    "You can specify a namespace explicitly: 'Show me pods in the kafka namespace'");
+                        "You can specify a namespace explicitly: 'Show me pods in the kafka namespace'");
             }
 
             // Deduplicate namespaces
@@ -71,7 +71,7 @@ public class KafkaClusterService {
                 .toList();
 
             if (distinctNamespaces.size() == 1) {
-                normalizedNamespace = distinctNamespaces.get(0);
+                normalizedNamespace = distinctNamespaces.getFirst();
                 LOG.infof("Auto-discovered Kafka cluster in namespace: %s", normalizedNamespace);
             } else {
                 String clusterSuggestions = discoveredClusters.stream()
@@ -80,15 +80,15 @@ public class KafkaClusterService {
                     .collect(Collectors.joining(", "));
                 return PodsResult.error("multiple-found", clusterName,
                     String.format("Found Kafka clusters in multiple namespaces: %s. " +
-                        "Please specify: 'Show me pods for %s'",
-                        clusterSuggestions, discoveredClusters.get(0).getDisplayName()));
+                            "Please specify: 'Show me pods for %s'",
+                        clusterSuggestions, discoveredClusters.getFirst().getDisplayName()));
             }
         }
 
         String normalizedClusterName = InputUtils.normalizeClusterName(clusterName);
 
         LOG.infof("KafkaClusterService: getClusterPods (namespace=%s, cluster=%s)",
-                 normalizedNamespace, normalizedClusterName);
+            normalizedNamespace, normalizedClusterName);
 
         final String effectiveNamespace = normalizedNamespace;
 
@@ -196,7 +196,7 @@ public class KafkaClusterService {
     /**
      * Get bootstrap servers for a Kafka cluster from its Custom Resource.
      *
-     * @param namespace the namespace to search in, or null for auto-discovery
+     * @param namespace   the namespace to search in, or null for auto-discovery
      * @param clusterName the cluster name to query
      * @return structured result containing bootstrap server information
      */
@@ -219,7 +219,7 @@ public class KafkaClusterService {
                 .toList();
 
             if (distinctNamespaces.size() == 1) {
-                normalizedNamespace = distinctNamespaces.get(0);
+                normalizedNamespace = distinctNamespaces.getFirst();
                 LOG.infof("Auto-discovered Kafka cluster in namespace: %s", normalizedNamespace);
             } else {
                 String clusterSuggestions = discoveredClusters.stream()
@@ -228,8 +228,8 @@ public class KafkaClusterService {
                     .collect(Collectors.joining(", "));
                 return BootstrapServersResult.error(null, normalizedClusterName,
                     String.format("Found Kafka clusters in multiple namespaces: %s. " +
-                        "Please specify: 'Get bootstrap servers for %s in the %s namespace'",
-                        clusterSuggestions, normalizedClusterName, distinctNamespaces.get(0)));
+                            "Please specify: 'Get bootstrap servers for %s in the %s namespace'",
+                        clusterSuggestions, normalizedClusterName, distinctNamespaces.getFirst()));
             }
         }
 
@@ -239,7 +239,7 @@ public class KafkaClusterService {
         }
 
         LOG.infof("KafkaClusterService: getBootstrapServers (namespace=%s, cluster=%s)",
-                 normalizedNamespace, normalizedClusterName);
+            normalizedNamespace, normalizedClusterName);
 
         try {
             Kafka kafka = kubernetesClient.resources(Kafka.class)
@@ -261,7 +261,7 @@ public class KafkaClusterService {
 
         } catch (Exception e) {
             LOG.errorf(e, "Error retrieving bootstrap servers for cluster %s in namespace %s",
-                      normalizedClusterName, normalizedNamespace);
+                normalizedClusterName, normalizedNamespace);
             return BootstrapServersResult.error(normalizedNamespace, normalizedClusterName, e.getMessage());
         }
     }

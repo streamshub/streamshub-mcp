@@ -9,8 +9,8 @@ import java.time.Instant;
 /**
  * Simple chat response model.
  *
- * @param response the chat response text
- * @param provider the LLM provider used
+ * @param response  the chat response text
+ * @param provider  the LLM provider used
  * @param timestamp the time this response was generated
  */
 public record ChatResponse(

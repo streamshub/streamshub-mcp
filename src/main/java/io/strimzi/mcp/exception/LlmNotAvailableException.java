@@ -26,7 +26,7 @@ public class LlmNotAvailableException extends RuntimeException {
      * Create a new LlmNotAvailableException with a message and cause.
      *
      * @param message the detail message
-     * @param cause the underlying cause
+     * @param cause   the underlying cause
      */
     public LlmNotAvailableException(String message, Throwable cause) {
         super(message, cause);

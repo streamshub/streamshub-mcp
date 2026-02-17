@@ -96,7 +96,7 @@ class StrimziChatCli {
 
             HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(serverUrl + "/api/chat"))
-                .timeout(Duration.ofSeconds(60))
+                .timeout(Duration.ofSeconds(180))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody.toString()))
                 .build();

@@ -14,14 +14,14 @@ import java.util.List;
  * Structured result for operator logs query.
  * Following the pattern from realtime-context-demo.
  *
- * @param namespace the Kubernetes namespace
+ * @param namespace    the Kubernetes namespace
  * @param operatorPods the list of operator pod names
- * @param hasErrors whether errors were found in the logs
- * @param errorCount the number of errors found
- * @param logLines the number of log lines retrieved
- * @param logs the raw log content
- * @param timestamp the time this result was generated
- * @param message a human-readable message describing the result
+ * @param hasErrors    whether errors were found in the logs
+ * @param errorCount   the number of errors found
+ * @param logLines     the number of log lines retrieved
+ * @param logs         the raw log content
+ * @param timestamp    the time this result was generated
+ * @param message      a human-readable message describing the result
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record OperatorLogsResult(
@@ -38,16 +38,16 @@ public record OperatorLogsResult(
     /**
      * Creates a successful result with operator log data.
      *
-     * @param namespace the Kubernetes namespace
-     * @param logs the raw log content
-     * @param podNames the list of operator pod names
-     * @param hasErrors whether errors were found
+     * @param namespace  the Kubernetes namespace
+     * @param logs       the raw log content
+     * @param podNames   the list of operator pod names
+     * @param hasErrors  whether errors were found
      * @param errorCount the number of errors found
-     * @param logLines the number of log lines retrieved
+     * @param logLines   the number of log lines retrieved
      * @return an OperatorLogsResult with the log data
      */
     public static OperatorLogsResult of(String namespace, String logs, List<String> podNames,
-                                       boolean hasErrors, int errorCount, int logLines) {
+                                        boolean hasErrors, int errorCount, int logLines) {
         return new OperatorLogsResult(
             namespace,
             podNames,
@@ -84,7 +84,7 @@ public record OperatorLogsResult(
     /**
      * Creates an error result when log retrieval fails.
      *
-     * @param namespace the Kubernetes namespace
+     * @param namespace    the Kubernetes namespace
      * @param errorMessage the error description
      * @return an error OperatorLogsResult
      */

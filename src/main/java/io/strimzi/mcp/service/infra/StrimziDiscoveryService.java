@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import io.strimzi.mcp.dto.KafkaClusterInfo;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -174,7 +175,7 @@ public class StrimziDiscoveryService {
                     strimziNamespaces.addAll(extractNamespaces(deployments));
                 } catch (Exception e) {
                     LOG.debugf("Error searching deployments with label %s=%s: %s",
-                              label.getKey(), label.getValue(), e.getMessage());
+                        label.getKey(), label.getValue(), e.getMessage());
                 }
                 if (!strimziNamespaces.isEmpty()) {
                     break;
@@ -209,24 +210,61 @@ public class StrimziDiscoveryService {
 
     /**
      * Get Strimzi Kafka clusters across all namespaces or in specific namespace.
+     * Includes associated node pools for each cluster.
      *
      * @param namespace the namespace to search in, or null for all namespaces
-     * @return list of discovered Kafka cluster information
+     * @return list of discovered Kafka cluster information with associated node pools
      */
     public List<KafkaClusterInfo> discoverKafkaClusters(String namespace) {
         try {
             List<Kafka> kafkaResources = queryResources(Kafka.class, namespace);
 
             return kafkaResources.stream()
-                .map(kafka -> new KafkaClusterInfo(
-                    kafka.getMetadata().getName(),
-                    kafka.getMetadata().getNamespace(),
-                    kafka.getStatus() != null ? kafka.getStatus().getConditions() : List.of()
-                ))
+                .map(kafka -> {
+                    String clusterName = kafka.getMetadata().getName();
+                    String clusterNamespace = kafka.getMetadata().getNamespace();
+
+                    // Discover associated node pools for this cluster
+                    List<String> nodePools = discoverNodePoolsForCluster(clusterNamespace, clusterName);
+
+                    return new KafkaClusterInfo(
+                        clusterName,
+                        clusterNamespace,
+                        kafka.getStatus() != null ? kafka.getStatus().getConditions() : List.of(),
+                        nodePools
+                    );
+                })
                 .collect(Collectors.toList());
 
         } catch (Exception e) {
             LOG.warnf("Error discovering Kafka clusters: %s", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Discover node pools associated with a specific Kafka cluster.
+     *
+     * @param namespace   the namespace where the cluster is deployed
+     * @param clusterName the name of the Kafka cluster
+     * @return list of node pool names associated with the cluster
+     */
+    private List<String> discoverNodePoolsForCluster(String namespace, String clusterName) {
+        try {
+            List<KafkaNodePool> nodePoolResources = kubernetesClient.resources(KafkaNodePool.class)
+                .inNamespace(namespace)
+                .withLabel("strimzi.io/cluster", clusterName)
+                .list()
+                .getItems();
+
+            return nodePoolResources.stream()
+                .map(nodePool -> nodePool.getMetadata().getName())
+                .sorted()
+                .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            LOG.debugf("Error discovering node pools for cluster %s in namespace %s: %s",
+                clusterName, namespace, e.getMessage());
             return List.of();
         }
     }
@@ -250,7 +288,7 @@ public class StrimziDiscoveryService {
 
                 if (!operatorPods.isEmpty()) {
                     LOG.debugf("Found operator pods in namespace %s via label %s=%s",
-                              namespace, label.getKey(), label.getValue());
+                        namespace, label.getKey(), label.getValue());
                     return operatorPods;
                 }
             }
@@ -293,7 +331,7 @@ public class StrimziDiscoveryService {
 
                 if (!operatorDeployments.isEmpty()) {
                     LOG.debugf("Found operator deployments in namespace %s via label %s=%s",
-                              namespace, label.getKey(), label.getValue());
+                        namespace, label.getKey(), label.getValue());
                     return operatorDeployments;
                 }
             }
@@ -362,7 +400,7 @@ public class StrimziDiscoveryService {
             }
         } catch (Exception e) {
             LOG.debugf("Could not calculate uptime for deployment %s: %s",
-                      deployment.getMetadata().getName(), e.getMessage());
+                deployment.getMetadata().getName(), e.getMessage());
         }
         return null;
     }

@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * Generic error result for tool operations.
  * Used when an error occurs that doesn't fit a specific result type.
  *
- * @param error the error message
+ * @param error   the error message
  * @param details additional error details
  */
 public record ToolError(
@@ -31,7 +31,7 @@ public record ToolError(
      * Create a ToolError from an error message and exception.
      *
      * @param error the error message
-     * @param e the exception that caused the error
+     * @param e     the exception that caused the error
      * @return a new ToolError instance
      */
     public static ToolError of(String error, Exception e) {
