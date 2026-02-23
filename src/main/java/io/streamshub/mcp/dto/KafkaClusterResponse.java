@@ -14,9 +14,9 @@ import java.util.List;
  * Response containing comprehensive Kafka cluster resource information.
  * Avoids naming conflicts with Kubernetes API classes.
  *
- * @param name                   the cluster name
- * @param namespace              the Kubernetes namespace
- * @param status                 the cluster status (Ready, NotReady, Error, Unknown)
+ * @param name                  the cluster name
+ * @param namespace             the Kubernetes namespace
+ * @param status                the cluster status (Ready, NotReady, Error, Unknown)
  * @param kafkaVersion          the Kafka version being used
  * @param replicas              the number of Kafka brokers configured
  * @param readyReplicas         the number of ready Kafka brokers

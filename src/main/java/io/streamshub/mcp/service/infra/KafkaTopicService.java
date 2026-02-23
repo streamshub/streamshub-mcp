@@ -4,11 +4,12 @@
  */
 package io.streamshub.mcp.service.infra;
 
-import io.streamshub.mcp.config.StrimziConstants;
+import io.streamshub.mcp.config.Constants;
 import io.streamshub.mcp.dto.KafkaTopicResponse;
 import io.streamshub.mcp.dto.ToolError;
 import io.streamshub.mcp.service.common.KubernetesResourceService;
 import io.streamshub.mcp.util.InputUtils;
+import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -50,17 +51,17 @@ public class KafkaTopicService {
                 if (normalizedNamespace != null) {
                     topicResources = resourceService.queryResourcesByLabel(
                         KafkaTopic.class, normalizedNamespace,
-                        StrimziConstants.StrimziLabels.CLUSTER_LABEL, normalizedClusterName);
+                        ResourceLabels.STRIMZI_CLUSTER_LABEL, normalizedClusterName);
                 } else {
                     topicResources = resourceService.queryResourcesByLabelInAnyNamespace(
-                        KafkaTopic.class, StrimziConstants.StrimziLabels.CLUSTER_LABEL, normalizedClusterName);
+                        KafkaTopic.class, ResourceLabels.STRIMZI_CLUSTER_LABEL, normalizedClusterName);
                 }
             } else {
                 topicResources = resourceService.queryResources(KafkaTopic.class, normalizedNamespace);
             }
 
             return topicResources.stream()
-                .map(this::buildKafkaTopic)
+                .map(this::createKafkaTopicResponse)
                 .toList();
 
         } catch (Exception e) {
@@ -92,10 +93,9 @@ public class KafkaTopicService {
                 return null;
             }
 
-            // Validate topic belongs to specified cluster if cluster name provided
             if (clusterName != null) {
                 String topicCluster = topic.getMetadata().getLabels() != null ?
-                    topic.getMetadata().getLabels().get(StrimziConstants.StrimziLabels.CLUSTER_LABEL) : null;
+                    topic.getMetadata().getLabels().get(ResourceLabels.STRIMZI_CLUSTER_LABEL) : null;
 
                 if (!clusterName.equals(topicCluster)) {
                     LOG.debugf("Topic %s found but belongs to cluster %s, not %s", topicName, topicCluster, clusterName);
@@ -103,7 +103,7 @@ public class KafkaTopicService {
                 }
             }
 
-            return buildKafkaTopic(topic);
+            return createKafkaTopicResponse(topic);
 
         } catch (Exception e) {
             LOG.errorf(e, "Error retrieving topic details for %s in namespace %s", topicName, normalizedNamespace);
@@ -116,17 +116,13 @@ public class KafkaTopicService {
      */
     private KafkaTopicResponse findTopicInAllNamespaces(String topicName, String clusterName) {
         try {
-            // Search all namespaces for the topic
             List<KafkaTopic> allTopics = resourceService.queryResources(KafkaTopic.class, null);
 
             for (KafkaTopic topic : allTopics) {
                 if (topicName.equals(topic.getMetadata().getName())) {
-                    // Found topic with matching name
-
-                    // If cluster name specified, validate it matches
                     if (clusterName != null) {
                         String topicCluster = topic.getMetadata().getLabels() != null ?
-                            topic.getMetadata().getLabels().get(StrimziConstants.StrimziLabels.CLUSTER_LABEL) : null;
+                            topic.getMetadata().getLabels().get(ResourceLabels.STRIMZI_CLUSTER_LABEL) : null;
 
                         if (!clusterName.equals(topicCluster)) {
                             continue; // Topic found but wrong cluster, keep searching
@@ -134,7 +130,7 @@ public class KafkaTopicService {
                     }
 
                     LOG.infof("Found topic %s in namespace %s", topicName, topic.getMetadata().getNamespace());
-                    return buildKafkaTopic(topic);
+                    return createKafkaTopicResponse(topic);
                 }
             }
 
@@ -147,10 +143,10 @@ public class KafkaTopicService {
         }
     }
 
-    private KafkaTopicResponse buildKafkaTopic(KafkaTopic topic) {
+    private KafkaTopicResponse createKafkaTopicResponse(KafkaTopic topic) {
         String topicName = topic.getMetadata().getName();
         String cluster = topic.getMetadata().getLabels() != null ?
-            topic.getMetadata().getLabels().get(StrimziConstants.StrimziLabels.CLUSTER_LABEL) : "unknown";
+            topic.getMetadata().getLabels().get(ResourceLabels.STRIMZI_CLUSTER_LABEL) : Constants.Kubernetes.StatusValues.UNKNOWN_CLUSTER;
 
         Integer partitions = null;
         Integer replicas = null;
@@ -160,33 +156,32 @@ public class KafkaTopicService {
             replicas = topic.getSpec().getReplicas();
         }
 
-        String status = determineTopicStatus(topic);
+        String status = determineKafkaTopicStatus(topic);
 
         return new KafkaTopicResponse(topicName, cluster, partitions, replicas, status);
     }
 
-    private String determineTopicStatus(KafkaTopic topic) {
+    private String determineKafkaTopicStatus(KafkaTopic topic) {
         if (topic.getStatus() != null && topic.getStatus().getConditions() != null) {
             boolean ready = topic.getStatus().getConditions().stream()
-                .anyMatch(condition -> StrimziConstants.ConditionTypes.READY.equals(condition.getType()) &&
-                    StrimziConstants.ConditionStatuses.TRUE.equals(condition.getStatus()));
+                .anyMatch(condition -> Constants.Kubernetes.ConditionTypes.READY.equals(condition.getType()) &&
+                    Constants.Kubernetes.ConditionStatuses.TRUE.equals(condition.getStatus()));
 
             if (ready) {
-                return StrimziConstants.ConditionTypes.READY;
+                return Constants.Strimzi.StatusValues.READY;
             }
 
-            // Check for specific error conditions
             boolean hasError = topic.getStatus().getConditions().stream()
-                .anyMatch(condition -> StrimziConstants.ConditionTypes.READY.equals(condition.getType()) &&
-                    StrimziConstants.ConditionStatuses.FALSE.equals(condition.getStatus()));
+                .anyMatch(condition -> Constants.Kubernetes.ConditionTypes.READY.equals(condition.getType()) &&
+                    Constants.Kubernetes.ConditionStatuses.FALSE.equals(condition.getStatus()));
 
             if (hasError) {
-                return "Error";
+                return Constants.Strimzi.StatusValues.ERROR;
             }
 
-            return "Not Ready";
+            return Constants.Strimzi.StatusValues.NOT_READY;
         }
 
-        return "Unknown";
+        return Constants.Strimzi.StatusValues.UNKNOWN;
     }
 }

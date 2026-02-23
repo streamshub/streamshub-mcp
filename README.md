@@ -151,12 +151,13 @@ kubectl get crd | grep strimzi
 
 ### Architecture
 
-The application uses a clean architecture with standardized error handling:
+The application uses a clean architecture with standardized error handling and proper service separation:
 
-- **Services** return `Object` type - either success response DTOs or `ToolError` for failures
+- **Constants Organization**: Centralized constants in `Constants.java` with clear separation between general Kubernetes constants (`Constants.Kubernetes.*`) and Strimzi-specific constants (`Constants.Strimzi.*`)
+- **Service Separation**: Clean separation of concerns with generic services for general Kubernetes operations and specialized services for Strimzi-specific functionality
+- **Standardized Error Handling**: Services return `Object` type - either success response DTOs or `ToolError` for failures
 - **MCP Tools** wrap service calls with try-catch and `ToolError.of()` for consistent error handling
-- **Discovery Logic** uses `.inAnyNamespace()` when namespace is null for true cross-cluster discovery
-- **Auto-Discovery** extracts namespace information from discovered resources, eliminating redundant API calls
+- **Smart Autodiscovery**: Domain-specific services handle their own autodiscovery patterns, while generic services require explicit namespace parameters
 
 ### Project Structure
 ```
@@ -165,18 +166,19 @@ src/main/java/io/streamshub/mcp/
 │   ├── StrimziOperatorMcpTools.java      # Operator MCP tools
 │   └── KafkaClusterMcpTools.java         # Cluster MCP tools
 ├── service/                               # Business logic
-│   ├── infra/                            # Infrastructure services
+│   ├── infra/                            # Strimzi-specific services
 │   │   ├── StrimziOperatorService.java   # Operator operations
 │   │   ├── KafkaClusterService.java      # Cluster operations
 │   │   ├── KafkaTopicService.java        # Topic operations
-│   │   └── StrimziDiscoveryService.java  # Discovery utilities
-│   └── common/                           # Shared services
+│   │   └── StrimziDiscoveryService.java  # Strimzi discovery utilities
+│   └── common/                           # Generic Kubernetes services
 │       ├── KubernetesResourceService.java # Generic K8s API wrapper
-│       ├── PodsService.java              # Pod operations
-│       └── DeploymentService.java        # Deployment utilities
+│       ├── PodsService.java              # General pod operations
+│       └── DeploymentService.java        # General deployment utilities
 ├── dto/                                   # Data transfer objects
 │   └── ToolError.java                    # Standardized error responses
-└── config/                               # Configuration
+└── config/                               # Configuration & constants
+    ├── Constants.java                    # Centralized constants (K8s + Strimzi)
     └── StrimziToolsPrompts.java          # Shared tool descriptions
 ```
 

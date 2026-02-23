@@ -6,6 +6,7 @@ package io.streamshub.mcp.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.streamshub.mcp.config.Constants;
 
 import java.time.Instant;
 import java.util.List;
@@ -53,7 +54,7 @@ public record PodSummaryResponse(
     public static PodSummaryResponse of(String namespace, String clusterName, List<PodInfo> pods) {
         int totalPods = pods.size();
         int readyPods = (int) pods.stream().filter(PodInfo::ready).count();
-        int failedPods = (int) pods.stream().filter(p -> "Failed".equalsIgnoreCase(p.phase())).count();
+        int failedPods = (int) pods.stream().filter(p -> Constants.Kubernetes.PodPhases.FAILED.equalsIgnoreCase(p.phase())).count();
 
         Map<String, Integer> componentBreakdown = pods.stream()
             .collect(Collectors.groupingBy(
@@ -80,7 +81,7 @@ public record PodSummaryResponse(
     public static PodSummaryResponse empty(String namespace, String clusterName) {
         return new PodSummaryResponse(
             namespace, clusterName, 0, 0, 0,
-            Map.of(), List.of(), "UNKNOWN", Instant.now(),
+            Map.of(), List.of(), Constants.Kubernetes.StatusValues.UNKNOWN, Instant.now(),
             clusterName != null ?
                 String.format("No Kafka pods found for cluster '%s' in namespace '%s'", clusterName, namespace) :
                 String.format("No Kafka/Strimzi pods found in namespace '%s'", namespace)
@@ -98,16 +99,16 @@ public record PodSummaryResponse(
     public static PodSummaryResponse notFound(String namespace, String podName) {
         return new PodSummaryResponse(
             namespace, null, 0, 0, 0,
-            null, null, "NOT_FOUND", Instant.now(),
+            null, null, Constants.Kubernetes.StatusValues.NOT_FOUND, Instant.now(),
             String.format("Pod '%s' not found in namespace '%s'", podName, namespace)
         );
     }
 
     private static String determineHealthStatus(int total, int ready, int failed) {
-        if (total == 0) return "UNKNOWN";
-        if (failed > 0) return "DEGRADED";
-        if (ready == total) return "HEALTHY";
-        return "PARTIAL";
+        if (total == 0) return Constants.Kubernetes.StatusValues.UNKNOWN;
+        if (failed > 0) return Constants.Strimzi.StatusValues.DEGRADED;
+        if (ready == total) return Constants.Strimzi.StatusValues.HEALTHY;
+        return Constants.Kubernetes.StatusValues.PARTIAL;
     }
 
     private static String generateMessage(String namespace, String clusterName,

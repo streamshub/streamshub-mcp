@@ -20,7 +20,7 @@ import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.config.StrimziConstants;
+import io.streamshub.mcp.config.Constants;
 import io.streamshub.mcp.dto.KafkaBootstrapResponse;
 import io.streamshub.mcp.dto.KafkaClusterResponse;
 import io.streamshub.mcp.dto.KafkaTopicResponse;
@@ -204,7 +204,7 @@ class StrimziServiceTest {
         metadata.setName(podName);
         metadata.setNamespace(namespace);
         metadata.setLabels(Map.of(
-            StrimziConstants.KubernetesLabels.APP_NAME_LABEL, StrimziConstants.CommonValues.STRIMZI_CLUSTER_OPERATOR
+            Constants.Kubernetes.Labels.APP_NAME_LABEL, Constants.Strimzi.CommonValues.STRIMZI_CLUSTER_OPERATOR
         ));
         operatorPod.setMetadata(metadata);
 
@@ -242,7 +242,7 @@ class StrimziServiceTest {
         metadata.setName(deploymentName);
         metadata.setNamespace(namespace);
         metadata.setLabels(Map.of(
-            StrimziConstants.KubernetesLabels.APP_NAME_LABEL, StrimziConstants.CommonValues.STRIMZI_CLUSTER_OPERATOR
+            Constants.Kubernetes.Labels.APP_NAME_LABEL, Constants.Strimzi.CommonValues.STRIMZI_CLUSTER_OPERATOR
         ));
         metadata.setCreationTimestamp(Instant.now().minusSeconds(600).toString());
         deployment.setMetadata(metadata);

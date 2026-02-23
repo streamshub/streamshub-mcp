@@ -6,7 +6,7 @@ package io.streamshub.mcp.service.infra;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.streamshub.mcp.config.StrimziConstants;
+import io.streamshub.mcp.config.Constants;
 import io.streamshub.mcp.dto.KafkaBootstrapResponse;
 import io.streamshub.mcp.dto.KafkaBootstrapResponse.BootstrapServerInfo;
 import io.streamshub.mcp.dto.KafkaClusterResponse;
@@ -15,11 +15,18 @@ import io.streamshub.mcp.dto.ToolError;
 import io.streamshub.mcp.service.common.KubernetesResourceService;
 import io.streamshub.mcp.service.common.PodsService;
 import io.streamshub.mcp.util.InputUtils;
+import io.strimzi.api.ResourceLabels;
+import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
+import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -59,7 +66,11 @@ public class KafkaClusterService {
         LOG.infof("KafkaClusterService: getKafkaClusters (namespace=%s)", normalizedNamespace);
 
         try {
-            List<KafkaClusterResponse> clusters = discoveryService.discoverKafkaClusters(normalizedNamespace);
+            List<Kafka> kafkaResources = discoveryService.discoverKafkaClusters(normalizedNamespace);
+
+            List<KafkaClusterResponse> clusters = kafkaResources.stream()
+                .map(this::buildKafkaClusterResponse)
+                .collect(Collectors.toList());
 
             if (clusters.isEmpty() && normalizedNamespace == null) {
                 return ToolError.of("No Kafka clusters found in any namespace. Please ensure Kafka resources are deployed.");
@@ -83,18 +94,16 @@ public class KafkaClusterService {
     public Object getClusterPods(String namespace, String clusterName) {
         String normalizedNamespace = InputUtils.normalizeNamespace(namespace);
 
-        // If no namespace specified, auto-discover from Kafka CRs
         if (normalizedNamespace == null) {
-            List<KafkaClusterResponse> discoveredClusters = discoveryService.discoverKafkaClusters(null);
+            List<Kafka> discoveredClusters = discoveryService.discoverKafkaClusters(null);
 
             if (discoveredClusters.isEmpty()) {
                 return ToolError.of("No Kafka clusters found in any namespace. Please ensure Kafka is deployed. " +
-                        "You can specify a namespace explicitly: 'Show me pods in the kafka namespace'");
+                    "You can specify a namespace explicitly: 'Show me pods in the kafka namespace'");
             }
 
-            // Deduplicate namespaces
             List<String> distinctNamespaces = discoveredClusters.stream()
-                .map(KafkaClusterResponse::namespace)
+                .map(kafka -> kafka.getMetadata().getNamespace())
                 .distinct()
                 .toList();
 
@@ -104,11 +113,12 @@ public class KafkaClusterService {
             } else {
                 String clusterSuggestions = discoveredClusters.stream()
                     .limit(3)
-                    .map(KafkaClusterResponse::getDisplayName)
+                    .map(kafka -> String.format("%s/%s", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName()))
                     .collect(Collectors.joining(", "));
                 return ToolError.of(String.format("Found Kafka clusters in multiple namespaces: %s. " +
-                            "Please specify: 'Show me pods for %s'",
-                        clusterSuggestions, discoveredClusters.getFirst().getDisplayName()));
+                        "Please specify: 'Show me pods for %s'",
+                    clusterSuggestions, String.format("%s/%s", discoveredClusters.getFirst().getMetadata().getNamespace(),
+                        discoveredClusters.getFirst().getMetadata().getName())));
             }
         }
 
@@ -139,24 +149,19 @@ public class KafkaClusterService {
         }
     }
 
-    // Private helper methods
-
     private List<Pod> findKafkaPods(String namespace, String clusterName) {
         if (clusterName != null) {
-            // Get pods for specific cluster
             List<Pod> clusterPods = kubernetesClient.pods()
                 .inNamespace(namespace)
-                .withLabel(StrimziConstants.StrimziLabels.CLUSTER_LABEL, clusterName)
+                .withLabel(ResourceLabels.STRIMZI_CLUSTER_LABEL, clusterName)
                 .list()
                 .getItems();
 
-            // Also include operator pods
             List<Pod> operatorPods = discoveryService.findOperatorPods(namespace);
             List<Pod> allPods = new ArrayList<>(clusterPods);
             allPods.addAll(operatorPods);
             return allPods;
         } else {
-            // Get all Strimzi/Kafka related pods
             return kubernetesClient.pods()
                 .inNamespace(namespace)
                 .list()
@@ -175,18 +180,18 @@ public class KafkaClusterService {
             return true;
         }
 
-        return name.contains("kafka") || name.contains("zookeeper") || name.contains(StrimziConstants.CommonValues.STRIMZI);
+        return name.contains(Constants.Strimzi.ComponentTypes.KAFKA_LOWERCASE) || name.contains(Constants.Strimzi.ComponentTypes.ZOOKEEPER_LOWERCASE) || name.contains(Constants.Strimzi.CommonValues.STRIMZI);
     }
 
     private boolean hasStrimziLabels(Map<String, String> labels) {
         if (labels == null) {
             return false;
         }
-        if (labels.containsKey(StrimziConstants.StrimziLabels.CLUSTER_LABEL) || labels.containsKey(StrimziConstants.StrimziLabels.KIND_LABEL)) {
+        if (labels.containsKey(ResourceLabels.STRIMZI_CLUSTER_LABEL) || labels.containsKey(ResourceLabels.STRIMZI_KIND_LABEL)) {
             return true;
         }
-        return labels.containsKey(StrimziConstants.KubernetesLabels.APP_NAME_LABEL)
-            && labels.get(StrimziConstants.KubernetesLabels.APP_NAME_LABEL).contains(StrimziConstants.CommonValues.STRIMZI);
+        return labels.containsKey(Constants.Kubernetes.Labels.APP_NAME_LABEL)
+            && labels.get(Constants.Kubernetes.Labels.APP_NAME_LABEL).contains(Constants.Strimzi.CommonValues.STRIMZI);
     }
 
     /**
@@ -200,16 +205,15 @@ public class KafkaClusterService {
         String normalizedNamespace = InputUtils.normalizeNamespace(namespace);
         String normalizedClusterName = InputUtils.normalizeClusterName(clusterName);
 
-        // Auto-discover namespace from Kafka CRs if not specified
         if (normalizedNamespace == null) {
-            List<KafkaClusterResponse> discoveredClusters = discoveryService.discoverKafkaClusters(null);
+            List<Kafka> discoveredClusters = discoveryService.discoverKafkaClusters(null);
 
             if (discoveredClusters.isEmpty()) {
                 return ToolError.of("No Kafka clusters found. Please ensure Kafka is deployed.");
             }
 
             List<String> distinctNamespaces = discoveredClusters.stream()
-                .map(KafkaClusterResponse::namespace)
+                .map(kafka -> kafka.getMetadata().getNamespace())
                 .distinct()
                 .toList();
 
@@ -219,11 +223,11 @@ public class KafkaClusterService {
             } else {
                 String clusterSuggestions = discoveredClusters.stream()
                     .limit(3)
-                    .map(KafkaClusterResponse::getDisplayName)
+                    .map(kafka -> String.format("%s/%s", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName()))
                     .collect(Collectors.joining(", "));
                 return ToolError.of(String.format("Found Kafka clusters in multiple namespaces: %s. " +
-                            "Please specify: 'Get bootstrap servers for %s in the %s namespace'",
-                        clusterSuggestions, normalizedClusterName, distinctNamespaces.getFirst()));
+                        "Please specify: 'Get bootstrap servers for %s in the %s namespace'",
+                    clusterSuggestions, normalizedClusterName, distinctNamespaces.getFirst()));
             }
         }
 
@@ -264,7 +268,6 @@ public class KafkaClusterService {
             return servers;
         }
 
-        // Extract from listeners status
         kafka.getStatus().getListeners().forEach(listener -> {
             String listenerName = listener.getName();
             String listenerType = listener.getType();
@@ -288,5 +291,240 @@ public class KafkaClusterService {
         });
 
         return servers;
+    }
+
+    /**
+     * Build comprehensive KafkaClusterResponse from Kafka Custom Resource.
+     */
+    private KafkaClusterResponse buildKafkaClusterResponse(Kafka kafka) {
+        String name = kafka.getMetadata().getName();
+        String namespace = kafka.getMetadata().getNamespace();
+        String status = determineClusterStatus(kafka);
+
+        String kafkaVersion = extractKafkaVersion(kafka);
+        Integer replicas = extractReplicas(kafka);
+        Integer readyReplicas = extractReadyReplicas(kafka);
+
+        StorageInfo storageInfo = extractStorageInfo(kafka);
+        ListenerInfo listenerInfo = extractListenerInfo(kafka);
+        SecurityInfo securityInfo = extractSecurityInfo(kafka);
+        TimingInfo timingInfo = extractTimingInfo(kafka, name);
+        String managedBy = extractManagedBy(kafka);
+
+        return new KafkaClusterResponse(
+            name,
+            namespace,
+            status,
+            kafkaVersion,
+            replicas,
+            readyReplicas,
+            storageInfo.type(),
+            storageInfo.size(),
+            listenerInfo.listeners().isEmpty() ? null : listenerInfo.listeners(),
+            listenerInfo.externalAccess(),
+            securityInfo.authenticationEnabled(),
+            securityInfo.authorizationEnabled(),
+            timingInfo.creationTime(),
+            timingInfo.ageMinutes(),
+            managedBy
+        );
+    }
+
+    private String extractKafkaVersion(Kafka kafka) {
+        if (kafka.getSpec() != null && kafka.getSpec().getKafka() != null) {
+            return kafka.getSpec().getKafka().getVersion();
+        }
+        return null;
+    }
+
+    private Integer extractReplicas(Kafka kafka) {
+        if (kafka.getSpec() != null && kafka.getSpec().getKafka() != null) {
+            return kafka.getSpec().getKafka().getReplicas();
+        }
+        return null;
+    }
+
+    private Integer extractReadyReplicas(Kafka kafka) {
+        String clusterName = kafka.getMetadata().getName();
+        String namespace = kafka.getMetadata().getNamespace();
+
+        try {
+            List<Pod> kafkaPods = kubernetesClient.pods()
+                .inNamespace(namespace)
+                .withLabel(ResourceLabels.STRIMZI_CLUSTER_LABEL, clusterName)
+                .withLabel(ResourceLabels.STRIMZI_KIND_LABEL,
+                    Constants.Strimzi.ComponentNames.KAFKA)
+                .list()
+                .getItems();
+
+            return (int) kafkaPods.stream()
+                .filter(pod -> pod.getStatus() != null &&
+                    Constants.Kubernetes.PodPhases.RUNNING.equals(pod.getStatus().getPhase()))
+                .count();
+        } catch (Exception e) {
+            LOG.debugf("Could not count ready replicas for cluster %s: %s",
+                clusterName, e.getMessage());
+            return null;
+        }
+    }
+
+    private StorageInfo extractStorageInfo(Kafka kafka) {
+        if (kafka.getSpec() != null && kafka.getSpec().getKafka() != null && kafka.getSpec().getKafka().getStorage() != null) {
+            Object storage = kafka.getSpec().getKafka().getStorage();
+            return new StorageInfo(determineStorageType(storage), extractStorageSize(storage));
+        }
+        return new StorageInfo(null, null);
+    }
+
+    private ListenerInfo extractListenerInfo(Kafka kafka) {
+        List<String> listeners = new ArrayList<>();
+        boolean externalAccess = false;
+
+        if (kafka.getSpec() != null && kafka.getSpec().getKafka() != null && kafka.getSpec().getKafka().getListeners() != null) {
+            for (GenericKafkaListener listener : kafka.getSpec().getKafka().getListeners()) {
+                if (listener.getName() != null) {
+                    listeners.add(listener.getName());
+                }
+                if (isExternalListener(listener)) {
+                    externalAccess = true;
+                }
+            }
+        }
+
+        return new ListenerInfo(listeners, externalAccess);
+    }
+
+    private boolean isExternalListener(GenericKafkaListener listener) {
+        return listener.getType() != null &&
+            (listener.getType() == KafkaListenerType.NODEPORT ||
+                listener.getType() == KafkaListenerType.LOADBALANCER ||
+                listener.getType() == KafkaListenerType.INGRESS ||
+                listener.getType() == KafkaListenerType.ROUTE);
+    }
+
+    private SecurityInfo extractSecurityInfo(Kafka kafka) {
+        Boolean authenticationEnabled = false;
+        Boolean authorizationEnabled = false;
+
+        if (kafka.getSpec() != null && kafka.getSpec().getKafka() != null) {
+            if (kafka.getSpec().getKafka().getListeners() != null) {
+                authenticationEnabled = kafka.getSpec().getKafka().getListeners().stream()
+                    .anyMatch(listener -> listener.getAuth() != null);
+            }
+            authorizationEnabled = kafka.getSpec().getKafka().getAuthorization() != null;
+        }
+
+        return new SecurityInfo(authenticationEnabled, authorizationEnabled);
+    }
+
+    private TimingInfo extractTimingInfo(Kafka kafka, String name) {
+        Instant creationTime = null;
+        Long ageMinutes = null;
+
+        if (kafka.getMetadata().getCreationTimestamp() != null) {
+            try {
+                creationTime = Instant.parse(kafka.getMetadata().getCreationTimestamp());
+                ageMinutes = Duration.between(creationTime, Instant.now()).toMinutes();
+            } catch (DateTimeParseException e) {
+                LOG.debugf("Could not parse creation timestamp for cluster %s: %s", name, e.getMessage());
+            }
+        }
+
+        return new TimingInfo(creationTime, ageMinutes);
+    }
+
+    private String extractManagedBy(Kafka kafka) {
+        if (kafka.getMetadata().getLabels() != null) {
+            String managedBy = kafka.getMetadata().getLabels().get(Constants.Kubernetes.Labels.MANAGED_BY_LABEL);
+            if (managedBy == null) {
+                managedBy = kafka.getMetadata().getLabels().get(Constants.Strimzi.Labels.OPERATOR_LABEL);
+            }
+            return managedBy;
+        }
+        return null;
+    }
+
+    /**
+     * Determine cluster status from conditions.
+     */
+    private String determineClusterStatus(Kafka kafka) {
+        if (kafka.getStatus() == null || kafka.getStatus().getConditions() == null) {
+            return Constants.Strimzi.StatusValues.UNKNOWN;
+        }
+
+        for (Condition condition : kafka.getStatus().getConditions()) {
+            if (Constants.Kubernetes.ConditionTypes.READY.equals(condition.getType())) {
+                if (Constants.Kubernetes.ConditionStatuses.TRUE.equals(condition.getStatus())) {
+                    return Constants.Strimzi.StatusValues.READY;
+                } else if (Constants.Kubernetes.ConditionStatuses.FALSE.equals(condition.getStatus())) {
+                    return Constants.Strimzi.StatusValues.ERROR;
+                } else {
+                    return Constants.Strimzi.StatusValues.NOT_READY;
+                }
+            }
+        }
+
+        return Constants.Strimzi.StatusValues.UNKNOWN;
+    }
+
+    /**
+     * Determine storage type from storage configuration.
+     */
+    private String determineStorageType(Object storage) {
+        if (storage == null) {
+            return Constants.Strimzi.StorageTypes.UNKNOWN;
+        }
+
+        try {
+            // Use reflection to get the type field - this is a simplified approach
+            String storageStr = storage.toString();
+            if (storageStr.contains("ephemeral")) {
+                return Constants.Strimzi.StorageTypes.EPHEMERAL;
+            } else if (storageStr.contains("persistent")) {
+                return Constants.Strimzi.StorageTypes.PERSISTENT_CLAIM;
+            } else if (storageStr.contains("jbod")) {
+                return Constants.Strimzi.StorageTypes.JBOD;
+            }
+        } catch (Exception e) {
+            LOG.debugf("Could not determine storage type: %s", e.getMessage());
+        }
+
+        return Constants.Strimzi.StorageTypes.UNKNOWN;
+    }
+
+    /**
+     * Extract storage size from storage configuration.
+     */
+    private String extractStorageSize(Object storage) {
+        if (storage == null) {
+            return null;
+        }
+
+        try {
+            // This is a simplified extraction - we'd need to handle different storage types
+            String storageStr = storage.toString();
+            // Look for size patterns like "100Gi", "1Ti", etc.
+            if (storageStr.contains("size")) {
+                // This is a very basic extraction - a real implementation would properly parse the storage object
+                return null; // Simplified for now
+            }
+        } catch (Exception e) {
+            LOG.debugf("Could not extract storage size: %s", e.getMessage());
+        }
+
+        return null;
+    }
+
+    // Helper records for extracted information
+    private record StorageInfo(String type, String size) {
+    }
+
+    private record ListenerInfo(List<String> listeners, boolean externalAccess) {
+    }
+
+    private record SecurityInfo(Boolean authenticationEnabled, Boolean authorizationEnabled) {
+    }
+
+    private record TimingInfo(Instant creationTime, Long ageMinutes) {
     }
 }

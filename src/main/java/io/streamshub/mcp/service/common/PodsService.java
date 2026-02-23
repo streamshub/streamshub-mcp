@@ -15,10 +15,9 @@ import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.streamshub.mcp.config.StrimziConstants;
+import io.streamshub.mcp.config.Constants;
 import io.streamshub.mcp.dto.PodSummaryResponse;
 import io.streamshub.mcp.dto.ToolError;
-import io.streamshub.mcp.service.infra.StrimziDiscoveryService;
 import io.streamshub.mcp.util.InputUtils;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -48,8 +47,6 @@ public class PodsService {
 
     @Inject
     KubernetesClient kubernetesClient;
-    @Inject
-    StrimziDiscoveryService discoveryService;
 
     PodsService() {
     }
@@ -97,35 +94,14 @@ public class PodsService {
     public Object describePod(String namespace, String podName, String sections) {
         Set<String> parsedSections = parseSections(sections);
 
-        // If no pod name specified, fall back to operator pod auto-discovery
         if (podName == null || podName.isBlank()) {
             return describePod(namespace, null, sections);
         }
 
         String normalizedNamespace = InputUtils.normalizeNamespace(namespace);
 
-        // If no namespace specified, try to auto-discover from Kafka clusters
         if (normalizedNamespace == null) {
-            List<String> discoveredNamespaces = discoveryService.discoverKafkaClusters(null)
-                .stream()
-                .map(cluster -> cluster.namespace())
-                .distinct()
-                .sorted()
-                .toList();
-
-            if (discoveredNamespaces.isEmpty()) {
-                return ToolError.of("No Strimzi resources found in any namespace. Please ensure Kafka is deployed. " +
-                        "You can specify a namespace explicitly.");
-            }
-
-            if (discoveredNamespaces.size() == 1) {
-                normalizedNamespace = discoveredNamespaces.getFirst();
-                LOG.infof("Auto-discovered Strimzi in namespace: %s", normalizedNamespace);
-            } else {
-                String namespaceList = String.join(", ", discoveredNamespaces);
-                return ToolError.of(String.format("Found Strimzi in multiple namespaces: %s. " +
-                        "Please specify which one.", namespaceList));
-            }
+            return ToolError.of("Namespace is required. Please specify a namespace: 'Show me pod details in the kafka namespace'");
         }
 
         LOG.infof("ResourcesService: describePod (namespace=%s, podName=%s, sections=%s)",
@@ -147,34 +123,6 @@ public class PodsService {
             LOG.errorf(e, "Error describing pod '%s' in namespace: %s", podName, normalizedNamespace);
             return ToolError.of("Failed to describe pod '" + podName + "' in namespace " + normalizedNamespace, e);
         }
-    }
-
-    // Pod extraction helpers
-
-    /**
-     * Determine the Strimzi component type from pod name and labels.
-     *
-     * @param name   the pod name
-     * @param labels the pod labels
-     * @return the component type string
-     */
-    public String determineComponent(String name, Map<String, String> labels) {
-        if (labels.containsKey(StrimziConstants.StrimziLabels.KIND_LABEL)) {
-            return labels.get(StrimziConstants.StrimziLabels.KIND_LABEL).toLowerCase(Locale.ENGLISH);
-        }
-        if (name.contains("kafka-operator") || name.contains("strimzi-cluster-operator")) {
-            return "operator";
-        }
-        if (name.contains("entity-operator")) {
-            return "entity-operator";
-        }
-        if (name.contains("kafka") && !name.contains("zookeeper")) {
-            return "kafka";
-        }
-        if (name.contains("zookeeper")) {
-            return "zookeeper";
-        }
-        return "unknown";
     }
 
     /**
@@ -202,7 +150,7 @@ public class PodsService {
 
     /**
      * Extract a {@link PodSummaryResponse.PodInfo} with detail controlled by the given sections set.
-     *
+     * <p>
      * Empty set means summary only.
      * "full" means everything.
      * Otherwise only requested sections: node, labels, env, resources, volumes, conditions.
@@ -219,19 +167,19 @@ public class PodsService {
         var podStatus = pod.getStatus();
 
         String podName = metadata.getName();
-        String phase = podStatus != null ? podStatus.getPhase() : "Unknown";
+        String phase = podStatus != null ? podStatus.getPhase() : Constants.Kubernetes.PodPhases.UNKNOWN;
         Map<String, String> podLabels = metadata.getLabels() != null ? metadata.getLabels() : Map.of();
 
         // Ready check
         boolean ready = false;
         if (podStatus != null && podStatus.getConditions() != null) {
             ready = podStatus.getConditions().stream()
-                .anyMatch(c -> StrimziConstants.ConditionTypes.READY.equals(c.getType()) &&
-                    StrimziConstants.ConditionStatuses.TRUE.equals(c.getStatus()));
+                .anyMatch(c -> Constants.Kubernetes.ConditionTypes.READY.equals(c.getType()) &&
+                    Constants.Kubernetes.ConditionStatuses.TRUE.equals(c.getStatus()));
         }
 
-        // Component
-        String component = determineComponent(podName, podLabels);
+        // Component - basic component detection from pod name and labels
+        String component = determineComponentFromPodInfo(podName, podLabels);
 
         // Restarts
         int restarts = 0;
@@ -451,7 +399,7 @@ public class PodsService {
             } else if (source.getResourceFieldRef() != null) {
                 valueFrom = "resourceFieldRef:" + source.getResourceFieldRef().getResource();
             } else {
-                valueFrom = "unknown";
+                valueFrom = Constants.Kubernetes.ContainerStates.UNKNOWN;
             }
             return new PodSummaryResponse.EnvVarInfo(env.getName(), null, valueFrom);
         }
@@ -481,16 +429,61 @@ public class PodsService {
     }
 
     private String extractContainerState(ContainerState state) {
-        if (state == null) return "unknown";
-        if (state.getRunning() != null) return "running";
+        if (state == null) return Constants.Kubernetes.ContainerStates.UNKNOWN;
+        if (state.getRunning() != null) return Constants.Kubernetes.ContainerStates.RUNNING;
         if (state.getWaiting() != null) {
-            return "waiting" + (state.getWaiting().getReason() != null
+            return Constants.Kubernetes.ContainerStates.WAITING + (state.getWaiting().getReason() != null
                 ? ": " + state.getWaiting().getReason() : "");
         }
         if (state.getTerminated() != null) {
-            return "terminated" + (state.getTerminated().getReason() != null
+            return Constants.Kubernetes.ContainerStates.TERMINATED + (state.getTerminated().getReason() != null
                 ? ": " + state.getTerminated().getReason() : "");
         }
-        return "unknown";
+        return Constants.Kubernetes.ContainerStates.UNKNOWN;
+    }
+
+    /**
+     * Determine component type from pod name and labels using general patterns.
+     * This provides basic component detection without technology-specific assumptions.
+     *
+     * @param name   the pod name
+     * @param labels the pod labels
+     * @return the component type string
+     */
+    private String determineComponentFromPodInfo(String name, Map<String, String> labels) {
+        // Check common application labels first
+        if (labels != null) {
+            String appName = labels.get(Constants.Kubernetes.Labels.APP_NAME_LABEL);
+            if (appName != null) {
+                return appName.toLowerCase(Locale.ENGLISH);
+            }
+
+            String app = labels.get(Constants.Kubernetes.Labels.APP_LABEL);
+            if (app != null) {
+                return app.toLowerCase(Locale.ENGLISH);
+            }
+        }
+
+        // Fallback to basic pod name pattern detection
+        if (name != null) {
+            String lowerName = name.toLowerCase(Locale.ENGLISH);
+            if (lowerName.contains("operator")) {
+                return "operator";
+            }
+            if (lowerName.contains("controller")) {
+                return "controller";
+            }
+            if (lowerName.contains("manager")) {
+                return "manager";
+            }
+            if (lowerName.contains("worker")) {
+                return "worker";
+            }
+            if (lowerName.contains("server")) {
+                return "server";
+            }
+        }
+
+        return "app";
     }
 }

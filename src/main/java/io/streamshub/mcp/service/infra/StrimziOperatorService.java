@@ -7,7 +7,7 @@ package io.streamshub.mcp.service.infra;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.streamshub.mcp.config.StrimziConstants;
+import io.streamshub.mcp.config.Constants;
 import io.streamshub.mcp.dto.StrimziOperatorLogsResponse;
 import io.streamshub.mcp.dto.StrimziOperatorResponse;
 import io.streamshub.mcp.dto.ToolError;
@@ -15,6 +15,7 @@ import io.streamshub.mcp.service.common.DeploymentService;
 import io.streamshub.mcp.service.common.KubernetesResourceService;
 import io.streamshub.mcp.service.common.PodsService;
 import io.streamshub.mcp.util.InputUtils;
+import io.strimzi.api.ResourceLabels;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -36,24 +37,24 @@ import java.util.stream.Collectors;
 public class StrimziOperatorService {
 
     private static final Logger LOG = Logger.getLogger(StrimziOperatorService.class);
-    private static final int DEFAULT_LOG_LINES = 50;
-    private static final int MAX_LOG_LINES = 200;
+    private static final int DEFAULT_LOG_LINES_COUNT = 50;
+    private static final int MAX_LOG_LINES_COUNT = 200;
 
     /**
      * Ordered label strategies for finding operator deployments.
      */
     private static final List<Map.Entry<String, String>> OPERATOR_DEPLOYMENT_LABELS = List.of(
         new AbstractMap.SimpleImmutableEntry<>(
-            StrimziConstants.StrimziLabels.KIND_LABEL, StrimziConstants.ComponentNames.CLUSTER_OPERATOR),
+            ResourceLabels.STRIMZI_KIND_LABEL, Constants.Strimzi.ComponentNames.CLUSTER_OPERATOR),
         new AbstractMap.SimpleImmutableEntry<>(
-            StrimziConstants.KubernetesLabels.APP_LABEL, StrimziConstants.CommonValues.STRIMZI_CLUSTER_OPERATOR)
+            Constants.Kubernetes.Labels.APP_LABEL, Constants.Strimzi.CommonValues.STRIMZI_CLUSTER_OPERATOR)
     );
 
     /**
      * Name-based predicate for identifying operator deployments as fallback.
      */
     private static final Predicate<String> OPERATOR_NAME_PATTERN = name ->
-        name != null && name.contains(StrimziConstants.CommonValues.STRIMZI) && name.contains("operator");
+        name != null && name.contains(Constants.Strimzi.CommonValues.STRIMZI) && name.contains("operator");
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -116,7 +117,7 @@ public class StrimziOperatorService {
      * @return structured result containing operator logs or ToolError for errors
      */
     public Object getOperatorLogs(String namespace) {
-        return getOperatorLogs(namespace, DEFAULT_LOG_LINES);
+        return getOperatorLogs(namespace, DEFAULT_LOG_LINES_COUNT);
     }
 
     /**
@@ -129,7 +130,6 @@ public class StrimziOperatorService {
     public Object getOperatorLogs(String namespace, int maxLines) {
         String normalizedNamespace = InputUtils.normalizeNamespace(namespace);
 
-        // If no namespace specified, try to auto-discover Strimzi operator
         if (normalizedNamespace == null) {
             List<String> discoveredNamespaces = findOperatorDeployments(null)
                 .stream()
@@ -140,29 +140,26 @@ public class StrimziOperatorService {
 
             if (discoveredNamespaces.isEmpty()) {
                 return ToolError.of("No Strimzi operator found in any namespace. Please ensure Strimzi is deployed. " +
-                        "You can specify a namespace explicitly: 'Show me operator logs from the kafka namespace'");
+                    "You can specify a namespace explicitly: 'Show me operator logs from the kafka namespace'");
             }
 
             if (discoveredNamespaces.size() == 1) {
-                // Auto-use the single namespace found
                 normalizedNamespace = discoveredNamespaces.getFirst();
                 LOG.infof("Auto-discovered Strimzi operator in namespace: %s", normalizedNamespace);
             } else {
-                // Multiple namespaces found, ask user to be specific
                 String namespaceList = String.join(", ", discoveredNamespaces);
                 return ToolError.of(String.format("Found Strimzi operator in multiple namespaces: %s. " +
-                            "Please specify which one: 'Show me operator logs from the %s namespace'",
-                        namespaceList, discoveredNamespaces.getFirst()));
+                        "Please specify which one: 'Show me operator logs from the %s namespace'",
+                    namespaceList, discoveredNamespaces.getFirst()));
             }
         }
 
-        int limitedLines = Math.min(maxLines, MAX_LOG_LINES);
+        int limitedLines = Math.min(maxLines, MAX_LOG_LINES_COUNT);
 
         LOG.infof("StrimziOperatorService: getOperatorLogs (namespace=%s, maxLines=%d)",
             normalizedNamespace, limitedLines);
 
         try {
-            // Find Strimzi operator pods
             List<Pod> operatorPods = discoveryService.findOperatorPods(normalizedNamespace);
 
             if (operatorPods.isEmpty()) {
@@ -253,7 +250,6 @@ public class StrimziOperatorService {
     public Object getOperatorStatus(String namespace) {
         String normalizedNamespace = InputUtils.normalizeNamespace(namespace);
 
-        // If no namespace specified, try to auto-discover Strimzi operator
         if (normalizedNamespace == null) {
             List<String> discoveredNamespaces = findOperatorDeployments(null)
                 .stream()
@@ -268,11 +264,9 @@ public class StrimziOperatorService {
             }
 
             if (discoveredNamespaces.size() == 1) {
-                // Auto-use the single namespace found
                 normalizedNamespace = discoveredNamespaces.getFirst();
                 LOG.infof("Auto-discovered Strimzi operator in namespace: %s", normalizedNamespace);
             } else {
-                // Multiple namespaces found, cannot auto-select
                 String namespaceList = String.join(", ", discoveredNamespaces);
                 LOG.warnf("Found Strimzi operator in multiple namespaces: %s", namespaceList);
                 return ToolError.of("Found Strimzi operator in multiple namespaces: " + namespaceList +
@@ -302,7 +296,7 @@ public class StrimziOperatorService {
             Long uptimeMinutes = deploymentService.calculateUptimeMinutes(deployment);
             String uptimeHours = uptimeMinutes != null ? String.format("%.1f", uptimeMinutes / 60.0) : "unknown";
 
-            String status = ready ? "HEALTHY" : "DEGRADED";
+            String status = ready ? Constants.Strimzi.StatusValues.HEALTHY : Constants.Strimzi.StatusValues.DEGRADED;
 
             return StrimziOperatorResponse.forStatus(deploymentName, normalizedNamespace, ready,
                 replicas, readyReplicas, version, image, uptimeHours, status);
@@ -332,7 +326,7 @@ public class StrimziOperatorService {
             operatorDeployments = findOperatorDeployments(normalizedNamespace);
 
             return operatorDeployments.stream()
-                .map(this::buildOperatorInfo)
+                .map(this::createOperatorResponse)
                 .toList();
 
         } catch (Exception e) {
@@ -344,18 +338,16 @@ public class StrimziOperatorService {
     /**
      * Build operator information from deployment.
      */
-    private StrimziOperatorResponse buildOperatorInfo(Deployment deployment) {
+    private StrimziOperatorResponse createOperatorResponse(Deployment deployment) {
         String name = deployment.getMetadata().getName();
         String namespace = deployment.getMetadata().getNamespace();
 
-        // Extract deployment status info
         Integer replicas = deployment.getSpec() != null ? deployment.getSpec().getReplicas() : null;
         Integer readyReplicas = deployment.getStatus() != null ? deployment.getStatus().getReadyReplicas() : null;
 
         boolean ready = replicas != null && replicas.equals(readyReplicas) && readyReplicas > 0;
-        String status = ready ? "HEALTHY" : "DEGRADED";
+        String status = ready ? Constants.Strimzi.StatusValues.HEALTHY : Constants.Strimzi.StatusValues.DEGRADED;
 
-        // Extract version from deployment
         String version = deploymentService.extractVersion(deployment);
 
         return StrimziOperatorResponse.forDiscovery(name, namespace, ready, replicas, readyReplicas, version, status);
