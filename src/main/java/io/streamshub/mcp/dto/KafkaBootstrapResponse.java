@@ -67,25 +67,6 @@ public record KafkaBootstrapResponse(
     }
 
     /**
-     * Creates a not-found result when the Kafka cluster does not exist.
-     *
-     * @param namespace   the Kubernetes namespace
-     * @param clusterName the Kafka cluster name
-     * @return a not-found KafkaBootstrapResponse
-     */
-    public static KafkaBootstrapResponse notFound(String namespace, String clusterName) {
-        return new KafkaBootstrapResponse(
-            "not-found",
-            namespace,
-            clusterName,
-            List.of(),
-            String.format("Kafka cluster '%s' not found in namespace '%s'", clusterName, namespace),
-            Instant.now()
-        );
-    }
-
-
-    /**
      * Information about a Kafka bootstrap server.
      *
      * @param host         the server hostname
@@ -101,13 +82,5 @@ public record KafkaBootstrapResponse(
         String listenerType,
         String address
     ) {
-        /**
-         * Returns the connection string in host:port format.
-         *
-         * @return the connection string
-         */
-        public String getConnectionString() {
-            return String.format("%s:%d", host, port);
-        }
     }
 }

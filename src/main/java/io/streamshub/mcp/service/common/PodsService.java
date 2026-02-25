@@ -15,9 +15,9 @@ import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.config.Constants;
 import io.streamshub.mcp.dto.PodSummaryResponse;
-import io.streamshub.mcp.dto.ToolError;
 import io.streamshub.mcp.util.InputUtils;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -70,59 +70,51 @@ public class PodsService {
     }
 
     /**
-     * Get detailed description of a specific pod or the first operator pod (fallback).
-     * Backward-compatible: defaults to summary-only when no sections specified.
+     * Get detailed description of a specific pod.
+     * Defaults to summary-only when no sections specified.
      *
      * @param namespace the namespace to search in
      * @param podName   the name of the pod to describe
-     * @return structured result containing pod description or ToolError for errors
+     * @return structured result containing pod description
      */
-    public Object describePod(String namespace, String podName) {
+    public PodSummaryResponse describePod(String namespace, String podName) {
         return describePod(namespace, podName, null);
     }
 
     /**
      * Get description of a specific pod with section filtering.
-     * If podName is null/blank, delegates to the operator service to auto-discover operator pods.
-     * If podName is provided, fetches and describes any pod by name.
      *
      * @param namespace the namespace to search in
      * @param podName   the name of the pod to describe
      * @param sections  comma-separated sections string (null/blank means summary only)
-     * @return structured result containing pod description or ToolError for errors
+     * @return structured result containing pod description
      */
-    public Object describePod(String namespace, String podName, String sections) {
+    public PodSummaryResponse describePod(String namespace, String podName, String sections) {
         Set<String> parsedSections = parseSections(sections);
 
-        if (podName == null || podName.isBlank()) {
-            return describePod(namespace, null, sections);
-        }
-
-        String normalizedNamespace = InputUtils.normalizeNamespace(namespace);
+        String normalizedNamespace = InputUtils.normalizeInput(namespace);
 
         if (normalizedNamespace == null) {
-            return ToolError.of("Namespace is required. Please specify a namespace: 'Show me pod details in the kafka namespace'");
+            throw new ToolCallException("Namespace is required");
         }
 
-        LOG.infof("ResourcesService: describePod (namespace=%s, podName=%s, sections=%s)",
-            normalizedNamespace, podName, sections);
-
-        try {
-            Pod pod = kubernetesClient.pods()
-                .inNamespace(normalizedNamespace)
-                .withName(podName)
-                .get();
-
-            if (pod == null) {
-                return PodSummaryResponse.notFound(normalizedNamespace, podName);
-            }
-
-            return extractPodDescribeResult(normalizedNamespace, pod, parsedSections);
-
-        } catch (Exception e) {
-            LOG.errorf(e, "Error describing pod '%s' in namespace: %s", podName, normalizedNamespace);
-            return ToolError.of("Failed to describe pod '" + podName + "' in namespace " + normalizedNamespace, e);
+        if (podName == null || podName.isBlank()) {
+            throw new ToolCallException("Pod name is required");
         }
+
+        LOG.infof("Describing pod=%s in namespace=%s (sections=%s)",
+            podName, normalizedNamespace, sections);
+
+        Pod pod = kubernetesClient.pods()
+            .inNamespace(normalizedNamespace)
+            .withName(podName)
+            .get();
+
+        if (pod == null) {
+            return PodSummaryResponse.notFound(normalizedNamespace, podName);
+        }
+
+        return extractPodDescribeResult(normalizedNamespace, pod, parsedSections);
     }
 
     /**
@@ -174,8 +166,8 @@ public class PodsService {
         boolean ready = false;
         if (podStatus != null && podStatus.getConditions() != null) {
             ready = podStatus.getConditions().stream()
-                .anyMatch(c -> Constants.Kubernetes.ConditionTypes.READY.equals(c.getType()) &&
-                    Constants.Kubernetes.ConditionStatuses.TRUE.equals(c.getStatus()));
+                .anyMatch(c -> Constants.Kubernetes.Conditions.TYPE_READY.equals(c.getType()) &&
+                    Constants.Kubernetes.Conditions.STATUS_TRUE.equals(c.getStatus()));
         }
 
         // Component - basic component detection from pod name and labels
@@ -302,7 +294,7 @@ public class PodsService {
      */
     public PodSummaryResponse extractPodDescribeResult(String namespace, Pod pod, Set<String> sections) {
         PodSummaryResponse.PodInfo podInfo = extractPodInfo(namespace, pod, sections);
-        return PodSummaryResponse.of(namespace, null, List.of(podInfo));
+        return PodSummaryResponse.of(namespace, List.of(podInfo));
     }
 
     @SuppressWarnings("checkstyle:CyclomaticComplexity")
@@ -453,12 +445,12 @@ public class PodsService {
     private String determineComponentFromPodInfo(String name, Map<String, String> labels) {
         // Check common application labels first
         if (labels != null) {
-            String appName = labels.get(Constants.Kubernetes.Labels.APP_NAME_LABEL);
+            String appName = labels.get(Constants.Kubernetes.Labels.APP_NAME);
             if (appName != null) {
                 return appName.toLowerCase(Locale.ENGLISH);
             }
 
-            String app = labels.get(Constants.Kubernetes.Labels.APP_LABEL);
+            String app = labels.get(Constants.Kubernetes.Labels.APP);
             if (app != null) {
                 return app.toLowerCase(Locale.ENGLISH);
             }

@@ -1,0 +1,152 @@
+/*
+ * Copyright StreamsHub authors.
+ * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
+ */
+package io.streamshub.mcp.service.domain;
+
+import io.quarkiverse.mcp.server.ToolCallException;
+import io.streamshub.mcp.config.Constants;
+import io.streamshub.mcp.dto.KafkaTopicResponse;
+import io.streamshub.mcp.service.common.KubernetesResourceService;
+import io.streamshub.mcp.util.InputUtils;
+import io.strimzi.api.ResourceLabels;
+import io.strimzi.api.kafka.model.topic.KafkaTopic;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.jboss.logging.Logger;
+
+import java.util.List;
+
+/**
+ * Service for Kafka topic operations.
+ */
+@ApplicationScoped
+public class KafkaTopicService {
+
+    private static final Logger LOG = Logger.getLogger(KafkaTopicService.class);
+
+    @Inject
+    KubernetesResourceService k8sService;
+
+    KafkaTopicService() {
+    }
+
+    /**
+     * List Kafka topics for a specific cluster, optionally filtered by namespace.
+     *
+     * @param namespace   the namespace, or null for all namespaces
+     * @param clusterName the cluster name
+     * @return list of topic responses
+     */
+    public List<KafkaTopicResponse> listTopics(final String namespace, final String clusterName) {
+        String ns = InputUtils.normalizeInput(namespace);
+        String normalizedClusterName = InputUtils.normalizeInput(clusterName);
+
+        if (normalizedClusterName == null) {
+            throw new ToolCallException("Cluster name is required");
+        }
+
+        LOG.infof("Listing Kafka topics for cluster=%s (namespace=%s)", normalizedClusterName, ns != null ? ns : "all");
+
+        List<KafkaTopic> topics;
+        if (ns != null) {
+            topics = k8sService.queryResourcesByLabel(
+                KafkaTopic.class, ns, ResourceLabels.STRIMZI_CLUSTER_LABEL, normalizedClusterName);
+        } else {
+            topics = k8sService.queryResourcesByLabelInAnyNamespace(
+                KafkaTopic.class, ResourceLabels.STRIMZI_CLUSTER_LABEL, normalizedClusterName);
+        }
+
+        return topics.stream()
+            .map(this::createTopicResponse)
+            .toList();
+    }
+
+    /**
+     * Get specific Kafka topic details.
+     *
+     * @param namespace   the namespace, or null for auto-discovery
+     * @param clusterName the cluster name (used for validation)
+     * @param topicName   the topic name
+     * @return the topic response
+     */
+    public KafkaTopicResponse getTopic(final String namespace, final String clusterName, final String topicName) {
+        String ns = InputUtils.normalizeInput(namespace);
+
+        if (topicName == null) {
+            throw new ToolCallException("Topic name is required");
+        }
+
+        LOG.infof("Getting topic=%s for cluster=%s in namespace=%s", topicName, clusterName, ns != null ? ns : "auto");
+
+        KafkaTopic topic;
+
+        if (ns != null) {
+            topic = k8sService.getResource(KafkaTopic.class, ns, topicName);
+        } else {
+            topic = findTopicInAllNamespaces(topicName, clusterName);
+        }
+
+        if (topic == null) {
+            throw new ToolCallException("Topic '" + topicName + "' not found");
+        }
+
+        if (clusterName != null) {
+            String topicCluster = topic.getMetadata().getLabels() != null
+                ? topic.getMetadata().getLabels().get(ResourceLabels.STRIMZI_CLUSTER_LABEL)
+                : null;
+
+            if (!clusterName.equals(topicCluster)) {
+                throw new ToolCallException("Topic '" + topicName + "' belongs to cluster '"
+                    + topicCluster + "', not '" + clusterName + "'");
+            }
+        }
+
+        return createTopicResponse(topic);
+    }
+
+    private KafkaTopic findTopicInAllNamespaces(final String topicName, final String clusterName) {
+        List<KafkaTopic> allTopics = k8sService.queryResourcesInAnyNamespace(KafkaTopic.class);
+
+        for (KafkaTopic topic : allTopics) {
+            if (topicName.equals(topic.getMetadata().getName())) {
+                if (clusterName != null) {
+                    String topicCluster = topic.getMetadata().getLabels() != null
+                        ? topic.getMetadata().getLabels().get(ResourceLabels.STRIMZI_CLUSTER_LABEL)
+                        : null;
+
+                    if (!clusterName.equals(topicCluster)) {
+                        continue;
+                    }
+                }
+
+                LOG.debugf("Discovered topic %s in namespace %s",
+                    topicName, topic.getMetadata().getNamespace());
+                return topic;
+            }
+        }
+
+        return null;
+    }
+
+    private KafkaTopicResponse createTopicResponse(final KafkaTopic topic) {
+        String topicName = topic.getMetadata().getName();
+        String cluster = topic.getMetadata().getLabels() != null
+            ? topic.getMetadata().getLabels().get(ResourceLabels.STRIMZI_CLUSTER_LABEL)
+            : Constants.UNKNOWN;
+
+        Integer partitions = null;
+        Integer replicas = null;
+
+        if (topic.getSpec() != null) {
+            partitions = topic.getSpec().getPartitions();
+            replicas = topic.getSpec().getReplicas();
+        }
+
+        String status = topic.getStatus() != null
+            ? k8sService.determineResourceStatus(topic.getStatus().getConditions())
+            : Constants.Kubernetes.ResourceStatus.UNKNOWN;
+
+        return new KafkaTopicResponse(topicName, cluster, partitions, replicas, status);
+    }
+}

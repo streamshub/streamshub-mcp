@@ -5,9 +5,8 @@
 package io.streamshub.mcp.service.common;
 
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.KubernetesClient;
+import io.streamshub.mcp.config.Constants;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
@@ -23,53 +22,33 @@ public class DeploymentService {
 
     private static final Logger LOG = Logger.getLogger(DeploymentService.class);
 
-    @Inject
-    KubernetesClient kubernetesClient;
-
     DeploymentService() {
     }
 
 
     /**
      * Extract version from deployment container image.
-     * Common pattern used for determining Strimzi operator version.
      *
      * @param deployment the deployment to extract version from
      * @return the version string or "unknown" if not determinable
      */
     public String extractVersion(Deployment deployment) {
-        if (isNullDeployment(deployment)) {
-            return "unknown";
-        }
-
-        String image = deployment.getSpec().getTemplate().getSpec().getContainers().getFirst().getImage();
+        String image = extractImage(deployment);
         if (image != null && image.contains(":")) {
             return image.substring(image.lastIndexOf(":") + 1);
         }
-        return "unknown";
+        return Constants.UNKNOWN;
     }
 
     /**
      * Extract full image name from deployment.
-     * Common pattern used for deployment introspection.
      *
      * @param deployment the deployment to extract image from
-     * @return the full image name or "unknown" if not determinable
+     * @return the full image name or null if not determinable
      */
     public String extractImage(Deployment deployment) {
-        if (isNullDeployment(deployment)) {
-            return "unknown";
-        }
-
-        return deployment.getSpec().getTemplate().getSpec().getContainers().getFirst().getImage();
-    }
-
-    private boolean isNullDeployment(Deployment deployment) {
-        return deployment == null || deployment.getSpec() == null ||
-            deployment.getSpec().getTemplate() == null ||
-            deployment.getSpec().getTemplate().getSpec() == null ||
-            deployment.getSpec().getTemplate().getSpec().getContainers() == null ||
-            deployment.getSpec().getTemplate().getSpec().getContainers().isEmpty();
+        return deployment.getSpec().getTemplate().getSpec()
+            .getContainers().getFirst().getImage();
     }
 
     /**
@@ -89,7 +68,7 @@ public class DeploymentService {
         } catch (Exception e) {
             LOG.debugf("Could not calculate uptime for deployment %s: %s",
                 deployment.getMetadata() != null ?
-                    deployment.getMetadata().getName() : "unknown", e.getMessage());
+                    deployment.getMetadata().getName() : Constants.UNKNOWN, e.getMessage());
         }
         return null;
     }

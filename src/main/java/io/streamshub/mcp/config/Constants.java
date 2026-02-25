@@ -5,74 +5,84 @@
 package io.streamshub.mcp.config;
 
 /**
- * Application constants for both general Kubernetes resources and Strimzi-specific values.
- * Organized to clearly separate general-purpose constants from technology-specific ones.
+ * Application constants organized by domain.
+ * Uses Strimzi API constants where available to avoid magic values.
  */
 public final class Constants {
 
+    /**
+     * Generic lowercase "unknown" fallback value used across the application.
+     */
+    public static final String UNKNOWN = "unknown";
+
     private Constants() {
-        // Utility class - no instantiation
     }
 
     /**
-     * General Kubernetes constants that any service can use.
+     * General Kubernetes constants.
      */
     public static final class Kubernetes {
+
+        private Kubernetes() {
+        }
 
         /**
          * Standard Kubernetes labels.
          */
         public static final class Labels {
-            /** Standard Kubernetes application name label. */
-            public static final String APP_NAME_LABEL = "app.kubernetes.io/name";
-            /** Standard Kubernetes managed-by label. */
-            public static final String MANAGED_BY_LABEL = "app.kubernetes.io/managed-by";
-            /** Simple app label. */
-            public static final String APP_LABEL = "app";
-            /** Name label. */
-            public static final String NAME_LABEL = "name";
+            /**
+             * Kubernetes recommended app name label key.
+             */
+            public static final String APP_NAME = "app.kubernetes.io/name";
+            /**
+             * Kubernetes recommended managed-by label key.
+             */
+            public static final String MANAGED_BY = "app.kubernetes.io/managed-by";
+            /**
+             * Generic app label key.
+             */
+            public static final String APP = "app";
 
             private Labels() {
             }
         }
 
         /**
-         * Kubernetes condition types.
+         * Kubernetes condition types and statuses used together in condition checks.
          */
-        public static final class ConditionTypes {
-            /** Ready condition type. */
-            public static final String READY = "Ready";
+        public static final class Conditions {
+            /**
+             * Condition type indicating readiness.
+             */
+            public static final String TYPE_READY = "Ready";
+            /**
+             * Condition status value representing true.
+             */
+            public static final String STATUS_TRUE = "True";
+            /**
+             * Condition status value representing false.
+             */
+            public static final String STATUS_FALSE = "False";
 
-            private ConditionTypes() {
+            private Conditions() {
             }
         }
 
         /**
-         * Kubernetes condition statuses.
-         */
-        public static final class ConditionStatuses {
-            /** True condition status. */
-            public static final String TRUE = "True";
-            /** False condition status. */
-            public static final String FALSE = "False";
-
-            private ConditionStatuses() {
-            }
-        }
-
-        /**
-         * Kubernetes pod phase constants.
+         * Kubernetes pod phase values.
          */
         public static final class PodPhases {
-            /** Pod is running and ready. */
+            /**
+             * Pod phase indicating the pod is running.
+             */
             public static final String RUNNING = "Running";
-            /** Pod has failed. */
+            /**
+             * Pod phase indicating the pod has failed.
+             */
             public static final String FAILED = "Failed";
-            /** Pod is pending. */
-            public static final String PENDING = "Pending";
-            /** Pod has succeeded. */
-            public static final String SUCCEEDED = "Succeeded";
-            /** Pod phase is unknown. */
+            /**
+             * Pod phase indicating the pod status is unknown.
+             */
             public static final String UNKNOWN = "Unknown";
 
             private PodPhases() {
@@ -80,16 +90,24 @@ public final class Constants {
         }
 
         /**
-         * Kubernetes container state constants.
+         * Kubernetes container state values.
          */
         public static final class ContainerStates {
-            /** Container is running. */
+            /**
+             * Container state indicating the container is running.
+             */
             public static final String RUNNING = "running";
-            /** Container is waiting. */
+            /**
+             * Container state indicating the container is waiting to start.
+             */
             public static final String WAITING = "waiting";
-            /** Container has terminated. */
+            /**
+             * Container state indicating the container has terminated.
+             */
             public static final String TERMINATED = "terminated";
-            /** Container state is unknown. */
+            /**
+             * Container state indicating the container status is unknown.
+             */
             public static final String UNKNOWN = "unknown";
 
             private ContainerStates() {
@@ -97,138 +115,119 @@ public final class Constants {
         }
 
         /**
-         * General status values that can be used by any service.
+         * Resource status values derived from Kubernetes resource conditions.
          */
-        public static final class StatusValues {
-            /** Unknown status. */
+        public static final class ResourceStatus {
+            /**
+             * Status indicating the resource is ready.
+             */
+            public static final String READY = "Ready";
+            /**
+             * Status indicating the resource is not ready.
+             */
+            public static final String NOT_READY = "NotReady";
+            /**
+             * Status indicating the resource is in an error state.
+             */
+            public static final String ERROR = "Error";
+            /**
+             * Status indicating the resource status is unknown.
+             */
             public static final String UNKNOWN = "Unknown";
-            /** Unknown cluster name. */
-            public static final String UNKNOWN_CLUSTER = "unknown";
-            /** Partial status. */
-            public static final String PARTIAL = "PARTIAL";
-            /** Not found status. */
-            public static final String NOT_FOUND = "NOT_FOUND";
 
-            private StatusValues() {
+            private ResourceStatus() {
             }
         }
 
-        private Kubernetes() {
+        /**
+         * Health status values for deployment and pod health assessment.
+         */
+        public static final class HealthStatus {
+            /**
+             * Health status indicating the component is fully healthy.
+             */
+            public static final String HEALTHY = "HEALTHY";
+            /**
+             * Health status indicating the component is degraded.
+             */
+            public static final String DEGRADED = "DEGRADED";
+            /**
+             * Health status indicating partial availability.
+             */
+            public static final String PARTIAL = "PARTIAL";
+            /**
+             * Health status indicating the component was not found.
+             */
+            public static final String NOT_FOUND = "NOT_FOUND";
+            /**
+             * Health status indicating the component health is unknown.
+             */
+            public static final String UNKNOWN = "UNKNOWN";
+
+            private HealthStatus() {
+            }
         }
     }
 
     /**
-     * Strimzi-specific constants that should only be used by Strimzi services.
+     * Strimzi-specific constants.
      */
     public static final class Strimzi {
 
-        /**
-         * Strimzi component names.
-         */
-        public static final class ComponentNames {
-            /** Cluster operator component. */
-            public static final String CLUSTER_OPERATOR = "cluster-operator";
-            /** Topic operator component. */
-            public static final String TOPIC_OPERATOR = "topic-operator";
-            /** User operator component. */
-            public static final String USER_OPERATOR = "user-operator";
-            /** Entity operator component. */
-            public static final String ENTITY_OPERATOR = "entity-operator";
-            /** Kafka component. */
-            public static final String KAFKA = "kafka";
-            /** ZooKeeper component. */
-            public static final String ZOOKEEPER = "zookeeper";
-            /** Connect component. */
-            public static final String CONNECT = "connect";
-            /** Bridge component. */
-            public static final String BRIDGE = "bridge";
-
-            private ComponentNames() {
-            }
+        private Strimzi() {
         }
 
         /**
-         * Common string values for Strimzi resources.
-         */
-        public static final class CommonValues {
-            /** Strimzi application identifier. */
-            public static final String STRIMZI = "strimzi";
-            /** Strimzi cluster operator name. */
-            public static final String STRIMZI_CLUSTER_OPERATOR = "strimzi-cluster-operator";
-
-            private CommonValues() {
-            }
-        }
-
-        /**
-         * Strimzi-specific labels.
+         * Strimzi label keys not available in the Strimzi API ResourceLabels class.
          */
         public static final class Labels {
-            /** Strimzi operator label. */
-            public static final String OPERATOR_LABEL = "strimzi.io/operator";
+            /**
+             * Strimzi label key identifying the node pool name.
+             */
+            public static final String POOL_NAME = "strimzi.io/pool-name";
 
             private Labels() {
             }
         }
 
         /**
-         * Status values for Strimzi cluster and topic conditions.
+         * Values for the strimzi.io/kind label.
          */
-        public static final class StatusValues {
-            /** Ready status. */
-            public static final String READY = "Ready";
-            /** NotReady status. */
-            public static final String NOT_READY = "NotReady";
-            /** Error status. */
-            public static final String ERROR = "Error";
-            /** Unknown status. */
-            public static final String UNKNOWN = "Unknown";
-            /** Healthy status. */
-            public static final String HEALTHY = "HEALTHY";
-            /** Degraded status. */
-            public static final String DEGRADED = "DEGRADED";
-            /** Down status. */
-            public static final String DOWN = "DOWN";
-            /** Not deployed status. */
-            public static final String NOT_DEPLOYED = "NOT_DEPLOYED";
+        public static final class KindValues {
+            /**
+             * Kind label value for the Strimzi cluster operator.
+             */
+            public static final String CLUSTER_OPERATOR = "cluster-operator";
 
-            private StatusValues() {
+            private KindValues() {
             }
         }
 
         /**
-         * Component type strings for filtering and identification.
+         * Values for the strimzi.io/component-type label.
          */
         public static final class ComponentTypes {
-            /** Kafka component type (lowercase). */
-            public static final String KAFKA_LOWERCASE = "kafka";
-            /** ZooKeeper component type (lowercase). */
-            public static final String ZOOKEEPER_LOWERCASE = "zookeeper";
-            /** Operator component type (lowercase). */
-            public static final String OPERATOR_LOWERCASE = "operator";
+            /**
+             * Component type value for Kafka broker components.
+             */
+            public static final String KAFKA = "kafka";
 
             private ComponentTypes() {
             }
         }
 
         /**
-         * Storage type constants for Kafka clusters.
+         * Strimzi operator label values for discovery.
          */
-        public static final class StorageTypes {
-            /** Ephemeral storage type. */
-            public static final String EPHEMERAL = "ephemeral";
-            /** Persistent claim storage type. */
-            public static final String PERSISTENT_CLAIM = "persistent-claim";
-            /** JBOD storage type. */
-            public static final String JBOD = "jbod";
-            /** Unknown storage type. */
-            public static final String UNKNOWN = "unknown";
+        public static final class Operator {
+            /**
+             * Value of the app label on the operator deployment (app=strimzi).
+             */
+            public static final String APP_LABEL_VALUE = "strimzi";
 
-            private StorageTypes() {
+            private Operator() {
             }
         }
 
-        private Strimzi() {
-        }
     }
 }

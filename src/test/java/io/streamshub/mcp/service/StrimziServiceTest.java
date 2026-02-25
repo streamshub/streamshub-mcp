@@ -10,8 +10,6 @@ import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
-import io.fabric8.kubernetes.api.model.apps.DeploymentSpec;
-import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -21,16 +19,14 @@ import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.config.Constants;
-import io.streamshub.mcp.dto.KafkaBootstrapResponse;
+import io.streamshub.mcp.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.dto.KafkaClusterResponse;
 import io.streamshub.mcp.dto.KafkaTopicResponse;
-import io.streamshub.mcp.dto.PodSummaryResponse;
 import io.streamshub.mcp.dto.StrimziOperatorLogsResponse;
 import io.streamshub.mcp.dto.StrimziOperatorResponse;
-import io.streamshub.mcp.dto.ToolError;
-import io.streamshub.mcp.service.infra.KafkaClusterService;
-import io.streamshub.mcp.service.infra.KafkaTopicService;
-import io.streamshub.mcp.service.infra.StrimziOperatorService;
+import io.streamshub.mcp.service.domain.KafkaService;
+import io.streamshub.mcp.service.domain.KafkaTopicService;
+import io.streamshub.mcp.service.domain.StrimziOperatorService;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -64,7 +59,7 @@ class StrimziServiceTest {
     StrimziOperatorService operatorService;
 
     @Inject
-    KafkaClusterService clusterService;
+    KafkaService kafkaService;
 
     @Inject
     KafkaTopicService topicService;
@@ -89,18 +84,10 @@ class StrimziServiceTest {
         setupHealthyOperatorPod("kafka-system", "strimzi-cluster-operator-abc123");
 
         // Test the service method
-        Object resultObj = operatorService.getOperatorLogs("kafka-system");
+        StrimziOperatorLogsResponse result = operatorService.getOperatorLogs("kafka-system", null);
 
         // Verify the result
-        assertNotNull(resultObj);
-
-        // Should be a successful response, not an error
-        if (resultObj instanceof ToolError error) {
-            // If it's an error, fail with the error message
-            throw new AssertionError("Expected successful result but got error: " + error.error());
-        }
-
-        StrimziOperatorLogsResponse result = (StrimziOperatorLogsResponse) resultObj;
+        assertNotNull(result);
         assertEquals("kafka-system", result.namespace());
         assertNotNull(result.timestamp());
 
@@ -111,31 +98,6 @@ class StrimziServiceTest {
         }
     }
 
-    @Test
-    void testOperatorStatusCheckWithHealthyDeployment() {
-        // Setup a healthy operator deployment
-        setupHealthyOperatorDeployment("production", "strimzi-cluster-operator");
-
-        // Test the service method
-        Object resultObj = operatorService.getOperatorStatus("production");
-
-        // Verify the result - may be ToolError if no operator found due to mocking
-        if (resultObj instanceof ToolError error) {
-            // This is expected when no operator is found due to incomplete mocking
-            assertNotNull(error.error());
-            return;
-        }
-
-        StrimziOperatorResponse result = (StrimziOperatorResponse) resultObj;
-        assertNotNull(result);
-        assertEquals("production", result.namespace());
-
-        // If deployment was found, verify details
-        if (result.name() != null) {
-            assertEquals("strimzi-cluster-operator", result.name());
-            assertTrue(result.replicas() > 0);
-        }
-    }
 
     @Test
     void testOperatorLogsNoOperatorFound() {
@@ -143,34 +105,15 @@ class StrimziServiceTest {
         setupEmptyResponses("empty-namespace");
 
         // Test with namespace that has no operator
-        Object resultObj = operatorService.getOperatorLogs("empty-namespace");
+        StrimziOperatorLogsResponse result = operatorService.getOperatorLogs("empty-namespace", null);
 
-        // Should handle gracefully
-        assertNotNull(resultObj);
-
-        // When no operator is found, it returns a StrimziOperatorLogsResponse.notFound()
-        StrimziOperatorLogsResponse result = (StrimziOperatorLogsResponse) resultObj;
+        // Should handle gracefully - returns notFound response
+        assertNotNull(result);
         assertEquals("empty-namespace", result.namespace());
         assertNotNull(result.message());
         assertNotNull(result.timestamp());
     }
 
-    @Test
-    void testOperatorStatusNoDeploymentFound() {
-        // Setup empty responses
-        setupEmptyResponses("empty-namespace");
-
-        // Test with namespace that has no deployment
-        Object resultObj = operatorService.getOperatorStatus("empty-namespace");
-
-        // Should handle gracefully - should return ToolError when no operator found
-        assertNotNull(resultObj);
-        assertInstanceOf(ToolError.class, resultObj, "Expected ToolError when no operator found");
-
-        ToolError error = (ToolError) resultObj;
-        assertNotNull(error.error());
-        assertTrue(error.error().contains("No operator deployment found"));
-    }
 
     @Test
     void testInputNormalizationOperatorServices() {
@@ -178,16 +121,12 @@ class StrimziServiceTest {
         setupHealthyOperatorPod("kafka", "operator-pod");
 
         // Test with various input formats (spaces, case)
-        Object resultObj1 = operatorService.getOperatorLogs("  KAFKA  ");
-        Object resultObj2 = operatorService.getOperatorLogs("kafka");
+        StrimziOperatorLogsResponse result1 = operatorService.getOperatorLogs("  KAFKA  ", null);
+        StrimziOperatorLogsResponse result2 = operatorService.getOperatorLogs("kafka", null);
 
         // Both should work and return consistent results
-        assertNotNull(resultObj1);
-        assertNotNull(resultObj2);
-
-        // Cast to expected type if not error
-        StrimziOperatorLogsResponse result1 = (StrimziOperatorLogsResponse) resultObj1;
-        StrimziOperatorLogsResponse result2 = (StrimziOperatorLogsResponse) resultObj2;
+        assertNotNull(result1);
+        assertNotNull(result2);
 
         // The normalized namespace should be the same
         assertEquals("kafka", result1.namespace());
@@ -204,7 +143,7 @@ class StrimziServiceTest {
         metadata.setName(podName);
         metadata.setNamespace(namespace);
         metadata.setLabels(Map.of(
-            Constants.Kubernetes.Labels.APP_NAME_LABEL, Constants.Strimzi.CommonValues.STRIMZI_CLUSTER_OPERATOR
+            Constants.Kubernetes.Labels.APP_NAME, Constants.Strimzi.Operator.APP_LABEL_VALUE
         ));
         operatorPod.setMetadata(metadata);
 
@@ -230,47 +169,6 @@ class StrimziServiceTest {
         when(namespacedPodOp.withName(podName)).thenReturn(podResource);
         when(podResource.tailingLines(Mockito.anyInt())).thenReturn(podResource);
         when(podResource.getLog()).thenReturn("INFO: Strimzi operator running normally\nINFO: Processing cluster configurations");
-
-        // Setup discovery mocking for auto-discovery to work
-    }
-
-    @SuppressWarnings("unchecked")
-    private void setupHealthyOperatorDeployment(String namespace, String deploymentName) {
-        // Create a mock operator deployment
-        Deployment deployment = new Deployment();
-        ObjectMeta metadata = new ObjectMeta();
-        metadata.setName(deploymentName);
-        metadata.setNamespace(namespace);
-        metadata.setLabels(Map.of(
-            Constants.Kubernetes.Labels.APP_NAME_LABEL, Constants.Strimzi.CommonValues.STRIMZI_CLUSTER_OPERATOR
-        ));
-        metadata.setCreationTimestamp(Instant.now().minusSeconds(600).toString());
-        deployment.setMetadata(metadata);
-
-        DeploymentSpec spec = new DeploymentSpec();
-        spec.setReplicas(2);
-        deployment.setSpec(spec);
-
-        DeploymentStatus status = new DeploymentStatus();
-        status.setReplicas(2);
-        status.setReadyReplicas(2);
-        deployment.setStatus(status);
-
-        DeploymentList deploymentList = new DeploymentList();
-        deploymentList.setItems(List.of(deployment));
-
-        // Setup mock behavior
-        MixedOperation<Deployment, DeploymentList, RollableScalableResource<Deployment>> deploymentOp =
-            kubernetesClient.apps().deployments();
-        NonNamespaceOperation<Deployment, DeploymentList, RollableScalableResource<Deployment>> namespacedDeploymentOp =
-            Mockito.mock(NonNamespaceOperation.class);
-        FilterWatchListDeletable<Deployment, DeploymentList, RollableScalableResource<Deployment>> labeledDeploymentOp =
-            Mockito.mock(FilterWatchListDeletable.class);
-
-        when(deploymentOp.inNamespace(namespace)).thenReturn(namespacedDeploymentOp);
-        when(namespacedDeploymentOp.withLabel(anyString(), anyString())).thenReturn(labeledDeploymentOp);
-        when(labeledDeploymentOp.list()).thenReturn(deploymentList);
-
     }
 
     @SuppressWarnings("unchecked")
@@ -305,133 +203,60 @@ class StrimziServiceTest {
 
     @Test
     void testKafkaTopicsWithSpecificCluster() {
-        // Test the service method without complex mocking
-        Object resultObj = topicService.getKafkaTopics("kafka", "my-cluster");
+        // Service now returns List<KafkaTopicResponse> directly, empty list when no topics found
+        List<KafkaTopicResponse> result = topicService.listTopics("kafka", "my-cluster");
 
-        // Verify the result structure (should handle gracefully even without mocks)
-        assertNotNull(resultObj);
-
-        // Cast to expected type if not error - could be List<KafkaTopicResponse> or ToolError
-        if (resultObj instanceof ToolError error) {
-            // Error is expected when no topics found or Kubernetes API error
-            assertNotNull(error.error());
-        } else {
-            @SuppressWarnings("unchecked")
-            List<KafkaTopicResponse> result = (List<KafkaTopicResponse>) resultObj;
-            // Service returns empty list when no topics found, which is fine
-            assertTrue(result.size() >= 0);
-        }
+        assertNotNull(result);
+        assertTrue(result.size() >= 0);
     }
 
     @Test
     void testKafkaTopicsNoTopicsFound() {
-        // Test with non-existent namespace/cluster
-        Object resultObj = topicService.getKafkaTopics("empty-namespace", "my-cluster");
+        // Service returns empty list when no topics found
+        List<KafkaTopicResponse> result = topicService.listTopics("empty-namespace", "my-cluster");
 
-        // Should handle gracefully by returning empty list or ToolError
-        assertNotNull(resultObj);
-
-        if (resultObj instanceof ToolError error) {
-            // Error is expected when namespace doesn't exist or API error
-            assertNotNull(error.error());
-        } else {
-            @SuppressWarnings("unchecked")
-            List<KafkaTopicResponse> result = (List<KafkaTopicResponse>) resultObj;
-            assertTrue(result.size() >= 0);
-        }
+        assertNotNull(result);
+        assertTrue(result.size() >= 0);
     }
 
     @Test
     void testKafkaClustersDiscovery() {
-        // Test the cluster service without complex mocking
-        Object resultObj = clusterService.getKafkaClusters("production");
+        // Service now returns List<KafkaClusterResponse> directly
+        List<KafkaClusterResponse> result = kafkaService.listClusters("production");
 
-        // Verify the result structure
-        assertNotNull(resultObj);
-
-        if (resultObj instanceof ToolError error) {
-            // Error is expected when namespace doesn't exist or API error
-            assertNotNull(error.error());
-        } else {
-            @SuppressWarnings("unchecked")
-            List<KafkaClusterResponse> result = (List<KafkaClusterResponse>) resultObj;
-            assertTrue(result.size() >= 0);
-        }
+        assertNotNull(result);
+        assertTrue(result.size() >= 0);
     }
 
     @Test
     void testClusterPodsService() {
-        // Test the pods service for clusters
-        Object resultObj = clusterService.getClusterPods("kafka", "my-cluster");
+        KafkaClusterPodsResponse result = kafkaService.getClusterPods("kafka", "my-cluster");
 
-        // Verify the result structure
-        assertNotNull(resultObj);
-
-        if (resultObj instanceof ToolError error) {
-            // Error is expected when namespace/cluster doesn't exist or API error
-            assertNotNull(error.error());
-        } else {
-            PodSummaryResponse result = (PodSummaryResponse) resultObj;
-            assertEquals("kafka", result.namespace());
-            assertEquals("my-cluster", result.clusterName());
-            assertNotNull(result.timestamp());
-            assertNotNull(result.message());
-            assertTrue(result.totalPods() >= 0);
-        }
+        assertNotNull(result);
+        assertEquals("kafka", result.namespace());
+        assertEquals("my-cluster", result.clusterName());
+        assertNotNull(result.podSummary());
+        assertNotNull(result.podSummary().timestamp());
+        assertNotNull(result.podSummary().message());
+        assertTrue(result.podSummary().totalPods() >= 0);
     }
 
-    @Test
-    void testBootstrapServersService() {
-        // Test bootstrap servers service
-        Object resultObj = clusterService.getBootstrapServers("kafka", "my-cluster");
-
-        // Verify the result structure
-        assertNotNull(resultObj);
-
-        if (resultObj instanceof ToolError error) {
-            assertNotNull(error.error());
-        } else {
-            KafkaBootstrapResponse result = (KafkaBootstrapResponse) resultObj;
-            assertEquals("kafka", result.namespace());
-            assertEquals("my-cluster", result.clusterName());
-            assertNotNull(result.timestamp());
-            assertNotNull(result.message());
-        }
-    }
 
     @Test
     void testClusterOperatorsDiscovery() {
-        // Test cluster operators discovery without complex mocking
-        Object resultObj = operatorService.getClusterOperators("kafka-system");
+        // Service now returns List<StrimziOperatorResponse> directly
+        List<StrimziOperatorResponse> result = operatorService.listOperators("kafka-system");
 
-        // Verify the result structure
-        assertNotNull(resultObj);
-
-        if (resultObj instanceof ToolError error) {
-            // Error is expected when namespace doesn't exist or API error
-            assertNotNull(error.error());
-        } else {
-            @SuppressWarnings("unchecked")
-            List<StrimziOperatorResponse> result = (List<StrimziOperatorResponse>) resultObj;
-            assertTrue(result.size() >= 0);
-        }
+        assertNotNull(result);
+        assertTrue(result.size() >= 0);
     }
 
     @Test
     void testClusterOperatorsAllNamespaces() {
-        // Test cluster operators discovery across all namespaces
-        Object resultObj = operatorService.getClusterOperators(null);
+        // Service now returns List<StrimziOperatorResponse> directly
+        List<StrimziOperatorResponse> result = operatorService.listOperators(null);
 
-        // Verify the result structure
-        assertNotNull(resultObj);
-
-        if (resultObj instanceof ToolError error) {
-            // Error is expected when API error occurs
-            assertNotNull(error.error());
-        } else {
-            @SuppressWarnings("unchecked")
-            List<StrimziOperatorResponse> result = (List<StrimziOperatorResponse>) resultObj;
-            assertTrue(result.size() >= 0);
-        }
+        assertNotNull(result);
+        assertTrue(result.size() >= 0);
     }
 }

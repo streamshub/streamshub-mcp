@@ -14,12 +14,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Response containing pod summary and health information for a Kafka cluster.
- * Provides aggregate statistics, component breakdown, and individual pod details.
+ * Response containing pod summary and health information.
+ * Generic pod summary that can be used for any set of pods.
  * Avoids naming conflicts with Kubernetes API classes.
  *
  * @param namespace          the Kubernetes namespace
- * @param clusterName        the Kafka cluster name
  * @param totalPods          the total number of pods
  * @param readyPods          the number of ready pods
  * @param failedPods         the number of failed pods
@@ -32,7 +31,6 @@ import java.util.stream.Collectors;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record PodSummaryResponse(
     @JsonProperty("namespace") String namespace,
-    @JsonProperty("cluster_name") String clusterName,
     @JsonProperty("total_pods") int totalPods,
     @JsonProperty("ready_pods") int readyPods,
     @JsonProperty("failed_pods") int failedPods,
@@ -46,12 +44,11 @@ public record PodSummaryResponse(
     /**
      * Creates a successful result with pod information.
      *
-     * @param namespace   the Kubernetes namespace
-     * @param clusterName the Kafka cluster name
-     * @param pods        the list of pod information
+     * @param namespace the Kubernetes namespace
+     * @param pods      the list of pod information
      * @return a PodSummaryResponse with the pod data
      */
-    public static PodSummaryResponse of(String namespace, String clusterName, List<PodInfo> pods) {
+    public static PodSummaryResponse of(String namespace, List<PodInfo> pods) {
         int totalPods = pods.size();
         int readyPods = (int) pods.stream().filter(PodInfo::ready).count();
         int failedPods = (int) pods.stream().filter(p -> Constants.Kubernetes.PodPhases.FAILED.equalsIgnoreCase(p.phase())).count();
@@ -63,10 +60,10 @@ public record PodSummaryResponse(
             ));
 
         String healthStatus = determineHealthStatus(totalPods, readyPods, failedPods);
-        String message = generateMessage(namespace, clusterName, totalPods, readyPods, failedPods, componentBreakdown);
+        String message = generateMessage(namespace, totalPods, readyPods, failedPods, componentBreakdown);
 
         return new PodSummaryResponse(
-            namespace, clusterName, totalPods, readyPods, failedPods,
+            namespace, totalPods, readyPods, failedPods,
             componentBreakdown, pods, healthStatus, Instant.now(), message
         );
     }
@@ -74,17 +71,14 @@ public record PodSummaryResponse(
     /**
      * Creates an empty result when no pods are found.
      *
-     * @param namespace   the Kubernetes namespace
-     * @param clusterName the Kafka cluster name
+     * @param namespace the Kubernetes namespace
      * @return an empty PodSummaryResponse
      */
-    public static PodSummaryResponse empty(String namespace, String clusterName) {
+    public static PodSummaryResponse empty(String namespace) {
         return new PodSummaryResponse(
-            namespace, clusterName, 0, 0, 0,
-            Map.of(), List.of(), Constants.Kubernetes.StatusValues.UNKNOWN, Instant.now(),
-            clusterName != null ?
-                String.format("No Kafka pods found for cluster '%s' in namespace '%s'", clusterName, namespace) :
-                String.format("No Kafka/Strimzi pods found in namespace '%s'", namespace)
+            namespace, 0, 0, 0,
+            Map.of(), List.of(), Constants.Kubernetes.HealthStatus.UNKNOWN, Instant.now(),
+            String.format("No pods found in namespace '%s'", namespace)
         );
     }
 
@@ -98,30 +92,24 @@ public record PodSummaryResponse(
      */
     public static PodSummaryResponse notFound(String namespace, String podName) {
         return new PodSummaryResponse(
-            namespace, null, 0, 0, 0,
-            null, null, Constants.Kubernetes.StatusValues.NOT_FOUND, Instant.now(),
+            namespace, 0, 0, 0,
+            null, null, Constants.Kubernetes.HealthStatus.NOT_FOUND, Instant.now(),
             String.format("Pod '%s' not found in namespace '%s'", podName, namespace)
         );
     }
 
     private static String determineHealthStatus(int total, int ready, int failed) {
-        if (total == 0) return Constants.Kubernetes.StatusValues.UNKNOWN;
-        if (failed > 0) return Constants.Strimzi.StatusValues.DEGRADED;
-        if (ready == total) return Constants.Strimzi.StatusValues.HEALTHY;
-        return Constants.Kubernetes.StatusValues.PARTIAL;
+        if (total == 0) return Constants.Kubernetes.HealthStatus.UNKNOWN;
+        if (failed > 0) return Constants.Kubernetes.HealthStatus.DEGRADED;
+        if (ready == total) return Constants.Kubernetes.HealthStatus.HEALTHY;
+        return Constants.Kubernetes.HealthStatus.PARTIAL;
     }
 
-    private static String generateMessage(String namespace, String clusterName,
-                                          int total, int ready, int failed,
+    private static String generateMessage(String namespace, int total, int ready, int failed,
                                           Map<String, Integer> breakdown) {
         StringBuilder msg = new StringBuilder();
 
-        if (clusterName != null) {
-            msg.append(String.format("Cluster '%s' in namespace '%s': ", clusterName, namespace));
-        } else {
-            msg.append(String.format("All Kafka pods in namespace '%s': ", namespace));
-        }
-
+        msg.append(String.format("Pods in namespace '%s': ", namespace));
         msg.append(String.format("%d total pods, %d ready, %d failed", total, ready, failed));
 
         if (!breakdown.isEmpty()) {

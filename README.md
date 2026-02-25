@@ -8,7 +8,6 @@ A Quarkus application that provides Strimzi Kafka management tools via **MCP (Mo
 - **Pure MCP Server**: Standard Model Context Protocol for AI assistants (Claude, etc.)
 - **Smart Discovery**: Auto-finds operators and clusters across namespaces
 - **Structured Results**: Rich JSON responses with health analysis
-- **Standardized Error Handling**: Consistent ToolError responses across all operations
 - **Lightweight**: No LLM dependencies required
 
 ## Prerequisites
@@ -56,47 +55,19 @@ mvn quarkus:dev
 
 ### 2. Configure AI Assistants
 
-Add to Claude code:
+Add to Claude Code:
 
 ```shell
-claude mcp add --transport http strimzi-mcp http://localhost:8080/mcp
+claude mcp add --transport http strimzi http://localhost:8080/mcp
 ```
-
-## Configuration
-
-### Core Settings
-
-| Environment Variable | Default | Description |
-|---------------------|---------|-------------|
-| `K8S_NAMESPACE` | `kafka` | Default Kubernetes namespace |
 
 ## Available Tools
 
-All tools support **smart discovery** - if you don't specify a namespace, they automatically find Strimzi installations across the entire cluster.
+The server provides tools for managing Strimzi operators, Kafka clusters, topics, and node pools. All tools support **smart discovery** - the namespace parameter is always optional, and tools automatically search across the entire cluster when omitted.
 
-### Kafka Cluster Tools
-
-- **`strimzi_kafka_clusters`** - Discover and list all Kafka clusters with status and configuration
-- **`strimzi_cluster_pods`** - Get lightweight pod summaries with component analysis (name, phase, ready, restarts, age)
-- **`strimzi_cluster_pod_describe`** - Get detailed description of specific pod (env vars, resources, volumes, placement)
-- **`strimzi_kafka_topics`** - List all topics for a cluster with partitions, replicas, and status
-- **`strimzi_topic_details`** - Get detailed information for a specific topic by name
-- **`strimzi_bootstrap_servers`** - Get Kafka connection endpoints from all configured listeners
-
-### Strimzi Operator Tools
-
-- **`strimzi_operator_status`** - Check operator deployment health, replicas, version, and uptime
-- **`strimzi_operator_logs`** - Get operator logs with error analysis and structured output
-- **`strimzi_cluster_operators`** - Discover all operator deployments across namespaces
-- **`strimzi_pod_describe`** - Get detailed description of operator pods
-
-## Testing MCP Connection
+Use the MCP inspector to browse all available tools and their parameters:
 
 ```bash
-# Basic connectivity
-curl http://localhost:8080/mcp
-
-# Use MCP inspector
 npx @modelcontextprotocol/inspector http://localhost:8080/mcp
 ```
 
@@ -130,8 +101,11 @@ podman run -d \
 # Check server startup logs
 mvn quarkus:dev
 
-# Verify MCP endpoint
-curl http://localhost:8080/mcp
+# Verify MCP endpoint responds (expects POST, GET returns 405)
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
 ```
 
 ### Kubernetes Issues
@@ -151,73 +125,63 @@ kubectl get crd | grep strimzi
 
 ### Architecture
 
-The application uses a clean architecture with standardized error handling and proper service separation:
+The application uses a clean layered architecture:
 
-- **Constants Organization**: Centralized constants in `Constants.java` with clear separation between general Kubernetes constants (`Constants.Kubernetes.*`) and Strimzi-specific constants (`Constants.Strimzi.*`)
-- **Service Separation**: Clean separation of concerns with generic services for general Kubernetes operations and specialized services for Strimzi-specific functionality
-- **Standardized Error Handling**: Services return `Object` type - either success response DTOs or `ToolError` for failures
-- **MCP Tools** wrap service calls with try-catch and `ToolError.of()` for consistent error handling
-- **Smart Autodiscovery**: Domain-specific services handle their own autodiscovery patterns, while generic services require explicit namespace parameters
+- **Tool Layer** (`tool/`): MCP tool definitions using `@Tool` and `@ToolArg` annotations. Uses `@WrapBusinessError(Exception.class)` for automatic error conversion to MCP error responses with `isError: true`.
+- **Domain Services** (`service/domain/`): Business logic for Strimzi-specific operations (Kafka clusters, topics, node pools, operators). Throw `ToolCallException` for error cases.
+- **Common Services** (`service/common/`): Generic Kubernetes operations (resource queries, pod descriptions, deployment utilities).
+- **DTOs** (`dto/`): Typed response records for structured JSON output.
+- **Config** (`config/`): Centralized constants and shared tool descriptions.
 
 ### Project Structure
 ```
 src/main/java/io/streamshub/mcp/
 ├── tool/                                  # MCP tool definitions
-│   ├── StrimziOperatorMcpTools.java      # Operator MCP tools
-│   └── KafkaClusterMcpTools.java         # Cluster MCP tools
-├── service/                               # Business logic
-│   ├── infra/                            # Strimzi-specific services
-│   │   ├── StrimziOperatorService.java   # Operator operations
-│   │   ├── KafkaClusterService.java      # Cluster operations
+│   ├── KafkaTools.java                   # Kafka cluster tools
+│   ├── KafkaTopicTools.java              # Topic tools
+│   ├── KafkaNodePoolTools.java           # Node pool tools
+│   └── StrimziOperatorTools.java         # Operator tools
+├── service/
+│   ├── domain/                           # Strimzi-specific services
+│   │   ├── KafkaService.java             # Cluster operations
 │   │   ├── KafkaTopicService.java        # Topic operations
-│   │   └── StrimziDiscoveryService.java  # Strimzi discovery utilities
+│   │   ├── KafkaNodePoolService.java     # Node pool operations
+│   │   └── StrimziOperatorService.java   # Operator operations
 │   └── common/                           # Generic Kubernetes services
-│       ├── KubernetesResourceService.java # Generic K8s API wrapper
-│       ├── PodsService.java              # General pod operations
-│       └── DeploymentService.java        # General deployment utilities
-├── dto/                                   # Data transfer objects
-│   └── ToolError.java                    # Standardized error responses
-└── config/                               # Configuration & constants
-    ├── Constants.java                    # Centralized constants (K8s + Strimzi)
+│       ├── KubernetesResourceService.java # K8s API wrapper
+│       ├── PodsService.java              # Pod operations
+│       └── DeploymentService.java        # Deployment utilities
+├── dto/                                   # Response records
+└── config/
+    ├── Constants.java                    # Centralized constants
     └── StrimziToolsPrompts.java          # Shared tool descriptions
 ```
 
 ### Adding New Tools
 
-1. **Add service method** to appropriate service class (returns `Object`)
-2. **Add MCP tool** to corresponding MCP tools class
-3. **Use standardized error handling**
+1. **Add service method** to the appropriate domain service (return typed response, throw `ToolCallException` for errors)
+2. **Add MCP tool** to the corresponding tools class
 
 ```java
-// Service Method
-public Object newOperation(String param) {
-    try {
-        // Business logic
-        return successResponse;
-    } catch (Exception e) {
-        LOG.errorf(e, "Error in new operation: %s", param);
-        return ToolError.of("Failed to perform operation", e);
+// Service method - typed return, exceptions for errors
+public MyResponse myOperation(String namespace, String name) {
+    String ns = InputUtils.normalizeInput(namespace);
+    // ... business logic ...
+    if (resource == null) {
+        throw new ToolCallException("Resource not found");
     }
+    return new MyResponse(/* ... */);
 }
 
-// MCP Tool
-@Tool(name = "new_tool", description = "Tool description")
-public Object newTool(@ToolArg(description = "Parameter") String param) {
-    try {
-        return appropriateService.newOperation(param);
-    } catch (Exception e) {
-        return ToolError.of("Operation failed", e);
-    }
+// MCP tool - thin wrapper, @WrapBusinessError handles exceptions
+@Tool(name = "my_tool", description = "Tool description")
+public MyResponse myTool(
+    @ToolArg(description = "...") String name,
+    @ToolArg(description = "...", required = false) String namespace
+) {
+    return myService.myOperation(namespace, name);
 }
 ```
-
-### Error Handling
-
-All tools return either:
-- **Success**: Specific response DTO (e.g., `KafkaClusterResponse`, `List<KafkaTopicResponse>`)
-- **Error**: `ToolError` with descriptive error message and optional exception details
-
-This provides consistent error handling across all MCP tools while maintaining type safety.
 
 ## Requirements
 

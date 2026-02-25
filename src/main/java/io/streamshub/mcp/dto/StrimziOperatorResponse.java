@@ -35,20 +35,11 @@ public record StrimziOperatorResponse(
 ) {
 
     /**
-     * Create operator info for discovery/listing (without detailed status info).
+     * Create operator response with full deployment details.
      */
-    public static StrimziOperatorResponse forDiscovery(String name, String namespace, boolean ready,
-                                                       Integer replicas, Integer readyReplicas,
-                                                       String version, String status) {
-        return new StrimziOperatorResponse(name, namespace, ready, replicas, readyReplicas, version, null, null, status);
-    }
-
-    /**
-     * Create operator info for detailed status (with image and uptime).
-     */
-    public static StrimziOperatorResponse forStatus(String name, String namespace, boolean ready,
-                                                    Integer replicas, Integer readyReplicas,
-                                                    String version, String image, String uptimeHours, String status) {
+    public static StrimziOperatorResponse of(String name, String namespace, boolean ready,
+                                             Integer replicas, Integer readyReplicas,
+                                             String version, String image, String uptimeHours, String status) {
         return new StrimziOperatorResponse(name, namespace, ready, replicas, readyReplicas, version, image, uptimeHours, status);
     }
 }

@@ -6,6 +6,8 @@ package io.streamshub.mcp.service.common;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.streamshub.mcp.config.Constants;
+import io.strimzi.api.kafka.model.common.Condition;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -13,13 +15,13 @@ import org.jboss.logging.Logger;
 import java.util.List;
 
 /**
- * Common service for generic Kubernetes resource operations.
- * Provides reusable methods for basic resource querying operations.
+ * Common service for Kubernetes resource operations.
  */
 @ApplicationScoped
 public class KubernetesResourceService {
 
     private static final Logger LOG = Logger.getLogger(KubernetesResourceService.class);
+
     @Inject
     KubernetesClient kubernetesClient;
 
@@ -27,104 +29,156 @@ public class KubernetesResourceService {
     }
 
     /**
-     * Query resources of a specific type in a namespace or across all namespaces.
-     * Generic method that can be used for any Kubernetes resource type.
+     * Query resources in a namespace.
      *
      * @param <T>           the resource type
-     * @param resourceClass the class of the resource to query
-     * @param namespace     the namespace to search in, or null for all namespaces
+     * @param resourceClass the resource class
+     * @param namespace     the namespace
      * @return list of resources found
      */
-    public <T extends HasMetadata> List<T> queryResources(Class<T> resourceClass, String namespace) {
+    public <T extends HasMetadata> List<T> queryResources(final Class<T> resourceClass, final String namespace) {
         try {
-            if (namespace != null) {
-                return kubernetesClient.resources(resourceClass)
-                    .inNamespace(namespace)
-                    .list()
-                    .getItems();
-            } else {
-                return kubernetesClient.resources(resourceClass)
-                    .inAnyNamespace()
-                    .list()
-                    .getItems();
-            }
+            return kubernetesClient
+                .resources(resourceClass)
+                .inNamespace(namespace)
+                .list()
+                .getItems();
         } catch (Exception e) {
-            LOG.debugf("Error querying %s resources in namespace %s: %s",
-                resourceClass.getSimpleName(), namespace, e.getMessage());
+            LOG.debugf(
+                "Error querying %s in ns %s: %s",
+                resourceClass.getSimpleName(),
+                namespace, e.getMessage());
             return List.of();
         }
     }
 
     /**
-     * Query resources by label in a specific namespace.
+     * Query resources across all namespaces.
      *
      * @param <T>           the resource type
-     * @param resourceClass the class of the resource to query
-     * @param namespace     the namespace to search in
-     * @param labelKey      the label key to match
-     * @param labelValue    the label value to match
+     * @param resourceClass the resource class
      * @return list of resources found
      */
-    public <T extends HasMetadata> List<T> queryResourcesByLabel(Class<T> resourceClass, String namespace,
-                                                                 String labelKey, String labelValue) {
+    public <T extends HasMetadata> List<T> queryResourcesInAnyNamespace(final Class<T> resourceClass) {
         try {
-            return kubernetesClient.resources(resourceClass)
+            return kubernetesClient
+                .resources(resourceClass)
+                .inAnyNamespace()
+                .list()
+                .getItems();
+        } catch (Exception e) {
+            LOG.debugf(
+                "Error querying %s in any ns: %s",
+                resourceClass.getSimpleName(),
+                e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Query resources by label in a namespace.
+     *
+     * @param <T>           the resource type
+     * @param resourceClass the resource class
+     * @param namespace     the namespace
+     * @param labelKey      the label key
+     * @param labelValue    the label value
+     * @return list of resources found
+     */
+    public <T extends HasMetadata> List<T> queryResourcesByLabel(final Class<T> resourceClass, final String namespace,
+                                                                 final String labelKey, final String labelValue) {
+        try {
+            return kubernetesClient
+                .resources(resourceClass)
                 .inNamespace(namespace)
                 .withLabel(labelKey, labelValue)
                 .list()
                 .getItems();
         } catch (Exception e) {
-            LOG.debugf("Error querying %s resources by label %s=%s in namespace %s: %s",
-                resourceClass.getSimpleName(), labelKey, labelValue, namespace, e.getMessage());
+            LOG.debugf(
+                "Error querying %s by %s=%s"
+                    + " in ns %s: %s",
+                resourceClass.getSimpleName(),
+                labelKey, labelValue,
+                namespace, e.getMessage());
             return List.of();
         }
     }
 
     /**
-     * Query resources by label across all namespaces.
+     * Query resources by label in all namespaces.
      *
      * @param <T>           the resource type
-     * @param resourceClass the class of the resource to query
-     * @param labelKey      the label key to match
-     * @param labelValue    the label value to match
+     * @param resourceClass the resource class
+     * @param labelKey      the label key
+     * @param labelValue    the label value
      * @return list of resources found
      */
-    public <T extends HasMetadata> List<T> queryResourcesByLabelInAnyNamespace(Class<T> resourceClass,
-                                                                               String labelKey, String labelValue) {
+    public <T extends HasMetadata> List<T> queryResourcesByLabelInAnyNamespace(final Class<T> resourceClass,
+                                                                               final String labelKey,
+                                                                               final String labelValue) {
         try {
-            return kubernetesClient.resources(resourceClass)
+            return kubernetesClient
+                .resources(resourceClass)
                 .inAnyNamespace()
                 .withLabel(labelKey, labelValue)
                 .list()
                 .getItems();
         } catch (Exception e) {
-            LOG.debugf("Error querying %s resources by label %s=%s: %s",
-                resourceClass.getSimpleName(), labelKey, labelValue, e.getMessage());
+            LOG.debugf(
+                "Error querying %s by %s=%s: %s",
+                resourceClass.getSimpleName(),
+                labelKey, labelValue,
+                e.getMessage());
             return List.of();
         }
     }
 
-
     /**
-     * Get a specific resource by name in a namespace.
+     * Get a resource by name in a namespace.
      *
      * @param <T>           the resource type
-     * @param resourceClass the class of the resource
-     * @param namespace     the namespace to search in
-     * @param name          the name of the resource
-     * @return the resource if found, null otherwise
+     * @param resourceClass the resource class
+     * @param namespace     the namespace
+     * @param name          the resource name
+     * @return the resource, or null if not found
      */
-    public <T extends HasMetadata> T getResource(Class<T> resourceClass, String namespace, String name) {
+    public <T extends HasMetadata> T getResource(final Class<T> resourceClass, final String namespace, final String name) {
         try {
-            return kubernetesClient.resources(resourceClass)
+            return kubernetesClient
+                .resources(resourceClass)
                 .inNamespace(namespace)
                 .withName(name)
                 .get();
         } catch (Exception e) {
-            LOG.debugf("Error getting %s resource %s in namespace %s: %s",
-                resourceClass.getSimpleName(), name, namespace, e.getMessage());
+            LOG.debugf(
+                "Error getting %s %s in ns %s: %s",
+                resourceClass.getSimpleName(),
+                name, namespace, e.getMessage());
             return null;
         }
     }
 
+    /**
+     * Determine resource status from conditions.
+     *
+     * @param conditions the conditions list
+     * @return Ready, Error, NotReady, or Unknown
+     */
+    public String determineResourceStatus(final List<Condition> conditions) {
+        if (conditions == null || conditions.isEmpty()) {
+            return Constants.Kubernetes.ResourceStatus.UNKNOWN;
+        }
+        boolean ready = conditions.stream().anyMatch(c ->
+            Constants.Kubernetes.Conditions.TYPE_READY.equals(c.getType())
+                && Constants.Kubernetes.Conditions.STATUS_TRUE.equals(c.getStatus()));
+        if (ready) {
+            return Constants.Kubernetes.ResourceStatus.READY;
+        }
+
+        boolean hasError = conditions.stream().anyMatch(c ->
+            Constants.Kubernetes.Conditions.TYPE_READY.equals(c.getType())
+                && Constants.Kubernetes.Conditions.STATUS_FALSE.equals(c.getStatus()));
+        return hasError ? Constants.Kubernetes.ResourceStatus.ERROR : Constants.Kubernetes.ResourceStatus.NOT_READY;
+    }
 }

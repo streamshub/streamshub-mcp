@@ -17,30 +17,17 @@ public final class InputUtils {
     }
 
     /**
-     * Normalize namespace to handle various input formats.
-     * Returns null if no namespace is provided, allowing callers to trigger auto-discovery.
+     * Normalize a user-supplied input string (namespace, cluster name, etc.).
+     * Returns null if the input is blank or the literal string "null",
+     * allowing callers to trigger auto-discovery.
      *
-     * @param namespace the raw namespace input
-     * @return normalized namespace or null
+     * @param input the raw input
+     * @return normalized lowercase trimmed value, or null
      */
-    public static String normalizeNamespace(String namespace) {
-        if (namespace == null || namespace.isBlank() || "null".equalsIgnoreCase(namespace.trim())) {
+    public static String normalizeInput(String input) {
+        if (input == null || input.isBlank() || "null".equalsIgnoreCase(input.trim())) {
             return null;
         }
-        return namespace.toLowerCase(Locale.ENGLISH).trim();
-    }
-
-    /**
-     * Normalize cluster name to handle various input formats.
-     * Returns null if no cluster name is provided.
-     *
-     * @param clusterName the raw cluster name input
-     * @return normalized cluster name or null
-     */
-    public static String normalizeClusterName(String clusterName) {
-        if (clusterName == null || clusterName.isBlank() || "null".equalsIgnoreCase(clusterName.trim())) {
-            return null;
-        }
-        return clusterName.toLowerCase(Locale.ENGLISH).trim();
+        return input.toLowerCase(Locale.ENGLISH).trim();
     }
 }
