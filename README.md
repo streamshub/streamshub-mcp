@@ -123,71 +123,13 @@ kubectl get crd | grep strimzi
 
 ## Development
 
-### Architecture
-
-The application uses a clean layered architecture:
-
-- **Tool Layer** (`tool/`): MCP tool definitions using `@Tool` and `@ToolArg` annotations. Uses `@WrapBusinessError(Exception.class)` for automatic error conversion to MCP error responses with `isError: true`.
-- **Domain Services** (`service/domain/`): Business logic for Strimzi-specific operations (Kafka clusters, topics, node pools, operators). Throw `ToolCallException` for error cases.
-- **Common Services** (`service/common/`): Generic Kubernetes operations (resource queries, pod descriptions, deployment utilities).
-- **DTOs** (`dto/`): Typed response records for structured JSON output.
-- **Config** (`config/`): Centralized constants and shared tool descriptions.
-
-### Project Structure
-```
-src/main/java/io/streamshub/mcp/
-├── tool/                                  # MCP tool definitions
-│   ├── KafkaTools.java                   # Kafka cluster tools
-│   ├── KafkaTopicTools.java              # Topic tools
-│   ├── KafkaNodePoolTools.java           # Node pool tools
-│   └── StrimziOperatorTools.java         # Operator tools
-├── service/
-│   ├── domain/                           # Strimzi-specific services
-│   │   ├── KafkaService.java             # Cluster operations
-│   │   ├── KafkaTopicService.java        # Topic operations
-│   │   ├── KafkaNodePoolService.java     # Node pool operations
-│   │   └── StrimziOperatorService.java   # Operator operations
-│   └── common/                           # Generic Kubernetes services
-│       ├── KubernetesResourceService.java # K8s API wrapper
-│       ├── PodsService.java              # Pod operations
-│       └── DeploymentService.java        # Deployment utilities
-├── dto/                                   # Response records
-└── config/
-    ├── Constants.java                    # Centralized constants
-    └── StrimziToolsPrompts.java          # Shared tool descriptions
-```
-
-### Adding New Tools
-
-1. **Add service method** to the appropriate domain service (return typed response, throw `ToolCallException` for errors)
-2. **Add MCP tool** to the corresponding tools class
-
-```java
-// Service method - typed return, exceptions for errors
-public MyResponse myOperation(String namespace, String name) {
-    String ns = InputUtils.normalizeInput(namespace);
-    // ... business logic ...
-    if (resource == null) {
-        throw new ToolCallException("Resource not found");
-    }
-    return new MyResponse(/* ... */);
-}
-
-// MCP tool - thin wrapper, @WrapBusinessError handles exceptions
-@Tool(name = "my_tool", description = "Tool description")
-public MyResponse myTool(
-    @ToolArg(description = "...") String name,
-    @ToolArg(description = "...", required = false) String namespace
-) {
-    return myService.myOperation(namespace, name);
-}
-```
+See [CLAUDE.md](CLAUDE.md) for architecture, code style, patterns, and guidelines for adding new tools.
 
 ## Requirements
 
 - Java 21+
 - Maven 3.8+
-- Access to Kubernetes cluster with Strimzi
+- Access to Kubernetes cluster with Strimzi`
 
 ## License
 
