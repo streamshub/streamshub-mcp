@@ -1,34 +1,50 @@
-# Project: Strimzi MCP Server
+# Project: StreamsHub MCP (Multi-Module)
 
-Quarkus application providing Strimzi Kafka management tools via MCP (Model Context Protocol).
-Java 21, Quarkus 3.x, Strimzi API 0.50.x, Fabric8 Kubernetes client.
+Multi-module Quarkus mono-repo providing MCP (Model Context Protocol) servers for Kubernetes-based
+streaming platforms. Java 21, Quarkus 3.x, Strimzi API 0.50.x, Fabric8 Kubernetes client.
+
+## Modules
+
+- **`common`** (`streamshub-mcp-common`) - Generic Kubernetes helpers, DTOs, and utilities shared across modules
+- **`strimzi-mcp`** (`strimzi-mcp`) - Strimzi Kafka management MCP tools and services
 
 ## Build & Test
 
 ```bash
-mvn compile          # compile + checkstyle
-mvn test             # unit tests (no live cluster needed)
-mvn quarkus:dev      # dev mode on http://localhost:8080/mcp
+mvn compile                      # compile all modules + checkstyle
+mvn test                         # unit tests (no live cluster needed)
+mvn quarkus:dev -pl strimzi-mcp  # dev mode on http://localhost:8080/mcp
 ```
 
 Checkstyle runs during compile phase. Fix all violations before committing.
 
 ## Architecture
 
+### Common module (`common/`)
+
 ```
-tool/           → MCP tool definitions (thin wrappers, no logic)
-service/domain/ → Business logic (Kafka, Topic, NodePool, Operator)
-service/common/ → Generic Kubernetes operations (resource queries, pods, deployments)
-dto/            → Response records (JSON output)
-config/         → Constants, shared tool descriptions
-util/           → Input normalization utilities
+io.streamshub.mcp.common.
+├── config/    → KubernetesConstants (labels, conditions, phases, health status)
+├── dto/       → PodSummaryResponse (generic pod DTO)
+├── service/   → KubernetesResourceService, PodsService, DeploymentService
+└── util/      → InputUtils
+```
+
+### Strimzi module (`strimzi-mcp/`)
+
+```
+io.streamshub.mcp.strimzi.
+├── tool/      → MCP tool definitions (thin wrappers, no logic)
+├── service/   → Business logic (KafkaService, KafkaTopicService, KafkaNodePoolService, StrimziOperatorService)
+├── dto/       → Strimzi response records (7 DTOs)
+└── config/    → StrimziConstants, StrimziToolsPrompts
 ```
 
 ### Layer rules
 
 - **Tools** call domain services and return typed responses. No try/catch, no business logic.
-- **Domain services** contain all business logic. Throw `ToolCallException` for errors.
-- **Common services** are generic Kubernetes helpers shared across domain services.
+- **Domain services** (strimzi) contain all business logic. Throw `ToolCallException` for errors.
+- **Common services** are generic Kubernetes helpers shared across modules.
 - **DTOs** are immutable `record` types. Use static factory methods (`of()`, `empty()`) not constructors directly.
 
 ## MCP Tool Pattern
@@ -147,7 +163,12 @@ public record XxxResponse(
 
 ## Constants
 
-`Constants.java` is organized into `Kubernetes` and `Strimzi` inner classes.
+Constants are split across two modules:
+
+- **`KubernetesConstants`** (common) - standard Kubernetes labels, conditions, phases, container states,
+  resource status, health status, and the generic `UNKNOWN` fallback value
+- **`StrimziConstants`** (strimzi-mcp) - Strimzi-specific label keys, kind values, component types,
+  and operator discovery values
 
 ### Use Strimzi API constants where available
 
@@ -159,12 +180,11 @@ public record XxxResponse(
 
 ### Custom constants (no API equivalent)
 
-- `Constants.Strimzi.Labels.POOL_NAME` - `"strimzi.io/pool-name"` (not in ResourceLabels)
-- `Constants.Strimzi.KindValues.CLUSTER_OPERATOR` - `"cluster-operator"` (label value, no API constant)
-- `Constants.Strimzi.ComponentTypes.KAFKA` - `"kafka"` (label value, no API constant)
-- `Constants.Strimzi.Operator.APP_LABEL_VALUE` - `"strimzi"` (label value, no API constant)
-- `Constants.Kubernetes.*` - standard Kubernetes strings (labels, conditions, phases, container states,
-  resource status, health status) not provided by Fabric8 as constants
+- `StrimziConstants.Labels.POOL_NAME` - `"strimzi.io/pool-name"` (not in ResourceLabels)
+- `StrimziConstants.KindValues.CLUSTER_OPERATOR` - `"cluster-operator"` (label value, no API constant)
+- `StrimziConstants.ComponentTypes.KAFKA` - `"kafka"` (label value, no API constant)
+- `StrimziConstants.Operator.APP_LABEL_VALUE` - `"strimzi"` (label value, no API constant)
+- `KubernetesConstants.*` - standard Kubernetes strings not provided by Fabric8 as constants
 
 Before adding a new constant, check if it already exists in `ResourceLabels`, `ProcessRoles`,
 `KafkaListenerType`, or other Strimzi API classes.
@@ -201,16 +221,24 @@ Before adding a new constant, check if it already exists in `ResourceLabels`, `P
 - Use `{@code ...}` for inline code references
 - Non-empty `@param`/`@return`/`@throws` descriptions (checkstyle enforced)
 
-## Adding a New Tool
+## Adding a New Strimzi Tool
 
-1. Create or update the DTO record in `dto/`
-2. Add the service method to the appropriate domain service in `service/domain/`
-3. Add the `@Tool` method to the corresponding tools class in `tool/`
+1. Create or update the DTO record in `strimzi-mcp/src/.../strimzi/dto/`
+2. Add the service method to the appropriate domain service in `strimzi-mcp/src/.../strimzi/service/`
+3. Add the `@Tool` method to the corresponding tools class in `strimzi-mcp/src/.../strimzi/tool/`
 4. Run `mvn compile` to verify checkstyle + compilation
 5. Run `mvn test` to verify tests pass
+
+## Adding a New Module
+
+1. Create a new directory at the repo root (e.g., `new-module/`)
+2. Add `pom.xml` with parent reference to `streamshub-mcp`
+3. Depend on `streamshub-mcp-common` for shared Kubernetes helpers
+4. Add module to parent `pom.xml` `<modules>` list
+5. Add `META-INF/beans.xml` to `src/main/resources/` for CDI bean discovery
 
 ## Testing
 
 Tests use Quarkus test framework with Mockito for Kubernetes client mocking.
-Test file: `src/test/java/io/streamshub/mcp/service/StrimziServiceTest.java`.
+Test file: `strimzi-mcp/src/test/java/io/streamshub/mcp/strimzi/service/StrimziServiceTest.java`.
 Tests verify service behavior without a live Kubernetes cluster.

@@ -147,7 +147,7 @@
         </module>
         <module name="JavadocVariable">
             <!-- public variables -->
-            <property name="scope" value="public" />
+            <property name="accessModifiers" value="public" />
         </module>
         <module name="JavadocMethod">
             <!-- public methods -->
