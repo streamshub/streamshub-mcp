@@ -6,7 +6,7 @@ A collection of MCP (Model Context Protocol) servers for the streaming portfolio
 
 | Module | Description |
 |--------|-------------|
-| [strimzi-mcp](strimzi-mcp/) | Strimzi Kafka management tools for AI assistants |
+| [strimzi-mcp](strimzi-mcp/) | Strimzi Kafka operator devops tools for AI assistants |
 
 ## Build
 
