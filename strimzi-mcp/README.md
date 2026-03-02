@@ -19,7 +19,7 @@ Example manifests are provided in `examples/strimzi/`.
 
 **Deploy using the setup script (recommended):**
 ```bash
-./hack/setup-strimzi.sh
+../hack/setup-strimzi.sh
 ```
 
 The script deploys the Strimzi operator and Kafka cluster sequentially, waiting for each component to become ready before proceeding.
@@ -41,7 +41,7 @@ kubectl wait kafka/mcp-cluster --for=condition=Ready -n strimzi-kafka --timeout=
 
 **Tear down:**
 ```bash
-./hack/setup-strimzi.sh teardown
+../hack/setup-strimzi.sh teardown
 ```
 
 ## Quick Start
@@ -50,7 +50,7 @@ kubectl wait kafka/mcp-cluster --for=condition=Ready -n strimzi-kafka --timeout=
 
 ```bash
 mvn clean package
-mvn quarkus:dev -pl strimzi-mcp
+mvn quarkus:dev
 ```
 
 ### 2. Configure AI Assistants
@@ -99,7 +99,7 @@ podman run -d \
 
 ```bash
 # Check server startup logs
-mvn quarkus:dev -pl strimzi-mcp
+mvn quarkus:dev
 
 # Verify MCP endpoint responds (expects POST, GET returns 405)
 curl -X POST http://localhost:8080/mcp \
