@@ -39,6 +39,12 @@
             <artifactId>quarkus-junit5-mockito</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.quarkiverse.mcp</groupId>
+            <artifactId>quarkus-mcp-server-test</artifactId>
+            <version>${quarkus.mcp.server.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
