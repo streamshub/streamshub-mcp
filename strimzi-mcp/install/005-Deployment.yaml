@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamshub-strimzi-mcp
+  namespace: streamshub-mcp
+  labels:
+    app: streamshub-strimzi-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: streamshub-strimzi-mcp
+  template:
+    metadata:
+      labels:
+        app: streamshub-strimzi-mcp
+    spec:
+      serviceAccountName: streamshub-strimzi-mcp
+      containers:
+        - name: strimzi-mcp
+          image: quay.io/streamshub/strimzi-mcp:latest
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: JAVA_OPTS_APPEND
+              value: "-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+      securityContext:
+        runAsNonRoot: true
