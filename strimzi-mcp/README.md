@@ -90,18 +90,118 @@ The server watches Kafka CRs, KafkaNodePool CRs, and Strimzi operator Deployment
 
 This enables reactive LLM agents that detect and investigate issues automatically without polling.
 
-## Container Deployment
+## Kubernetes Deployment
 
 ### Build Container Image
-```bash
-# Build the application
-./mvnw clean package -DskipTests=true
 
-# Build container image
-podman build -f src/main/docker/Dockerfile.jvm -t strimzi-mcp .
+```bash
+# Build the application and container image with Jib
+mvn clean package -DskipTests -Dquarkus.container-image.build=true
 ```
 
-### Run Container
+The image defaults to `quay.io/streamshub/strimzi-mcp:latest`. Override with:
+
+```bash
+mvn clean package -DskipTests \
+  -Dquarkus.container-image.build=true \
+  -Dquarkus.container-image.registry=my-registry.io \
+  -Dquarkus.container-image.group=my-org \
+  -Dquarkus.container-image.tag=1.0.0
+```
+
+To push the image:
+
+```bash
+mvn clean package -DskipTests \
+  -Dquarkus.container-image.build=true \
+  -Dquarkus.container-image.push=true
+```
+
+### Deploy to Kubernetes
+
+The `install/` directory contains all required manifests:
+
+| File | Resource |
+|------|----------|
+| `001-Namespace.yaml` | `streamshub-mcp` namespace |
+| `002-ServiceAccount.yaml` | Dedicated service account |
+| `003-ClusterRole.yaml` | Read-only RBAC (get, list, watch) |
+| `004-ClusterRoleBinding.yaml` | Binds ClusterRole to ServiceAccount |
+| `005-Deployment.yaml` | MCP server deployment with health probes |
+| `006-Service.yaml` | ClusterIP service on port 8080 |
+
+```bash
+# Deploy all resources
+kubectl apply -f install/
+
+# Verify the deployment
+kubectl -n streamshub-mcp rollout status deployment/streamshub-strimzi-mcp
+
+# Check the MCP server is ready
+kubectl -n streamshub-mcp get pods
+```
+
+Update the image in the Deployment if using a custom registry:
+
+```bash
+kubectl -n streamshub-mcp set image deployment/streamshub-strimzi-mcp \
+  strimzi-mcp=my-registry.io/my-org/strimzi-mcp:1.0.0
+```
+
+### RBAC
+
+The ClusterRole grants **read-only** access following the principle of least privilege:
+
+- **Strimzi CRs** (kafkas, kafkanodepools, kafkatopics, etc.): `get`, `list`, `watch`
+- **Deployments**: `get`, `list`, `watch` (operator status and resource subscriptions)
+- **Pods and logs**: `get`, `list` (pod status and log retrieval)
+- **Services, secrets, configmaps**: `get`, `list` (connectivity and configuration)
+
+For namespace-scoped deployments, replace the ClusterRoleBinding with a namespaced RoleBinding.
+
+### Connecting to the MCP Server
+
+#### Port-forward (Kubernetes / OpenShift)
+
+Forward the service port to your local machine and connect your LLM client:
+
+```bash
+kubectl -n streamshub-mcp port-forward svc/streamshub-strimzi-mcp 8080:8080
+```
+
+Then configure your MCP client to use `http://localhost:8080/mcp`:
+
+```bash
+claude mcp add --transport http strimzi http://localhost:8080/mcp
+```
+
+#### OpenShift Route
+
+On OpenShift, expose the service via a Route to make it accessible outside the cluster:
+
+```bash
+# Create an edge-terminated Route
+oc -n streamshub-mcp create route edge streamshub-strimzi-mcp \
+  --service=streamshub-strimzi-mcp \
+  --port=http
+
+# Get the Route hostname
+oc -n streamshub-mcp get route streamshub-strimzi-mcp -o jsonpath='{.spec.host}'
+```
+
+Then configure your MCP client with the Route URL:
+
+```bash
+claude mcp add --transport http strimzi https://<route-hostname>/mcp
+```
+
+For non-TLS access (not recommended for production), use a passthrough or plain Route:
+
+```bash
+oc -n streamshub-mcp expose svc/streamshub-strimzi-mcp
+```
+
+### Local Container Run
 
 ```bash
 podman run -d \
@@ -109,7 +209,7 @@ podman run -d \
   -p 8080:8080 \
   -v ~/.kube/config:/etc/kubernetes/config:ro \
   -e KUBECONFIG=/etc/kubernetes/config \
-  strimzi-mcp
+  quay.io/streamshub/strimzi-mcp:latest
 ```
 
 ## Troubleshooting

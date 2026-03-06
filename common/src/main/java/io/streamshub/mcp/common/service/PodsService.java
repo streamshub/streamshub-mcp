@@ -549,7 +549,7 @@ public class PodsService {
                         }
                     }
 
-                    if (podOutput.length() > 0) {
+                    if (!podOutput.isEmpty()) {
                         allLogs.append("=== Pod: ").append(podName).append(" ===\n");
                         allLogs.append(podOutput);
                     }
