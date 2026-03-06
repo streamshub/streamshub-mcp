@@ -61,41 +61,49 @@ public class DiagnoseClusterIssuePrompt {
             ? " The reported symptom is: " + symptom + "."
             : "";
 
-        String instructions = "You are diagnosing a Kafka cluster issue for cluster `"
-            + clusterName + "`" + nsClause + "." + symptomClause
-            + "\n\nFollow these steps in order. After each step, analyze the results"
-            + " before proceeding to the next."
-            + "\n\n## Step 1: Check Kafka cluster status"
-            + "\nUse `get_kafka_cluster` to retrieve the cluster status and conditions."
-            + "\nLook for: NotReady conditions, stalled reconciliation,"
-            + " mismatched observed/expected generation, warning conditions."
-            + "\n\n## Step 2: Check KafkaNodePool statuses"
-            + "\nUse `list_kafka_node_pools` to list all node pools for this cluster."
-            + "\nFor any pool that looks unhealthy, use `get_kafka_node_pool` for details."
-            + "\nLook for: pools with fewer ready replicas than expected,"
-            + " pools in non-Ready state, role mismatches."
-            + "\n\n## Step 3: Check Strimzi operator"
-            + "\nUse `list_strimzi_operators` to find the operator managing this cluster."
-            + "\nUse `get_strimzi_operator_logs` to read operator logs."
-            + "\nLook for: reconciliation errors, exceptions, warnings related to `"
-            + clusterName + "`, repeated error patterns."
-            + "\n\n## Step 4: Check pod health"
-            + "\nUse `get_kafka_cluster_pods` to check all pods for the cluster."
-            + "\nLook for: CrashLoopBackOff, Pending pods, high restart counts,"
-            + " pods not in Running phase, containers not ready."
-            + "\n\n## Step 5: Investigate unhealthy pods"
-            + "\nFor any unhealthy pods found in Step 4, use `get_strimzi_operator_pod`"
-            + " or the appropriate pod detail tool to get environment, resources, and conditions."
-            + "\nLook for: OOMKilled termination reason, resource limits that are too low,"
-            + " missing volumes, failed liveness/readiness probes."
-            + "\n\n## Step 6: Correlate and summarize"
-            + "\nCorrelate the findings from all steps."
-            + "\nDistinguish between:"
-            + "\n- Operator-initiated changes (rolling updates, certificate renewal,"
-            + " configuration changes)"
-            + "\n- Infrastructure failures (OOM, disk full, node issues)"
-            + "\n- Configuration errors (invalid resource specs, missing secrets)"
-            + "\n\nProvide a clear summary of the root cause and actionable recommendations.";
+        String instructions = """
+            You are diagnosing a Kafka cluster issue for cluster `%s`%s.%s
+
+            Follow these steps in order. After each step, analyze the results \
+            before proceeding to the next.
+
+            ## Step 1: Check Kafka cluster status
+            Use `get_kafka_cluster` to retrieve the cluster status and conditions.
+            Look for: NotReady conditions, stalled reconciliation, \
+            mismatched observed/expected generation, warning conditions.
+
+            ## Step 2: Check KafkaNodePool statuses
+            Use `list_kafka_node_pools` to list all node pools for this cluster.
+            For any pool that looks unhealthy, use `get_kafka_node_pool` for details.
+            Look for: pools with fewer ready replicas than expected, \
+            pools in non-Ready state, role mismatches.
+
+            ## Step 3: Check Strimzi operator
+            Use `list_strimzi_operators` to find the operator managing this cluster.
+            Use `get_strimzi_operator_logs` to read operator logs.
+            Look for: reconciliation errors, exceptions, warnings related to \
+            `%s`, repeated error patterns.
+
+            ## Step 4: Check pod health
+            Use `get_kafka_cluster_pods` to check all pods for the cluster.
+            Look for: CrashLoopBackOff, Pending pods, high restart counts, \
+            pods not in Running phase, containers not ready.
+
+            ## Step 5: Investigate unhealthy pods
+            For any unhealthy pods found in Step 4, use `get_strimzi_operator_pod` \
+            or the appropriate pod detail tool to get environment, resources, and conditions.
+            Look for: OOMKilled termination reason, resource limits that are too low, \
+            missing volumes, failed liveness/readiness probes.
+
+            ## Step 6: Correlate and summarize
+            Correlate the findings from all steps.
+            Distinguish between:
+            - Operator-initiated changes (rolling updates, certificate renewal, configuration changes)
+            - Infrastructure failures (OOM, disk full, node issues)
+            - Configuration errors (invalid resource specs, missing secrets)
+
+            Provide a clear summary of the root cause and actionable recommendations.\
+            """.formatted(clusterName, nsClause, symptomClause, clusterName);
 
         return PromptResponse.withMessages(List.of(
             PromptMessage.withUserRole(instructions)

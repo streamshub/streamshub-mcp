@@ -60,38 +60,45 @@ public class TroubleshootConnectivityPrompt {
             ? " Focus on the `" + listenerName + "` listener."
             : "";
 
-        String instructions = "You are troubleshooting connectivity to Kafka cluster `"
-            + clusterName + "`" + nsClause + "." + listenerClause
-            + "\n\nFollow these steps in order. After each step, analyze the results"
-            + " before proceeding to the next."
-            + "\n\n## Step 1: Check cluster status"
-            + "\nUse `get_kafka_cluster` to verify the cluster exists and is Ready."
-            + "\nIf the cluster is not Ready, connectivity issues may be a symptom"
-            + " of a deeper problem. Consider using the `diagnose-cluster-issue` prompt instead."
-            + "\n\n## Step 2: Get bootstrap server addresses"
-            + "\nUse `get_kafka_bootstrap_servers` to retrieve all listener configurations."
-            + "\nFor each listener, note:"
-            + "\n- Listener name and type (internal, route, loadbalancer, nodeport, ingress)"
-            + "\n- Bootstrap address and port"
-            + "\n- Whether TLS is enabled"
-            + "\n\n## Step 3: Verify listener accessibility"
-            + "\nBased on the listener type, explain how the client should connect:"
-            + "\n- **internal**: accessible only within the Kubernetes cluster"
-            + " via `<cluster>-kafka-bootstrap.<namespace>.svc:<port>`"
-            + "\n- **route** (OpenShift): accessible externally via the route hostname on port 443"
-            + "\n- **loadbalancer**: accessible externally via the load balancer IP/hostname"
-            + "\n- **nodeport**: accessible via any cluster node IP on the assigned node port"
-            + "\n- **ingress**: accessible via the ingress hostname"
-            + "\n\n## Step 4: Check pod health"
-            + "\nUse `get_kafka_cluster_pods` to verify broker pods are running and ready."
-            + "\nIf broker pods are not ready, clients cannot connect even if the"
-            + " listener is configured correctly."
-            + "\n\n## Step 5: Summarize connectivity information"
-            + "\nProvide a summary with:"
-            + "\n- Available listeners and their bootstrap addresses"
-            + "\n- Connection protocol for each listener (PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL)"
-            + "\n- Any issues found that could prevent connectivity"
-            + "\n- Example client configuration properties for the relevant listener(s)";
+        String instructions = """
+            You are troubleshooting connectivity to Kafka cluster `%s`%s.%s
+
+            Follow these steps in order. After each step, analyze the results \
+            before proceeding to the next.
+
+            ## Step 1: Check cluster status
+            Use `get_kafka_cluster` to verify the cluster exists and is Ready.
+            If the cluster is not Ready, connectivity issues may be a symptom \
+            of a deeper problem. Consider using the `diagnose-cluster-issue` prompt instead.
+
+            ## Step 2: Get bootstrap server addresses
+            Use `get_kafka_bootstrap_servers` to retrieve all listener configurations.
+            For each listener, note:
+            - Listener name and type (internal, route, loadbalancer, nodeport, ingress)
+            - Bootstrap address and port
+            - Whether TLS is enabled
+
+            ## Step 3: Verify listener accessibility
+            Based on the listener type, explain how the client should connect:
+            - **internal**: accessible only within the Kubernetes cluster \
+            via `<cluster>-kafka-bootstrap.<namespace>.svc:<port>`
+            - **route** (OpenShift): accessible externally via the route hostname on port 443
+            - **loadbalancer**: accessible externally via the load balancer IP/hostname
+            - **nodeport**: accessible via any cluster node IP on the assigned node port
+            - **ingress**: accessible via the ingress hostname
+
+            ## Step 4: Check pod health
+            Use `get_kafka_cluster_pods` to verify broker pods are running and ready.
+            If broker pods are not ready, clients cannot connect even if the \
+            listener is configured correctly.
+
+            ## Step 5: Summarize connectivity information
+            Provide a summary with:
+            - Available listeners and their bootstrap addresses
+            - Connection protocol for each listener (PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL)
+            - Any issues found that could prevent connectivity
+            - Example client configuration properties for the relevant listener(s)\
+            """.formatted(clusterName, nsClause, listenerClause);
 
         return PromptResponse.withMessages(List.of(
             PromptMessage.withUserRole(instructions)
