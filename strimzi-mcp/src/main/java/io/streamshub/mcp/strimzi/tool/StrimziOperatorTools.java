@@ -82,19 +82,25 @@ public class StrimziOperatorTools {
      * Get Strimzi operator logs.
      *
      * @param namespace optional namespace
+     * @param filter    optional log filter
      * @return the operator logs response
      */
     @Tool(
         name = "get_strimzi_operator_logs",
         description = "Get logs from Strimzi operator pods with error analysis."
+            + " Use the filter parameter to reduce output."
     )
     public StrimziOperatorLogsResponse getStrimziOperatorLogs(
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
-        ) final String namespace
+        ) final String namespace,
+        @ToolArg(
+            description = StrimziToolsPrompts.LOG_FILTER_DESC,
+            required = false
+        ) final String filter
     ) {
-        return operatorService.getOperatorLogs(namespace, null);
+        return operatorService.getOperatorLogs(namespace, null, filter);
     }
 
     /**

@@ -198,13 +198,15 @@ public class KafkaService {
     }
 
     /**
-     * Get logs from Kafka cluster pods.
+     * Get logs from Kafka cluster pods with optional filtering.
      *
      * @param namespace   the namespace, or null for auto-discovery
      * @param clusterName the cluster name
+     * @param filter      optional log filter: "errors", "warnings", or a regex pattern
      * @return the cluster logs response
      */
-    public KafkaClusterLogsResponse getClusterLogs(final String namespace, final String clusterName) {
+    public KafkaClusterLogsResponse getClusterLogs(final String namespace, final String clusterName,
+                                                    final String filter) {
         String ns = InputUtils.normalizeInput(namespace);
         String normalizedName = InputUtils.normalizeInput(clusterName);
 
@@ -212,7 +214,8 @@ public class KafkaService {
             throw new ToolCallException("Cluster name is required");
         }
 
-        LOG.infof("Getting logs for cluster=%s (namespace=%s)", normalizedName, ns != null ? ns : "auto");
+        LOG.infof("Getting logs for cluster=%s (namespace=%s, filter=%s)",
+            normalizedName, ns != null ? ns : "auto", filter != null ? filter : "none");
 
         if (ns == null) {
             ns = discoverClusterNamespace(normalizedName);
@@ -225,7 +228,8 @@ public class KafkaService {
             return KafkaClusterLogsResponse.empty(normalizedName, ns);
         }
 
-        PodLogsResult result = podsService.collectLogs(ns, pods);
+        String normalizedFilter = InputUtils.normalizeInput(filter);
+        PodLogsResult result = podsService.collectLogs(ns, pods, normalizedFilter);
         return KafkaClusterLogsResponse.of(normalizedName, ns, result.podNames(),
             result.hasErrors(), result.errorCount(), result.totalLines(), result.logs());
     }

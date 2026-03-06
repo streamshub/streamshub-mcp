@@ -133,12 +133,14 @@ public class KafkaTools {
      *
      * @param clusterName the cluster name
      * @param namespace   optional namespace
+     * @param filter      optional log filter
      * @return the cluster logs response with error analysis
      */
     @Tool(
         name = "get_kafka_cluster_logs",
         description = "Get logs from Kafka cluster pods with error analysis."
             + " Returns logs from all pods belonging to the cluster."
+            + " Use the filter parameter to reduce output."
     )
     public KafkaClusterLogsResponse getKafkaClusterLogs(
         @ToolArg(
@@ -147,8 +149,12 @@ public class KafkaTools {
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
-        ) final String namespace
+        ) final String namespace,
+        @ToolArg(
+            description = StrimziToolsPrompts.LOG_FILTER_DESC,
+            required = false
+        ) final String filter
     ) {
-        return kafkaService.getClusterLogs(namespace, clusterName);
+        return kafkaService.getClusterLogs(namespace, clusterName, filter);
     }
 }
