@@ -100,18 +100,21 @@ public class StrimziOperatorService {
     }
 
     /**
-     * Get logs for Strimzi operator pods.
+     * Get logs for Strimzi operator pods with optional filtering.
      * Returns a StrimziOperatorLogsResponse (including notFound) rather than throwing,
      * since missing operator pods is a valid business response.
      *
      * @param namespace    the namespace, or null for auto-discovery
      * @param operatorName the operator name, or null for any operator
+     * @param filter       optional log filter: "errors", "warnings", or a regex pattern
      * @return the operator logs response
      */
-    public StrimziOperatorLogsResponse getOperatorLogs(final String namespace, final String operatorName) {
+    public StrimziOperatorLogsResponse getOperatorLogs(final String namespace, final String operatorName,
+                                                        final String filter) {
         String ns = InputUtils.normalizeInput(namespace);
 
-        LOG.infof("Getting operator logs (namespace=%s, name=%s)", ns, operatorName);
+        LOG.infof("Getting operator logs (namespace=%s, name=%s, filter=%s)",
+            ns, operatorName, filter != null ? filter : "none");
 
         if (ns == null) {
             ns = discoverOperatorNamespace(operatorName);
@@ -127,7 +130,8 @@ public class StrimziOperatorService {
             return StrimziOperatorLogsResponse.notFound(ns);
         }
 
-        PodLogsResult result = podsService.collectLogs(ns, pods);
+        String normalizedFilter = InputUtils.normalizeInput(filter);
+        PodLogsResult result = podsService.collectLogs(ns, pods, normalizedFilter);
         return StrimziOperatorLogsResponse.of(ns, result.logs(), result.podNames(),
             result.hasErrors(), result.errorCount(), result.totalLines());
     }

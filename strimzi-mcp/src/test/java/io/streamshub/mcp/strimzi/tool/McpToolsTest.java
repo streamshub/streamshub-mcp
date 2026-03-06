@@ -306,7 +306,7 @@ class McpToolsTest {
 
     @Test
     void testGetStrimziOperatorLogs() {
-        when(operatorService.getOperatorLogs(null, null)).thenReturn(
+        when(operatorService.getOperatorLogs(null, null, null)).thenReturn(
             StrimziOperatorLogsResponse.of("kafka-system",
                 "INFO: Operator running normally", List.of("strimzi-operator-abc123"),
                 false, 0, 1)

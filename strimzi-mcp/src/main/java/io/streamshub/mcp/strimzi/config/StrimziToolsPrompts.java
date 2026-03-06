@@ -24,6 +24,14 @@ public final class StrimziToolsPrompts {
             + " (e.g., 'my-cluster').";
 
     /**
+     * Log filter parameter description.
+     */
+    public static final String LOG_FILTER_DESC =
+        "Filter log lines: 'errors' for ERROR/EXCEPTION only,"
+            + " 'warnings' for ERROR/EXCEPTION/WARN,"
+            + " or a regex pattern. Omit for all lines.";
+
+    /**
      * Sections parameter description.
      */
     public static final String SECTIONS_DESC =

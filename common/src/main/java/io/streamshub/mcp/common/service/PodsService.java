@@ -31,6 +31,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 /**
@@ -490,13 +492,37 @@ public class PodsService {
      * @return the aggregated log result
      */
     public PodLogsResult collectLogs(final String namespace, final List<Pod> pods) {
+        return collectLogs(namespace, pods, null);
+    }
+
+    /**
+     * Collect logs from a list of pods with optional filtering.
+     * Tails the last {@value #DEFAULT_LOG_TAIL_LINES} lines from each pod.
+     *
+     * <p>Supported filter values:</p>
+     * <ul>
+     *   <li>{@code "errors"} - only lines containing ERROR or EXCEPTION</li>
+     *   <li>{@code "warnings"} - lines containing ERROR, EXCEPTION, or WARN</li>
+     *   <li>Any other non-blank string is treated as a regex pattern</li>
+     *   <li>{@code null} or blank - no filtering, return all lines</li>
+     * </ul>
+     *
+     * @param namespace the namespace of the pods
+     * @param pods      the list of pods to collect logs from
+     * @param filter    optional filter: "errors", "warnings", or a regex pattern
+     * @return the aggregated and optionally filtered log result
+     */
+    public PodLogsResult collectLogs(final String namespace, final List<Pod> pods, final String filter) {
         List<String> podNames = pods.stream()
             .map(pod -> pod.getMetadata().getName())
             .toList();
 
+        Pattern filterPattern = compileLogFilter(filter);
+
         StringBuilder allLogs = new StringBuilder();
         int errorCount = 0;
         int totalLines = 0;
+        int filteredLines = 0;
 
         for (Pod pod : pods) {
             String podName = pod.getMetadata().getName();
@@ -508,16 +534,24 @@ public class PodsService {
                     .getLog();
 
                 if (podLog != null && !podLog.isEmpty()) {
-                    allLogs.append("=== Pod: ").append(podName).append(" ===\n");
-                    allLogs.append(podLog).append("\n");
-
                     String[] lines = podLog.split("\n");
                     totalLines += lines.length;
+
+                    StringBuilder podOutput = new StringBuilder();
                     for (String line : lines) {
                         String upperLine = line.toUpperCase(Locale.ENGLISH);
                         if (upperLine.contains("ERROR") || upperLine.contains("EXCEPTION")) {
                             errorCount++;
                         }
+                        if (filterPattern == null || filterPattern.matcher(line).find()) {
+                            podOutput.append(line).append("\n");
+                            filteredLines++;
+                        }
+                    }
+
+                    if (podOutput.length() > 0) {
+                        allLogs.append("=== Pod: ").append(podName).append(" ===\n");
+                        allLogs.append(podOutput);
                     }
                 }
             } catch (Exception e) {
@@ -526,6 +560,25 @@ public class PodsService {
             }
         }
 
-        return new PodLogsResult(podNames, allLogs.toString(), errorCount, totalLines);
+        return new PodLogsResult(podNames, allLogs.toString(), errorCount, totalLines, filteredLines);
+    }
+
+    private Pattern compileLogFilter(final String filter) {
+        if (filter == null || filter.isBlank()) {
+            return null;
+        }
+        String normalized = filter.trim().toLowerCase(Locale.ENGLISH);
+        if ("errors".equals(normalized)) {
+            return Pattern.compile("(?i)(ERROR|EXCEPTION)");
+        }
+        if ("warnings".equals(normalized)) {
+            return Pattern.compile("(?i)(ERROR|EXCEPTION|WARN)");
+        }
+        try {
+            return Pattern.compile(filter.trim());
+        } catch (PatternSyntaxException e) {
+            LOG.warnf("Invalid log filter regex '%s', returning unfiltered logs: %s", filter, e.getMessage());
+            return null;
+        }
     }
 }
