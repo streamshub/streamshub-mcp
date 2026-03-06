@@ -9,6 +9,7 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
+import io.streamshub.mcp.strimzi.dto.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.service.KafkaService;
@@ -125,5 +126,29 @@ public class KafkaTools {
         ) final String namespace
     ) {
         return kafkaService.getBootstrapServers(namespace, clusterName);
+    }
+
+    /**
+     * Get logs from Kafka cluster pods.
+     *
+     * @param clusterName the cluster name
+     * @param namespace   optional namespace
+     * @return the cluster logs response with error analysis
+     */
+    @Tool(
+        name = "get_kafka_cluster_logs",
+        description = "Get logs from Kafka cluster pods with error analysis."
+            + " Returns logs from all pods belonging to the cluster."
+    )
+    public KafkaClusterLogsResponse getKafkaClusterLogs(
+        @ToolArg(
+            description = StrimziToolsPrompts.CLUSTER_DESC
+        ) final String clusterName,
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace
+    ) {
+        return kafkaService.getClusterLogs(namespace, clusterName);
     }
 }

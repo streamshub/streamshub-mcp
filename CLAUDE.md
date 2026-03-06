@@ -210,6 +210,7 @@ Before adding a new constant, check if it already exists in `ResourceLabels`, `P
 - Prefer `List.of()` for empty immutable lists
 - Use `LOG.infof()` / `LOG.debugf()` (JBoss logging with format strings)
 - No `assert` statements (checkstyle enforced)
+- Every file must end with a newline (trailing newline). Verify before committing.
 
 ### Javadoc
 

@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.AppsAPIGroupDSL;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
@@ -65,15 +66,17 @@ class StrimziServiceTest {
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
-        // Setup mock operations for pods
+        // Use lenient stubbing to avoid conflicts with background threads
+        // (ResourceSubscriptionManager starts watches on startup)
         MixedOperation<Pod, PodList, PodResource> podOp = Mockito.mock(MixedOperation.class);
-        when(kubernetesClient.pods()).thenReturn(podOp);
+        Mockito.lenient().when(kubernetesClient.pods()).thenReturn(podOp);
 
-        // Setup mock operations for deployments
         MixedOperation<Deployment, DeploymentList, RollableScalableResource<Deployment>> deploymentOp =
             Mockito.mock(MixedOperation.class);
-        when(kubernetesClient.apps()).thenReturn(Mockito.mock(io.fabric8.kubernetes.client.dsl.AppsAPIGroupDSL.class));
-        when(kubernetesClient.apps().deployments()).thenReturn(deploymentOp);
+        AppsAPIGroupDSL appsApi =
+            Mockito.mock(io.fabric8.kubernetes.client.dsl.AppsAPIGroupDSL.class);
+        Mockito.lenient().when(kubernetesClient.apps()).thenReturn(appsApi);
+        Mockito.lenient().when(appsApi.deployments()).thenReturn(deploymentOp);
     }
 
     @Test

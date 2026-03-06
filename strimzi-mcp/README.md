@@ -2,14 +2,6 @@
 
 A Quarkus application that provides Strimzi Kafka management tools via **MCP (Model Context Protocol)** for AI assistants and automation.
 
-## Features
-
-- **Real Kubernetes Integration**: Live Strimzi operator management with K8s API calls
-- **Pure MCP Server**: Standard Model Context Protocol for AI assistants (Claude, etc.)
-- **Smart Discovery**: Auto-finds operators and clusters across namespaces
-- **Structured Results**: Rich JSON responses with health analysis
-- **Lightweight**: No LLM dependencies required
-
 ## Prerequisites
 
 ### Kubernetes Cluster with Strimzi
@@ -70,6 +62,33 @@ Use the MCP inspector to browse all available tools and their parameters:
 ```bash
 npx @modelcontextprotocol/inspector http://localhost:8080/mcp
 ```
+
+## Prompt Templates
+
+MCP prompt templates encode Strimzi domain knowledge and guide LLMs through structured diagnostic workflows. Instead of relying on the LLM to figure out what to check, prompts tell it exactly which tools to call and in what order.
+
+| Prompt | Parameters | Description |
+|--------|-----------|-------------|
+| `diagnose-cluster-issue` | `cluster_name` (required), `namespace`, `symptom` | Step-by-step cluster diagnosis: checks status, node pools, operator logs, pod health, and correlates findings to identify root causes. |
+| `troubleshoot-connectivity` | `cluster_name` (required), `namespace`, `listener_name` | Connectivity troubleshooting: checks listeners, bootstrap addresses, listener accessibility by type, and pod health. |
+
+**How they work**: The MCP client discovers available prompts, the user selects one and fills in the parameters, and the client injects the structured instructions into the LLM conversation. The LLM then follows the steps, calling the MCP tools automatically.
+
+## Resource Templates
+
+MCP resource templates expose Strimzi data as structured JSON that clients can attach to conversations for immediate context — without the LLM needing to call tools first.
+
+| Resource URI | Description |
+|-------------|-------------|
+| `strimzi://cluster/{namespace}/{name}/status` | Kafka cluster status: readiness, version, replicas, listeners, authentication, and storage configuration. |
+| `strimzi://cluster/{namespace}/{name}/topology` | Cluster topology: node pools with roles, replica counts, and storage. |
+| `strimzi://operator/{namespace}/status` | Strimzi operator deployment status, version, readiness, and uptime. |
+
+### Resource Subscriptions
+
+The server watches Kafka CRs, KafkaNodePool CRs, and Strimzi operator Deployments via Kubernetes watches. When a resource changes (e.g., a cluster goes from Ready to NotReady), subscribed MCP clients receive a `notifications/resources/updated` notification and can re-read the resource to get the latest data.
+
+This enables reactive LLM agents that detect and investigate issues automatically without polling.
 
 ## Container Deployment
 
