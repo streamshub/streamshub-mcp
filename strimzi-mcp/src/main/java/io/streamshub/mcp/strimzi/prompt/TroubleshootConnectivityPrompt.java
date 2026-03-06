@@ -69,7 +69,7 @@ public class TroubleshootConnectivityPrompt {
             ## Step 1: Check cluster status
             Use `get_kafka_cluster` to verify the cluster exists and is Ready.
             If the cluster is not Ready, connectivity issues may be a symptom \
-            of a deeper problem. Consider using the `diagnose-cluster-issue` prompt instead.
+            of a deeper problem. Use the `diagnose-cluster-issue` prompt instead.
 
             ## Step 2: Get bootstrap server addresses
             Use `get_kafka_bootstrap_servers` to retrieve all listener configurations.
@@ -92,7 +92,15 @@ public class TroubleshootConnectivityPrompt {
             If broker pods are not ready, clients cannot connect even if the \
             listener is configured correctly.
 
-            ## Step 5: Summarize connectivity information
+            ## Step 5: Check broker logs for connection errors
+            If pods are running but connectivity issues persist, use \
+            `get_kafka_cluster_logs` to check for errors related to listeners \
+            or networking.
+            Look for: TLS handshake failures, authentication errors, \
+            listener binding failures, port conflicts, certificate issues, \
+            `SocketException`, `SSLHandshakeException`, or `SaslAuthenticationException`.
+
+            ## Step 6: Summarize connectivity information
             Provide a summary with:
             - Available listeners and their bootstrap addresses
             - Connection protocol for each listener (PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL)

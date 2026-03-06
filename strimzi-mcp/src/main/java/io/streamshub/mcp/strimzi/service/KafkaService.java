@@ -7,12 +7,14 @@ package io.streamshub.mcp.strimzi.service;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
+import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
+import io.streamshub.mcp.strimzi.dto.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
@@ -193,6 +195,39 @@ public class KafkaService {
         }
 
         return KafkaBootstrapResponse.of(resolvedNs, normalizedName, servers);
+    }
+
+    /**
+     * Get logs from Kafka cluster pods.
+     *
+     * @param namespace   the namespace, or null for auto-discovery
+     * @param clusterName the cluster name
+     * @return the cluster logs response
+     */
+    public KafkaClusterLogsResponse getClusterLogs(final String namespace, final String clusterName) {
+        String ns = InputUtils.normalizeInput(namespace);
+        String normalizedName = InputUtils.normalizeInput(clusterName);
+
+        if (normalizedName == null) {
+            throw new ToolCallException("Cluster name is required");
+        }
+
+        LOG.infof("Getting logs for cluster=%s (namespace=%s)", normalizedName, ns != null ? ns : "auto");
+
+        if (ns == null) {
+            ns = discoverClusterNamespace(normalizedName);
+        }
+
+        List<Pod> pods = k8sService.queryResourcesByLabel(
+            Pod.class, ns, ResourceLabels.STRIMZI_CLUSTER_LABEL, normalizedName);
+
+        if (pods.isEmpty()) {
+            return KafkaClusterLogsResponse.empty(normalizedName, ns);
+        }
+
+        PodLogsResult result = podsService.collectLogs(ns, pods);
+        return KafkaClusterLogsResponse.of(normalizedName, ns, result.podNames(),
+            result.hasErrors(), result.errorCount(), result.totalLines(), result.logs());
     }
 
     private List<KafkaBootstrapResponse.BootstrapServerInfo> extractBootstrapServers(final Kafka kafka) {

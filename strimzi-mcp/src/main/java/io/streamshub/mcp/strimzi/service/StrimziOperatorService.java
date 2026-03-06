@@ -6,11 +6,12 @@ package io.streamshub.mcp.strimzi.service;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
+import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.service.DeploymentService;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
+import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
@@ -21,7 +22,6 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Service for Strimzi operator operations.
@@ -30,14 +30,13 @@ import java.util.Locale;
 public class StrimziOperatorService {
 
     private static final Logger LOG = Logger.getLogger(StrimziOperatorService.class);
-    private static final int DEFAULT_LOG_TAIL_LINES = 100;
     private static final double MINUTES_PER_HOUR = 60.0;
 
     @Inject
     KubernetesResourceService k8sService;
 
     @Inject
-    KubernetesClient kubernetesClient;
+    PodsService podsService;
 
     @Inject
     DeploymentService deploymentService;
@@ -128,43 +127,9 @@ public class StrimziOperatorService {
             return StrimziOperatorLogsResponse.notFound(ns);
         }
 
-        List<String> podNames = pods.stream()
-            .map(pod -> pod.getMetadata().getName())
-            .toList();
-
-        StringBuilder allLogs = new StringBuilder();
-        int errorCount = 0;
-        int totalLines = 0;
-
-        for (Pod pod : pods) {
-            String podName = pod.getMetadata().getName();
-            try {
-                String podLog = kubernetesClient.pods()
-                    .inNamespace(ns)
-                    .withName(podName)
-                    .tailingLines(DEFAULT_LOG_TAIL_LINES)
-                    .getLog();
-
-                if (podLog != null && !podLog.isEmpty()) {
-                    allLogs.append("=== Pod: ").append(podName).append(" ===\n");
-                    allLogs.append(podLog).append("\n");
-
-                    String[] lines = podLog.split("\n");
-                    totalLines += lines.length;
-                    for (String line : lines) {
-                        String upperLine = line.toUpperCase(Locale.ROOT);
-                        if (upperLine.contains("ERROR") || upperLine.contains("EXCEPTION")) {
-                            errorCount++;
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                LOG.debugf("Could not retrieve logs from pod %s: %s", podName, e.getMessage());
-                allLogs.append("=== Pod: ").append(podName).append(" === (logs unavailable)\n");
-            }
-        }
-
-        return StrimziOperatorLogsResponse.of(ns, allLogs.toString(), podNames, errorCount > 0, errorCount, totalLines);
+        PodLogsResult result = podsService.collectLogs(ns, pods);
+        return StrimziOperatorLogsResponse.of(ns, result.logs(), result.podNames(),
+            result.hasErrors(), result.errorCount(), result.totalLines());
     }
 
     private Deployment findOperatorInAllNamespaces(final String operatorName) {

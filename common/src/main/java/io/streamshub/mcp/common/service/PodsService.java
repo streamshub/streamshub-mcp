@@ -16,6 +16,7 @@ import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.streamshub.mcp.common.config.KubernetesConstants;
+import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.util.InputUtils;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -43,6 +44,7 @@ public class PodsService {
     static final Set<String> FULL_SECTIONS = Set.of("full");
     static final Set<String> NO_SECTIONS = Set.of();
     private static final Logger LOG = Logger.getLogger(PodsService.class);
+    private static final int DEFAULT_LOG_TAIL_LINES = 100;
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -476,5 +478,54 @@ public class PodsService {
         }
 
         return "app";
+    }
+
+    /**
+     * Collect logs from a list of pods with error analysis.
+     * Tails the last {@value #DEFAULT_LOG_TAIL_LINES} lines from each pod
+     * and counts lines containing ERROR or EXCEPTION.
+     *
+     * @param namespace the namespace of the pods
+     * @param pods      the list of pods to collect logs from
+     * @return the aggregated log result
+     */
+    public PodLogsResult collectLogs(final String namespace, final List<Pod> pods) {
+        List<String> podNames = pods.stream()
+            .map(pod -> pod.getMetadata().getName())
+            .toList();
+
+        StringBuilder allLogs = new StringBuilder();
+        int errorCount = 0;
+        int totalLines = 0;
+
+        for (Pod pod : pods) {
+            String podName = pod.getMetadata().getName();
+            try {
+                String podLog = kubernetesClient.pods()
+                    .inNamespace(namespace)
+                    .withName(podName)
+                    .tailingLines(DEFAULT_LOG_TAIL_LINES)
+                    .getLog();
+
+                if (podLog != null && !podLog.isEmpty()) {
+                    allLogs.append("=== Pod: ").append(podName).append(" ===\n");
+                    allLogs.append(podLog).append("\n");
+
+                    String[] lines = podLog.split("\n");
+                    totalLines += lines.length;
+                    for (String line : lines) {
+                        String upperLine = line.toUpperCase(Locale.ENGLISH);
+                        if (upperLine.contains("ERROR") || upperLine.contains("EXCEPTION")) {
+                            errorCount++;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                LOG.debugf("Could not retrieve logs from pod %s: %s", podName, e.getMessage());
+                allLogs.append("=== Pod: ").append(podName).append(" === (logs unavailable)\n");
+            }
+        }
+
+        return new PodLogsResult(podNames, allLogs.toString(), errorCount, totalLines);
     }
 }
