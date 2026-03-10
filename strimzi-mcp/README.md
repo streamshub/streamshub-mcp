@@ -80,9 +80,11 @@ MCP resource templates expose Strimzi data as structured JSON that clients can a
 
 | Resource URI | Description |
 |-------------|-------------|
-| `strimzi://cluster/{namespace}/{name}/status` | Kafka cluster status: readiness, version, replicas, listeners, authentication, and storage configuration. |
-| `strimzi://cluster/{namespace}/{name}/topology` | Cluster topology: node pools with roles, replica counts, and storage. |
-| `strimzi://operator/{namespace}/status` | Strimzi operator deployment status, version, readiness, and uptime. |
+| `strimzi://kafka.strimzi.io/v1/namespaces/{namespace}/kafkas/{name}/status` | Kafka cluster status: readiness, version, replicas, listeners, authentication, and storage configuration. |
+| `strimzi://kafka.strimzi.io/v1/namespaces/{namespace}/kafkas/{name}/topology` | Cluster topology: node pools with roles, replica counts, and storage. |
+| `strimzi://kafka.strimzi.io/v1/namespaces/{namespace}/kafkanodepools/{name}/status` | KafkaNodePool status, ready replicas, roles, and storage configuration. |
+| `strimzi://kafka.strimzi.io/v1/namespaces/{namespace}/kafkatopics/{name}/status` | KafkaTopic status, conditions, and topic configuration (partitions, replicas). |
+| `strimzi://operator.strimzi.io/v1/namespaces/{namespace}/clusteroperator/{name}/status` | Strimzi operator deployment status, version, readiness, and uptime. |
 
 ### Resource Subscriptions
 

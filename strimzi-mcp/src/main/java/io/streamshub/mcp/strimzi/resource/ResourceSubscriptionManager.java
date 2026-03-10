@@ -20,13 +20,16 @@ import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
+import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
 import io.streamshub.mcp.strimzi.service.KafkaNodePoolService;
 import io.streamshub.mcp.strimzi.service.KafkaService;
+import io.streamshub.mcp.strimzi.service.KafkaTopicService;
 import io.streamshub.mcp.strimzi.service.StrimziOperatorService;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
+import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
@@ -34,13 +37,15 @@ import org.jboss.logging.Logger;
 
 import java.io.Closeable;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Manages Kubernetes watches on Strimzi resources and sends MCP resource
  * update notifications to subscribed clients when resource status changes.
  *
- * <p>Watches Kafka CRs, KafkaNodePool CRs, and Strimzi operator Deployments.
+ * <p>Watches Kafka CRs, KafkaNodePool CRs, KafkaTopic CRs, and Strimzi operator Deployments.
  * On each change, dynamically registers or updates the corresponding MCP resource
  * and notifies clients via {@link ResourceManager.ResourceInfo#sendUpdateAndForget()}.</p>
  */
@@ -62,12 +67,16 @@ public class ResourceSubscriptionManager implements Closeable {
     KafkaNodePoolService nodePoolService;
 
     @Inject
+    KafkaTopicService topicService;
+
+    @Inject
     StrimziOperatorService operatorService;
 
     @Inject
     ObjectMapper objectMapper;
 
     private final List<Watch> activeWatches = new CopyOnWriteArrayList<>();
+    private final Map<String, String> lastKnownState = new ConcurrentHashMap<>();
 
     ResourceSubscriptionManager() {
     }
@@ -81,6 +90,7 @@ public class ResourceSubscriptionManager implements Closeable {
         LOG.info("Starting Strimzi resource watches for MCP subscriptions");
         startKafkaWatch();
         startKafkaNodePoolWatch();
+        startKafkaTopicWatch();
         startOperatorWatch();
     }
 
@@ -100,6 +110,7 @@ public class ResourceSubscriptionManager implements Closeable {
             watch.close();
         }
         activeWatches.clear();
+        lastKnownState.clear();
     }
 
     private void startKafkaWatch() {
@@ -150,6 +161,30 @@ public class ResourceSubscriptionManager implements Closeable {
         }
     }
 
+    private void startKafkaTopicWatch() {
+        try {
+            Watch watch = kubernetesClient.resources(KafkaTopic.class)
+                .inAnyNamespace()
+                .watch(new Watcher<KafkaTopic>() {
+                    @Override
+                    public void eventReceived(final Action action, final KafkaTopic topic) {
+                        handleTopicEvent(action, topic);
+                    }
+
+                    @Override
+                    public void onClose(final WatcherException cause) {
+                        if (cause != null) {
+                            LOG.warnf("KafkaTopic watch closed unexpectedly: %s", cause.getMessage());
+                        }
+                    }
+                });
+            activeWatches.add(watch);
+            LOG.info("Started watch on KafkaTopic resources");
+        } catch (Exception e) {
+            LOG.warnf("Could not start KafkaTopic watch: %s", e.getMessage());
+        }
+    }
+
     private void startOperatorWatch() {
         try {
             Watch watch = kubernetesClient.apps().deployments()
@@ -178,14 +213,16 @@ public class ResourceSubscriptionManager implements Closeable {
     private void handleKafkaEvent(final Watcher.Action action, final Kafka kafka) {
         String name = kafka.getMetadata().getName();
         String namespace = kafka.getMetadata().getNamespace();
-        String statusUri = "strimzi://cluster/" + namespace + "/" + name + "/status";
-        String topologyUri = "strimzi://cluster/" + namespace + "/" + name + "/topology";
+        String statusUri = "strimzi://kafka.strimzi.io/v1/namespaces/" + namespace + "/kafkas/" + name + "/status";
+        String topologyUri = "strimzi://kafka.strimzi.io/v1/namespaces/" + namespace + "/kafkas/" + name + "/topology";
 
         LOG.debugf("Kafka %s event: %s/%s", action, namespace, name);
 
         if (action == Watcher.Action.DELETED) {
             resourceManager.removeResource(statusUri);
             resourceManager.removeResource(topologyUri);
+            lastKnownState.remove(statusUri);
+            lastKnownState.remove(topologyUri);
             return;
         }
 
@@ -194,38 +231,64 @@ public class ResourceSubscriptionManager implements Closeable {
     }
 
     private void handleNodePoolEvent(final Watcher.Action action, final KafkaNodePool nodePool) {
+        String name = nodePool.getMetadata().getName();
         String namespace = nodePool.getMetadata().getNamespace();
         String clusterName = nodePool.getMetadata().getLabels() != null
             ? nodePool.getMetadata().getLabels().get(ResourceLabels.STRIMZI_CLUSTER_LABEL)
             : null;
 
-        if (clusterName == null) {
-            return;
+        LOG.debugf("KafkaNodePool %s event: %s/%s (cluster=%s)",
+            action, namespace, name, clusterName);
+
+        String nodePoolUri = "strimzi://kafka.strimzi.io/v1/namespaces/"
+            + namespace + "/kafkanodepools/" + name + "/status";
+
+        if (action == Watcher.Action.DELETED) {
+            resourceManager.removeResource(nodePoolUri);
+            lastKnownState.remove(nodePoolUri);
+        } else {
+            notifyNodePoolStatus(nodePoolUri, namespace, name);
         }
 
-        LOG.debugf("KafkaNodePool %s event: %s/%s (cluster=%s)",
-            action, namespace, nodePool.getMetadata().getName(), clusterName);
-
-        String topologyUri = "strimzi://cluster/" + namespace + "/" + clusterName + "/topology";
-        if (action == Watcher.Action.DELETED) {
-            notifyClusterTopology(topologyUri, namespace, clusterName);
-        } else {
+        if (clusterName != null) {
+            String topologyUri = "strimzi://kafka.strimzi.io/v1/namespaces/"
+                + namespace + "/kafkas/" + clusterName + "/topology";
             notifyClusterTopology(topologyUri, namespace, clusterName);
         }
     }
 
-    private void handleOperatorEvent(final Watcher.Action action, final Deployment deployment) {
-        String namespace = deployment.getMetadata().getNamespace();
-        String operatorUri = "strimzi://operator/" + namespace + "/status";
+    private void handleTopicEvent(final Watcher.Action action, final KafkaTopic topic) {
+        String name = topic.getMetadata().getName();
+        String namespace = topic.getMetadata().getNamespace();
+        String topicUri = "strimzi://kafka.strimzi.io/v1/namespaces/"
+            + namespace + "/kafkatopics/" + name + "/status";
 
-        LOG.debugf("Operator %s event: %s/%s", action, namespace, deployment.getMetadata().getName());
+        LOG.debugf("KafkaTopic %s event: %s/%s", action, namespace, name);
 
         if (action == Watcher.Action.DELETED) {
-            resourceManager.removeResource(operatorUri);
+            resourceManager.removeResource(topicUri);
+            lastKnownState.remove(topicUri);
             return;
         }
 
-        notifyOperatorStatus(operatorUri, namespace);
+        notifyTopicStatus(topicUri, namespace, name);
+    }
+
+    private void handleOperatorEvent(final Watcher.Action action, final Deployment deployment) {
+        String name = deployment.getMetadata().getName();
+        String namespace = deployment.getMetadata().getNamespace();
+        String operatorUri = "strimzi://operator.strimzi.io/v1/namespaces/"
+            + namespace + "/clusteroperator/" + name + "/status";
+
+        LOG.debugf("Operator %s event: %s/%s", action, namespace, name);
+
+        if (action == Watcher.Action.DELETED) {
+            resourceManager.removeResource(operatorUri);
+            lastKnownState.remove(operatorUri);
+            return;
+        }
+
+        notifyOperatorStatus(operatorUri, namespace, name);
     }
 
     private void notifyClusterStatus(final String uri, final String namespace, final String name) {
@@ -252,11 +315,35 @@ public class ResourceSubscriptionManager implements Closeable {
         }
     }
 
-    private void notifyOperatorStatus(final String uri, final String namespace) {
+    private void notifyNodePoolStatus(final String uri, final String namespace, final String name) {
         try {
-            List<StrimziOperatorResponse> operators = operatorService.listOperators(namespace);
-            String json = objectMapper.writeValueAsString(operators);
-            registerAndNotify(uri, "Strimzi operator status in " + namespace, json);
+            KafkaNodePoolResponse nodePool = nodePoolService.getNodePool(namespace, null, name);
+            String json = objectMapper.writeValueAsString(nodePool);
+            registerAndNotify(uri, "KafkaNodePool " + namespace + "/" + name + " status", json);
+        } catch (JsonProcessingException e) {
+            LOG.warnf("Failed to serialize node pool status for %s/%s: %s", namespace, name, e.getMessage());
+        } catch (Exception e) {
+            LOG.debugf("Could not update node pool status resource %s: %s", uri, e.getMessage());
+        }
+    }
+
+    private void notifyTopicStatus(final String uri, final String namespace, final String name) {
+        try {
+            KafkaTopicResponse topic = topicService.getTopic(namespace, null, name);
+            String json = objectMapper.writeValueAsString(topic);
+            registerAndNotify(uri, "KafkaTopic " + namespace + "/" + name + " status", json);
+        } catch (JsonProcessingException e) {
+            LOG.warnf("Failed to serialize topic status for %s/%s: %s", namespace, name, e.getMessage());
+        } catch (Exception e) {
+            LOG.debugf("Could not update topic status resource %s: %s", uri, e.getMessage());
+        }
+    }
+
+    private void notifyOperatorStatus(final String uri, final String namespace, final String name) {
+        try {
+            StrimziOperatorResponse operator = operatorService.getOperator(namespace, name);
+            String json = objectMapper.writeValueAsString(operator);
+            registerAndNotify(uri, "Strimzi operator " + namespace + "/" + name + " status", json);
         } catch (JsonProcessingException e) {
             LOG.warnf("Failed to serialize operator status for %s: %s", namespace, e.getMessage());
         } catch (Exception e) {
@@ -264,20 +351,38 @@ public class ResourceSubscriptionManager implements Closeable {
         }
     }
 
-    private void registerAndNotify(final String uri, final String description, final String json) {
-        ResourceManager.ResourceInfo existing = resourceManager.getResource(uri);
+    private void registerAndNotify(
+        final String uri,
+        final String description,
+        final String json
+    ) {
+        String previous = lastKnownState.put(uri, json);
+
+        if (json.equals(previous)) {
+            LOG.debugf(
+                "No change detected for resource: %s", uri);
+            return;
+        }
+
+        ResourceManager.ResourceInfo existing =
+            resourceManager.getResource(uri);
 
         if (existing != null) {
             existing.sendUpdateAndForget();
-            LOG.debugf("Sent update notification for resource: %s", uri);
+            LOG.debugf("Resource changed, sent update: %s", uri);
         } else {
             resourceManager.newResource(uri)
                 .setDescription(description)
                 .setUri(uri)
                 .setMimeType("application/json")
-                .setHandler(args -> new ResourceResponse(TextResourceContents.create(uri, json)))
+                .setHandler(args ->
+                    new ResourceResponse(
+                        TextResourceContents.create(uri,
+                            lastKnownState
+                                .getOrDefault(uri, ""))))
                 .register();
-            LOG.debugf("Registered new dynamic resource: %s", uri);
+            LOG.debugf(
+                "Registered new dynamic resource: %s", uri);
         }
     }
 }

@@ -28,7 +28,7 @@ rules:
     verbs: ["get", "list", "watch"]
   # Pods, logs, and services
   - apiGroups: [""]
-    resources: ["pods", "pods/log", "services", "secrets", "configmaps"]
+    resources: ["pods", "pods/log", "pods/proxy", "services", "secrets", "configmaps"]
     verbs: ["get", "list"]
   # Routes (OpenShift)
   - apiGroups: ["route.openshift.io"]

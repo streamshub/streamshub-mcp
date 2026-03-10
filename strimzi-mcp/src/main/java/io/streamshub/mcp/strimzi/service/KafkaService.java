@@ -34,6 +34,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Service for Kafka cluster operations.
@@ -206,7 +207,7 @@ public class KafkaService {
      * @return the cluster logs response
      */
     public KafkaClusterLogsResponse getClusterLogs(final String namespace, final String clusterName,
-                                                    final String filter) {
+                                                   final String filter) {
         String ns = InputUtils.normalizeInput(namespace);
         String normalizedName = InputUtils.normalizeInput(clusterName);
 
@@ -239,6 +240,8 @@ public class KafkaService {
             return List.of();
         }
 
+        Map<String, String> listenerTypesByName = buildListenerTypeMap(kafka);
+
         return kafka.getStatus().getListeners().stream()
             .filter(listener -> listener.getAddresses() != null)
             .flatMap(listener -> listener.getAddresses().stream()
@@ -247,10 +250,23 @@ public class KafkaService {
                     addr.getHost(),
                     addr.getPort(),
                     listener.getName(),
-                    listener.getType(),
+                    listenerTypesByName.getOrDefault(listener.getName(), KubernetesConstants.UNKNOWN),
                     String.format("%s:%d", addr.getHost(), addr.getPort())
                 )))
             .toList();
+    }
+
+    private Map<String, String> buildListenerTypeMap(final Kafka kafka) {
+        if (kafka.getSpec() == null || kafka.getSpec().getKafka() == null
+            || kafka.getSpec().getKafka().getListeners() == null) {
+            return Map.of();
+        }
+        return kafka.getSpec().getKafka().getListeners().stream()
+            .filter(l -> l.getName() != null && l.getType() != null)
+            .collect(Collectors.toMap(
+                GenericKafkaListener::getName,
+                l -> l.getType().toValue(),
+                (a, b) -> a));
     }
 
     private String discoverClusterNamespace(final String clusterName) {

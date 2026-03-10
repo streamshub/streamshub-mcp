@@ -15,8 +15,6 @@ import io.streamshub.mcp.strimzi.service.StrimziOperatorService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
-import java.util.List;
-
 /**
  * MCP resource template for Strimzi operator status.
  *
@@ -36,25 +34,28 @@ public class StrimziOperatorStatusResource {
     }
 
     /**
-     * Get the status of Strimzi operators in a namespace as a JSON resource.
+     * Get the status of a specific Strimzi operator as a JSON resource.
      *
      * @param namespace the Kubernetes namespace
+     * @param name      the operator deployment name
      * @return resource response with operator status JSON
      * @throws JsonProcessingException if serialization fails
      */
     @ResourceTemplate(
         name = "strimzi-operator-status",
-        uriTemplate = "strimzi://operator/{namespace}/status",
+        uriTemplate = "strimzi://operator.strimzi.io/v1/namespaces/{namespace}/clusteroperator/{name}/status",
         description = "Strimzi operator deployment status,"
             + " version, readiness, and uptime.",
         mimeType = "application/json"
     )
     public ResourceResponse getOperatorStatus(
-        @ResourceTemplateArg(name = "namespace") final String namespace
+        @ResourceTemplateArg(name = "namespace") final String namespace,
+        @ResourceTemplateArg(name = "name") final String name
     ) throws JsonProcessingException {
-        List<StrimziOperatorResponse> operators = operatorService.listOperators(namespace);
-        String json = objectMapper.writeValueAsString(operators);
-        String uri = "strimzi://operator/" + namespace + "/status";
+        StrimziOperatorResponse operator = operatorService.getOperator(namespace, name);
+        String json = objectMapper.writeValueAsString(operator);
+        String uri = "strimzi://operator.strimzi.io/v1/namespaces/" + namespace
+            + "/clusteroperator/" + name + "/status";
         return new ResourceResponse(TextResourceContents.create(uri, json));
     }
 }

@@ -90,6 +90,7 @@ class McpToolsTest {
                     "get_kafka_cluster",
                     "get_kafka_cluster_pods",
                     "get_kafka_bootstrap_servers",
+                    "get_kafka_cluster_logs",
                     "list_kafka_topics",
                     "get_kafka_topic",
                     "list_kafka_node_pools",

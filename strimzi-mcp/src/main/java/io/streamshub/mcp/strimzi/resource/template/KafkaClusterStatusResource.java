@@ -43,7 +43,7 @@ public class KafkaClusterStatusResource {
      */
     @ResourceTemplate(
         name = "kafka-cluster-status",
-        uriTemplate = "strimzi://cluster/{namespace}/{name}/status",
+        uriTemplate = "strimzi://kafka.strimzi.io/v1/namespaces/{namespace}/kafkas/{name}/status",
         description = "Current status and conditions of a Kafka cluster"
             + " including readiness, version, listeners, and replica counts.",
         mimeType = "application/json"
@@ -54,7 +54,7 @@ public class KafkaClusterStatusResource {
     ) throws JsonProcessingException {
         KafkaClusterResponse cluster = kafkaService.getCluster(namespace, name);
         String json = objectMapper.writeValueAsString(cluster);
-        String uri = "strimzi://cluster/" + namespace + "/" + name + "/status";
+        String uri = "strimzi://kafka.strimzi.io/v1/namespaces/" + namespace + "/kafkas/" + name + "/status";
         return new ResourceResponse(TextResourceContents.create(uri, json));
     }
 }

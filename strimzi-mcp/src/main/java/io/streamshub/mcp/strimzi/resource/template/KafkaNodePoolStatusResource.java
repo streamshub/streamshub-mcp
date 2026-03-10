@@ -15,16 +15,14 @@ import io.streamshub.mcp.strimzi.service.KafkaNodePoolService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
-import java.util.List;
-
 /**
- * MCP resource template for Kafka cluster topology.
+ * MCP resource template for KafkaNodePool status.
  *
- * <p>Exposes node pool information (roles, replica counts, storage)
- * as a structured JSON resource for LLM context.</p>
+ * <p>Exposes node pool status, ready replicas, roles, and storage
+ * configuration as a structured JSON resource for LLM context.</p>
  */
 @Singleton
-public class KafkaClusterTopologyResource {
+public class KafkaNodePoolStatusResource {
 
     @Inject
     KafkaNodePoolService nodePoolService;
@@ -32,31 +30,32 @@ public class KafkaClusterTopologyResource {
     @Inject
     ObjectMapper objectMapper;
 
-    KafkaClusterTopologyResource() {
+    KafkaNodePoolStatusResource() {
     }
 
     /**
-     * Get the topology of a Kafka cluster as a JSON resource.
+     * Get the status of a KafkaNodePool as a JSON resource.
      *
      * @param namespace the Kubernetes namespace
-     * @param name      the Kafka cluster name
-     * @return resource response with node pool topology JSON
+     * @param name      the KafkaNodePool name
+     * @return resource response with node pool status JSON
      * @throws JsonProcessingException if serialization fails
      */
     @ResourceTemplate(
-        name = "kafka-cluster-topology",
-        uriTemplate = "strimzi://kafka.strimzi.io/v1/namespaces/{namespace}/kafkas/{name}/topology",
-        description = "Cluster topology: node pools, roles,"
-            + " replica counts, and storage configuration.",
+        name = "kafka-nodepool-status",
+        uriTemplate = "strimzi://kafka.strimzi.io/v1/namespaces/{namespace}/kafkanodepools/{name}/status",
+        description = "KafkaNodePool status, ready replicas, roles,"
+            + " and storage configuration.",
         mimeType = "application/json"
     )
-    public ResourceResponse getClusterTopology(
+    public ResourceResponse getNodePoolStatus(
         @ResourceTemplateArg(name = "namespace") final String namespace,
         @ResourceTemplateArg(name = "name") final String name
     ) throws JsonProcessingException {
-        List<KafkaNodePoolResponse> nodePools = nodePoolService.listNodePools(namespace, name);
-        String json = objectMapper.writeValueAsString(nodePools);
-        String uri = "strimzi://kafka.strimzi.io/v1/namespaces/" + namespace + "/kafkas/" + name + "/topology";
+        KafkaNodePoolResponse nodePool = nodePoolService.getNodePool(namespace, null, name);
+        String json = objectMapper.writeValueAsString(nodePool);
+        String uri = "strimzi://kafka.strimzi.io/v1/namespaces/" + namespace
+            + "/kafkanodepools/" + name + "/status";
         return new ResourceResponse(TextResourceContents.create(uri, json));
     }
 }
