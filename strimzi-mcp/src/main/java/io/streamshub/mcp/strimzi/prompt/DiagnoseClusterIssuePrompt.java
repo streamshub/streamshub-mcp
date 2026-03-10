@@ -89,11 +89,11 @@ public class DiagnoseClusterIssuePrompt {
             Look for: CrashLoopBackOff, Pending pods, high restart counts, \
             pods not in Running phase, containers not ready.
 
-            ## Step 5: Investigate unhealthy pods
-            For any unhealthy pods found in Step 4, use `get_strimzi_operator_pod` \
-            or the appropriate pod detail tool to get environment, resources, and conditions.
-            Look for: OOMKilled termination reason, resource limits that are too low, \
-            missing volumes, failed liveness/readiness probes.
+            ## Step 5: Read pod logs from unhealthy pods
+            For any unhealthy pods found in Step 4, use `get_kafka_cluster_logs` \
+            with filter 'errors' to get error logs from broker pods.
+            Look for: OOM kill messages, disk full errors, connection refused, \
+            `OutOfMemoryError`, `IOException`, `No space left on device`.
 
             ## Step 6: Correlate and summarize
             Correlate the findings from all steps.
