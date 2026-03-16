@@ -11,24 +11,22 @@ rules:
       - kafkas
       - kafkanodepools
       - kafkatopics
-      - kafkausers
-      - kafkaconnects
-      - kafkaconnectors
-      - kafkabridges
-      - kafkarebalances
-      - kafkamirrormaker2s
     verbs: ["get", "list", "watch"]
   - apiGroups: ["core.strimzi.io"]
     resources:
       - strimzipodsets
     verbs: ["get", "list", "watch"]
-  # Strimzi operator deployments (watched for resource subscriptions)
+  # Strimzi operator deployments
   - apiGroups: ["apps"]
     resources: ["deployments"]
     verbs: ["get", "list", "watch"]
   # Pods, logs, and services
   - apiGroups: [""]
-    resources: ["pods", "pods/log", "pods/proxy", "services", "secrets", "configmaps"]
+    resources: ["pods", "pods/log", "services"]
+    verbs: ["get", "list"]
+  # ConfigMaps (logging overrides, external configuration references)
+  - apiGroups: [""]
+    resources: ["configmaps"]
     verbs: ["get", "list"]
   # Routes (OpenShift)
   - apiGroups: ["route.openshift.io"]
@@ -38,7 +36,7 @@ rules:
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses"]
     verbs: ["get", "list"]
-  # Leases
+  # Leases (operator leader election status)
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "list"]

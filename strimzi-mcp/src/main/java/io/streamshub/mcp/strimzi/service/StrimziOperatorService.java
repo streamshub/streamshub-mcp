@@ -19,6 +19,7 @@ import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
 import io.strimzi.api.ResourceLabels;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.List;
@@ -31,6 +32,7 @@ public class StrimziOperatorService {
 
     private static final Logger LOG = Logger.getLogger(StrimziOperatorService.class);
     private static final double MINUTES_PER_HOUR = 60.0;
+    private static final int SECONDS_PER_MINUTE = 60;
 
     @Inject
     KubernetesResourceService k8sService;
@@ -40,6 +42,9 @@ public class StrimziOperatorService {
 
     @Inject
     DeploymentService deploymentService;
+
+    @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
+    int defaultTailLines;
 
     StrimziOperatorService() {
     }
@@ -100,21 +105,25 @@ public class StrimziOperatorService {
     }
 
     /**
-     * Get logs for Strimzi operator pods with optional filtering.
+     * Get logs for Strimzi operator pods with optional filtering and log parameters.
      * Returns a StrimziOperatorLogsResponse (including notFound) rather than throwing,
      * since missing operator pods is a valid business response.
      *
      * @param namespace    the namespace, or null for auto-discovery
      * @param operatorName the operator name, or null for any operator
      * @param filter       optional log filter: "errors", "warnings", or a regex pattern
+     * @param sinceMinutes optional time range in minutes to retrieve logs from
+     * @param tailLines    optional number of lines to tail per pod (defaults to configured value)
+     * @param previous     optional flag to retrieve logs from previous container instance
      * @return the operator logs response
      */
     public StrimziOperatorLogsResponse getOperatorLogs(final String namespace, final String operatorName,
-                                                        final String filter) {
+                                                        final String filter, final Integer sinceMinutes,
+                                                        final Integer tailLines, final Boolean previous) {
         String ns = InputUtils.normalizeInput(namespace);
 
-        LOG.infof("Getting operator logs (namespace=%s, name=%s, filter=%s)",
-            ns, operatorName, filter != null ? filter : "none");
+        LOG.infof("Getting operator logs (namespace=%s, name=%s, filter=%s, sinceMinutes=%s, tailLines=%s, previous=%s)",
+            ns, operatorName, filter != null ? filter : "none", sinceMinutes, tailLines, previous);
 
         if (ns == null) {
             ns = discoverOperatorNamespace(operatorName);
@@ -131,9 +140,13 @@ public class StrimziOperatorService {
         }
 
         String normalizedFilter = InputUtils.normalizeInput(filter);
-        PodLogsResult result = podsService.collectLogs(ns, pods, normalizedFilter);
+        Integer sinceSeconds = sinceMinutes != null ? sinceMinutes * SECONDS_PER_MINUTE : null;
+        Integer effectiveTailLines = tailLines != null ? tailLines : defaultTailLines;
+
+        PodLogsResult result = podsService.collectLogs(ns, pods, normalizedFilter,
+            sinceSeconds, effectiveTailLines, previous);
         return StrimziOperatorLogsResponse.of(ns, result.logs(), result.podNames(),
-            result.hasErrors(), result.errorCount(), result.totalLines());
+            result.hasErrors(), result.errorCount(), result.totalLines(), result.hasMore());
     }
 
     private Deployment findOperatorInAllNamespaces(final String operatorName) {

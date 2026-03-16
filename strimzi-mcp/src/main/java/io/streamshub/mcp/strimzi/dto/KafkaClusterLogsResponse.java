@@ -19,6 +19,7 @@ import java.util.List;
  * @param hasErrors   whether errors were found in the logs
  * @param errorCount  the number of error lines found
  * @param logLines    the total number of log lines retrieved
+ * @param hasMore     whether more log lines are available beyond the requested tail limit
  * @param logs        the raw log content
  * @param timestamp   the time this result was generated
  * @param message     a human-readable summary of the result
@@ -31,6 +32,7 @@ public record KafkaClusterLogsResponse(
     @JsonProperty("has_errors") boolean hasErrors,
     @JsonProperty("error_count") int errorCount,
     @JsonProperty("log_lines") int logLines,
+    @JsonProperty("has_more") boolean hasMore,
     @JsonProperty("logs") String logs,
     @JsonProperty("timestamp") Instant timestamp,
     @JsonProperty("message") String message
@@ -45,16 +47,18 @@ public record KafkaClusterLogsResponse(
      * @param hasErrors   whether errors were found
      * @param errorCount  the number of error lines found
      * @param logLines    the total number of log lines
+     * @param hasMore     whether more log lines are available
      * @param logs        the raw log content
      * @return a response with the log data
      */
     public static KafkaClusterLogsResponse of(String clusterName, String namespace, List<String> pods,
-                                               boolean hasErrors, int errorCount, int logLines, String logs) {
+                                               boolean hasErrors, int errorCount, int logLines,
+                                               boolean hasMore, String logs) {
         String msg = hasErrors
             ? String.format("Found %d errors in logs across %d pods", errorCount, pods.size())
             : String.format("Logs retrieved from %d pods (no errors found)", pods.size());
         return new KafkaClusterLogsResponse(clusterName, namespace, pods, hasErrors, errorCount,
-            logLines, logs, Instant.now(), msg);
+            logLines, hasMore, logs, Instant.now(), msg);
     }
 
     /**
@@ -65,7 +69,7 @@ public record KafkaClusterLogsResponse(
      * @return an empty response indicating no pods were found
      */
     public static KafkaClusterLogsResponse empty(String clusterName, String namespace) {
-        return new KafkaClusterLogsResponse(clusterName, namespace, List.of(), false, 0, 0, null,
+        return new KafkaClusterLogsResponse(clusterName, namespace, List.of(), false, 0, 0, false, null,
             Instant.now(),
             String.format("No Kafka pods found for cluster '%s' in namespace '%s'", clusterName, namespace));
     }

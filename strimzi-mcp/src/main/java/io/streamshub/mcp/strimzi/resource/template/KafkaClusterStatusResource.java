@@ -10,6 +10,7 @@ import io.quarkiverse.mcp.server.ResourceResponse;
 import io.quarkiverse.mcp.server.ResourceTemplate;
 import io.quarkiverse.mcp.server.ResourceTemplateArg;
 import io.quarkiverse.mcp.server.TextResourceContents;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.service.KafkaService;
 import jakarta.inject.Inject;
@@ -43,7 +44,7 @@ public class KafkaClusterStatusResource {
      */
     @ResourceTemplate(
         name = "kafka-cluster-status",
-        uriTemplate = "strimzi://kafka.strimzi.io/v1/namespaces/{namespace}/kafkas/{name}/status",
+        uriTemplate = StrimziConstants.ResourceUris.KAFKA_STATUS,
         description = "Current status and conditions of a Kafka cluster"
             + " including readiness, version, listeners, and replica counts.",
         mimeType = "application/json"
@@ -54,7 +55,7 @@ public class KafkaClusterStatusResource {
     ) throws JsonProcessingException {
         KafkaClusterResponse cluster = kafkaService.getCluster(namespace, name);
         String json = objectMapper.writeValueAsString(cluster);
-        String uri = "strimzi://kafka.strimzi.io/v1/namespaces/" + namespace + "/kafkas/" + name + "/status";
+        String uri = StrimziConstants.ResourceUris.kafkaStatus(namespace, name);
         return new ResourceResponse(TextResourceContents.create(uri, json));
     }
 }

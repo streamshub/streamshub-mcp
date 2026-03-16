@@ -10,6 +10,7 @@ import io.quarkiverse.mcp.server.ResourceResponse;
 import io.quarkiverse.mcp.server.ResourceTemplate;
 import io.quarkiverse.mcp.server.ResourceTemplateArg;
 import io.quarkiverse.mcp.server.TextResourceContents;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.service.KafkaTopicService;
 import jakarta.inject.Inject;
@@ -43,7 +44,7 @@ public class KafkaTopicStatusResource {
      */
     @ResourceTemplate(
         name = "kafka-topic-status",
-        uriTemplate = "strimzi://kafka.strimzi.io/v1/namespaces/{namespace}/kafkatopics/{name}/status",
+        uriTemplate = StrimziConstants.ResourceUris.TOPIC_STATUS,
         description = "KafkaTopic status, conditions, and topic"
             + " configuration including partitions and replicas.",
         mimeType = "application/json"
@@ -54,8 +55,7 @@ public class KafkaTopicStatusResource {
     ) throws JsonProcessingException {
         KafkaTopicResponse topic = topicService.getTopic(namespace, null, name);
         String json = objectMapper.writeValueAsString(topic);
-        String uri = "strimzi://kafka.strimzi.io/v1/namespaces/" + namespace
-            + "/kafkatopics/" + name + "/status";
+        String uri = StrimziConstants.ResourceUris.topicStatus(namespace, name);
         return new ResourceResponse(TextResourceContents.create(uri, json));
     }
 }

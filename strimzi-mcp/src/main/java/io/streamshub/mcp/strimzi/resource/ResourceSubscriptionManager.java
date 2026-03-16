@@ -213,8 +213,8 @@ public class ResourceSubscriptionManager implements Closeable {
     private void handleKafkaEvent(final Watcher.Action action, final Kafka kafka) {
         String name = kafka.getMetadata().getName();
         String namespace = kafka.getMetadata().getNamespace();
-        String statusUri = "strimzi://kafka.strimzi.io/v1/namespaces/" + namespace + "/kafkas/" + name + "/status";
-        String topologyUri = "strimzi://kafka.strimzi.io/v1/namespaces/" + namespace + "/kafkas/" + name + "/topology";
+        String statusUri = StrimziConstants.ResourceUris.kafkaStatus(namespace, name);
+        String topologyUri = StrimziConstants.ResourceUris.kafkaTopology(namespace, name);
 
         LOG.debugf("Kafka %s event: %s/%s", action, namespace, name);
 
@@ -240,8 +240,7 @@ public class ResourceSubscriptionManager implements Closeable {
         LOG.debugf("KafkaNodePool %s event: %s/%s (cluster=%s)",
             action, namespace, name, clusterName);
 
-        String nodePoolUri = "strimzi://kafka.strimzi.io/v1/namespaces/"
-            + namespace + "/kafkanodepools/" + name + "/status";
+        String nodePoolUri = StrimziConstants.ResourceUris.nodePoolStatus(namespace, name);
 
         if (action == Watcher.Action.DELETED) {
             resourceManager.removeResource(nodePoolUri);
@@ -251,8 +250,7 @@ public class ResourceSubscriptionManager implements Closeable {
         }
 
         if (clusterName != null) {
-            String topologyUri = "strimzi://kafka.strimzi.io/v1/namespaces/"
-                + namespace + "/kafkas/" + clusterName + "/topology";
+            String topologyUri = StrimziConstants.ResourceUris.kafkaTopology(namespace, clusterName);
             notifyClusterTopology(topologyUri, namespace, clusterName);
         }
     }
@@ -260,8 +258,7 @@ public class ResourceSubscriptionManager implements Closeable {
     private void handleTopicEvent(final Watcher.Action action, final KafkaTopic topic) {
         String name = topic.getMetadata().getName();
         String namespace = topic.getMetadata().getNamespace();
-        String topicUri = "strimzi://kafka.strimzi.io/v1/namespaces/"
-            + namespace + "/kafkatopics/" + name + "/status";
+        String topicUri = StrimziConstants.ResourceUris.topicStatus(namespace, name);
 
         LOG.debugf("KafkaTopic %s event: %s/%s", action, namespace, name);
 
@@ -277,8 +274,7 @@ public class ResourceSubscriptionManager implements Closeable {
     private void handleOperatorEvent(final Watcher.Action action, final Deployment deployment) {
         String name = deployment.getMetadata().getName();
         String namespace = deployment.getMetadata().getNamespace();
-        String operatorUri = "strimzi://operator.strimzi.io/v1/namespaces/"
-            + namespace + "/clusteroperator/" + name + "/status";
+        String operatorUri = StrimziConstants.ResourceUris.operatorStatus(namespace, name);
 
         LOG.debugf("Operator %s event: %s/%s", action, namespace, name);
 

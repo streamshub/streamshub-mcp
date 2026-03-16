@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: streamshub-strimzi-mcp-sensitive
+  labels:
+    app: streamshub-strimzi-mcp
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+  # Only required when using the default pod-scraping metrics provider
+  - apiGroups: [""]
+    resources: ["pods/proxy"]
+    verbs: ["get"]

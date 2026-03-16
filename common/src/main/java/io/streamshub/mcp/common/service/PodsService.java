@@ -6,6 +6,7 @@ package io.streamshub.mcp.common.service;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerState;
+import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarSource;
@@ -46,7 +47,6 @@ public class PodsService {
     static final Set<String> FULL_SECTIONS = Set.of("full");
     static final Set<String> NO_SECTIONS = Set.of();
     private static final Logger LOG = Logger.getLogger(PodsService.class);
-    private static final int DEFAULT_LOG_TAIL_LINES = 100;
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -184,6 +184,13 @@ public class PodsService {
                 .sum();
         }
 
+        // Last termination info from container statuses
+        String lastTerminationReason = extractLastTerminationReason(podStatus);
+        Instant lastTerminationTime = extractLastTerminationTime(podStatus);
+
+        // Pod-level resource summary from first container spec
+        PodSummaryResponse.ResourceInfo podResources = extractPodResources(spec.getContainers());
+
         // Calculate age
         long ageMinutes = 0;
         Instant startTime = null;
@@ -195,9 +202,10 @@ public class PodsService {
             ageMinutes = ChronoUnit.MINUTES.between(created, Instant.now());
         }
 
-        // Return summary only if no sections requested
+        // Return enriched summary if no detail sections requested
         if (sections.isEmpty()) {
-            return PodSummaryResponse.PodInfo.summary(podName, phase, ready, component, restarts, ageMinutes);
+            return PodSummaryResponse.PodInfo.enrichedSummary(podName, phase, ready, component,
+                restarts, ageMinutes, null, lastTerminationReason, lastTerminationTime, podResources);
         }
 
         boolean full = sections.contains("full");
@@ -270,6 +278,7 @@ public class PodsService {
 
         return PodSummaryResponse.PodInfo.detailed(
             podName, phase, ready, component, restarts, ageMinutes,
+            null, lastTerminationReason, lastTerminationTime, podResources,
             nodeName, hostIP, podIP, serviceAccount, labels, annotations,
             containers, volumes, conditions, startTimeDetail
         );
@@ -300,6 +309,92 @@ public class PodsService {
         return PodSummaryResponse.of(namespace, List.of(podInfo));
     }
 
+    /**
+     * Extract the last termination reason from the most recently terminated container.
+     * Checks {@code lastState} on all container statuses for terminated state reasons.
+     *
+     * @param podStatus the pod status
+     * @return the termination reason, or null if no container was terminated
+     */
+    private String extractLastTerminationReason(PodStatus podStatus) {
+        if (podStatus == null || podStatus.getContainerStatuses() == null) {
+            return null;
+        }
+        return podStatus.getContainerStatuses().stream()
+            .filter(cs -> cs.getLastState() != null && cs.getLastState().getTerminated() != null)
+            .map(cs -> cs.getLastState().getTerminated().getReason())
+            .filter(reason -> reason != null && !reason.isEmpty())
+            .findFirst()
+            .orElse(null);
+    }
+
+    /**
+     * Extract the last termination time from the most recently terminated container.
+     * Checks {@code lastState} on all container statuses for terminated state finish time.
+     *
+     * @param podStatus the pod status
+     * @return the termination time, or null if no container was terminated
+     */
+    private Instant extractLastTerminationTime(PodStatus podStatus) {
+        if (podStatus == null || podStatus.getContainerStatuses() == null) {
+            return null;
+        }
+        return podStatus.getContainerStatuses().stream()
+            .filter(cs -> cs.getLastState() != null && cs.getLastState().getTerminated() != null)
+            .map(cs -> cs.getLastState().getTerminated())
+            .filter(t -> t.getFinishedAt() != null)
+            .map(ContainerStateTerminated::getFinishedAt)
+            .map(Instant::parse)
+            .findFirst()
+            .orElse(null);
+    }
+
+    /**
+     * Extract aggregated resource requests and limits from the pod's containers.
+     * Returns a flat structure with {@code cpuRequest}, {@code cpuLimit},
+     * {@code memoryRequest}, and {@code memoryLimit} fields.
+     *
+     * @param containers the list of containers from the pod spec
+     * @return a ResourceInfo with flattened resource entries, or null if no resources defined
+     */
+    private PodSummaryResponse.ResourceInfo extractPodResources(List<Container> containers) {
+        if (containers == null || containers.isEmpty()) {
+            return null;
+        }
+        String cpuRequest = null;
+        String cpuLimit = null;
+        String memoryRequest = null;
+        String memoryLimit = null;
+
+        for (Container container : containers) {
+            if (container.getResources() != null) {
+                if (container.getResources().getRequests() != null) {
+                    var reqs = container.getResources().getRequests();
+                    if (reqs.get("cpu") != null) {
+                        cpuRequest = reqs.get("cpu").toString();
+                    }
+                    if (reqs.get("memory") != null) {
+                        memoryRequest = reqs.get("memory").toString();
+                    }
+                }
+                if (container.getResources().getLimits() != null) {
+                    var lims = container.getResources().getLimits();
+                    if (lims.get("cpu") != null) {
+                        cpuLimit = lims.get("cpu").toString();
+                    }
+                    if (lims.get("memory") != null) {
+                        memoryLimit = lims.get("memory").toString();
+                    }
+                }
+            }
+        }
+
+        if (cpuRequest == null && cpuLimit == null && memoryRequest == null && memoryLimit == null) {
+            return null;
+        }
+        return new PodSummaryResponse.ResourceInfo(cpuRequest, cpuLimit, memoryRequest, memoryLimit);
+    }
+
     @SuppressWarnings("checkstyle:CyclomaticComplexity")
     private PodSummaryResponse.ContainerDetail extractContainerDetail(Container container, PodStatus podStatus, Set<String> sections) {
         boolean full = sections.contains("full");
@@ -321,20 +416,7 @@ public class PodsService {
         // Extract resources (only for resources section)
         PodSummaryResponse.ResourceInfo resources = null;
         if (full || sections.contains("resources")) {
-            if (container.getResources() != null) {
-                var res = container.getResources();
-                Map<String, String> requests = res.getRequests() != null
-                    ? res.getRequests().entrySet().stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().toString()))
-                    : null;
-                Map<String, String> limits = res.getLimits() != null
-                    ? res.getLimits().entrySet().stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().toString()))
-                    : null;
-                if (requests != null || limits != null) {
-                    resources = new PodSummaryResponse.ResourceInfo(requests, limits);
-                }
-            }
+            resources = extractContainerResources(container);
         }
 
         // Extract volume mounts (only for volumes section)
@@ -377,6 +459,39 @@ public class PodsService {
             restartCount,
             state
         );
+    }
+
+    private PodSummaryResponse.ResourceInfo extractContainerResources(Container container) {
+        if (container.getResources() == null) {
+            return null;
+        }
+        var res = container.getResources();
+        String cpuReq = null;
+        String cpuLim = null;
+        String memReq = null;
+        String memLim = null;
+
+        if (res.getRequests() != null) {
+            if (res.getRequests().get("cpu") != null) {
+                cpuReq = res.getRequests().get("cpu").toString();
+            }
+            if (res.getRequests().get("memory") != null) {
+                memReq = res.getRequests().get("memory").toString();
+            }
+        }
+        if (res.getLimits() != null) {
+            if (res.getLimits().get("cpu") != null) {
+                cpuLim = res.getLimits().get("cpu").toString();
+            }
+            if (res.getLimits().get("memory") != null) {
+                memLim = res.getLimits().get("memory").toString();
+            }
+        }
+
+        if (cpuReq == null && cpuLim == null && memReq == null && memLim == null) {
+            return null;
+        }
+        return new PodSummaryResponse.ResourceInfo(cpuReq, cpuLim, memReq, memLim);
     }
 
     private PodSummaryResponse.EnvVarInfo extractEnvVarInfo(EnvVar env) {
@@ -483,21 +598,9 @@ public class PodsService {
     }
 
     /**
-     * Collect logs from a list of pods with error analysis.
-     * Tails the last {@value #DEFAULT_LOG_TAIL_LINES} lines from each pod
-     * and counts lines containing ERROR or EXCEPTION.
-     *
-     * @param namespace the namespace of the pods
-     * @param pods      the list of pods to collect logs from
-     * @return the aggregated log result
-     */
-    public PodLogsResult collectLogs(final String namespace, final List<Pod> pods) {
-        return collectLogs(namespace, pods, null);
-    }
-
-    /**
-     * Collect logs from a list of pods with optional filtering.
-     * Tails the last {@value #DEFAULT_LOG_TAIL_LINES} lines from each pod.
+     * Collect logs from a list of pods with optional filtering and time/tail parameters.
+     * Requests {@code tailLines + 1} lines to detect whether more logs exist beyond
+     * the requested limit, then trims to the requested count.
      *
      * <p>Supported filter values:</p>
      * <ul>
@@ -507,12 +610,18 @@ public class PodsService {
      *   <li>{@code null} or blank - no filtering, return all lines</li>
      * </ul>
      *
-     * @param namespace the namespace of the pods
-     * @param pods      the list of pods to collect logs from
-     * @param filter    optional filter: "errors", "warnings", or a regex pattern
+     * @param namespace    the namespace of the pods
+     * @param pods         the list of pods to collect logs from
+     * @param filter       optional filter: "errors", "warnings", or a regex pattern
+     * @param sinceSeconds optional time range in seconds to retrieve logs from
+     * @param tailLines    number of lines to tail per pod
+     * @param previous     optional flag to retrieve logs from previous container instance
      * @return the aggregated and optionally filtered log result
      */
-    public PodLogsResult collectLogs(final String namespace, final List<Pod> pods, final String filter) {
+    @SuppressWarnings("checkstyle:CyclomaticComplexity")
+    public PodLogsResult collectLogs(final String namespace, final List<Pod> pods, final String filter,
+                                     final Integer sinceSeconds, final int tailLines,
+                                     final Boolean previous) {
         List<String> podNames = pods.stream()
             .map(pod -> pod.getMetadata().getName())
             .toList();
@@ -523,18 +632,23 @@ public class PodsService {
         int errorCount = 0;
         int totalLines = 0;
         int filteredLines = 0;
+        boolean hasMore = false;
 
         for (Pod pod : pods) {
             String podName = pod.getMetadata().getName();
             try {
-                String podLog = kubernetesClient.pods()
-                    .inNamespace(namespace)
-                    .withName(podName)
-                    .tailingLines(DEFAULT_LOG_TAIL_LINES)
-                    .getLog();
+                String podLog = fetchPodLog(namespace, podName, tailLines, sinceSeconds, previous);
 
                 if (podLog != null && !podLog.isEmpty()) {
                     String[] lines = podLog.split("\n");
+
+                    if (lines.length > tailLines) {
+                        hasMore = true;
+                        String[] trimmed = new String[tailLines];
+                        System.arraycopy(lines, lines.length - tailLines, trimmed, 0, tailLines);
+                        lines = trimmed;
+                    }
+
                     totalLines += lines.length;
 
                     StringBuilder podOutput = new StringBuilder();
@@ -560,7 +674,39 @@ public class PodsService {
             }
         }
 
-        return new PodLogsResult(podNames, allLogs.toString(), errorCount, totalLines, filteredLines);
+        return new PodLogsResult(podNames, allLogs.toString(), errorCount, totalLines, filteredLines, hasMore);
+    }
+
+    /**
+     * Fetch logs from a single pod, applying tail, sinceSeconds, and previous options.
+     *
+     * @param namespace      the namespace of the pod
+     * @param podName        the name of the pod
+     * @param tailLines      the number of lines to tail (plus one for hasMore detection)
+     * @param sinceSeconds   optional time range in seconds
+     * @param previous       optional flag for previous container logs
+     * @return the raw log string
+     */
+    private String fetchPodLog(final String namespace, final String podName,
+                               final int tailLines, final Integer sinceSeconds,
+                               final Boolean previous) {
+        var podResource = kubernetesClient.pods()
+            .inNamespace(namespace)
+            .withName(podName);
+
+        if (Boolean.TRUE.equals(previous)) {
+            return podResource.terminated()
+                .tailingLines(tailLines + 1)
+                .getLog();
+        }
+
+        if (sinceSeconds != null) {
+            return podResource.sinceSeconds(sinceSeconds)
+                .tailingLines(tailLines + 1)
+                .getLog();
+        }
+
+        return podResource.tailingLines(tailLines + 1).getLog();
     }
 
     private Pattern compileLogFilter(final String filter) {

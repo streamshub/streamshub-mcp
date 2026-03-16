@@ -10,6 +10,7 @@ import io.quarkiverse.mcp.server.ResourceResponse;
 import io.quarkiverse.mcp.server.ResourceTemplate;
 import io.quarkiverse.mcp.server.ResourceTemplateArg;
 import io.quarkiverse.mcp.server.TextResourceContents;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
 import io.streamshub.mcp.strimzi.service.KafkaNodePoolService;
 import jakarta.inject.Inject;
@@ -43,7 +44,7 @@ public class KafkaNodePoolStatusResource {
      */
     @ResourceTemplate(
         name = "kafka-nodepool-status",
-        uriTemplate = "strimzi://kafka.strimzi.io/v1/namespaces/{namespace}/kafkanodepools/{name}/status",
+        uriTemplate = StrimziConstants.ResourceUris.NODEPOOL_STATUS,
         description = "KafkaNodePool status, ready replicas, roles,"
             + " and storage configuration.",
         mimeType = "application/json"
@@ -54,8 +55,7 @@ public class KafkaNodePoolStatusResource {
     ) throws JsonProcessingException {
         KafkaNodePoolResponse nodePool = nodePoolService.getNodePool(namespace, null, name);
         String json = objectMapper.writeValueAsString(nodePool);
-        String uri = "strimzi://kafka.strimzi.io/v1/namespaces/" + namespace
-            + "/kafkanodepools/" + name + "/status";
+        String uri = StrimziConstants.ResourceUris.nodePoolStatus(namespace, name);
         return new ResourceResponse(TextResourceContents.create(uri, json));
     }
 }

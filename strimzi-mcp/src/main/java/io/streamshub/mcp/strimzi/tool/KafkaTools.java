@@ -131,16 +131,18 @@ public class KafkaTools {
     /**
      * Get logs from Kafka cluster pods.
      *
-     * @param clusterName the cluster name
-     * @param namespace   optional namespace
-     * @param filter      optional log filter
+     * @param clusterName  the cluster name
+     * @param namespace    optional namespace
+     * @param filter       optional log filter
+     * @param sinceMinutes optional time range in minutes
+     * @param tailLines    optional number of lines to tail
+     * @param previous     optional flag for previous container logs
      * @return the cluster logs response with error analysis
      */
     @Tool(
         name = "get_kafka_cluster_logs",
         description = "Get logs from Kafka cluster pods with error analysis."
             + " Returns logs from all pods belonging to the cluster."
-            + " Use the filter parameter to reduce output."
     )
     public KafkaClusterLogsResponse getKafkaClusterLogs(
         @ToolArg(
@@ -153,8 +155,21 @@ public class KafkaTools {
         @ToolArg(
             description = StrimziToolsPrompts.LOG_FILTER_DESC,
             required = false
-        ) final String filter
+        ) final String filter,
+        @ToolArg(
+            description = StrimziToolsPrompts.SINCE_MINUTES_DESC,
+            required = false
+        ) final Integer sinceMinutes,
+        @ToolArg(
+            description = StrimziToolsPrompts.TAIL_LINES_DESC,
+            required = false
+        ) final Integer tailLines,
+        @ToolArg(
+            description = StrimziToolsPrompts.PREVIOUS_DESC,
+            required = false
+        ) final Boolean previous
     ) {
-        return kafkaService.getClusterLogs(namespace, clusterName, filter);
+        return kafkaService.getClusterLogs(namespace, clusterName, filter,
+            sinceMinutes, tailLines, previous);
     }
 }

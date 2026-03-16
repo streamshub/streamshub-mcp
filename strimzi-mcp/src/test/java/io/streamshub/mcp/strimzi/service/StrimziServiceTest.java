@@ -85,7 +85,7 @@ class StrimziServiceTest {
         setupHealthyOperatorPod("kafka-system", "strimzi-cluster-operator-abc123");
 
         // Test the service method
-        StrimziOperatorLogsResponse result = operatorService.getOperatorLogs("kafka-system", null, null);
+        StrimziOperatorLogsResponse result = operatorService.getOperatorLogs("kafka-system", null, null, null, null, null);
 
         // Verify the result
         assertNotNull(result);
@@ -106,7 +106,7 @@ class StrimziServiceTest {
         setupEmptyResponses("empty-namespace");
 
         // Test with namespace that has no operator
-        StrimziOperatorLogsResponse result = operatorService.getOperatorLogs("empty-namespace", null, null);
+        StrimziOperatorLogsResponse result = operatorService.getOperatorLogs("empty-namespace", null, null, null, null, null);
 
         // Should handle gracefully - returns notFound response
         assertNotNull(result);
@@ -122,8 +122,8 @@ class StrimziServiceTest {
         setupHealthyOperatorPod("kafka", "operator-pod");
 
         // Test with various input formats (spaces, case)
-        StrimziOperatorLogsResponse result1 = operatorService.getOperatorLogs("  KAFKA  ", null, null);
-        StrimziOperatorLogsResponse result2 = operatorService.getOperatorLogs("kafka", null, null);
+        StrimziOperatorLogsResponse result1 = operatorService.getOperatorLogs("  KAFKA  ", null, null, null, null, null);
+        StrimziOperatorLogsResponse result2 = operatorService.getOperatorLogs("kafka", null, null, null, null, null);
 
         // Both should work and return consistent results
         assertNotNull(result1);

@@ -112,8 +112,15 @@ class McpToolsTest {
     @Test
     void testListKafkaClusters() {
         when(kafkaService.listClusters(null)).thenReturn(List.of(
-            new KafkaClusterResponse("my-cluster", "kafka", "Ready", "3.7.0",
-                3, 3, "jbod", "100Gi", List.of("plain", "tls"),
+            new KafkaClusterResponse("my-cluster", "kafka", "Kafka", "4.2.0",
+                "Ready",
+                List.of(new KafkaClusterResponse.ConditionInfo("Ready", "True", null, null, null)),
+                List.of(new KafkaClusterResponse.ListenerInfo("plain", "internal",
+                    "my-cluster-kafka-bootstrap.kafka.svc:9092"),
+                    new KafkaClusterResponse.ListenerInfo("tls", "internal",
+                    "my-cluster-kafka-bootstrap.kafka.svc:9093")),
+                new KafkaClusterResponse.ReplicasInfo(3, 3),
+                "jbod", "100Gi",
                 false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi")
         ));
 
@@ -131,8 +138,13 @@ class McpToolsTest {
     @Test
     void testGetKafkaCluster() {
         when(kafkaService.getCluster(null, "my-cluster")).thenReturn(
-            new KafkaClusterResponse("my-cluster", "kafka", "Ready", "3.7.0",
-                3, 3, "jbod", "100Gi", List.of("plain"),
+            new KafkaClusterResponse("my-cluster", "kafka", "Kafka", "4.2.0",
+                "Ready",
+                List.of(new KafkaClusterResponse.ConditionInfo("Ready", "True", null, null, null)),
+                List.of(new KafkaClusterResponse.ListenerInfo("plain", "internal",
+                    "my-cluster-kafka-bootstrap.kafka.svc:9092")),
+                new KafkaClusterResponse.ReplicasInfo(3, 3),
+                "jbod", "100Gi",
                 false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi")
         );
 
@@ -141,7 +153,7 @@ class McpToolsTest {
                 assertFalse(response.isError());
                 String json = response.content().getFirst().asText().text();
                 assertTrue(json.contains("my-cluster"));
-                assertTrue(json.contains("3.7.0"));
+                assertTrue(json.contains("4.2.0"));
             })
             .thenAssertResults();
     }
@@ -274,7 +286,7 @@ class McpToolsTest {
     void testListStrimziOperators() {
         when(operatorService.listOperators(null)).thenReturn(List.of(
             StrimziOperatorResponse.of("strimzi-cluster-operator", "kafka-system",
-                true, 1, 1, "0.50.0", "quay.io/strimzi/operator:0.50.0", "48.5", "HEALTHY")
+                true, 1, 1, "0.51.0", "quay.io/strimzi/operator:0.50.0", "48.5", "HEALTHY")
         ));
 
         client.when()
@@ -291,7 +303,7 @@ class McpToolsTest {
     void testGetStrimziOperator() {
         when(operatorService.getOperator(null, "strimzi-cluster-operator")).thenReturn(
             StrimziOperatorResponse.of("strimzi-cluster-operator", "kafka-system",
-                true, 1, 1, "0.50.0", "quay.io/strimzi/operator:0.50.0", "48.5", "HEALTHY")
+                true, 1, 1, "0.51.0", "quay.io/strimzi/operator:0.50.0", "48.5", "HEALTHY")
         );
 
         client.when()
@@ -300,17 +312,17 @@ class McpToolsTest {
                     assertFalse(response.isError());
                     String json = response.content().getFirst().asText().text();
                     assertTrue(json.contains("strimzi-cluster-operator"));
-                    assertTrue(json.contains("0.50.0"));
+                    assertTrue(json.contains("0.51.0"));
                 })
             .thenAssertResults();
     }
 
     @Test
     void testGetStrimziOperatorLogs() {
-        when(operatorService.getOperatorLogs(null, null, null)).thenReturn(
+        when(operatorService.getOperatorLogs(null, null, null, null, null, null)).thenReturn(
             StrimziOperatorLogsResponse.of("kafka-system",
                 "INFO: Operator running normally", List.of("strimzi-operator-abc123"),
-                false, 0, 1)
+                false, 0, 1, false)
         );
 
         client.when()
@@ -388,8 +400,13 @@ class McpToolsTest {
     @Test
     void testNamespaceParameterPassedThrough() {
         when(kafkaService.listClusters("production")).thenReturn(List.of(
-            new KafkaClusterResponse("prod-cluster", "production", "Ready", "3.7.0",
-                3, 3, "jbod", "100Gi", List.of("tls"),
+            new KafkaClusterResponse("prod-cluster", "production", "Kafka", "4.2.0",
+                "Ready",
+                List.of(new KafkaClusterResponse.ConditionInfo("Ready", "True", null, null, null)),
+                List.of(new KafkaClusterResponse.ListenerInfo("tls", "internal",
+                    "prod-cluster-kafka-bootstrap.production.svc:9093")),
+                new KafkaClusterResponse.ReplicasInfo(3, 3),
+                "jbod", "100Gi",
                 false, true, true, Instant.parse("2025-01-01T00:00:00Z"), 120L, "strimzi")
         ));
 

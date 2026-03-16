@@ -80,11 +80,11 @@ MCP resource templates expose Strimzi data as structured JSON that clients can a
 
 | Resource URI | Description |
 |-------------|-------------|
-| `strimzi://kafka.strimzi.io/v1/namespaces/{namespace}/kafkas/{name}/status` | Kafka cluster status: readiness, version, replicas, listeners, authentication, and storage configuration. |
-| `strimzi://kafka.strimzi.io/v1/namespaces/{namespace}/kafkas/{name}/topology` | Cluster topology: node pools with roles, replica counts, and storage. |
-| `strimzi://kafka.strimzi.io/v1/namespaces/{namespace}/kafkanodepools/{name}/status` | KafkaNodePool status, ready replicas, roles, and storage configuration. |
-| `strimzi://kafka.strimzi.io/v1/namespaces/{namespace}/kafkatopics/{name}/status` | KafkaTopic status, conditions, and topic configuration (partitions, replicas). |
-| `strimzi://operator.strimzi.io/v1/namespaces/{namespace}/clusteroperator/{name}/status` | Strimzi operator deployment status, version, readiness, and uptime. |
+| `strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkas/{name}/status` | Kafka cluster status: readiness, version, replicas, listeners, authentication, and storage configuration. |
+| `strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkas/{name}/topology` | Cluster topology: node pools with roles, replica counts, and storage. |
+| `strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkanodepools/{name}/status` | KafkaNodePool status, ready replicas, roles, and storage configuration. |
+| `strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkatopics/{name}/status` | KafkaTopic status, conditions, and topic configuration (partitions, replicas). |
+| `strimzi://operator.strimzi.io/namespaces/{namespace}/clusteroperator/{name}/status` | Strimzi operator deployment status, version, readiness, and uptime. |
 
 ### Resource Subscriptions
 
@@ -127,10 +127,11 @@ The `install/` directory contains all required manifests:
 |------|----------|
 | `001-Namespace.yaml` | `streamshub-mcp` namespace |
 | `002-ServiceAccount.yaml` | Dedicated service account |
-| `003-ClusterRole.yaml` | Read-only RBAC (get, list, watch) |
+| `003-ClusterRole.yaml` | Read-only RBAC for non-sensitive resources (get, list, watch) |
 | `004-ClusterRoleBinding.yaml` | Binds ClusterRole to ServiceAccount |
 | `005-Deployment.yaml` | MCP server deployment with health probes |
 | `006-Service.yaml` | ClusterIP service on port 8080 |
+| `007-Role-sensitive.yaml` | Opt-in per-namespace Role for secrets and pod metrics |
 
 ```bash
 # Deploy all resources
@@ -152,12 +153,21 @@ kubectl -n streamshub-mcp set image deployment/streamshub-strimzi-mcp \
 
 ### RBAC
 
-The ClusterRole grants **read-only** access following the principle of least privilege:
+RBAC is split into two layers following the principle of least privilege:
 
-- **Strimzi CRs** (kafkas, kafkanodepools, kafkatopics, etc.): `get`, `list`, `watch`
+**ClusterRole** (default, non-sensitive):
+- **Strimzi CRs** (kafkas, kafkanodepools, kafkatopics, strimzipodsets): `get`, `list`, `watch`
 - **Deployments**: `get`, `list`, `watch` (operator status and resource subscriptions)
 - **Pods and logs**: `get`, `list` (pod status and log retrieval)
-- **Services, secrets, configmaps**: `get`, `list` (connectivity and configuration)
+- **Services, configmaps**: `get`, `list` (connectivity and configuration)
+- **Routes, ingresses**: `get`, `list` (external access discovery)
+- **Leases**: `get`, `list` (operator leader election status)
+
+**Role** (opt-in per namespace, sensitive resources — `007-Role-sensitive.yaml`):
+- **Secrets**: `get` (TLS certificate metadata for `get_kafka_cluster_certificates`)
+- **Pods/proxy**: `get` (direct pod metrics scraping)
+
+Deploy the sensitive Role only in namespaces where certificate checking or metrics scraping is needed.
 
 For namespace-scoped deployments, replace the ClusterRoleBinding with a namespaced RoleBinding.
 
@@ -202,6 +212,12 @@ For non-TLS access (not recommended for production), use a passthrough or plain 
 ```bash
 oc -n streamshub-mcp expose svc/streamshub-strimzi-mcp
 ```
+
+### Configuration
+
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `MCP_LOG_TAIL_LINES` | `200` | Default number of log lines to tail per pod |
 
 ### Local Container Run
 

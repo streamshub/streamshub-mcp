@@ -27,6 +27,8 @@ spec:
           env:
             - name: JAVA_OPTS_APPEND
               value: "-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
+            - name: MCP_LOG_TAIL_LINES
+              value: "200"
           livenessProbe:
             httpGet:
               path: /q/health/live
