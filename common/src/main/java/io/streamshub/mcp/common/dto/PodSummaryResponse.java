@@ -299,23 +299,6 @@ public record PodSummaryResponse(
     }
 
     /**
-     * Flattened resource requests and limits for CPU and memory.
-     *
-     * @param cpuRequest    the CPU request value (e.g. "1", "500m")
-     * @param cpuLimit      the CPU limit value
-     * @param memoryRequest the memory request value (e.g. "4Gi")
-     * @param memoryLimit   the memory limit value
-     */
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record ResourceInfo(
-        @JsonProperty("cpu_request") String cpuRequest,
-        @JsonProperty("cpu_limit") String cpuLimit,
-        @JsonProperty("memory_request") String memoryRequest,
-        @JsonProperty("memory_limit") String memoryLimit
-    ) {
-    }
-
-    /**
      * Information about a volume mount.
      *
      * @param name      the volume mount name
@@ -341,18 +324,4 @@ public record PodSummaryResponse(
     ) {
     }
 
-    /**
-     * Information about a pod condition.
-     *
-     * @param type   the condition type
-     * @param status the condition status
-     * @param reason the reason for the condition
-     */
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record ConditionInfo(
-        @JsonProperty("type") String type,
-        @JsonProperty("status") String status,
-        @JsonProperty("reason") String reason
-    ) {
-    }
 }

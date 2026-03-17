@@ -33,6 +33,7 @@ import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.io.Closeable;
@@ -75,6 +76,9 @@ public class ResourceSubscriptionManager implements Closeable {
     @Inject
     ObjectMapper objectMapper;
 
+    @ConfigProperty(name = "mcp.resource-watches.enabled", defaultValue = "true")
+    boolean watchesEnabled;
+
     private final List<Watch> activeWatches = new CopyOnWriteArrayList<>();
     private final Map<String, String> lastKnownState = new ConcurrentHashMap<>();
 
@@ -87,6 +91,10 @@ public class ResourceSubscriptionManager implements Closeable {
      * @param event the startup event
      */
     void onStart(@Observes final StartupEvent event) {
+        if (!watchesEnabled) {
+            LOG.info("Resource watches disabled (mcp.resource-watches.enabled=false)");
+            return;
+        }
         LOG.info("Starting Strimzi resource watches for MCP subscriptions");
         startKafkaWatch();
         startKafkaNodePoolWatch();

@@ -17,8 +17,10 @@ import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.streamshub.mcp.common.config.KubernetesConstants;
+import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
+import io.streamshub.mcp.common.dto.ResourceInfo;
 import io.streamshub.mcp.common.util.InputUtils;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -189,7 +191,7 @@ public class PodsService {
         Instant lastTerminationTime = extractLastTerminationTime(podStatus);
 
         // Pod-level resource summary from first container spec
-        PodSummaryResponse.ResourceInfo podResources = extractPodResources(spec.getContainers());
+        ResourceInfo podResources = extractPodResources(spec.getContainers());
 
         // Calculate age
         long ageMinutes = 0;
@@ -262,15 +264,17 @@ public class PodsService {
         }
 
         // Conditions section
-        List<PodSummaryResponse.ConditionInfo> conditions = null;
+        List<ConditionInfo> conditions = null;
         if (full || sections.contains("conditions")) {
             conditions = new ArrayList<>();
             if (podStatus != null && podStatus.getConditions() != null) {
                 for (PodCondition condition : podStatus.getConditions()) {
-                    conditions.add(new PodSummaryResponse.ConditionInfo(
+                    conditions.add(ConditionInfo.of(
                         condition.getType(),
                         condition.getStatus(),
-                        condition.getReason()
+                        condition.getReason(),
+                        condition.getMessage(),
+                        condition.getLastTransitionTime()
                     ));
                 }
             }
@@ -357,7 +361,7 @@ public class PodsService {
      * @param containers the list of containers from the pod spec
      * @return a ResourceInfo with flattened resource entries, or null if no resources defined
      */
-    private PodSummaryResponse.ResourceInfo extractPodResources(List<Container> containers) {
+    private ResourceInfo extractPodResources(List<Container> containers) {
         if (containers == null || containers.isEmpty()) {
             return null;
         }
@@ -392,7 +396,7 @@ public class PodsService {
         if (cpuRequest == null && cpuLimit == null && memoryRequest == null && memoryLimit == null) {
             return null;
         }
-        return new PodSummaryResponse.ResourceInfo(cpuRequest, cpuLimit, memoryRequest, memoryLimit);
+        return new ResourceInfo(cpuRequest, cpuLimit, memoryRequest, memoryLimit);
     }
 
     @SuppressWarnings("checkstyle:CyclomaticComplexity")
@@ -414,7 +418,7 @@ public class PodsService {
         }
 
         // Extract resources (only for resources section)
-        PodSummaryResponse.ResourceInfo resources = null;
+        ResourceInfo resources = null;
         if (full || sections.contains("resources")) {
             resources = extractContainerResources(container);
         }
@@ -461,7 +465,7 @@ public class PodsService {
         );
     }
 
-    private PodSummaryResponse.ResourceInfo extractContainerResources(Container container) {
+    private ResourceInfo extractContainerResources(Container container) {
         if (container.getResources() == null) {
             return null;
         }
@@ -491,7 +495,7 @@ public class PodsService {
         if (cpuReq == null && cpuLim == null && memReq == null && memLim == null) {
             return null;
         }
-        return new PodSummaryResponse.ResourceInfo(cpuReq, cpuLim, memReq, memLim);
+        return new ResourceInfo(cpuReq, cpuLim, memReq, memLim);
     }
 
     private PodSummaryResponse.EnvVarInfo extractEnvVarInfo(EnvVar env) {

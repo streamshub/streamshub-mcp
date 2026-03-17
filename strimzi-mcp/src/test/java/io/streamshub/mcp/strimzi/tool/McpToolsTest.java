@@ -8,13 +8,16 @@ import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
+import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
+import io.streamshub.mcp.strimzi.dto.ListenerInfo;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
 import io.streamshub.mcp.strimzi.service.KafkaNodePoolService;
@@ -114,12 +117,12 @@ class McpToolsTest {
         when(kafkaService.listClusters(null)).thenReturn(List.of(
             new KafkaClusterResponse("my-cluster", "kafka", "Kafka", "4.2.0",
                 "Ready",
-                List.of(new KafkaClusterResponse.ConditionInfo("Ready", "True", null, null, null)),
-                List.of(new KafkaClusterResponse.ListenerInfo("plain", "internal",
+                List.of(new ConditionInfo("Ready", "True", null, null, null)),
+                List.of(new ListenerInfo("plain", "internal",
                     "my-cluster-kafka-bootstrap.kafka.svc:9092"),
-                    new KafkaClusterResponse.ListenerInfo("tls", "internal",
+                    new ListenerInfo("tls", "internal",
                     "my-cluster-kafka-bootstrap.kafka.svc:9093")),
-                new KafkaClusterResponse.ReplicasInfo(3, 3),
+                new ReplicasInfo(3, 3),
                 "jbod", "100Gi",
                 false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi")
         ));
@@ -140,10 +143,10 @@ class McpToolsTest {
         when(kafkaService.getCluster(null, "my-cluster")).thenReturn(
             new KafkaClusterResponse("my-cluster", "kafka", "Kafka", "4.2.0",
                 "Ready",
-                List.of(new KafkaClusterResponse.ConditionInfo("Ready", "True", null, null, null)),
-                List.of(new KafkaClusterResponse.ListenerInfo("plain", "internal",
+                List.of(new ConditionInfo("Ready", "True", null, null, null)),
+                List.of(new ListenerInfo("plain", "internal",
                     "my-cluster-kafka-bootstrap.kafka.svc:9092")),
-                new KafkaClusterResponse.ReplicasInfo(3, 3),
+                new ReplicasInfo(3, 3),
                 "jbod", "100Gi",
                 false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi")
         );
@@ -402,10 +405,10 @@ class McpToolsTest {
         when(kafkaService.listClusters("production")).thenReturn(List.of(
             new KafkaClusterResponse("prod-cluster", "production", "Kafka", "4.2.0",
                 "Ready",
-                List.of(new KafkaClusterResponse.ConditionInfo("Ready", "True", null, null, null)),
-                List.of(new KafkaClusterResponse.ListenerInfo("tls", "internal",
+                List.of(new ConditionInfo("Ready", "True", null, null, null)),
+                List.of(new ListenerInfo("tls", "internal",
                     "prod-cluster-kafka-bootstrap.production.svc:9093")),
-                new KafkaClusterResponse.ReplicasInfo(3, 3),
+                new ReplicasInfo(3, 3),
                 "jbod", "100Gi",
                 false, true, true, Instant.parse("2025-01-01T00:00:00Z"), 120L, "strimzi")
         ));

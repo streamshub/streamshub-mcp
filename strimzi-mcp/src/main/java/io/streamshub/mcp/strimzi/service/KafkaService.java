@@ -7,8 +7,10 @@ package io.streamshub.mcp.strimzi.service;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
+import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
+import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.util.InputUtils;
@@ -18,6 +20,7 @@ import io.streamshub.mcp.strimzi.dto.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
+import io.streamshub.mcp.strimzi.dto.ListenerInfo;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.kafka.Kafka;
@@ -327,9 +330,9 @@ public class KafkaService {
         }
 
         String version = extractVersion(kafka);
-        List<KafkaClusterResponse.ConditionInfo> conditions = extractConditions(kafka);
-        List<KafkaClusterResponse.ListenerInfo> listeners = extractListenerInfos(kafka);
-        KafkaClusterResponse.ReplicasInfo replicasInfo = KafkaClusterResponse.ReplicasInfo.of(
+        List<ConditionInfo> conditions = extractConditions(kafka);
+        List<ListenerInfo> listeners = extractListenerInfos(kafka);
+        ReplicasInfo replicasInfo = ReplicasInfo.of(
             extractReplicas(kafka), extractReadyReplicas(kafka));
         Instant creationTime = extractCreationTime(kafka);
         Long ageMinutes = null;
@@ -465,19 +468,19 @@ public class KafkaService {
         return null;
     }
 
-    private List<KafkaClusterResponse.ConditionInfo> extractConditions(final Kafka kafka) {
+    private List<ConditionInfo> extractConditions(final Kafka kafka) {
         if (kafka.getStatus() == null || kafka.getStatus().getConditions() == null
             || kafka.getStatus().getConditions().isEmpty()) {
             return null;
         }
         return kafka.getStatus().getConditions().stream()
-            .map(c -> KafkaClusterResponse.ConditionInfo.of(
+            .map(c -> ConditionInfo.of(
                 c.getType(), c.getStatus(), c.getReason(),
                 c.getMessage(), c.getLastTransitionTime()))
             .toList();
     }
 
-    private List<KafkaClusterResponse.ListenerInfo> extractListenerInfos(final Kafka kafka) {
+    private List<ListenerInfo> extractListenerInfos(final Kafka kafka) {
         if (kafka.getStatus() == null || kafka.getStatus().getListeners() == null
             || kafka.getStatus().getListeners().isEmpty()) {
             return null;
@@ -494,7 +497,7 @@ public class KafkaService {
                         bootstrapAddress = String.format("%s:%d", addr.getHost(), addr.getPort());
                     }
                 }
-                return KafkaClusterResponse.ListenerInfo.of(
+                return ListenerInfo.of(
                     listener.getName(),
                     listenerTypesByName.getOrDefault(listener.getName(), KubernetesConstants.UNKNOWN),
                     bootstrapAddress);
