@@ -6,6 +6,8 @@ package io.streamshub.mcp.strimzi.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.ReplicasInfo;
 
 import java.time.Instant;
 import java.util.List;
@@ -16,13 +18,14 @@ import java.util.List;
  *
  * @param name                  the cluster name
  * @param namespace             the Kubernetes namespace
- * @param status                the cluster status (Ready, NotReady, Error, Unknown)
+ * @param kind                  the Kubernetes resource kind
  * @param kafkaVersion          the Kafka version being used
- * @param replicas              the number of Kafka brokers configured
- * @param readyReplicas         the number of ready Kafka brokers
+ * @param readiness             the cluster readiness status (Ready, NotReady, Error, Unknown)
+ * @param conditions            the list of status conditions from the Kafka resource
+ * @param listeners             the list of configured listeners with type and bootstrap address
+ * @param replicas              the replica count information with expected and ready counts
  * @param storageType           the storage configuration type (ephemeral, persistent-claim, jbod)
  * @param storageSize           the total storage allocated (e.g., "100Gi")
- * @param listeners             the list of configured listener types
  * @param externalAccess        whether external access is configured
  * @param authenticationEnabled whether authentication is configured
  * @param authorizationEnabled  whether authorization is configured
@@ -34,13 +37,14 @@ import java.util.List;
 public record KafkaClusterResponse(
     @JsonProperty("name") String name,
     @JsonProperty("namespace") String namespace,
-    @JsonProperty("status") String status,
+    @JsonProperty("kind") String kind,
     @JsonProperty("kafka_version") String kafkaVersion,
-    @JsonProperty("replicas") Integer replicas,
-    @JsonProperty("ready_replicas") Integer readyReplicas,
+    @JsonProperty("readiness") String readiness,
+    @JsonProperty("conditions") List<ConditionInfo> conditions,
+    @JsonProperty("listeners") List<ListenerInfo> listeners,
+    @JsonProperty("replicas") ReplicasInfo replicas,
     @JsonProperty("storage_type") String storageType,
     @JsonProperty("storage_size") String storageSize,
-    @JsonProperty("listeners") List<String> listeners,
     @JsonProperty("external_access") Boolean externalAccess,
     @JsonProperty("authentication_enabled") Boolean authenticationEnabled,
     @JsonProperty("authorization_enabled") Boolean authorizationEnabled,

@@ -10,6 +10,7 @@ import io.quarkiverse.mcp.server.ResourceResponse;
 import io.quarkiverse.mcp.server.ResourceTemplate;
 import io.quarkiverse.mcp.server.ResourceTemplateArg;
 import io.quarkiverse.mcp.server.TextResourceContents;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
 import io.streamshub.mcp.strimzi.service.KafkaNodePoolService;
 import jakarta.inject.Inject;
@@ -45,7 +46,7 @@ public class KafkaClusterTopologyResource {
      */
     @ResourceTemplate(
         name = "kafka-cluster-topology",
-        uriTemplate = "strimzi://kafka.strimzi.io/v1/namespaces/{namespace}/kafkas/{name}/topology",
+        uriTemplate = StrimziConstants.ResourceUris.KAFKA_TOPOLOGY,
         description = "Cluster topology: node pools, roles,"
             + " replica counts, and storage configuration.",
         mimeType = "application/json"
@@ -56,7 +57,7 @@ public class KafkaClusterTopologyResource {
     ) throws JsonProcessingException {
         List<KafkaNodePoolResponse> nodePools = nodePoolService.listNodePools(namespace, name);
         String json = objectMapper.writeValueAsString(nodePools);
-        String uri = "strimzi://kafka.strimzi.io/v1/namespaces/" + namespace + "/kafkas/" + name + "/topology";
+        String uri = StrimziConstants.ResourceUris.kafkaTopology(namespace, name);
         return new ResourceResponse(TextResourceContents.create(uri, json));
     }
 }

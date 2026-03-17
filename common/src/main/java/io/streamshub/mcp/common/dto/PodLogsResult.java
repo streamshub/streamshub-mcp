@@ -14,13 +14,15 @@ import java.util.List;
  * @param errorCount    the number of lines containing errors or exceptions
  * @param totalLines    the total number of log lines retrieved before filtering
  * @param filteredLines the number of log lines after filtering (equals totalLines when no filter)
+ * @param hasMore       whether more log lines are available beyond the requested tail limit
  */
 public record PodLogsResult(
     List<String> podNames,
     String logs,
     int errorCount,
     int totalLines,
-    int filteredLines
+    int filteredLines,
+    boolean hasMore
 ) {
 
     /**

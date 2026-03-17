@@ -81,14 +81,17 @@ public class StrimziOperatorTools {
     /**
      * Get Strimzi operator logs.
      *
-     * @param namespace optional namespace
-     * @param filter    optional log filter
+     * @param namespace    optional namespace
+     * @param filter       optional log filter
+     * @param sinceMinutes optional time range in minutes
+     * @param tailLines    optional number of lines to tail
+     * @param previous     optional flag for previous container logs
      * @return the operator logs response
      */
     @Tool(
         name = "get_strimzi_operator_logs",
         description = "Get logs from Strimzi operator pods with error analysis."
-            + " Use the filter parameter to reduce output."
+            + " Returns logs from all operator pods."
     )
     public StrimziOperatorLogsResponse getStrimziOperatorLogs(
         @ToolArg(
@@ -98,9 +101,22 @@ public class StrimziOperatorTools {
         @ToolArg(
             description = StrimziToolsPrompts.LOG_FILTER_DESC,
             required = false
-        ) final String filter
+        ) final String filter,
+        @ToolArg(
+            description = StrimziToolsPrompts.SINCE_MINUTES_DESC,
+            required = false
+        ) final Integer sinceMinutes,
+        @ToolArg(
+            description = StrimziToolsPrompts.TAIL_LINES_DESC,
+            required = false
+        ) final Integer tailLines,
+        @ToolArg(
+            description = StrimziToolsPrompts.PREVIOUS_DESC,
+            required = false
+        ) final Boolean previous
     ) {
-        return operatorService.getOperatorLogs(namespace, null, filter);
+        return operatorService.getOperatorLogs(namespace, null, filter,
+            sinceMinutes, tailLines, previous);
     }
 
     /**

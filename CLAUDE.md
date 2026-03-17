@@ -1,7 +1,7 @@
 # Project: StreamsHub MCP (Multi-Module)
 
 Multi-module Quarkus mono-repo providing MCP (Model Context Protocol) servers for Kubernetes-based
-streaming platforms. Java 21, Quarkus 3.x, Strimzi API 0.50.x, Fabric8 Kubernetes client.
+streaming platforms. Java 21, Quarkus 3.x, Strimzi API 0.51.x, Fabric8 Kubernetes client.
 
 ## Modules
 
@@ -25,7 +25,7 @@ Checkstyle runs during compile phase. Fix all violations before committing.
 ```
 io.streamshub.mcp.common.
 ├── config/    → KubernetesConstants (labels, conditions, phases, health status)
-├── dto/       → PodSummaryResponse (generic pod DTO)
+├── dto/       → PodSummaryResponse, PodLogsResult (generic pod DTOs)
 ├── service/   → KubernetesResourceService, PodsService, DeploymentService
 └── util/      → InputUtils
 ```
@@ -37,7 +37,8 @@ io.streamshub.mcp.strimzi.
 ├── tool/      → MCP tool definitions (thin wrappers, no logic)
 ├── service/   → Business logic (KafkaService, KafkaTopicService, KafkaNodePoolService, StrimziOperatorService)
 ├── dto/       → Strimzi response records (7 DTOs)
-└── config/    → StrimziConstants, StrimziToolsPrompts
+├── resource/  → MCP resource templates and ResourceSubscriptionManager
+└── config/    → StrimziConstants (labels, resource URIs), StrimziToolsPrompts
 ```
 
 ### Layer rules
@@ -184,6 +185,9 @@ Constants are split across two modules:
 - `StrimziConstants.KindValues.CLUSTER_OPERATOR` - `"cluster-operator"` (label value, no API constant)
 - `StrimziConstants.ComponentTypes.KAFKA` - `"kafka"` (label value, no API constant)
 - `StrimziConstants.Operator.APP_LABEL_VALUE` - `"strimzi"` (label value, no API constant)
+- `StrimziConstants.ResourceUris.*` - MCP resource URI templates and builders (e.g., `KAFKA_STATUS`,
+  `kafkaStatus(namespace, name)`). Used in `@ResourceTemplate` annotations and `ResourceSubscriptionManager`.
+  All URI patterns are defined once here — never hardcode URI strings elsewhere.
 - `KubernetesConstants.*` - standard Kubernetes strings not provided by Fabric8 as constants
 
 Before adding a new constant, check if it already exists in `ResourceLabels`, `ProcessRoles`,
@@ -241,5 +245,8 @@ Before adding a new constant, check if it already exists in `ResourceLabels`, `P
 ## Testing
 
 Tests use Quarkus test framework with Mockito for Kubernetes client mocking.
-Test file: `strimzi-mcp/src/test/java/io/streamshub/mcp/strimzi/service/StrimziServiceTest.java`.
+Test files:
+- `strimzi-mcp/src/test/java/io/streamshub/mcp/strimzi/service/StrimziServiceTest.java` - service unit tests
+- `strimzi-mcp/src/test/java/io/streamshub/mcp/strimzi/tool/McpToolsTest.java` - MCP tool integration tests
+
 Tests verify service behavior without a live Kubernetes cluster.

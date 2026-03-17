@@ -32,6 +32,27 @@ public final class StrimziToolsPrompts {
             + " or a regex pattern. Omit for all lines.";
 
     /**
+     * Since minutes parameter description.
+     */
+    public static final String SINCE_MINUTES_DESC =
+        "Only return logs newer than this many minutes."
+            + " Omit for no time restriction.";
+
+    /**
+     * Tail lines parameter description.
+     */
+    public static final String TAIL_LINES_DESC =
+        "Number of log lines to retrieve per pod."
+            + " Defaults to server-configured value (typically 200).";
+
+    /**
+     * Previous container logs parameter description.
+     */
+    public static final String PREVIOUS_DESC =
+        "If true, retrieve logs from the previous"
+            + " container instance (crashed/restarted pods).";
+
+    /**
      * Sections parameter description.
      */
     public static final String SECTIONS_DESC =

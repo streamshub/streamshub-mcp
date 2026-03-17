@@ -10,6 +10,7 @@ import io.quarkiverse.mcp.server.ResourceResponse;
 import io.quarkiverse.mcp.server.ResourceTemplate;
 import io.quarkiverse.mcp.server.ResourceTemplateArg;
 import io.quarkiverse.mcp.server.TextResourceContents;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
 import io.streamshub.mcp.strimzi.service.StrimziOperatorService;
 import jakarta.inject.Inject;
@@ -43,7 +44,7 @@ public class StrimziOperatorStatusResource {
      */
     @ResourceTemplate(
         name = "strimzi-operator-status",
-        uriTemplate = "strimzi://operator.strimzi.io/v1/namespaces/{namespace}/clusteroperator/{name}/status",
+        uriTemplate = StrimziConstants.ResourceUris.OPERATOR_STATUS,
         description = "Strimzi operator deployment status,"
             + " version, readiness, and uptime.",
         mimeType = "application/json"
@@ -54,8 +55,7 @@ public class StrimziOperatorStatusResource {
     ) throws JsonProcessingException {
         StrimziOperatorResponse operator = operatorService.getOperator(namespace, name);
         String json = objectMapper.writeValueAsString(operator);
-        String uri = "strimzi://operator.strimzi.io/v1/namespaces/" + namespace
-            + "/clusteroperator/" + name + "/status";
+        String uri = StrimziConstants.ResourceUris.operatorStatus(namespace, name);
         return new ResourceResponse(TextResourceContents.create(uri, json));
     }
 }

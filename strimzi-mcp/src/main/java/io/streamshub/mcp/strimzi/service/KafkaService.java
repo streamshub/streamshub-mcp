@@ -7,8 +7,10 @@ package io.streamshub.mcp.strimzi.service;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
+import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
+import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.util.InputUtils;
@@ -18,6 +20,7 @@ import io.streamshub.mcp.strimzi.dto.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
+import io.streamshub.mcp.strimzi.dto.ListenerInfo;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.kafka.Kafka;
@@ -26,6 +29,7 @@ import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 import io.strimzi.api.kafka.model.nodepool.ProcessRoles;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.time.Duration;
@@ -43,6 +47,7 @@ import java.util.stream.Collectors;
 public class KafkaService {
 
     private static final Logger LOG = Logger.getLogger(KafkaService.class);
+    private static final int SECONDS_PER_MINUTE = 60;
 
     @Inject
     KubernetesResourceService k8sService;
@@ -52,6 +57,9 @@ public class KafkaService {
 
     @Inject
     KafkaNodePoolService nodePoolService;
+
+    @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
+    int defaultTailLines;
 
     KafkaService() {
     }
@@ -146,7 +154,18 @@ public class KafkaService {
         }
 
         List<PodSummaryResponse.PodInfo> podInfos = pods.stream()
-            .map(pod -> podsService.extractPodSummary(finalNamespace, pod))
+            .map(pod -> {
+                PodSummaryResponse.PodInfo info = podsService.extractPodSummary(finalNamespace, pod);
+                String nodePool = pod.getMetadata().getLabels() != null
+                    ? pod.getMetadata().getLabels().get(StrimziConstants.Labels.POOL_NAME) : null;
+                if (nodePool != null) {
+                    return PodSummaryResponse.PodInfo.enrichedSummary(
+                        info.name(), info.phase(), info.ready(), info.component(),
+                        info.restarts(), info.ageMinutes(), nodePool,
+                        info.lastTerminationReason(), info.lastTerminationTime(), info.resources());
+                }
+                return info;
+            })
             .toList();
 
         PodSummaryResponse podSummary = PodSummaryResponse.of(finalNamespace, podInfos);
@@ -199,15 +218,19 @@ public class KafkaService {
     }
 
     /**
-     * Get logs from Kafka cluster pods with optional filtering.
+     * Get logs from Kafka cluster pods with optional filtering and log parameters.
      *
-     * @param namespace   the namespace, or null for auto-discovery
-     * @param clusterName the cluster name
-     * @param filter      optional log filter: "errors", "warnings", or a regex pattern
+     * @param namespace    the namespace, or null for auto-discovery
+     * @param clusterName  the cluster name
+     * @param filter       optional log filter: "errors", "warnings", or a regex pattern
+     * @param sinceMinutes optional time range in minutes to retrieve logs from
+     * @param tailLines    optional number of lines to tail per pod (defaults to configured value)
+     * @param previous     optional flag to retrieve logs from previous container instance
      * @return the cluster logs response
      */
     public KafkaClusterLogsResponse getClusterLogs(final String namespace, final String clusterName,
-                                                   final String filter) {
+                                                   final String filter, final Integer sinceMinutes,
+                                                   final Integer tailLines, final Boolean previous) {
         String ns = InputUtils.normalizeInput(namespace);
         String normalizedName = InputUtils.normalizeInput(clusterName);
 
@@ -215,8 +238,9 @@ public class KafkaService {
             throw new ToolCallException("Cluster name is required");
         }
 
-        LOG.infof("Getting logs for cluster=%s (namespace=%s, filter=%s)",
-            normalizedName, ns != null ? ns : "auto", filter != null ? filter : "none");
+        LOG.infof("Getting logs for cluster=%s (namespace=%s, filter=%s, sinceMinutes=%s, tailLines=%s, previous=%s)",
+            normalizedName, ns != null ? ns : "auto", filter != null ? filter : "none",
+            sinceMinutes, tailLines, previous);
 
         if (ns == null) {
             ns = discoverClusterNamespace(normalizedName);
@@ -230,9 +254,13 @@ public class KafkaService {
         }
 
         String normalizedFilter = InputUtils.normalizeInput(filter);
-        PodLogsResult result = podsService.collectLogs(ns, pods, normalizedFilter);
+        Integer sinceSeconds = sinceMinutes != null ? sinceMinutes * SECONDS_PER_MINUTE : null;
+        Integer effectiveTailLines = tailLines != null ? tailLines : defaultTailLines;
+
+        PodLogsResult result = podsService.collectLogs(ns, pods, normalizedFilter,
+            sinceSeconds, effectiveTailLines, previous);
         return KafkaClusterLogsResponse.of(normalizedName, ns, result.podNames(),
-            result.hasErrors(), result.errorCount(), result.totalLines(), result.logs());
+            result.hasErrors(), result.errorCount(), result.totalLines(), result.hasMore(), result.logs());
     }
 
     private List<KafkaBootstrapResponse.BootstrapServerInfo> extractBootstrapServers(final Kafka kafka) {
@@ -292,15 +320,20 @@ public class KafkaService {
     private KafkaClusterResponse createClusterResponse(final Kafka kafka) {
         String name = kafka.getMetadata().getName();
         String namespace = kafka.getMetadata().getNamespace();
+        String kind = kafka.getKind();
 
-        String status;
+        String readiness;
         if (kafka.getStatus() != null) {
-            status = determineResourceStatus(kafka.getStatus().getConditions());
+            readiness = determineResourceStatus(kafka.getStatus().getConditions());
         } else {
-            status = KubernetesConstants.ResourceStatus.UNKNOWN;
+            readiness = KubernetesConstants.ResourceStatus.UNKNOWN;
         }
 
         String version = extractVersion(kafka);
+        List<ConditionInfo> conditions = extractConditions(kafka);
+        List<ListenerInfo> listeners = extractListenerInfos(kafka);
+        ReplicasInfo replicasInfo = ReplicasInfo.of(
+            extractReplicas(kafka), extractReadyReplicas(kafka));
         Instant creationTime = extractCreationTime(kafka);
         Long ageMinutes = null;
         if (creationTime != null) {
@@ -308,10 +341,10 @@ public class KafkaService {
         }
 
         return new KafkaClusterResponse(
-            name, namespace, status, version,
-            extractReplicas(kafka), extractReadyReplicas(kafka),
+            name, namespace, kind, version, readiness,
+            conditions, listeners, replicasInfo,
             extractStorageType(kafka), extractStorageSize(kafka),
-            extractListeners(kafka), extractExternalAccess(kafka),
+            extractExternalAccess(kafka),
             extractAuthenticationEnabled(kafka), extractAuthorizationEnabled(kafka),
             creationTime, ageMinutes, extractManagedBy(kafka));
     }
@@ -435,14 +468,41 @@ public class KafkaService {
         return null;
     }
 
-    private List<String> extractListeners(final Kafka kafka) {
-        if (kafka.getSpec() != null && kafka.getSpec().getKafka() != null
-            && kafka.getSpec().getKafka().getListeners() != null) {
-            return kafka.getSpec().getKafka().getListeners().stream()
-                .map(GenericKafkaListener::getName)
-                .toList();
+    private List<ConditionInfo> extractConditions(final Kafka kafka) {
+        if (kafka.getStatus() == null || kafka.getStatus().getConditions() == null
+            || kafka.getStatus().getConditions().isEmpty()) {
+            return null;
         }
-        return null;
+        return kafka.getStatus().getConditions().stream()
+            .map(c -> ConditionInfo.of(
+                c.getType(), c.getStatus(), c.getReason(),
+                c.getMessage(), c.getLastTransitionTime()))
+            .toList();
+    }
+
+    private List<ListenerInfo> extractListenerInfos(final Kafka kafka) {
+        if (kafka.getStatus() == null || kafka.getStatus().getListeners() == null
+            || kafka.getStatus().getListeners().isEmpty()) {
+            return null;
+        }
+
+        Map<String, String> listenerTypesByName = buildListenerTypeMap(kafka);
+
+        return kafka.getStatus().getListeners().stream()
+            .map(listener -> {
+                String bootstrapAddress = null;
+                if (listener.getAddresses() != null && !listener.getAddresses().isEmpty()) {
+                    var addr = listener.getAddresses().getFirst();
+                    if (addr.getHost() != null && addr.getPort() != null) {
+                        bootstrapAddress = String.format("%s:%d", addr.getHost(), addr.getPort());
+                    }
+                }
+                return ListenerInfo.of(
+                    listener.getName(),
+                    listenerTypesByName.getOrDefault(listener.getName(), KubernetesConstants.UNKNOWN),
+                    bootstrapAddress);
+            })
+            .toList();
     }
 
     private boolean extractExternalAccess(final Kafka kafka) {
