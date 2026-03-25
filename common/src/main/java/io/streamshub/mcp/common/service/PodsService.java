@@ -30,6 +30,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -622,15 +623,49 @@ public class PodsService {
      * @param previous     optional flag to retrieve logs from previous container instance
      * @return the aggregated and optionally filtered log result
      */
-    @SuppressWarnings("checkstyle:CyclomaticComplexity")
     public PodLogsResult collectLogs(final String namespace, final List<Pod> pods, final String filter,
                                      final Integer sinceSeconds, final int tailLines,
                                      final Boolean previous) {
+        return collectLogs(namespace, pods, filter, null, sinceSeconds, tailLines, previous);
+    }
+
+    /**
+     * Collect logs from a list of pods with optional filtering, keyword matching,
+     * deduplication, and time/tail parameters.
+     * Requests {@code tailLines + 1} lines to detect whether more logs exist beyond
+     * the requested limit, then trims to the requested count.
+     *
+     * <p>Supported filter values:</p>
+     * <ul>
+     *   <li>{@code "errors"} - only lines containing ERROR or EXCEPTION</li>
+     *   <li>{@code "warnings"} - lines containing ERROR, EXCEPTION, or WARN</li>
+     *   <li>Any other non-blank string is treated as a regex pattern</li>
+     *   <li>{@code null} or blank - no filtering, return all lines</li>
+     * </ul>
+     *
+     * <p>When {@code keywords} is provided, only lines containing at least one of the
+     * keywords (case-insensitive) are returned. Keywords are applied after the filter.
+     * Repeated identical lines within each pod are deduplicated and shown with a count.</p>
+     *
+     * @param namespace    the namespace of the pods
+     * @param pods         the list of pods to collect logs from
+     * @param filter       optional filter: "errors", "warnings", or a regex pattern
+     * @param keywords     optional list of keywords to match lines against (case-insensitive)
+     * @param sinceSeconds optional time range in seconds to retrieve logs from
+     * @param tailLines    number of lines to tail per pod
+     * @param previous     optional flag to retrieve logs from previous container instance
+     * @return the aggregated, filtered, and deduplicated log result
+     */
+    @SuppressWarnings("checkstyle:CyclomaticComplexity")
+    public PodLogsResult collectLogs(final String namespace, final List<Pod> pods, final String filter,
+                                     final List<String> keywords, final Integer sinceSeconds,
+                                     final int tailLines, final Boolean previous) {
         List<String> podNames = pods.stream()
             .map(pod -> pod.getMetadata().getName())
             .toList();
 
         Pattern filterPattern = compileLogFilter(filter);
+        List<String> normalizedKeywords = normalizeKeywords(keywords);
 
         StringBuilder allLogs = new StringBuilder();
         int errorCount = 0;
@@ -655,21 +690,21 @@ public class PodsService {
 
                     totalLines += lines.length;
 
-                    StringBuilder podOutput = new StringBuilder();
+                    List<String> matchedLines = new ArrayList<>();
                     for (String line : lines) {
                         String upperLine = line.toUpperCase(Locale.ENGLISH);
                         if (upperLine.contains("ERROR") || upperLine.contains("EXCEPTION")) {
                             errorCount++;
                         }
-                        if (filterPattern == null || filterPattern.matcher(line).find()) {
-                            podOutput.append(line).append("\n");
+                        if (matchesFilter(line, filterPattern) && matchesKeywords(upperLine, normalizedKeywords)) {
+                            matchedLines.add(line);
                             filteredLines++;
                         }
                     }
 
-                    if (!podOutput.isEmpty()) {
+                    if (!matchedLines.isEmpty()) {
                         allLogs.append("=== Pod: ").append(podName).append(" ===\n");
-                        allLogs.append(podOutput);
+                        allLogs.append(deduplicateLines(matchedLines));
                     }
                 }
             } catch (Exception e) {
@@ -679,6 +714,78 @@ public class PodsService {
         }
 
         return new PodLogsResult(podNames, allLogs.toString(), errorCount, totalLines, filteredLines, hasMore);
+    }
+
+    /**
+     * Check whether a log line matches the compiled filter pattern.
+     *
+     * @param line          the log line to check
+     * @param filterPattern the compiled filter pattern, or null for no filtering
+     * @return true if the line matches or no filter is set
+     */
+    private boolean matchesFilter(final String line, final Pattern filterPattern) {
+        return filterPattern == null || filterPattern.matcher(line).find();
+    }
+
+    /**
+     * Check whether a log line (uppercased) contains at least one of the keywords.
+     *
+     * @param upperLine          the uppercased log line
+     * @param normalizedKeywords the list of uppercased keywords, or null for no keyword filtering
+     * @return true if the line matches at least one keyword or no keywords are set
+     */
+    private boolean matchesKeywords(final String upperLine, final List<String> normalizedKeywords) {
+        if (normalizedKeywords == null) {
+            return true;
+        }
+        for (String keyword : normalizedKeywords) {
+            if (upperLine.contains(keyword)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Normalize a list of keywords to uppercase for case-insensitive matching.
+     * Returns null if the input is null or empty.
+     *
+     * @param keywords the raw keyword list
+     * @return uppercased keywords, or null if no keywords provided
+     */
+    private List<String> normalizeKeywords(final List<String> keywords) {
+        if (keywords == null || keywords.isEmpty()) {
+            return null;
+        }
+        return keywords.stream()
+            .filter(k -> k != null && !k.isBlank())
+            .map(k -> k.toUpperCase(Locale.ENGLISH).trim())
+            .toList();
+    }
+
+    /**
+     * Deduplicate log lines by grouping identical consecutive or repeated lines.
+     * When the same line appears multiple times, it is shown once with a
+     * {@code [repeated N times]} suffix.
+     *
+     * @param lines the list of log lines to deduplicate
+     * @return the deduplicated log output as a string
+     */
+    private String deduplicateLines(final List<String> lines) {
+        Map<String, Integer> lineCounts = new LinkedHashMap<>();
+        for (String line : lines) {
+            lineCounts.merge(line, 1, Integer::sum);
+        }
+
+        StringBuilder output = new StringBuilder();
+        for (Map.Entry<String, Integer> entry : lineCounts.entrySet()) {
+            output.append(entry.getKey());
+            if (entry.getValue() > 1) {
+                output.append(" [repeated ").append(entry.getValue()).append(" times]");
+            }
+            output.append("\n");
+        }
+        return output.toString();
     }
 
     /**

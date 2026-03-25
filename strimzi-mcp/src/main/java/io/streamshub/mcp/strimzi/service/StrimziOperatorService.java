@@ -105,20 +105,22 @@ public class StrimziOperatorService {
     }
 
     /**
-     * Get logs for Strimzi operator pods with optional filtering and log parameters.
+     * Get logs for Strimzi operator pods with optional filtering, keyword matching, and log parameters.
      * Returns a StrimziOperatorLogsResponse (including notFound) rather than throwing,
      * since missing operator pods is a valid business response.
      *
      * @param namespace    the namespace, or null for auto-discovery
      * @param operatorName the operator name, or null for any operator
      * @param filter       optional log filter: "errors", "warnings", or a regex pattern
+     * @param keywords     optional list of keywords to match lines against (case-insensitive)
      * @param sinceMinutes optional time range in minutes to retrieve logs from
      * @param tailLines    optional number of lines to tail per pod (defaults to configured value)
      * @param previous     optional flag to retrieve logs from previous container instance
      * @return the operator logs response
      */
     public StrimziOperatorLogsResponse getOperatorLogs(final String namespace, final String operatorName,
-                                                        final String filter, final Integer sinceMinutes,
+                                                        final String filter, final List<String> keywords,
+                                                        final Integer sinceMinutes,
                                                         final Integer tailLines, final Boolean previous) {
         String ns = InputUtils.normalizeInput(namespace);
 
@@ -141,49 +143,59 @@ public class StrimziOperatorService {
 
         String normalizedFilter = InputUtils.normalizeInput(filter);
         Integer sinceSeconds = sinceMinutes != null ? sinceMinutes * SECONDS_PER_MINUTE : null;
-        Integer effectiveTailLines = tailLines != null ? tailLines : defaultTailLines;
+        int effectiveTailLines = tailLines != null ? tailLines : defaultTailLines;
 
         PodLogsResult result = podsService.collectLogs(ns, pods, normalizedFilter,
-            sinceSeconds, effectiveTailLines, previous);
+            keywords, sinceSeconds, effectiveTailLines, previous);
         return StrimziOperatorLogsResponse.of(ns, result.logs(), result.podNames(),
             result.hasErrors(), result.errorCount(), result.totalLines(), result.hasMore());
     }
 
+    /**
+     * Find a Strimzi operator deployment across all namespaces.
+     * When {@code operatorName} is null, matches any operator.
+     * Throws if multiple matching operators exist in different namespaces.
+     *
+     * @param operatorName the operator name, or null for any operator
+     * @return the operator deployment, or null if not found
+     */
     private Deployment findOperatorInAllNamespaces(final String operatorName) {
         List<Deployment> allOperators = k8sService.queryResourcesByLabelInAnyNamespace(
             Deployment.class, KubernetesConstants.Labels.APP, StrimziConstants.Operator.APP_LABEL_VALUE);
 
-        for (Deployment operator : allOperators) {
-            if (operatorName.equals(operator.getMetadata().getName())) {
-                LOG.debugf("Discovered operator %s in namespace %s",
-                    operatorName, operator.getMetadata().getNamespace());
-                return operator;
-            }
+        List<Deployment> matching = allOperators.stream()
+            .filter(op -> operatorName == null || operatorName.equals(op.getMetadata().getName()))
+            .toList();
+
+        if (matching.isEmpty()) {
+            return null;
         }
 
-        return null;
-    }
-
-    private String discoverOperatorNamespace(final String operatorName) {
-        List<Deployment> allOperators = k8sService.queryResourcesByLabelInAnyNamespace(
-            Deployment.class, KubernetesConstants.Labels.APP, StrimziConstants.Operator.APP_LABEL_VALUE);
-
-        List<String> matchingNamespaces = allOperators.stream()
-            .filter(op -> operatorName == null || operatorName.equals(op.getMetadata().getName()))
+        List<String> namespaces = matching.stream()
             .map(op -> op.getMetadata().getNamespace())
             .distinct()
             .toList();
 
-        if (matchingNamespaces.isEmpty()) {
-            return null;
-        }
-
-        if (matchingNamespaces.size() > 1) {
+        if (namespaces.size() > 1) {
             throw new ToolCallException("Multiple Strimzi operators found in namespaces: "
-                + String.join(", ", matchingNamespaces) + ". Please specify namespace.");
+                + String.join(", ", namespaces) + ". Please specify namespace.");
         }
 
-        return matchingNamespaces.getFirst();
+        LOG.debugf("Discovered operator %s in namespace %s",
+            matching.getFirst().getMetadata().getName(), namespaces.getFirst());
+        return matching.getFirst();
+    }
+
+    /**
+     * Discover the namespace of a Strimzi operator by name across all namespaces.
+     * When {@code operatorName} is null, matches any operator.
+     *
+     * @param operatorName the operator name, or null for any operator
+     * @return the namespace where the operator was found, or null if not found
+     */
+    private String discoverOperatorNamespace(final String operatorName) {
+        Deployment operator = findOperatorInAllNamespaces(operatorName);
+        return operator != null ? operator.getMetadata().getNamespace() : null;
     }
 
     private StrimziOperatorResponse createOperatorResponse(final Deployment deployment) {
