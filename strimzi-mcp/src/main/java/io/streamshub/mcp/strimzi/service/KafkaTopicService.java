@@ -148,7 +148,7 @@ public class KafkaTopicService {
             ? determineResourceStatus(topic.getStatus().getConditions())
             : KubernetesConstants.ResourceStatus.UNKNOWN;
 
-        return new KafkaTopicResponse(topicName, cluster, partitions, replicas, status);
+        return KafkaTopicResponse.of(topicName, cluster, partitions, replicas, status);
     }
 
     private String determineResourceStatus(final List<Condition> conditions) {

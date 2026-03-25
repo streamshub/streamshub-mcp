@@ -134,6 +134,7 @@ public class KafkaTools {
      * @param clusterName  the cluster name
      * @param namespace    optional namespace
      * @param filter       optional log filter
+     * @param keywords     optional keyword list for filtering
      * @param sinceMinutes optional time range in minutes
      * @param tailLines    optional number of lines to tail
      * @param previous     optional flag for previous container logs
@@ -157,6 +158,10 @@ public class KafkaTools {
             required = false
         ) final String filter,
         @ToolArg(
+            description = StrimziToolsPrompts.KEYWORDS_DESC,
+            required = false
+        ) final List<String> keywords,
+        @ToolArg(
             description = StrimziToolsPrompts.SINCE_MINUTES_DESC,
             required = false
         ) final Integer sinceMinutes,
@@ -170,6 +175,6 @@ public class KafkaTools {
         ) final Boolean previous
     ) {
         return kafkaService.getClusterLogs(namespace, clusterName, filter,
-            sinceMinutes, tailLines, previous);
+            keywords, sinceMinutes, tailLines, previous);
     }
 }

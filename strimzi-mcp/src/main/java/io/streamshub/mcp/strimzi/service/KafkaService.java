@@ -218,18 +218,20 @@ public class KafkaService {
     }
 
     /**
-     * Get logs from Kafka cluster pods with optional filtering and log parameters.
+     * Get logs from Kafka cluster pods with optional filtering, keyword matching, and log parameters.
      *
      * @param namespace    the namespace, or null for auto-discovery
      * @param clusterName  the cluster name
      * @param filter       optional log filter: "errors", "warnings", or a regex pattern
+     * @param keywords     optional list of keywords to match lines against (case-insensitive)
      * @param sinceMinutes optional time range in minutes to retrieve logs from
      * @param tailLines    optional number of lines to tail per pod (defaults to configured value)
      * @param previous     optional flag to retrieve logs from previous container instance
      * @return the cluster logs response
      */
     public KafkaClusterLogsResponse getClusterLogs(final String namespace, final String clusterName,
-                                                   final String filter, final Integer sinceMinutes,
+                                                   final String filter, final List<String> keywords,
+                                                   final Integer sinceMinutes,
                                                    final Integer tailLines, final Boolean previous) {
         String ns = InputUtils.normalizeInput(namespace);
         String normalizedName = InputUtils.normalizeInput(clusterName);
@@ -255,10 +257,10 @@ public class KafkaService {
 
         String normalizedFilter = InputUtils.normalizeInput(filter);
         Integer sinceSeconds = sinceMinutes != null ? sinceMinutes * SECONDS_PER_MINUTE : null;
-        Integer effectiveTailLines = tailLines != null ? tailLines : defaultTailLines;
+        int effectiveTailLines = tailLines != null ? tailLines : defaultTailLines;
 
         PodLogsResult result = podsService.collectLogs(ns, pods, normalizedFilter,
-            sinceSeconds, effectiveTailLines, previous);
+            keywords, sinceSeconds, effectiveTailLines, previous);
         return KafkaClusterLogsResponse.of(normalizedName, ns, result.podNames(),
             result.hasErrors(), result.errorCount(), result.totalLines(), result.hasMore(), result.logs());
     }
@@ -297,24 +299,20 @@ public class KafkaService {
                 (a, b) -> a));
     }
 
+    /**
+     * Discover the namespace of a Kafka cluster by name across all namespaces.
+     * Throws if the cluster is not found or if multiple clusters with the same name exist.
+     *
+     * @param clusterName the cluster name
+     * @return the namespace where the cluster was found
+     */
     private String discoverClusterNamespace(final String clusterName) {
-        List<Kafka> allClusters = k8sService.queryResourcesInAnyNamespace(Kafka.class);
-        List<String> matchingNamespaces = allClusters.stream()
-            .filter(kafka -> clusterName.equals(kafka.getMetadata().getName()))
-            .map(kafka -> kafka.getMetadata().getNamespace())
-            .distinct()
-            .toList();
-
-        if (matchingNamespaces.isEmpty()) {
-            throw new ToolCallException("No Kafka cluster named '" + clusterName + "' found in any namespace");
+        Kafka kafka = findClusterInAllNamespaces(clusterName);
+        if (kafka == null) {
+            throw new ToolCallException(
+                "No Kafka cluster named '" + clusterName + "' found in any namespace");
         }
-
-        if (matchingNamespaces.size() > 1) {
-            throw new ToolCallException("Multiple clusters named '" + clusterName + "' found in namespaces: "
-                + String.join(", ", matchingNamespaces) + ". Please specify namespace.");
-        }
-
-        return matchingNamespaces.getFirst();
+        return kafka.getMetadata().getNamespace();
     }
 
     private KafkaClusterResponse createClusterResponse(final Kafka kafka) {
@@ -340,7 +338,7 @@ public class KafkaService {
             ageMinutes = Duration.between(creationTime, Instant.now()).toMinutes();
         }
 
-        return new KafkaClusterResponse(
+        return KafkaClusterResponse.of(
             name, namespace, kind, version, readiness,
             conditions, listeners, replicasInfo,
             extractStorageType(kafka), extractStorageSize(kafka),
@@ -535,18 +533,35 @@ public class KafkaService {
             && kafka.getSpec().getKafka().getAuthorization() != null;
     }
 
+    /**
+     * Find a Kafka cluster by name across all namespaces.
+     * Throws if multiple clusters with the same name exist in different namespaces.
+     *
+     * @param clusterName the cluster name to find
+     * @return the Kafka resource, or null if not found
+     */
     private Kafka findClusterInAllNamespaces(final String clusterName) {
         List<Kafka> allClusters = k8sService.queryResourcesInAnyNamespace(Kafka.class);
+        List<Kafka> matching = allClusters.stream()
+            .filter(kafka -> clusterName.equals(kafka.getMetadata().getName()))
+            .toList();
 
-        for (Kafka kafka : allClusters) {
-            if (clusterName.equals(kafka.getMetadata().getName())) {
-                LOG.debugf("Discovered cluster %s in namespace %s",
-                    clusterName, kafka.getMetadata().getNamespace());
-                return kafka;
-            }
+        if (matching.isEmpty()) {
+            return null;
         }
 
-        return null;
+        if (matching.size() > 1) {
+            String namespaces = matching.stream()
+                .map(kafka -> kafka.getMetadata().getNamespace())
+                .distinct()
+                .collect(Collectors.joining(", "));
+            throw new ToolCallException("Multiple clusters named '" + clusterName + "' found in namespaces: "
+                + namespaces + ". Please specify namespace.");
+        }
+
+        LOG.debugf("Discovered cluster %s in namespace %s",
+            clusterName, matching.getFirst().getMetadata().getNamespace());
+        return matching.getFirst();
     }
 
 }

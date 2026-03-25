@@ -76,11 +76,11 @@ public record KafkaBootstrapResponse(
      * @param address      the full address string
      */
     public record BootstrapServerInfo(
-        String host,
-        Integer port,
-        String listenerName,
-        String listenerType,
-        String address
+        @JsonProperty("host") String host,
+        @JsonProperty("port") Integer port,
+        @JsonProperty("listener_name") String listenerName,
+        @JsonProperty("listener_type") String listenerType,
+        @JsonProperty("address") String address
     ) {
     }
 }

@@ -220,7 +220,7 @@ public class KafkaNodePoolService {
         String storageType = extractStorageType(nodePool);
         String storageSize = extractStorageSize(nodePool);
 
-        return new KafkaNodePoolResponse(name, namespace, cluster, roles, replicas, storageType, storageSize);
+        return KafkaNodePoolResponse.of(name, namespace, cluster, roles, replicas, storageType, storageSize);
     }
 
     private String extractStorageType(final KafkaNodePool nodePool) {

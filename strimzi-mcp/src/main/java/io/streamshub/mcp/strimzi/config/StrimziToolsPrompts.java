@@ -53,6 +53,14 @@ public final class StrimziToolsPrompts {
             + " container instance (crashed/restarted pods).";
 
     /**
+     * Keywords parameter description.
+     */
+    public static final String KEYWORDS_DESC =
+        "List of keywords to filter log lines (e.g., ['ERROR', 'OOM', 'Exception'])."
+            + " Returns only lines containing at least one keyword."
+            + " Case-insensitive. Omit for no keyword filtering.";
+
+    /**
      * Sections parameter description.
      */
     public static final String SECTIONS_DESC =
