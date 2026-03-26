@@ -2,7 +2,7 @@
 
 A Quarkus application that provides Strimzi Kafka management tools via **MCP (Model Context Protocol)** for AI assistants and automation.
 
-> **Note:** This project is in early alpha and under active development. APIs, tool definitions, and configuration may change without notice.
+> **WARNING:** This project is in early alpha and under active development. APIs, tool definitions, and configuration may change without notice.
 
 
 ## Prerequisites
