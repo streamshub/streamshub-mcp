@@ -2,16 +2,19 @@
 
 A Quarkus application that provides Strimzi Kafka management tools via **MCP (Model Context Protocol)** for AI assistants and automation.
 
+> **Note:** This project is in early alpha and under active development. APIs, tool definitions, and configuration may change without notice.
+
+
 ## Prerequisites
 
 ### Kubernetes Cluster with Strimzi
 
 The MCP server requires access to a Kubernetes cluster with Strimzi installed.
-Example manifests are provided in `examples/strimzi/`.
+Example manifests are provided in `dev/manifests/strimzi/`.
 
 **Deploy using the setup script (recommended):**
 ```bash
-../hack/setup-strimzi.sh
+../dev/scripts/setup-strimzi.sh
 ```
 
 The script deploys the Strimzi operator and Kafka cluster sequentially, waiting for each component to become ready before proceeding.
@@ -19,13 +22,13 @@ The script deploys the Strimzi operator and Kafka cluster sequentially, waiting 
 **Or deploy manually:**
 ```bash
 # 1. Deploy the Strimzi operator (CRDs, RBAC, operator deployment)
-kubectl apply -k examples/strimzi/strimzi-operator/
+kubectl apply -k ../dev/manifests/strimzi/strimzi-operator/
 
 # 2. Wait for the operator to be ready
 kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n strimzi --timeout=120s
 
 # 3. Deploy the Kafka cluster
-kubectl apply -k examples/strimzi/kafka/
+kubectl apply -k ../dev/manifests/strimzi/kafka/
 
 # 4. Wait for the Kafka cluster to be ready
 kubectl wait kafka/mcp-cluster --for=condition=Ready -n strimzi-kafka --timeout=300s
@@ -33,7 +36,7 @@ kubectl wait kafka/mcp-cluster --for=condition=Ready -n strimzi-kafka --timeout=
 
 **Tear down:**
 ```bash
-../hack/setup-strimzi.sh teardown
+../dev/scripts/setup-strimzi.sh teardown
 ```
 
 ## Quick Start

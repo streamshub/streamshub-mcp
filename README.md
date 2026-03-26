@@ -1,5 +1,7 @@
 # StreamsHub MCP
 
+> **Note:** This project is in early alpha and under active development. APIs, tool definitions, and configuration may change without notice.
+
 A collection of MCP (Model Context Protocol) servers for the streaming portfolio, built with Quarkus.
 
 ## MCP Servers
