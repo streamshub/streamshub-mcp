@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
@@ -626,7 +627,7 @@ public class PodsService {
     public PodLogsResult collectLogs(final String namespace, final List<Pod> pods, final String filter,
                                      final Integer sinceSeconds, final int tailLines,
                                      final Boolean previous) {
-        return collectLogs(namespace, pods, filter, null, sinceSeconds, tailLines, previous);
+        return collectLogs(namespace, pods, filter, null, sinceSeconds, tailLines, previous, null);
     }
 
     /**
@@ -654,12 +655,14 @@ public class PodsService {
      * @param sinceSeconds optional time range in seconds to retrieve logs from
      * @param tailLines    number of lines to tail per pod
      * @param previous     optional flag to retrieve logs from previous container instance
+     * @param notifier     optional callback to notify progress per pod (e.g., MCP log notifications)
      * @return the aggregated, filtered, and deduplicated log result
      */
-    @SuppressWarnings("checkstyle:CyclomaticComplexity")
+    @SuppressWarnings({"checkstyle:CyclomaticComplexity", "checkstyle:ParameterNumber"})
     public PodLogsResult collectLogs(final String namespace, final List<Pod> pods, final String filter,
                                      final List<String> keywords, final Integer sinceSeconds,
-                                     final int tailLines, final Boolean previous) {
+                                     final int tailLines, final Boolean previous,
+                                     final Consumer<String> notifier) {
         List<String> podNames = pods.stream()
             .map(pod -> pod.getMetadata().getName())
             .toList();
@@ -673,8 +676,14 @@ public class PodsService {
         int filteredLines = 0;
         boolean hasMore = false;
 
+        int podIndex = 0;
         for (Pod pod : pods) {
             String podName = pod.getMetadata().getName();
+            podIndex++;
+            if (notifier != null) {
+                notifier.accept(String.format("Collecting logs from pod %s (%d/%d)",
+                    podName, podIndex, pods.size()));
+            }
             try {
                 String podLog = fetchPodLog(namespace, podName, tailLines, sinceSeconds, previous);
 

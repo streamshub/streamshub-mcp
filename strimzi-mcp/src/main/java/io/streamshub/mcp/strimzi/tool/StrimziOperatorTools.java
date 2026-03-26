@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.tool;
 
+import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
@@ -87,6 +88,7 @@ public class StrimziOperatorTools {
      * @param sinceMinutes optional time range in minutes
      * @param tailLines    optional number of lines to tail
      * @param previous     optional flag for previous container logs
+     * @param mcpLog       MCP log for client notifications
      * @return the operator logs response
      */
     @Tool(
@@ -118,10 +120,11 @@ public class StrimziOperatorTools {
         @ToolArg(
             description = StrimziToolsPrompts.PREVIOUS_DESC,
             required = false
-        ) final Boolean previous
+        ) final Boolean previous,
+        final McpLog mcpLog
     ) {
         return operatorService.getOperatorLogs(namespace, null, filter,
-            keywords, sinceMinutes, tailLines, previous);
+            keywords, sinceMinutes, tailLines, previous, mcpLog::info);
     }
 
     /**
