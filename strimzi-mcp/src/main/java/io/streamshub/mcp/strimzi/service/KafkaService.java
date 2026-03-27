@@ -38,6 +38,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -227,12 +228,15 @@ public class KafkaService {
      * @param sinceMinutes optional time range in minutes to retrieve logs from
      * @param tailLines    optional number of lines to tail per pod (defaults to configured value)
      * @param previous     optional flag to retrieve logs from previous container instance
+     * @param notifier     optional callback for per-pod progress notifications
      * @return the cluster logs response
      */
+    @SuppressWarnings("checkstyle:ParameterNumber")
     public KafkaClusterLogsResponse getClusterLogs(final String namespace, final String clusterName,
                                                    final String filter, final List<String> keywords,
                                                    final Integer sinceMinutes,
-                                                   final Integer tailLines, final Boolean previous) {
+                                                   final Integer tailLines, final Boolean previous,
+                                                   final Consumer<String> notifier) {
         String ns = InputUtils.normalizeInput(namespace);
         String normalizedName = InputUtils.normalizeInput(clusterName);
 
@@ -260,7 +264,7 @@ public class KafkaService {
         int effectiveTailLines = tailLines != null ? tailLines : defaultTailLines;
 
         PodLogsResult result = podsService.collectLogs(ns, pods, normalizedFilter,
-            keywords, sinceSeconds, effectiveTailLines, previous);
+            keywords, sinceSeconds, effectiveTailLines, previous, notifier);
         return KafkaClusterLogsResponse.of(normalizedName, ns, result.podNames(),
             result.hasErrors(), result.errorCount(), result.totalLines(), result.hasMore(), result.logs());
     }

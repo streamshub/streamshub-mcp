@@ -23,6 +23,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Service for Strimzi operator operations.
@@ -116,12 +117,15 @@ public class StrimziOperatorService {
      * @param sinceMinutes optional time range in minutes to retrieve logs from
      * @param tailLines    optional number of lines to tail per pod (defaults to configured value)
      * @param previous     optional flag to retrieve logs from previous container instance
+     * @param notifier     optional callback for per-pod progress notifications
      * @return the operator logs response
      */
+    @SuppressWarnings("checkstyle:ParameterNumber")
     public StrimziOperatorLogsResponse getOperatorLogs(final String namespace, final String operatorName,
                                                         final String filter, final List<String> keywords,
                                                         final Integer sinceMinutes,
-                                                        final Integer tailLines, final Boolean previous) {
+                                                        final Integer tailLines, final Boolean previous,
+                                                        final Consumer<String> notifier) {
         String ns = InputUtils.normalizeInput(namespace);
 
         LOG.infof("Getting operator logs (namespace=%s, name=%s, filter=%s, sinceMinutes=%s, tailLines=%s, previous=%s)",
@@ -146,7 +150,7 @@ public class StrimziOperatorService {
         int effectiveTailLines = tailLines != null ? tailLines : defaultTailLines;
 
         PodLogsResult result = podsService.collectLogs(ns, pods, normalizedFilter,
-            keywords, sinceSeconds, effectiveTailLines, previous);
+            keywords, sinceSeconds, effectiveTailLines, previous, notifier);
         return StrimziOperatorLogsResponse.of(ns, result.logs(), result.podNames(),
             result.hasErrors(), result.errorCount(), result.totalLines(), result.hasMore());
     }
