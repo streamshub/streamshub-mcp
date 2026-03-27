@@ -5,7 +5,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EXAMPLES_DIR="$SCRIPT_DIR/../examples/strimzi"
+EXAMPLES_DIR="$SCRIPT_DIR/../manifests/strimzi"
 
 OPERATOR_NS="strimzi"
 KAFKA_NS="strimzi-kafka"
