@@ -8,6 +8,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
+import io.streamshub.mcp.common.dto.LogCollectionOptions;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.service.DeploymentService;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
@@ -19,11 +20,9 @@ import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
 import io.strimzi.api.ResourceLabels;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * Service for Strimzi operator operations.
@@ -33,7 +32,6 @@ public class StrimziOperatorService {
 
     private static final Logger LOG = Logger.getLogger(StrimziOperatorService.class);
     private static final double MINUTES_PER_HOUR = 60.0;
-    private static final int SECONDS_PER_MINUTE = 60;
 
     @Inject
     KubernetesResourceService k8sService;
@@ -43,9 +41,6 @@ public class StrimziOperatorService {
 
     @Inject
     DeploymentService deploymentService;
-
-    @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
-    int defaultTailLines;
 
     StrimziOperatorService() {
     }
@@ -112,24 +107,16 @@ public class StrimziOperatorService {
      *
      * @param namespace    the namespace, or null for auto-discovery
      * @param operatorName the operator name, or null for any operator
-     * @param filter       optional log filter: "errors", "warnings", or a regex pattern
-     * @param keywords     optional list of keywords to match lines against (case-insensitive)
-     * @param sinceMinutes optional time range in minutes to retrieve logs from
-     * @param tailLines    optional number of lines to tail per pod (defaults to configured value)
-     * @param previous     optional flag to retrieve logs from previous container instance
-     * @param notifier     optional callback for per-pod progress notifications
+     * @param options      log collection options (filter, keywords, pagination, callbacks)
      * @return the operator logs response
      */
-    @SuppressWarnings("checkstyle:ParameterNumber")
     public StrimziOperatorLogsResponse getOperatorLogs(final String namespace, final String operatorName,
-                                                        final String filter, final List<String> keywords,
-                                                        final Integer sinceMinutes,
-                                                        final Integer tailLines, final Boolean previous,
-                                                        final Consumer<String> notifier) {
+                                                        final LogCollectionOptions options) {
         String ns = InputUtils.normalizeInput(namespace);
 
-        LOG.infof("Getting operator logs (namespace=%s, name=%s, filter=%s, sinceMinutes=%s, tailLines=%s, previous=%s)",
-            ns, operatorName, filter != null ? filter : "none", sinceMinutes, tailLines, previous);
+        LOG.infof("Getting operator logs (namespace=%s, name=%s, filter=%s, tailLines=%s, previous=%s)",
+            ns, operatorName, options.filter() != null ? options.filter() : "none",
+            options.tailLines(), options.previous());
 
         if (ns == null) {
             ns = discoverOperatorNamespace(operatorName);
@@ -145,12 +132,7 @@ public class StrimziOperatorService {
             return StrimziOperatorLogsResponse.notFound(ns);
         }
 
-        String normalizedFilter = InputUtils.normalizeInput(filter);
-        Integer sinceSeconds = sinceMinutes != null ? sinceMinutes * SECONDS_PER_MINUTE : null;
-        int effectiveTailLines = tailLines != null ? tailLines : defaultTailLines;
-
-        PodLogsResult result = podsService.collectLogs(ns, pods, normalizedFilter,
-            keywords, sinceSeconds, effectiveTailLines, previous, notifier);
+        PodLogsResult result = podsService.collectLogs(ns, pods, options);
         return StrimziOperatorLogsResponse.of(ns, result.logs(), result.podNames(),
             result.hasErrors(), result.errorCount(), result.totalLines(), result.hasMore());
     }

@@ -4,10 +4,13 @@
  */
 package io.streamshub.mcp.strimzi.tool;
 
+import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.McpLog;
+import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.streamshub.mcp.common.dto.LogCollectionOptions;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterLogsResponse;
@@ -16,6 +19,7 @@ import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.service.KafkaService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.List;
 
@@ -26,8 +30,13 @@ import java.util.List;
 @WrapBusinessError(Exception.class)
 public class KafkaTools {
 
+    private static final int SECONDS_PER_MINUTE = 60;
+
     @Inject
     KafkaService kafkaService;
+
+    @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
+    int defaultTailLines;
 
     KafkaTools() {
     }
@@ -140,6 +149,8 @@ public class KafkaTools {
      * @param tailLines    optional number of lines to tail
      * @param previous     optional flag for previous container logs
      * @param mcpLog       MCP log for client notifications
+     * @param progress     MCP progress tracking
+     * @param cancellation MCP cancellation checking
      * @return the cluster logs response with error analysis
      */
     @Tool(
@@ -175,9 +186,26 @@ public class KafkaTools {
             description = StrimziToolsPrompts.PREVIOUS_DESC,
             required = false
         ) final Boolean previous,
-        final McpLog mcpLog
+        final McpLog mcpLog,
+        final Progress progress,
+        final Cancellation cancellation
     ) {
-        return kafkaService.getClusterLogs(namespace, clusterName, filter,
-            keywords, sinceMinutes, tailLines, previous, mcpLog::info);
+        LogCollectionOptions options = LogCollectionOptions.builder(
+                tailLines != null ? tailLines : defaultTailLines)
+            .filter(filter)
+            .keywords(keywords)
+            .sinceSeconds(sinceMinutes != null ? sinceMinutes * SECONDS_PER_MINUTE : null)
+            .previous(previous)
+            .notifier(mcpLog::info)
+            .cancelCheck(cancellation::skipProcessingIfCancelled)
+            // Only send progress if the client provided a progress token
+            .progressCallback(progress.token().isPresent()
+                ? (completed, total) -> progress.notificationBuilder()
+                    .setProgress(completed).setTotal(total)
+                    .setMessage(String.format("Collected logs from %d/%d pods", completed, total))
+                    .build().sendAndForget()
+                : null)
+            .build();
+        return kafkaService.getClusterLogs(namespace, clusterName, options);
     }
 }

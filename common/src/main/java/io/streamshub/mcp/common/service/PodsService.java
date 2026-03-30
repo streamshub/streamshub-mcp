@@ -18,6 +18,7 @@ import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.LogCollectionOptions;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.dto.ResourceInfo;
@@ -35,7 +36,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
@@ -604,71 +604,23 @@ public class PodsService {
     }
 
     /**
-     * Collect logs from a list of pods with optional filtering and time/tail parameters.
-     * Requests {@code tailLines + 1} lines to detect whether more logs exist beyond
-     * the requested limit, then trims to the requested count.
-     *
-     * <p>Supported filter values:</p>
-     * <ul>
-     *   <li>{@code "errors"} - only lines containing ERROR or EXCEPTION</li>
-     *   <li>{@code "warnings"} - lines containing ERROR, EXCEPTION, or WARN</li>
-     *   <li>Any other non-blank string is treated as a regex pattern</li>
-     *   <li>{@code null} or blank - no filtering, return all lines</li>
-     * </ul>
-     *
-     * @param namespace    the namespace of the pods
-     * @param pods         the list of pods to collect logs from
-     * @param filter       optional filter: "errors", "warnings", or a regex pattern
-     * @param sinceSeconds optional time range in seconds to retrieve logs from
-     * @param tailLines    number of lines to tail per pod
-     * @param previous     optional flag to retrieve logs from previous container instance
-     * @return the aggregated and optionally filtered log result
-     */
-    public PodLogsResult collectLogs(final String namespace, final List<Pod> pods, final String filter,
-                                     final Integer sinceSeconds, final int tailLines,
-                                     final Boolean previous) {
-        return collectLogs(namespace, pods, filter, null, sinceSeconds, tailLines, previous, null);
-    }
-
-    /**
      * Collect logs from a list of pods with optional filtering, keyword matching,
-     * deduplication, and time/tail parameters.
-     * Requests {@code tailLines + 1} lines to detect whether more logs exist beyond
-     * the requested limit, then trims to the requested count.
+     * deduplication, pagination, and lifecycle callbacks.
      *
-     * <p>Supported filter values:</p>
-     * <ul>
-     *   <li>{@code "errors"} - only lines containing ERROR or EXCEPTION</li>
-     *   <li>{@code "warnings"} - lines containing ERROR, EXCEPTION, or WARN</li>
-     *   <li>Any other non-blank string is treated as a regex pattern</li>
-     *   <li>{@code null} or blank - no filtering, return all lines</li>
-     * </ul>
-     *
-     * <p>When {@code keywords} is provided, only lines containing at least one of the
-     * keywords (case-insensitive) are returned. Keywords are applied after the filter.
-     * Repeated identical lines within each pod are deduplicated and shown with a count.</p>
-     *
-     * @param namespace    the namespace of the pods
-     * @param pods         the list of pods to collect logs from
-     * @param filter       optional filter: "errors", "warnings", or a regex pattern
-     * @param keywords     optional list of keywords to match lines against (case-insensitive)
-     * @param sinceSeconds optional time range in seconds to retrieve logs from
-     * @param tailLines    number of lines to tail per pod
-     * @param previous     optional flag to retrieve logs from previous container instance
-     * @param notifier     optional callback to notify progress per pod (e.g., MCP log notifications)
+     * @param namespace the namespace of the pods
+     * @param pods      the list of pods to collect logs from
+     * @param options   log collection options (filter, keywords, pagination, callbacks)
      * @return the aggregated, filtered, and deduplicated log result
      */
-    @SuppressWarnings({"checkstyle:CyclomaticComplexity", "checkstyle:ParameterNumber"})
-    public PodLogsResult collectLogs(final String namespace, final List<Pod> pods, final String filter,
-                                     final List<String> keywords, final Integer sinceSeconds,
-                                     final int tailLines, final Boolean previous,
-                                     final Consumer<String> notifier) {
+    @SuppressWarnings("checkstyle:CyclomaticComplexity")
+    public PodLogsResult collectLogs(final String namespace, final List<Pod> pods,
+                                     final LogCollectionOptions options) {
         List<String> podNames = pods.stream()
             .map(pod -> pod.getMetadata().getName())
             .toList();
 
-        Pattern filterPattern = compileLogFilter(filter);
-        List<String> normalizedKeywords = normalizeKeywords(keywords);
+        Pattern filterPattern = compileLogFilter(options.filter());
+        List<String> normalizedKeywords = normalizeKeywords(options.keywords());
 
         StringBuilder allLogs = new StringBuilder();
         int errorCount = 0;
@@ -678,22 +630,26 @@ public class PodsService {
 
         int podIndex = 0;
         for (Pod pod : pods) {
+            if (options.cancelCheck() != null) {
+                options.cancelCheck().run();
+            }
             String podName = pod.getMetadata().getName();
             podIndex++;
-            if (notifier != null) {
-                notifier.accept(String.format("Collecting logs from pod %s (%d/%d)",
+            if (options.notifier() != null) {
+                options.notifier().accept(String.format("Collecting logs from pod %s (%d/%d)",
                     podName, podIndex, pods.size()));
             }
             try {
-                String podLog = fetchPodLog(namespace, podName, tailLines, sinceSeconds, previous);
+                String podLog = fetchPodLog(namespace, podName, options.tailLines(),
+                    options.sinceSeconds(), options.previous());
 
                 if (podLog != null && !podLog.isEmpty()) {
                     String[] lines = podLog.split("\n");
 
-                    if (lines.length > tailLines) {
+                    if (lines.length > options.tailLines()) {
                         hasMore = true;
-                        String[] trimmed = new String[tailLines];
-                        System.arraycopy(lines, lines.length - tailLines, trimmed, 0, tailLines);
+                        String[] trimmed = new String[options.tailLines()];
+                        System.arraycopy(lines, lines.length - options.tailLines(), trimmed, 0, options.tailLines());
                         lines = trimmed;
                     }
 
@@ -719,6 +675,9 @@ public class PodsService {
             } catch (Exception e) {
                 LOG.debugf("Could not retrieve logs from pod %s: %s", podName, e.getMessage());
                 allLogs.append("=== Pod: ").append(podName).append(" === (logs unavailable)\n");
+            }
+            if (options.progressCallback() != null) {
+                options.progressCallback().accept(podIndex, pods.size());
             }
         }
 
