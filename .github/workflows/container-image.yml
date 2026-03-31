@@ -1,0 +1,71 @@
+name: Container Image
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-*'
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: quay.io
+  IMAGE_GROUP: streamshub
+
+jobs:
+  container-image:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+
+    - name: Cache Maven packages
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+
+    - name: Build container images (PR)
+      if: github.event_name == 'pull_request'
+      run: |
+        ./mvnw package -DskipTests \
+          -Dquarkus.container-image.build=true
+
+    - name: Login to container registry
+      if: github.event_name == 'push'
+      uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.IMAGE_REPO_USERNAME }}
+        password: ${{ secrets.IMAGE_REPO_PASSWORD }}
+
+    - name: Build and push container images (main)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: |
+        ./mvnw package -DskipTests \
+          -Dquarkus.container-image.build=true \
+          -Dquarkus.container-image.push=true \
+          -Dquarkus.container-image.registry=${{ env.REGISTRY }} \
+          -Dquarkus.container-image.group=${{ env.IMAGE_GROUP }} \
+          -Dquarkus.container-image.tag=latest
+
+    - name: Build and push container images (tag)
+      if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
+      run: |
+        ./mvnw package -DskipTests \
+          -Dquarkus.container-image.build=true \
+          -Dquarkus.container-image.push=true \
+          -Dquarkus.container-image.registry=${{ env.REGISTRY }} \
+          -Dquarkus.container-image.group=${{ env.IMAGE_GROUP }} \
+          -Dquarkus.container-image.tag=${{ github.ref_name }}
