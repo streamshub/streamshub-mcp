@@ -6,6 +6,7 @@ streaming platforms. Java 21, Quarkus 3.x, Strimzi API 0.51.x, Fabric8 Kubernete
 ## Modules
 
 - **`common`** (`streamshub-mcp-common`) - Generic Kubernetes helpers, DTOs, and utilities shared across modules
+- **`metrics-prometheus`** (`streamshub-metrics-prometheus`) - Prometheus/Thanos metrics provider (pluggable, replaceable JAR)
 - **`strimzi-mcp`** (`strimzi-mcp`) - Strimzi Kafka management MCP tools and services
 
 ## Build & Test
@@ -24,11 +25,23 @@ Checkstyle runs during compile phase. Fix all violations before committing.
 
 ```
 io.streamshub.mcp.common.
-├── config/      → KubernetesConstants (labels, conditions, phases, health status)
-├── dto/         → PodSummaryResponse, PodLogsResult, LogCollectionOptions (generic pod DTOs)
+├── config/         → KubernetesConstants (labels, conditions, phases, health status)
+├── dto/            → PodSummaryResponse, PodLogsResult, LogCollectionOptions (generic pod DTOs)
+│   └── metrics/    → MetricSample, PodTarget, MetricsQueryParams
 ├── readiness/   → KubernetesConnectionReadinessCheck (health check for kube API)
-├── service/     → KubernetesResourceService, PodsService, DeploymentService, CompletionHelper
-└── util/        → InputUtils
+├──service/        → KubernetesResourceService, PodsService, DeploymentService, CompletionHelper
+│   └── metrics/    → MetricsProvider (interface), PodScrapingMetricsProvider
+└── util/           → InputUtils
+    └── metrics/    → PrometheusTextParser
+```
+
+### Prometheus metrics module (`metrics-prometheus/`)
+
+```
+io.streamshub.mcp.metrics.prometheus.
+├── dto/       → PrometheusResponse
+├── service/   → PrometheusClient, PrometheusAuthFilter, PrometheusMetricsProvider
+└── util/      → PromQLSanitizer
 ```
 
 ### Strimzi module (`strimzi-mcp/`)
@@ -54,6 +67,8 @@ io.streamshub.mcp.strimzi.
 - **Domain services** (strimzi) contain all business logic. Throw `ToolCallException` for errors.
 - **Common services** are generic Kubernetes helpers shared across modules.
 - **DTOs** are immutable `record` types. Use static factory methods (`of()`, `empty()`) not constructors directly.
+- **Metrics providers** implement `MetricsProvider` interface. Selected via `@LookupIfProperty` on `mcp.metrics.provider`.
+  Inject with `Instance<MetricsProvider>` and check `isUnsatisfied()` before calling `get()`.
 
 ## MCP Tool Pattern
 

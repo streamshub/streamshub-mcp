@@ -77,6 +77,38 @@ public final class StrimziToolsPrompts {
             + " (e.g., 'plain', 'tls', 'external')."
             + " Omit to return all listeners.";
 
+    /**
+     * Metrics category parameter description.
+     */
+    public static final String METRICS_CATEGORY_DESC =
+        "Metric category: 'replication', 'throughput',"
+            + " 'resources', or 'performance'."
+            + " Defaults to 'replication' if no category"
+            + " or metric names are provided.";
+
+    /**
+     * Metric names parameter description.
+     */
+    public static final String METRICS_NAMES_DESC =
+        "Comma-separated list of explicit Prometheus"
+            + " metric names to retrieve."
+            + " Can be combined with a category.";
+
+    /**
+     * Range minutes parameter description.
+     */
+    public static final String RANGE_MINUTES_DESC =
+        "Time range in minutes for historical data."
+            + " Omit for current point-in-time values."
+            + " Only supported with Prometheus provider.";
+
+    /**
+     * Step seconds parameter description.
+     */
+    public static final String STEP_SECONDS_DESC =
+        "Query resolution step in seconds for range queries."
+            + " Defaults to server-configured value (typically 60).";
+
     private StrimziToolsPrompts() {
     }
 }
