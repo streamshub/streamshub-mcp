@@ -70,6 +70,13 @@ public final class StrimziToolsPrompts {
             + " Omit for summary only.";
 
     /**
+     * Operator name parameter description for metrics.
+     */
+    public static final String OPERATOR_NAME_DESC =
+        "Strimzi operator deployment name."
+            + " Omit to auto-discover.";
+
+    /**
      * Listener name parameter description.
      */
     public static final String LISTENER_DESC =
@@ -84,6 +91,15 @@ public final class StrimziToolsPrompts {
         "Metric category: 'replication', 'throughput',"
             + " 'resources', or 'performance'."
             + " Defaults to 'replication' if no category"
+            + " or metric names are provided.";
+
+    /**
+     * Operator metrics category parameter description.
+     */
+    public static final String OPERATOR_METRICS_CATEGORY_DESC =
+        "Metric category: 'reconciliation', 'resources',"
+            + " or 'jvm'."
+            + " Defaults to 'reconciliation' if no category"
             + " or metric names are provided.";
 
     /**

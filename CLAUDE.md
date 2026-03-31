@@ -30,7 +30,7 @@ io.streamshub.mcp.common.
 │   └── metrics/    → MetricSample, PodTarget, MetricsQueryParams
 ├── readiness/   → KubernetesConnectionReadinessCheck (health check for kube API)
 ├──service/        → KubernetesResourceService, PodsService, DeploymentService, CompletionHelper
-│   └── metrics/    → MetricsProvider (interface), PodScrapingMetricsProvider
+│   └── metrics/    → MetricsProvider (interface), PodScrapingMetricsProvider, MetricsQueryService
 └── util/           → InputUtils
     └── metrics/    → PrometheusTextParser
 ```
@@ -68,7 +68,8 @@ io.streamshub.mcp.strimzi.
 - **Common services** are generic Kubernetes helpers shared across modules.
 - **DTOs** are immutable `record` types. Use static factory methods (`of()`, `empty()`) not constructors directly.
 - **Metrics providers** implement `MetricsProvider` interface. Selected via `@LookupIfProperty` on `mcp.metrics.provider`.
-  Inject with `Instance<MetricsProvider>` and check `isUnsatisfied()` before calling `get()`.
+  Domain services use `MetricsQueryService` (in common/) to query metrics — it handles provider lookup,
+  query param construction, and delegation. Do not inject `Instance<MetricsProvider>` directly in domain services.
 
 ## MCP Tool Pattern
 

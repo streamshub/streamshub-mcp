@@ -8,6 +8,7 @@ import io.quarkus.arc.lookup.LookupIfProperty;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.dto.metrics.MetricsQueryParams;
 import io.streamshub.mcp.common.service.metrics.MetricsProvider;
+import io.streamshub.mcp.common.util.metrics.MetricLabelFilter;
 import io.streamshub.mcp.metrics.prometheus.dto.PrometheusResponse;
 import io.streamshub.mcp.metrics.prometheus.util.PromQLSanitizer;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -171,7 +172,8 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             double timestamp = ((Number) valueEntry.get(0)).doubleValue();
             double value = Double.parseDouble(String.valueOf(valueEntry.get(1)));
             Instant instant = Instant.ofEpochSecond((long) timestamp);
-            samples.add(MetricSample.of(metricName, labels, value, instant));
+            samples.add(MetricSample.of(metricName, MetricLabelFilter.filterLabels(labels),
+                value, instant));
         } catch (Exception e) {
             LOG.debugf("Failed to parse Prometheus value entry: %s", e.getMessage());
         }

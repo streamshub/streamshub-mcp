@@ -11,10 +11,10 @@ import io.streamshub.mcp.common.dto.metrics.PodTarget;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
 import io.streamshub.mcp.common.util.InputUtils;
-import io.streamshub.mcp.strimzi.config.metrics.KafkaMetricCategories;
-import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
+import io.streamshub.mcp.strimzi.config.metrics.StrimziOperatorMetricCategories;
+import io.streamshub.mcp.strimzi.dto.metrics.StrimziOperatorMetricsResponse;
 import io.strimzi.api.ResourceLabels;
-import io.strimzi.api.kafka.model.kafka.Kafka;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -23,16 +23,15 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
- * Service for retrieving Kafka cluster metrics via pluggable providers.
+ * Service for retrieving Strimzi cluster operator metrics via pluggable providers.
  */
 @ApplicationScoped
-public class KafkaMetricsService {
+public class StrimziOperatorMetricsService {
 
-    private static final Logger LOG = Logger.getLogger(KafkaMetricsService.class);
-    private static final String DEFAULT_CATEGORY = "replication";
+    private static final Logger LOG = Logger.getLogger(StrimziOperatorMetricsService.class);
+    private static final String DEFAULT_CATEGORY = "reconciliation";
 
     @Inject
     KubernetesResourceService k8sService;
@@ -40,35 +39,31 @@ public class KafkaMetricsService {
     @Inject
     MetricsQueryService metricsQueryService;
 
-    KafkaMetricsService() {
+    StrimziOperatorMetricsService() {
         // package-private no-arg constructor for CDI
     }
 
     /**
-     * Retrieves metrics for a Kafka cluster.
+     * Retrieves metrics from Strimzi cluster operator pods.
      *
      * @param namespace    the namespace (optional, null for auto-discovery)
-     * @param clusterName  the Kafka cluster name (required)
-     * @param category     the metric category (optional, defaults to "replication")
+     * @param operatorName the operator deployment name (optional, null for any operator)
+     * @param category     the metric category (optional, defaults to "reconciliation")
      * @param metricNames  explicit metric names (optional, merged with category)
      * @param rangeMinutes range query duration in minutes (optional, null for instant)
      * @param stepSeconds  range query step interval (optional, uses default)
-     * @return the metrics response
+     * @return the operator metrics response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
-    public KafkaMetricsResponse getKafkaMetrics(final String namespace,
-                                                 final String clusterName,
-                                                 final String category,
-                                                 final String metricNames,
-                                                 final Integer rangeMinutes,
-                                                 final Integer stepSeconds) {
+    public StrimziOperatorMetricsResponse getOperatorMetrics(final String namespace,
+                                                       final String operatorName,
+                                                       final String category,
+                                                       final String metricNames,
+                                                       final Integer rangeMinutes,
+                                                       final Integer stepSeconds) {
         String ns = InputUtils.normalizeInput(namespace);
-        String name = InputUtils.normalizeInput(clusterName);
+        String name = InputUtils.normalizeInput(operatorName);
         String cat = InputUtils.normalizeInput(category);
-
-        if (name == null) {
-            throw new ToolCallException("Cluster name is required");
-        }
 
         // Resolve metric names from category + explicit names
         List<String> resolvedMetrics = resolveMetricNames(cat, metricNames);
@@ -77,22 +72,13 @@ public class KafkaMetricsService {
             categories.add(cat);
         }
 
-        // Find the Kafka cluster
-        Kafka kafka = findKafkaCluster(ns, name);
-        String resolvedNs = kafka.getMetadata().getNamespace();
+        // Find operator pods
+        List<Pod> pods = findOperatorPods(ns, name);
+        String resolvedNs = pods.getFirst().getMetadata().getNamespace();
+        String resolvedName = name != null ? name : "cluster-operator";
 
-        LOG.infof("Getting metrics for cluster '%s' in namespace '%s' (provider=%s)",
-            name, resolvedNs, metricsQueryService.providerName());
-
-        // Find Kafka pods
-        List<Pod> pods = k8sService.queryResourcesByLabel(
-            Pod.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, name);
-
-        if (pods.isEmpty()) {
-            return KafkaMetricsResponse.empty(name, resolvedNs,
-                String.format("No Kafka pods found for cluster '%s' in namespace '%s'",
-                    name, resolvedNs));
-        }
+        LOG.infof("Getting metrics for operator '%s' in namespace '%s' (provider=%s)",
+            resolvedName, resolvedNs, metricsQueryService.providerName());
 
         // Build pod targets and label matchers
         List<PodTarget> podTargets = pods.stream()
@@ -103,7 +89,6 @@ public class KafkaMetricsService {
 
         Map<String, String> labelMatchers = new LinkedHashMap<>();
         labelMatchers.put("namespace", resolvedNs);
-        labelMatchers.put("strimzi_io_cluster", name);
 
         // Query metrics via general service
         List<MetricSample> samples = metricsQueryService.queryMetrics(
@@ -114,9 +99,9 @@ public class KafkaMetricsService {
         if (effectiveCategories.isEmpty() && (metricNames == null || metricNames.isBlank())) {
             effectiveCategories.add(DEFAULT_CATEGORY);
         }
-        String interpretation = KafkaMetricCategories.interpretation(effectiveCategories);
+        String interpretation = StrimziOperatorMetricCategories.interpretation(effectiveCategories);
 
-        return KafkaMetricsResponse.of(name, resolvedNs,
+        return StrimziOperatorMetricsResponse.of(resolvedName, resolvedNs,
             metricsQueryService.providerName(), categories, samples, interpretation);
     }
 
@@ -129,11 +114,11 @@ public class KafkaMetricsService {
         }
 
         if (effectiveCategory != null) {
-            List<String> categoryMetrics = KafkaMetricCategories.resolve(effectiveCategory);
+            List<String> categoryMetrics = StrimziOperatorMetricCategories.resolve(effectiveCategory);
             if (categoryMetrics.isEmpty() && category != null) {
                 throw new ToolCallException(
                     String.format("Unknown metric category '%s'. Available: %s",
-                        category, KafkaMetricCategories.allCategories()));
+                        category, StrimziOperatorMetricCategories.allCategories()));
             }
             resolved.addAll(categoryMetrics);
         }
@@ -150,38 +135,52 @@ public class KafkaMetricsService {
         return resolved;
     }
 
-    private Kafka findKafkaCluster(final String namespace, final String name) {
-        Kafka kafka;
-        if (namespace != null) {
-            kafka = k8sService.getResource(Kafka.class, namespace, name);
-        } else {
-            List<Kafka> allClusters = k8sService.queryResourcesInAnyNamespace(Kafka.class);
-            List<Kafka> matching = allClusters.stream()
-                .filter(k -> name.equals(k.getMetadata().getName()))
-                .toList();
+    private List<Pod> findOperatorPods(final String namespace, final String operatorName) {
+        List<Pod> pods;
 
-            if (matching.size() > 1) {
-                String namespaces = matching.stream()
-                    .map(k -> k.getMetadata().getNamespace())
-                    .distinct()
-                    .collect(Collectors.joining(", "));
-                throw new ToolCallException(
-                    "Multiple clusters named '" + name + "' found in namespaces: "
-                        + namespaces + ". Specify a namespace.");
-            }
-            kafka = matching.isEmpty() ? null : matching.get(0);
+        if (namespace != null) {
+            pods = k8sService.queryResourcesByLabel(
+                Pod.class, namespace,
+                ResourceLabels.STRIMZI_KIND_LABEL, StrimziConstants.KindValues.CLUSTER_OPERATOR);
+        } else {
+            pods = k8sService.queryResourcesByLabelInAnyNamespace(
+                Pod.class,
+                ResourceLabels.STRIMZI_KIND_LABEL, StrimziConstants.KindValues.CLUSTER_OPERATOR);
         }
 
-        if (kafka == null) {
-            if (namespace != null) {
+        // Filter by operator name if specified (pod names start with the deployment name)
+        if (operatorName != null) {
+            pods = pods.stream()
+                .filter(pod -> pod.getMetadata().getName().startsWith(operatorName))
+                .toList();
+        }
+
+        if (pods.isEmpty()) {
+            String location = namespace != null
+                ? "in namespace '" + namespace + "'"
+                : "in any namespace";
+
+            if (operatorName != null) {
                 throw new ToolCallException(
-                    "Kafka cluster '" + name + "' not found in namespace " + namespace);
+                    "No Strimzi operator pods found for '" + operatorName + "' " + location);
             } else {
                 throw new ToolCallException(
-                    "Kafka cluster '" + name + "' not found in any namespace");
+                    "No Strimzi operator pods found " + location);
             }
         }
 
-        return kafka;
+        // Verify all pods are in the same namespace
+        List<String> namespaces = pods.stream()
+            .map(pod -> pod.getMetadata().getNamespace())
+            .distinct()
+            .toList();
+
+        if (namespaces.size() > 1) {
+            throw new ToolCallException(
+                "Strimzi operator pods found in multiple namespaces: "
+                    + String.join(", ", namespaces) + ". Please specify a namespace.");
+        }
+
+        return pods;
     }
 }

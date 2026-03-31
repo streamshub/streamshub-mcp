@@ -7,10 +7,12 @@ package io.streamshub.mcp.strimzi.config.metrics;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Curated metric name categories for Kafka broker metrics.
- * Maps human-friendly category names to lists of Prometheus metric names.
+ * Maps human-friendly category names to lists of Prometheus metric names,
+ * and provides interpretation guides for each category.
  */
 public final class KafkaMetricCategories {
 
@@ -47,6 +49,57 @@ public final class KafkaMetricCategories {
         )
     );
 
+    private static final Map<String, String> DESCRIPTIONS = Map.of(
+        "replication",
+            "kafka_server_replicamanager_underreplicatedpartitions: Partitions with fewer in-sync "
+                + "replicas than configured. Should be 0. >0 means data loss risk.\n"
+                + "kafka_server_replicamanager_leadercount: Number of partition leaders per broker. "
+                + "Should be roughly equal across brokers. Large imbalance = uneven load.\n"
+                + "kafka_server_replicamanager_partitioncount: Total partitions per broker. "
+                + "Should be balanced across brokers.\n"
+                + "kafka_server_replicamanager_offlinereplicacount: Replicas that are offline. "
+                + "Should be 0. >0 = broker or disk issues.\n"
+                + "kafka_controller_kafkacontroller_offlinepartitionscount: Partitions with no active "
+                + "leader. Should be 0. >0 is critical — those partitions are unavailable.\n"
+                + "kafka_server_replicafetchermanager_maxlag: Maximum replica lag in messages. "
+                + "Growing value = followers falling behind. Transient spikes during restarts are normal.",
+        "throughput",
+            "kafka_server_brokertopicmetrics_messagesin_total: Cumulative messages received. "
+                + "Rate of change = messages/sec. Sudden drops = producer issues.\n"
+                + "kafka_server_brokertopicmetrics_bytesin_total: Cumulative bytes received. "
+                + "Compare across brokers — large imbalance = hot partitions.\n"
+                + "kafka_server_brokertopicmetrics_bytesout_total: Cumulative bytes sent to consumers. "
+                + "bytesout >> bytesin can indicate replication or high consumer fan-out.\n"
+                + "kafka_server_brokertopicmetrics_totalproducerequests_total: Total produce requests. "
+                + "Rate = produce request throughput.\n"
+                + "kafka_server_brokertopicmetrics_totalfetchrequests_total: Total fetch requests. "
+                + "Includes consumer and follower fetches.",
+        "resources",
+            "jvm_memory_used_bytes: Current JVM heap/non-heap memory usage. "
+                + "Java normally uses most of its allocated heap — high usage alone is not a problem. "
+                + "Only flag as concerning if combined with pod restarts (check with "
+                + "get_kafka_cluster_pods), OOM errors in logs, or excessive GC overhead.\n"
+                + "jvm_memory_max_bytes: Maximum JVM memory available per pool.\n"
+                + "jvm_gc_collection_seconds_sum/count: GC time and frequency. "
+                + "High sum/count ratio = long GC pauses. Rapidly increasing count = GC thrashing. "
+                + "Only concerning if it correlates with performance degradation or pod restarts.\n"
+                + "process_cpu_seconds_total: Cumulative CPU time. Rate of change = CPU utilization.\n"
+                + "jvm_threads_current: Active JVM thread count. "
+                + "Sudden increases may indicate thread leaks or connection storms.",
+        "performance",
+            "kafka_network_requestmetrics_totaltimems: Total time for request processing "
+                + "(queue + local + remote + response). High values = slow requests.\n"
+                + "kafka_server_kafkarequesthandlerpool_brokerrequesthandleravgidle_percent: "
+                + "Request handler thread idle ratio. <0.3 = overloaded broker, needs attention. "
+                + "<0.1 = critical.\n"
+                + "kafka_network_requestmetrics_requestqueuetimems: Time requests spend waiting "
+                + "in the request queue. Increasing = bottleneck, broker can't keep up.\n"
+                + "kafka_network_requestmetrics_responsequeuetimems: Time responses wait before being "
+                + "sent. High values = network thread bottleneck.\n"
+                + "kafka_network_socketserver_networkprocessoravgidle_percent: Network thread idle "
+                + "ratio. <0.3 = network bottleneck."
+    );
+
     private KafkaMetricCategories() {
         // Utility class — no instantiation
     }
@@ -71,5 +124,23 @@ public final class KafkaMetricCategories {
      */
     public static Set<String> allCategories() {
         return CATEGORIES.keySet();
+    }
+
+    /**
+     * Returns an interpretation guide for the given categories.
+     *
+     * @param categories the category names to get descriptions for
+     * @return a combined interpretation guide, or null if no categories match
+     */
+    public static String interpretation(final List<String> categories) {
+        if (categories == null || categories.isEmpty()) {
+            return null;
+        }
+        String result = categories.stream()
+            .map(c -> c.toLowerCase(java.util.Locale.ROOT))
+            .filter(DESCRIPTIONS::containsKey)
+            .map(DESCRIPTIONS::get)
+            .collect(Collectors.joining("\n\n"));
+        return result.isEmpty() ? null : result;
     }
 }

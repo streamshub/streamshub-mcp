@@ -21,11 +21,13 @@ import io.streamshub.mcp.strimzi.dto.ListenerInfo;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
+import io.streamshub.mcp.strimzi.dto.metrics.StrimziOperatorMetricsResponse;
 import io.streamshub.mcp.strimzi.service.KafkaNodePoolService;
 import io.streamshub.mcp.strimzi.service.KafkaService;
 import io.streamshub.mcp.strimzi.service.KafkaTopicService;
 import io.streamshub.mcp.strimzi.service.StrimziOperatorService;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaMetricsService;
+import io.streamshub.mcp.strimzi.service.metrics.StrimziOperatorMetricsService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -71,6 +73,9 @@ class McpToolsTest {
     @InjectMock
     KafkaMetricsService kafkaMetricsService;
 
+    @InjectMock
+    StrimziOperatorMetricsService strimziOperatorMetricsService;
+
     private McpAssured.McpSseTestClient client;
 
     McpToolsTest() {
@@ -108,7 +113,8 @@ class McpToolsTest {
                     "get_strimzi_operator",
                     "get_strimzi_operator_logs",
                     "get_strimzi_operator_pod",
-                    "get_kafka_metrics"
+                    "get_kafka_metrics",
+                    "get_strimzi_operator_metrics"
                 );
 
                 for (String toolName : expectedTools) {
@@ -328,7 +334,7 @@ class McpToolsTest {
 
     @Test
     void testGetStrimziOperatorLogs() {
-        when(operatorService.getOperatorLogs(any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(
+        when(operatorService.getOperatorLogs(any(), any(), any())).thenReturn(
             StrimziOperatorLogsResponse.of("kafka-system",
                 "INFO: Operator running normally", List.of("strimzi-operator-abc123"),
                 false, 0, 1, false)
@@ -410,13 +416,29 @@ class McpToolsTest {
     void testGetKafkaMetrics() {
         when(kafkaMetricsService.getKafkaMetrics(null, "my-cluster", null, null, null, null))
             .thenReturn(KafkaMetricsResponse.of("my-cluster", "kafka", "pod-scraping",
-                List.of("replication"), List.of()));
+                List.of("replication"), List.of(), null));
 
         client.when()
             .toolsCall("get_kafka_metrics", Map.of("clusterName", "my-cluster"), response -> {
                 assertFalse(response.isError());
                 String json = response.content().getFirst().asText().text();
                 assertTrue(json.contains("my-cluster"));
+                assertTrue(json.contains("pod-scraping"));
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    void testGetStrimziOperatorMetrics() {
+        when(strimziOperatorMetricsService.getOperatorMetrics(null, null, null, null, null, null))
+            .thenReturn(StrimziOperatorMetricsResponse.of("cluster-operator", "kafka-system",
+                "pod-scraping", List.of("reconciliation"), List.of(), null));
+
+        client.when()
+            .toolsCall("get_strimzi_operator_metrics", Map.of(), response -> {
+                assertFalse(response.isError());
+                String json = response.content().getFirst().asText().text();
+                assertTrue(json.contains("cluster-operator"));
                 assertTrue(json.contains("pod-scraping"));
             })
             .thenAssertResults();

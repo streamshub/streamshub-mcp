@@ -17,7 +17,7 @@ import java.util.List;
  *
  * <p>Guides the LLM through a structured diagnostic workflow:
  * check cluster status, node pools, operator logs, pod health,
- * and pod logs to identify root causes.</p>
+ * pod logs, and cluster metrics to identify root causes.</p>
  */
 @Singleton
 public class DiagnoseClusterIssuePrompt {
@@ -36,7 +36,7 @@ public class DiagnoseClusterIssuePrompt {
     @Prompt(
         name = "diagnose-cluster-issue",
         description = "Step-by-step diagnosis of a Kafka cluster issue."
-            + " Guides through status checks, operator logs, and pod inspection."
+            + " Guides through status checks, operator logs, pod inspection, and metrics analysis."
     )
     public PromptResponse diagnoseClusterIssue(
         @PromptArg(
@@ -95,12 +95,22 @@ public class DiagnoseClusterIssuePrompt {
             Look for: OOM kill messages, disk full errors, connection refused, \
             `OutOfMemoryError`, `IOException`, `No space left on device`.
 
-            ## Step 6: Correlate and summarize
-            Correlate the findings from all steps.
+            ## Step 6: Check cluster metrics
+            Use `get_kafka_metrics` with category 'replication' to check replication health.
+            Look for: underreplicatedpartitions > 0, offlinepartitionscount > 0, \
+            growing maxlag.
+            If replication looks healthy, also check category 'performance'.
+            Look for: brokerrequesthandleravgidle_percent < 0.3, \
+            increasing requestqueuetimems.
+            The response includes an `interpretation` field with detailed metric guidance.
+
+            ## Step 7: Correlate and summarize
+            Correlate the findings from all steps, including metrics data.
             Distinguish between:
             - Operator-initiated changes (rolling updates, certificate renewal, configuration changes)
             - Infrastructure failures (OOM, disk full, node issues)
             - Configuration errors (invalid resource specs, missing secrets)
+            - Performance degradation (overloaded brokers, replication lag, network bottlenecks)
 
             Provide a clear summary of the root cause and actionable recommendations.\
             """.formatted(clusterName, nsClause, symptomClause, clusterName);

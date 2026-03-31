@@ -11,6 +11,7 @@ import io.quarkus.arc.lookup.LookupIfProperty;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.dto.metrics.MetricsQueryParams;
 import io.streamshub.mcp.common.dto.metrics.PodTarget;
+import io.streamshub.mcp.common.util.metrics.MetricLabelFilter;
 import io.streamshub.mcp.common.util.metrics.PrometheusTextParser;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -77,7 +78,11 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
                 String body = kubernetesClient.raw(proxyUrl);
                 if (body != null && !body.isEmpty()) {
                     List<MetricSample> samples = PrometheusTextParser.parse(body, metricFilter);
-                    allSamples.addAll(samples);
+                    for (MetricSample sample : samples) {
+                        allSamples.add(MetricSample.of(sample.name(),
+                            MetricLabelFilter.filterLabels(sample.labels()),
+                            sample.value(), sample.timestamp()));
+                    }
                 } else {
                     LOG.warnf("Empty metrics response from pod %s/%s",
                         target.namespace(), target.podName());

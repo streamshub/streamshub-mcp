@@ -90,6 +90,10 @@ class McpDiscoveryTest {
                     "Prompt 'diagnose-cluster-issue' should be registered");
                 assertNotNull(page.findByName("troubleshoot-connectivity"),
                     "Prompt 'troubleshoot-connectivity' should be registered");
+                assertNotNull(page.findByName("analyze-kafka-metrics"),
+                    "Prompt 'analyze-kafka-metrics' should be registered");
+                assertNotNull(page.findByName("analyze-strimzi-operator-metrics"),
+                    "Prompt 'analyze-strimzi-operator-metrics' should be registered");
             })
             .send()
             .thenAssertResults();
@@ -134,6 +138,46 @@ class McpDiscoveryTest {
                 assertTrue(content.contains("my-cluster"));
                 assertTrue(content.contains("kafka-prod"));
                 assertTrue(content.contains("get_kafka_cluster"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify analyze-kafka-metrics prompt generates correct instructions.
+     */
+    @Test
+    void testPromptGetAnalyzeKafkaMetrics() {
+        client.when()
+            .promptsGet("analyze-kafka-metrics")
+            .withArguments(Map.of("cluster_name", "my-cluster", "namespace", "kafka-prod"))
+            .withAssert(response -> {
+                assertFalse(response.messages().isEmpty());
+                String content = response.messages().getFirst().content().asText().text();
+                assertTrue(content.contains("my-cluster"));
+                assertTrue(content.contains("get_kafka_metrics"));
+                assertTrue(content.contains("replication"));
+                assertTrue(content.contains("throughput"));
+                assertTrue(content.contains("performance"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify analyze-strimzi-operator-metrics prompt generates correct instructions.
+     */
+    @Test
+    void testPromptGetAnalyzeStrimziOperatorMetrics() {
+        client.when()
+            .promptsGet("analyze-strimzi-operator-metrics")
+            .withArguments(Map.of("namespace", "kafka-system"))
+            .withAssert(response -> {
+                assertFalse(response.messages().isEmpty());
+                String content = response.messages().getFirst().content().asText().text();
+                assertTrue(content.contains("kafka-system"));
+                assertTrue(content.contains("get_strimzi_operator_metrics"));
+                assertTrue(content.contains("reconciliation"));
             })
             .send()
             .thenAssertResults();

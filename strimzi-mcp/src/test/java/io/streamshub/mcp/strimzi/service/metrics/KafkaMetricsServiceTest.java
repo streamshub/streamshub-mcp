@@ -8,13 +8,11 @@ import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
-import io.streamshub.mcp.common.dto.metrics.MetricsQueryParams;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
-import io.streamshub.mcp.common.service.metrics.MetricsProvider;
+import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.kafka.Kafka;
-import jakarta.enterprise.inject.Instance;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,7 +30,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
 /**
@@ -50,10 +51,7 @@ class KafkaMetricsServiceTest {
     KubernetesResourceService k8sService;
 
     @Mock
-    Instance<MetricsProvider> metricsProviderInstance;
-
-    @Mock
-    MetricsProvider metricsProvider;
+    MetricsQueryService metricsQueryService;
 
     private KafkaMetricsService kafkaMetricsService;
 
@@ -61,12 +59,11 @@ class KafkaMetricsServiceTest {
     void setUp() throws Exception {
         kafkaMetricsService = new KafkaMetricsService();
         setField(kafkaMetricsService, "k8sService", k8sService);
-        setField(kafkaMetricsService, "metricsProviderInstance", metricsProviderInstance);
-        setField(kafkaMetricsService, "providerName", "pod-scraping");
-        setField(kafkaMetricsService, "defaultStepSeconds", 60);
+        setField(kafkaMetricsService, "metricsQueryService", metricsQueryService);
 
-        when(metricsProviderInstance.isUnsatisfied()).thenReturn(false);
-        when(metricsProviderInstance.get()).thenReturn(metricsProvider);
+        when(metricsQueryService.providerName()).thenReturn("pod-scraping");
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), any(), any()))
+            .thenReturn(List.of());
     }
 
     @Test
@@ -138,7 +135,7 @@ class KafkaMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
                 Map.of("namespace", "kafka"), 0.0));
-        when(metricsProvider.queryMetrics(any(MetricsQueryParams.class)))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -161,8 +158,6 @@ class KafkaMetricsServiceTest {
         when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
             eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
             .thenReturn(List.of(pod));
-        when(metricsProvider.queryMetrics(any(MetricsQueryParams.class)))
-            .thenReturn(List.of());
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
             "kafka", "my-cluster", null, null, null, null);
@@ -181,11 +176,60 @@ class KafkaMetricsServiceTest {
         when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
             eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
             .thenReturn(List.of(pod));
-        when(metricsProvider.queryMetrics(any(MetricsQueryParams.class)))
-            .thenReturn(List.of());
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
             "kafka", "my-cluster", null, "custom_metric_a,custom_metric_b", null, null);
+
+        assertNotNull(response);
+    }
+
+    @Test
+    void multipleClustersWithSameNameThrows() {
+        Kafka kafka1 = createKafka("my-cluster", "kafka-a");
+        Kafka kafka2 = createKafka("my-cluster", "kafka-b");
+        when(k8sService.queryResourcesInAnyNamespace(Kafka.class))
+            .thenReturn(List.of(kafka1, kafka2));
+
+        ToolCallException ex = assertThrows(ToolCallException.class,
+            () -> kafkaMetricsService.getKafkaMetrics(null, "my-cluster", null, null, null, null));
+        assertTrue(ex.getMessage().contains("Multiple clusters"));
+        assertTrue(ex.getMessage().contains("Specify a namespace"));
+    }
+
+    @Test
+    void rangeQueryParametersPassedThrough() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(k8sService.getResource(eq(Kafka.class), eq("kafka"), eq("my-cluster")))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), eq(60), eq(15)))
+            .thenReturn(List.of());
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "replication", null, 60, 15);
+
+        assertNotNull(response);
+    }
+
+    @Test
+    void categoryAndExplicitMetricsMergedWithoutDuplicates() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(k8sService.getResource(eq(Kafka.class), eq("kafka"), eq("my-cluster")))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        // Provide a metric name that's already in the replication category
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "replication",
+            "kafka_server_replicamanager_underreplicatedpartitions,custom_metric", null, null);
 
         assertNotNull(response);
     }
