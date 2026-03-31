@@ -5,7 +5,6 @@ metadata:
   namespace: strimzi
   labels:
     app: strimzi
-    namespace: strimzi
 data:
   log4j2.properties: |
     name = COConfig
