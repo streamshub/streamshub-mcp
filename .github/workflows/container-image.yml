@@ -4,9 +4,10 @@ on:
   push:
     branches:
       - main
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-*'
   pull_request:
-  release:
-    types: [ published ]
 
 permissions:
   contents: read
@@ -42,12 +43,12 @@ jobs:
           -Dquarkus.container-image.build=true
 
     - name: Login to container registry
-      if: github.event_name == 'push' || github.event_name == 'release'
+      if: github.event_name == 'push'
       uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
       with:
         registry: ${{ env.REGISTRY }}
-        username: ${{ secrets.REGISTRY_USERNAME }}
-        password: ${{ secrets.REGISTRY_PASSWORD }}
+        username: ${{ secrets.IMAGE_REPO_USERNAME }}
+        password: ${{ secrets.IMAGE_REPO_PASSWORD }}
 
     - name: Build and push container images (main)
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -59,12 +60,12 @@ jobs:
           -Dquarkus.container-image.group=${{ env.IMAGE_GROUP }} \
           -Dquarkus.container-image.tag=latest
 
-    - name: Build and push container images (release)
-      if: github.event_name == 'release'
+    - name: Build and push container images (tag)
+      if: startsWith(github.ref, 'refs/tags/') && github.event_name == 'push'
       run: |
         ./mvnw package -DskipTests \
           -Dquarkus.container-image.build=true \
           -Dquarkus.container-image.push=true \
           -Dquarkus.container-image.registry=${{ env.REGISTRY }} \
           -Dquarkus.container-image.group=${{ env.IMAGE_GROUP }} \
-          -Dquarkus.container-image.tag=${{ github.event.release.tag_name }}
+          -Dquarkus.container-image.tag=${{ github.ref_name }}
