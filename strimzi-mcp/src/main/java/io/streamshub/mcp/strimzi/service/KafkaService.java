@@ -8,6 +8,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.LogCollectionOptions;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
@@ -29,7 +30,6 @@ import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 import io.strimzi.api.kafka.model.nodepool.ProcessRoles;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.time.Duration;
@@ -38,7 +38,6 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -48,7 +47,6 @@ import java.util.stream.Collectors;
 public class KafkaService {
 
     private static final Logger LOG = Logger.getLogger(KafkaService.class);
-    private static final int SECONDS_PER_MINUTE = 60;
 
     @Inject
     KubernetesResourceService k8sService;
@@ -58,9 +56,6 @@ public class KafkaService {
 
     @Inject
     KafkaNodePoolService nodePoolService;
-
-    @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
-    int defaultTailLines;
 
     KafkaService() {
     }
@@ -223,20 +218,11 @@ public class KafkaService {
      *
      * @param namespace    the namespace, or null for auto-discovery
      * @param clusterName  the cluster name
-     * @param filter       optional log filter: "errors", "warnings", or a regex pattern
-     * @param keywords     optional list of keywords to match lines against (case-insensitive)
-     * @param sinceMinutes optional time range in minutes to retrieve logs from
-     * @param tailLines    optional number of lines to tail per pod (defaults to configured value)
-     * @param previous     optional flag to retrieve logs from previous container instance
-     * @param notifier     optional callback for per-pod progress notifications
+     * @param options      log collection options (filter, keywords, pagination, callbacks)
      * @return the cluster logs response
      */
-    @SuppressWarnings("checkstyle:ParameterNumber")
     public KafkaClusterLogsResponse getClusterLogs(final String namespace, final String clusterName,
-                                                   final String filter, final List<String> keywords,
-                                                   final Integer sinceMinutes,
-                                                   final Integer tailLines, final Boolean previous,
-                                                   final Consumer<String> notifier) {
+                                                   final LogCollectionOptions options) {
         String ns = InputUtils.normalizeInput(namespace);
         String normalizedName = InputUtils.normalizeInput(clusterName);
 
@@ -244,9 +230,10 @@ public class KafkaService {
             throw new ToolCallException("Cluster name is required");
         }
 
-        LOG.infof("Getting logs for cluster=%s (namespace=%s, filter=%s, sinceMinutes=%s, tailLines=%s, previous=%s)",
-            normalizedName, ns != null ? ns : "auto", filter != null ? filter : "none",
-            sinceMinutes, tailLines, previous);
+        LOG.infof("Getting logs for cluster=%s (namespace=%s, filter=%s, sinceSeconds=%s, tailLines=%s, previous=%s)",
+            normalizedName, ns != null ? ns : "auto",
+            options.filter() != null ? options.filter() : "none",
+            options.sinceSeconds(), options.tailLines(), options.previous());
 
         if (ns == null) {
             ns = discoverClusterNamespace(normalizedName);
@@ -259,12 +246,7 @@ public class KafkaService {
             return KafkaClusterLogsResponse.empty(normalizedName, ns);
         }
 
-        String normalizedFilter = InputUtils.normalizeInput(filter);
-        Integer sinceSeconds = sinceMinutes != null ? sinceMinutes * SECONDS_PER_MINUTE : null;
-        int effectiveTailLines = tailLines != null ? tailLines : defaultTailLines;
-
-        PodLogsResult result = podsService.collectLogs(ns, pods, normalizedFilter,
-            keywords, sinceSeconds, effectiveTailLines, previous, notifier);
+        PodLogsResult result = podsService.collectLogs(ns, pods, options);
         return KafkaClusterLogsResponse.of(normalizedName, ns, result.podNames(),
             result.hasErrors(), result.errorCount(), result.totalLines(), result.hasMore(), result.logs());
     }

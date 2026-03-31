@@ -4,10 +4,13 @@
  */
 package io.streamshub.mcp.strimzi.tool;
 
+import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.McpLog;
+import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.streamshub.mcp.common.dto.LogCollectionOptions;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
@@ -16,6 +19,7 @@ import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
 import io.streamshub.mcp.strimzi.service.StrimziOperatorService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.List;
 
@@ -26,11 +30,16 @@ import java.util.List;
 @WrapBusinessError(Exception.class)
 public class StrimziOperatorTools {
 
+    private static final int SECONDS_PER_MINUTE = 60;
+
     @Inject
     StrimziOperatorService operatorService;
 
     @Inject
     PodsService podsService;
+
+    @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
+    int defaultTailLines;
 
     StrimziOperatorTools() {
     }
@@ -89,6 +98,8 @@ public class StrimziOperatorTools {
      * @param tailLines    optional number of lines to tail
      * @param previous     optional flag for previous container logs
      * @param mcpLog       MCP log for client notifications
+     * @param progress     MCP progress tracking
+     * @param cancellation MCP cancellation checking
      * @return the operator logs response
      */
     @Tool(
@@ -121,10 +132,27 @@ public class StrimziOperatorTools {
             description = StrimziToolsPrompts.PREVIOUS_DESC,
             required = false
         ) final Boolean previous,
-        final McpLog mcpLog
+        final McpLog mcpLog,
+        final Progress progress,
+        final Cancellation cancellation
     ) {
-        return operatorService.getOperatorLogs(namespace, null, filter,
-            keywords, sinceMinutes, tailLines, previous, mcpLog::info);
+        LogCollectionOptions options = LogCollectionOptions.builder(
+                tailLines != null ? tailLines : defaultTailLines)
+            .filter(filter)
+            .keywords(keywords)
+            .sinceSeconds(sinceMinutes != null ? sinceMinutes * SECONDS_PER_MINUTE : null)
+            .previous(previous)
+            .notifier(mcpLog::info)
+            .cancelCheck(cancellation::skipProcessingIfCancelled)
+            // Only send progress if the client provided a progress token
+            .progressCallback(progress.token().isPresent()
+                ? (completed, total) -> progress.notificationBuilder()
+                    .setProgress(completed).setTotal(total)
+                    .setMessage(String.format("Collected logs from %d/%d pods", completed, total))
+                    .build().sendAndForget()
+                : null)
+            .build();
+        return operatorService.getOperatorLogs(namespace, null, options);
     }
 
     /**
