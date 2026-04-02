@@ -50,7 +50,7 @@ import static org.mockito.Mockito.when;
  * response serialization, and error handling through the MCP protocol layer.
  */
 @QuarkusTest
-class McpToolsTest {
+class MetricsToolsTest {
 
     @ConfigProperty(name = "quarkus.http.test-port")
     int testPort;
@@ -78,7 +78,7 @@ class McpToolsTest {
 
     private McpAssured.McpSseTestClient client;
 
-    McpToolsTest() {
+    MetricsToolsTest() {
     }
 
     @BeforeEach
