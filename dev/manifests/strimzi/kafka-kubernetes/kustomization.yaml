@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../kafka
+
+patches:
+  - target:
+      kind: Kafka
+      name: mcp-cluster
+    patch: |-
+      - op: replace
+        path: /spec/kafka/listeners
+        value:
+          - name: plain
+            port: 9092
+            type: internal
+            tls: false
+          - name: tls
+            port: 9093
+            type: internal
+            tls: true
+            authentication:
+              type: tls
+          - name: external
+            port: 9666
+            type: nodeport
+            tls: true
+            authentication:
+              type: tls
+          - name: console
+            port: 9777
+            tls: true
+            type: internal
+            authentication:
+              type: scram-sha-512
