@@ -74,17 +74,17 @@
                             <version>${checkstyle.version}</version>
                         </dependency>
                     </dependencies>
+                    <configuration>
+                        <configLocation>${maven.multiModuleProjectDirectory}/.checkstyle/checkstyle.xml</configLocation>
+                        <suppressionsLocation>${maven.multiModuleProjectDirectory}/.checkstyle/suppressions.xml</suppressionsLocation>
+                        <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                        <consoleOutput>true</consoleOutput>
+                        <failsOnError>true</failsOnError>
+                    </configuration>
                     <executions>
                         <execution>
                             <id>validate</id>
                             <phase>validate</phase>
-                            <configuration>
-                                <configLocation>${maven.multiModuleProjectDirectory}/.checkstyle/checkstyle.xml</configLocation>
-                                <suppressionsLocation>${maven.multiModuleProjectDirectory}/.checkstyle/suppressions.xml</suppressionsLocation>
-                                <includeTestSourceDirectory>true</includeTestSourceDirectory>
-                                <consoleOutput>true</consoleOutput>
-                                <failsOnError>true</failsOnError>
-                            </configuration>
                             <goals>
                                 <goal>check</goal>
                             </goals>
