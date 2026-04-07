@@ -157,7 +157,7 @@ class KafkaToolsTest {
 
     @Test
     void testGetKafkaClusterCertificates() {
-        when(kafkaCertificateService.getCertificates(null, "my-cluster")).thenReturn(
+        when(kafkaCertificateService.getCertificates(null, "my-cluster", null)).thenReturn(
             KafkaCertificateResponse.of("my-cluster", "kafka",
                 List.of(
                     KafkaCertificateResponse.CertificateInfo.of(

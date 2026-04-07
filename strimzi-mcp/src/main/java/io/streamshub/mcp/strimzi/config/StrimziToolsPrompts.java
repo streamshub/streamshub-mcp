@@ -69,6 +69,14 @@ public final class StrimziToolsPrompts {
             + " volumes, conditions, full."
             + " Omit for summary only.";
 
+    /**
+     * Listener name parameter description.
+     */
+    public static final String LISTENER_DESC =
+        "Listener name to filter results"
+            + " (e.g., 'plain', 'tls', 'external')."
+            + " Omit to return all listeners.";
+
     private StrimziToolsPrompts() {
     }
 }

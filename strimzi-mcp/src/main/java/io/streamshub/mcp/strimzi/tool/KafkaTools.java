@@ -146,8 +146,9 @@ public class KafkaTools {
     /**
      * Get TLS certificate metadata and listener authentication for a Kafka cluster.
      *
-     * @param clusterName the cluster name
-     * @param namespace   optional namespace
+     * @param clusterName  the cluster name
+     * @param namespace    optional namespace
+     * @param listenerName optional listener name filter
      * @return the certificate and authentication response
      */
     @Tool(
@@ -164,9 +165,13 @@ public class KafkaTools {
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
-        ) final String namespace
+        ) final String namespace,
+        @ToolArg(
+            description = StrimziToolsPrompts.LISTENER_DESC,
+            required = false
+        ) final String listenerName
     ) {
-        return kafkaCertificateService.getCertificates(namespace, clusterName);
+        return kafkaCertificateService.getCertificates(namespace, clusterName, listenerName);
     }
 
     /**

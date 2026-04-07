@@ -146,7 +146,7 @@ class KafkaCertificateServiceTest {
         mockSecret(CLUSTER_NAME + "-cluster-ca-cert", VALID_CERT_PEM, true);
         mockSecret(CLUSTER_NAME + "-clients-ca-cert", VALID_CERT_PEM, true);
 
-        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME);
+        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, null);
 
         assertNotNull(response);
         assertEquals(CLUSTER_NAME, response.clusterName());
@@ -165,7 +165,7 @@ class KafkaCertificateServiceTest {
         mockSecret(CLUSTER_NAME + "-cluster-ca-cert", VALID_CERT_PEM, true);
         mockSecret(CLUSTER_NAME + "-clients-ca-cert", VALID_CERT_PEM, true);
 
-        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME);
+        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, null);
 
         assertNotNull(response.listenerAuthentication());
         assertEquals(2, response.listenerAuthentication().size());
@@ -190,7 +190,7 @@ class KafkaCertificateServiceTest {
         mockMissingSecret(CLUSTER_NAME + "-cluster-ca-cert");
         mockMissingSecret(CLUSTER_NAME + "-clients-ca-cert");
 
-        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME);
+        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, null);
 
         assertNotNull(response);
         assertTrue(response.certificates().isEmpty());
@@ -206,15 +206,39 @@ class KafkaCertificateServiceTest {
         mockSecret(CLUSTER_NAME + "-cluster-ca-cert", VALID_CERT_PEM, false);
         mockMissingSecret(CLUSTER_NAME + "-clients-ca-cert");
 
-        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME);
+        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, null);
 
         assertTrue(response.certificates().isEmpty());
     }
 
     @Test
+    void testGetCertificatesFiltersByListenerName() {
+        Kafka kafka = buildKafkaWithListeners();
+        mockKafkaResource(kafka);
+        mockSecret(CLUSTER_NAME + "-cluster-ca-cert", VALID_CERT_PEM, true);
+        mockMissingSecret(CLUSTER_NAME + "-clients-ca-cert");
+
+        KafkaCertificateResponse response =
+            kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, "tls");
+
+        assertEquals(1, response.listenerAuthentication().size());
+        assertEquals("tls", response.listenerAuthentication().getFirst().listenerName());
+        assertTrue(response.listenerAuthentication().getFirst().tlsEnabled());
+    }
+
+    @Test
+    void testGetCertificatesThrowsWhenListenerNotFound() {
+        Kafka kafka = buildKafkaWithListeners();
+        mockKafkaResource(kafka);
+
+        assertThrows(ToolCallException.class,
+            () -> kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, "nonexistent"));
+    }
+
+    @Test
     void testGetCertificatesThrowsWhenClusterNameMissing() {
         assertThrows(ToolCallException.class,
-            () -> kafkaCertificateService.getCertificates(NAMESPACE, null));
+            () -> kafkaCertificateService.getCertificates(NAMESPACE, null, null));
     }
 
     @Test
@@ -222,7 +246,7 @@ class KafkaCertificateServiceTest {
         mockMissingKafkaResource();
 
         assertThrows(ToolCallException.class,
-            () -> kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME));
+            () -> kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, null));
     }
 
     @Test
@@ -232,7 +256,7 @@ class KafkaCertificateServiceTest {
         mockSecret(CLUSTER_NAME + "-cluster-ca-cert", EXPIRED_CERT_PEM, true);
         mockMissingSecret(CLUSTER_NAME + "-clients-ca-cert");
 
-        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME);
+        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, null);
 
         assertEquals(1, response.certificates().size());
         assertTrue(response.certificates().getFirst().expired());

@@ -54,31 +54,40 @@ public class KafkaCertificateService {
 
     /**
      * Get TLS certificate metadata and listener authentication configuration
-     * for a Kafka cluster.
+     * for a Kafka cluster, optionally filtered by listener name.
      *
-     * @param namespace   the namespace, or null for auto-discovery
-     * @param clusterName the Kafka cluster name
+     * @param namespace    the namespace, or null for auto-discovery
+     * @param clusterName  the Kafka cluster name
+     * @param listenerName optional listener name to filter results
      * @return certificate and authentication response
      */
-    public KafkaCertificateResponse getCertificates(final String namespace, final String clusterName) {
+    public KafkaCertificateResponse getCertificates(final String namespace, final String clusterName,
+                                                    final String listenerName) {
         String ns = InputUtils.normalizeInput(namespace);
         String normalizedName = InputUtils.normalizeInput(clusterName);
+        String normalizedListener = InputUtils.normalizeInput(listenerName);
 
         if (normalizedName == null) {
             throw new ToolCallException("Cluster name is required");
         }
 
-        LOG.infof("Getting certificates for cluster=%s (namespace=%s)",
-            normalizedName, ns != null ? ns : "auto");
+        LOG.infof("Getting certificates for cluster=%s (namespace=%s, listener=%s)",
+            normalizedName, ns != null ? ns : "auto",
+            normalizedListener != null ? normalizedListener : "all");
 
         Kafka kafka = kafkaService.findKafkaCluster(ns, normalizedName);
         String resolvedNs = kafka.getMetadata().getNamespace();
 
+        List<KafkaCertificateResponse.ListenerAuthInfo> listenerAuth =
+            extractListenerAuthentication(kafka, normalizedListener);
+
+        if (normalizedListener != null && listenerAuth.isEmpty()) {
+            throw new ToolCallException(
+                "Listener '" + normalizedListener + "' not found on cluster '" + normalizedName + "'");
+        }
+
         List<KafkaCertificateResponse.CertificateInfo> certificates =
             fetchCertificateMetadata(resolvedNs, normalizedName);
-
-        List<KafkaCertificateResponse.ListenerAuthInfo> listenerAuth =
-            extractListenerAuthentication(kafka);
 
         if (certificates.isEmpty() && listenerAuth.isEmpty()) {
             return KafkaCertificateResponse.empty(normalizedName, resolvedNs,
@@ -194,13 +203,15 @@ public class KafkaCertificateService {
         }
     }
 
-    private List<KafkaCertificateResponse.ListenerAuthInfo> extractListenerAuthentication(final Kafka kafka) {
+    private List<KafkaCertificateResponse.ListenerAuthInfo> extractListenerAuthentication(
+            final Kafka kafka, final String listenerName) {
         if (kafka.getSpec() == null || kafka.getSpec().getKafka() == null
             || kafka.getSpec().getKafka().getListeners() == null) {
             return List.of();
         }
 
         return kafka.getSpec().getKafka().getListeners().stream()
+            .filter(l -> listenerName == null || listenerName.equals(l.getName()))
             .map(this::buildListenerAuthInfo)
             .toList();
     }
