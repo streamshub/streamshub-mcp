@@ -12,9 +12,11 @@ import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
+import io.streamshub.mcp.strimzi.dto.KafkaCertificateResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.ListenerInfo;
+import io.streamshub.mcp.strimzi.service.KafkaCertificateService;
 import io.streamshub.mcp.strimzi.service.KafkaService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
@@ -43,6 +45,9 @@ class KafkaToolsTest {
 
     @InjectMock
     KafkaService kafkaService;
+
+    @InjectMock
+    KafkaCertificateService kafkaCertificateService;
 
     private McpAssured.McpSseTestClient client;
 
@@ -146,6 +151,36 @@ class KafkaToolsTest {
                 String json = response.content().getFirst().asText().text();
                 assertTrue(json.contains("my-cluster-kafka-bootstrap"));
                 assertTrue(json.contains("9092"));
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    void testGetKafkaClusterCertificates() {
+        when(kafkaCertificateService.getCertificates(null, "my-cluster")).thenReturn(
+            KafkaCertificateResponse.of("my-cluster", "kafka",
+                List.of(
+                    KafkaCertificateResponse.CertificateInfo.of(
+                        "my-cluster-cluster-ca-cert", "cluster-ca",
+                        "CN=cluster-ca", "CN=cluster-ca",
+                        Instant.parse("2025-01-01T00:00:00Z"),
+                        Instant.parse("2026-01-01T00:00:00Z"),
+                        270, false,
+                        null)
+                ),
+                List.of(
+                    KafkaCertificateResponse.ListenerAuthInfo.of(
+                        "tls", "internal", true, "tls")
+                ))
+        );
+
+        client.when()
+            .toolsCall("get_kafka_cluster_certificates", Map.of("clusterName", "my-cluster"), response -> {
+                assertFalse(response.isError());
+                String json = response.content().getFirst().asText().text();
+                assertTrue(json.contains("cluster-ca"));
+                assertTrue(json.contains("CN=cluster-ca"));
+                assertTrue(json.contains("tls"));
             })
             .thenAssertResults();
     }

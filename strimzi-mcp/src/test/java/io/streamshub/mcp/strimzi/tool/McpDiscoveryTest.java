@@ -47,7 +47,7 @@ class McpDiscoveryTest {
     }
 
     /**
-     * Verify all 14 tools are registered.
+     * Verify all 15 tools are registered.
      */
     @Test
     void testToolDiscovery() {
@@ -58,6 +58,7 @@ class McpDiscoveryTest {
                     "get_kafka_cluster",
                     "get_kafka_cluster_pods",
                     "get_kafka_bootstrap_servers",
+                    "get_kafka_cluster_certificates",
                     "get_kafka_cluster_logs",
                     "list_kafka_topics",
                     "get_kafka_topic",

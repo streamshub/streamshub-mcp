@@ -13,9 +13,11 @@ import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.dto.LogCollectionOptions;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
+import io.streamshub.mcp.strimzi.dto.KafkaCertificateResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
+import io.streamshub.mcp.strimzi.service.KafkaCertificateService;
 import io.streamshub.mcp.strimzi.service.KafkaService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -34,6 +36,9 @@ public class KafkaTools {
 
     @Inject
     KafkaService kafkaService;
+
+    @Inject
+    KafkaCertificateService kafkaCertificateService;
 
     @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
     int defaultTailLines;
@@ -136,6 +141,32 @@ public class KafkaTools {
         ) final String namespace
     ) {
         return kafkaService.getBootstrapServers(namespace, clusterName);
+    }
+
+    /**
+     * Get TLS certificate metadata and listener authentication for a Kafka cluster.
+     *
+     * @param clusterName the cluster name
+     * @param namespace   optional namespace
+     * @return the certificate and authentication response
+     */
+    @Tool(
+        name = "get_kafka_cluster_certificates",
+        description = "Returns TLS certificate metadata and listener authentication"
+            + " configuration for a Kafka cluster."
+            + " Includes certificate expiry dates, issuers, and SANs from"
+            + " Strimzi-managed secrets. Requires opt-in sensitive RBAC Role."
+    )
+    public KafkaCertificateResponse getKafkaClusterCertificates(
+        @ToolArg(
+            description = StrimziToolsPrompts.CLUSTER_DESC
+        ) final String clusterName,
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace
+    ) {
+        return kafkaCertificateService.getCertificates(namespace, clusterName);
     }
 
     /**

@@ -100,23 +100,7 @@ public class KafkaService {
 
         LOG.infof("Getting Kafka cluster name=%s (namespace=%s)", normalizedName, ns != null ? ns : "auto");
 
-        Kafka kafka;
-        if (ns != null) {
-            kafka = k8sService.getResource(Kafka.class, ns, normalizedName);
-        } else {
-            kafka = findClusterInAllNamespaces(normalizedName);
-        }
-
-        if (kafka == null) {
-            if (ns != null) {
-                throw new ToolCallException(
-                    "Kafka cluster '" + normalizedName + "' not found in namespace " + ns);
-            } else {
-                throw new ToolCallException(
-                    "Kafka cluster '" + normalizedName + "' not found in any namespace");
-            }
-        }
-
+        Kafka kafka = findKafkaCluster(ns, normalizedName);
         return createClusterResponse(kafka);
     }
 
@@ -186,23 +170,7 @@ public class KafkaService {
         LOG.infof("Getting bootstrap servers for cluster=%s (namespace=%s)",
             normalizedName, ns != null ? ns : "auto");
 
-        Kafka kafka;
-        if (ns != null) {
-            kafka = k8sService.getResource(Kafka.class, ns, normalizedName);
-        } else {
-            kafka = findClusterInAllNamespaces(normalizedName);
-        }
-
-        if (kafka == null) {
-            if (ns != null) {
-                throw new ToolCallException(
-                    "Kafka cluster '" + normalizedName + "' not found in namespace " + ns);
-            } else {
-                throw new ToolCallException(
-                    "Kafka cluster '" + normalizedName + "' not found in any namespace");
-            }
-        }
-
+        Kafka kafka = findKafkaCluster(ns, normalizedName);
         String resolvedNs = kafka.getMetadata().getNamespace();
         List<KafkaBootstrapResponse.BootstrapServerInfo> servers = extractBootstrapServers(kafka);
 
@@ -517,6 +485,35 @@ public class KafkaService {
     private boolean extractAuthorizationEnabled(final Kafka kafka) {
         return kafka.getSpec() != null && kafka.getSpec().getKafka() != null
             && kafka.getSpec().getKafka().getAuthorization() != null;
+    }
+
+    /**
+     * Find a Kafka cluster by name, with optional namespace.
+     * If namespace is null, auto-discovers across all namespaces.
+     * Throws if the cluster is not found or if multiple clusters with the same name exist.
+     *
+     * @param namespace   the namespace, or null for auto-discovery
+     * @param clusterName the normalized cluster name (must not be null)
+     * @return the Kafka resource
+     */
+    Kafka findKafkaCluster(final String namespace, final String clusterName) {
+        Kafka kafka;
+        if (namespace != null) {
+            kafka = k8sService.getResource(Kafka.class, namespace, clusterName);
+        } else {
+            kafka = findClusterInAllNamespaces(clusterName);
+        }
+
+        if (kafka == null) {
+            if (namespace != null) {
+                throw new ToolCallException(
+                    "Kafka cluster '" + clusterName + "' not found in namespace " + namespace);
+            } else {
+                throw new ToolCallException(
+                    "Kafka cluster '" + clusterName + "' not found in any namespace");
+            }
+        }
+        return kafka;
     }
 
     /**

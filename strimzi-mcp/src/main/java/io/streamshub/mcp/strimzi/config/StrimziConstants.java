@@ -66,6 +66,29 @@ public final class StrimziConstants {
     }
 
     /**
+     * Strimzi-managed secret name suffixes and data keys.
+     */
+    public static final class Secrets {
+        /**
+         * Suffix for the cluster CA certificate secret ({@code {cluster}-cluster-ca-cert}).
+         */
+        public static final String CLUSTER_CA_CERT_SUFFIX = "-cluster-ca-cert";
+
+        /**
+         * Suffix for the clients CA certificate secret ({@code {cluster}-clients-ca-cert}).
+         */
+        public static final String CLIENTS_CA_CERT_SUFFIX = "-clients-ca-cert";
+
+        /**
+         * Data key for the CA certificate PEM inside a Strimzi CA secret.
+         */
+        public static final String CA_CRT_KEY = "ca.crt";
+
+        private Secrets() {
+        }
+    }
+
+    /**
      * MCP resource URI templates and builders for Strimzi resources.
      * Template constants are used in {@code @ResourceTemplate} annotations,
      * and builder methods resolve them at runtime for resource registration
