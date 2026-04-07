@@ -60,43 +60,37 @@ public class AnalyzeStrimziOperatorMetricsPrompt {
         String instructions = """
             You are analyzing metrics for the Strimzi cluster operator.%s
 
-            Use `get_strimzi_operator_metrics` to query each category below. The response \
-            includes an `interpretation` field with metric descriptions and thresholds — \
-            use it to interpret the values.
+            Each `get_strimzi_operator_metrics` response includes an `interpretation` field \
+            with metric descriptions and thresholds — use it to interpret values.
 
             ## Step 1: Reconciliation health
             Call `get_strimzi_operator_metrics(%scategory='reconciliation')`.
-            Critical checks:
+            Use the `interpretation` field for threshold guidance. Key checks:
             - strimzi_reconciliations_failed_total increasing = operator errors, \
             check operator logs for details
-            - strimzi_reconciliations_duration_seconds: divide sum by count for average. \
-            >60s average = slow reconciliation, may indicate resource contention
-            - Compare successful_total + failed_total with total to verify consistency
+            - Divide duration sum by count for average reconciliation time
+            - Compare successful + failed with total to verify consistency
 
             ## Step 2: Managed resources
             Call `get_strimzi_operator_metrics(%scategory='resources')`.
             Look for:
             - strimzi_resources count changes = resources added/removed
-            - strimzi_resource_state: any value != 1 = unhealthy resource that needs attention
-            - Cross-reference unhealthy resources with cluster status using `get_kafka_cluster`
+            - strimzi_resource_state != 1 = unhealthy resource
+            - Cross-reference with `get_kafka_cluster` for details
 
             ## Step 3: Operator JVM health
             Call `get_strimzi_operator_metrics(%scategory='jvm')`.
-            Important: Java normally uses most of its allocated heap. \
-            High heap usage alone is NOT a problem. Only flag JVM memory \
-            as concerning if combined with:
-            - Pod restarts (check with `get_strimzi_operator_pod`)
-            - OOM errors in operator logs
-            - Excessive GC overhead (rapidly increasing GC count)
-            Also watch for rising thread count = possible resource leak.
+            Use the `interpretation` field for JVM guidance. \
+            Cross-reference with `get_strimzi_operator_pod` for restart counts \
+            before flagging memory concerns.
 
-            ## Step 4: Check pod restarts and correlate with logs
+            ## Step 4: Correlate with logs
             Use `get_strimzi_operator_pod` to check for pod restarts.
             Use `get_strimzi_operator_logs` to check for errors or warnings.
             Cross-reference:
-            - Failed reconciliations in metrics → specific error messages in logs
-            - Slow reconciliation → look for timeout or retry patterns in logs
-            - Pod restarts + high GC → possible OOM, check logs for OutOfMemoryError
+            - Failed reconciliations → specific error messages in logs
+            - Slow reconciliation → timeout or retry patterns in logs
+            - Pod restarts + high GC → possible OOM, check for OutOfMemoryError
 
             ## Step 5: Summarize findings
             Provide a clear summary with:

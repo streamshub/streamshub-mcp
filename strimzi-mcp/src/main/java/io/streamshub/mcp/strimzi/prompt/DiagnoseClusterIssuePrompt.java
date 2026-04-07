@@ -164,26 +164,16 @@ public class DiagnoseClusterIssuePrompt {
 
             ## Step 6: Check cluster metrics [CRITICAL - data availability]
             Use `get_kafka_metrics` with category 'replication' to check replication health.
-            
+
             **STOP AND ESCALATE IF:**
             - offlinepartitionscount > 0 → partitions unavailable (CRITICAL)
             - underreplicatedpartitions > 0 for >5 minutes → data loss risk
-            
-            Look for:
-            - underreplicatedpartitions > 0 → brokers falling behind or overloaded
-            - offlinepartitionscount > 0 → partitions with no leader (unavailable)
-            - maxlag growing → replication lag increasing (check performance next)
-            - leadercount imbalanced → uneven load distribution
-            
-            **If replication issues found, check performance metrics:**
-            Use `get_kafka_metrics` with category 'performance'.
-            - brokerrequesthandleravgidle_percent < 0.3 → broker overloaded
-            - requestqueuetimems increasing → broker can't keep up with load
-            - networkprocessoravgidle_percent < 0.3 → network bottleneck
-            
-            The response includes an `interpretation` field with detailed metric guidance \
-            and thresholds.
-            
+
+            Use the `interpretation` field for per-metric threshold guidance.
+
+            If replication issues found, also call `get_kafka_metrics` with \
+            category 'performance' and use its `interpretation` field for thresholds.
+
             **Correlation patterns:**
             - Replication lag + low broker idle → broker overload (scale or reduce load)
             - Replication lag + normal broker idle → disk I/O bottleneck

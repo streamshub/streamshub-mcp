@@ -47,14 +47,8 @@ public class MetricsTools {
      */
     @Tool(
         name = "get_kafka_metrics",
-        description = "Retrieves Prometheus metrics from Kafka cluster pods. "
-            + "Essential for cluster health assessment and incident response. "
-            + "Replication metrics (category='replication') directly impact data availability "
-            + "and should be checked first during incidents. "
-            + "Performance metrics (category='performance') indicate broker capacity and client impact. "
-            + "Supports both relative time ranges (rangeMinutes) and absolute time ranges (startTime/endTime). "
-            + "For incident investigation, use absolute times to analyze specific windows. "
-            + "Returns metric samples by category or explicit metric names with interpretation guides."
+        description = "Retrieves Prometheus metrics from Kafka cluster pods by category or explicit metric names."
+            + " Returns samples with an interpretation guide for thresholds and diagnostics."
     )
     public KafkaMetricsResponse getKafkaMetrics(
         @ToolArg(
@@ -108,12 +102,8 @@ public class MetricsTools {
      */
     @Tool(
         name = "get_strimzi_operator_metrics",
-        description = "Retrieves Prometheus metrics from Strimzi cluster operator pods. "
-            + "Essential for operator health assessment and troubleshooting reconciliation issues. "
-            + "Reconciliation metrics (category='reconciliation') indicate operator performance and failures. "
-            + "Resource metrics (category='resources') show managed resource health. "
-            + "Supports both relative time ranges (rangeMinutes) and absolute time ranges (startTime/endTime). "
-            + "Returns metric samples by category or explicit metric names with interpretation guides."
+        description = "Retrieves Prometheus metrics from Strimzi operator pods by category or explicit metric names."
+            + " Returns samples with an interpretation guide for thresholds and diagnostics."
     )
     public StrimziOperatorMetricsResponse getStrimziOperatorMetrics(
         @ToolArg(

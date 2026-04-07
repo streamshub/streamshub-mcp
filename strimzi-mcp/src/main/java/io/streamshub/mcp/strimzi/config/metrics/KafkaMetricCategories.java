@@ -84,23 +84,8 @@ public final class KafkaMetricCategories {
                 + "kafka_server_brokertopicmetrics_totalfetchrequests_total: Total fetch requests. "
                 + "Includes consumer and follower fetches.",
         "resources",
-            "**[MEDIUM - JVM HEALTH]**\n\n"
-                + "jvm_memory_used_bytes: Current JVM heap/non-heap memory usage. "
-                + "**IMPORTANT**: Java normally uses most of its allocated heap — high usage alone is NOT a problem. "
-                + "Only flag as concerning if combined with: (1) pod restarts (check with get_kafka_cluster_pods), "
-                + "(2) OOM errors in logs, or (3) excessive GC overhead (rapidly increasing GC count). "
-                + "**FALSE POSITIVE TRAP**: Do not raise alerts based solely on high heap usage.\n\n"
-                + "jvm_memory_max_bytes: Maximum JVM memory available per pool.\n\n"
-                + "**[MEDIUM - GC PRESSURE]**\n\n"
-                + "jvm_gc_collection_seconds_sum/count: GC time and frequency. "
-                + "High sum/count ratio = long GC pauses. Rapidly increasing count = GC thrashing. "
-                + "**THRESHOLDS**: <5% of CPU time = healthy, 5-10% = monitor, >10% = investigate heap sizing. "
-                + "Only concerning if it correlates with performance degradation or pod restarts.\n\n"
-                + "process_cpu_seconds_total: Cumulative CPU time. Rate of change = CPU utilization.\n\n"
-                + "**[LOW - THREAD HEALTH]**\n\n"
-                + "jvm_threads_current: Active JVM thread count. "
-                + "Sudden increases may indicate thread leaks or connection storms. "
-                + "**BASELINE**: Stable count is normal, rapid growth (>50% in <5 min) needs investigation.",
+            MetricsDescriptions.jvmDescription("get_kafka_cluster_pods",
+                "performance degradation or pod restarts"),
         "performance",
             "**[HIGH - BROKER CAPACITY]**\n\n"
                 + "kafka_server_kafkarequesthandlerpool_brokerrequesthandleravgidle_percent: "
@@ -163,52 +148,5 @@ public final class KafkaMetricCategories {
             .map(DESCRIPTIONS::get)
             .collect(Collectors.joining("\n\n"));
         return result.isEmpty() ? null : result;
-    }
-
-    /**
-     * Returns cascading failure patterns for cross-category correlation.
-     *
-     * @return a guide to common failure cascades
-     */
-    public static String cascadingPatterns() {
-        return """
-            **Common Cascading Failure Patterns:**
-            
-            1. **Broker Overload Cascade:**
-               - brokerrequesthandleravgidle < 0.3 (performance)
-               → requestqueuetimems increasing (performance)
-               → underreplicatedpartitions > 0 (replication)
-               → maxlag growing (replication)
-               **Root Cause**: Broker can't keep up with request load
-               **Action**: Scale horizontally or reduce producer/consumer load
-            
-            2. **Network Bottleneck Cascade:**
-               - networkprocessoravgidle < 0.3 (performance)
-               → responsequeuetimems increasing (performance)
-               → maxlag growing (replication)
-               **Root Cause**: Network threads saturated
-               **Action**: Increase network threads or reduce connection count
-            
-            3. **GC Thrashing Cascade:**
-               - jvm_gc_collection_seconds_count rapidly increasing (resources)
-               → process_cpu_seconds_total high (resources)
-               → brokerrequesthandleravgidle dropping (performance)
-               → requestqueuetimems increasing (performance)
-               **Root Cause**: Insufficient heap or memory leak
-               **Action**: Check for OOM in logs, increase heap, or investigate memory leak
-            
-            4. **Controller Failure Cascade:**
-               - offlinepartitionscount > 0 (replication)
-               + leadercount severely imbalanced (replication)
-               **Root Cause**: Controller unable to elect leaders
-               **Action**: Check controller logs, verify ZooKeeper/KRaft health
-            
-            5. **Disk I/O Cascade:**
-               - maxlag growing steadily (replication)
-               + underreplicatedpartitions increasing (replication)
-               + brokerrequesthandleravgidle normal (performance)
-               **Root Cause**: Disk I/O bottleneck (not CPU/network)
-               **Action**: Check disk metrics, consider faster storage or more brokers
-            """;
     }
 }
