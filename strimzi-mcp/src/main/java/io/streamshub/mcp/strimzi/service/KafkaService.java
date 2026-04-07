@@ -27,6 +27,7 @@ import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
+import io.strimzi.api.kafka.model.kafka.listener.ListenerAddress;
 import io.strimzi.api.kafka.model.nodepool.ProcessRoles;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -444,7 +445,7 @@ public class KafkaService {
             .map(listener -> {
                 String bootstrapAddress = null;
                 if (listener.getAddresses() != null && !listener.getAddresses().isEmpty()) {
-                    GenericKafkaListenerStatusAddresses addr = listener.getAddresses().getFirst();
+                    ListenerAddress addr = listener.getAddresses().getFirst();
                     if (addr.getHost() != null && addr.getPort() != null) {
                         bootstrapAddress = String.format("%s:%d", addr.getHost(), addr.getPort());
                     }
