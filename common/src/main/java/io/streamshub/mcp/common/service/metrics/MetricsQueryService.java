@@ -110,7 +110,7 @@ public class MetricsQueryService {
                                             final String startTimeStr,
                                             final String endTimeStr,
                                             final Integer stepSeconds) {
-        // Absolute time range (NEW)
+        // Absolute time range
         if (startTimeStr != null && endTimeStr != null) {
             try {
                 Instant start = Instant.parse(startTimeStr);

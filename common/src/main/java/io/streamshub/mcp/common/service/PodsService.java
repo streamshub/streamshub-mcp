@@ -10,12 +10,17 @@ import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarSource;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodCondition;
+import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.PodStatus;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.LogCollectionOptions;
@@ -161,9 +166,9 @@ public class PodsService {
      */
     @SuppressWarnings({"checkstyle:CyclomaticComplexity", "checkstyle:NPathComplexity"})
     public PodSummaryResponse.PodInfo extractPodInfo(String namespace, Pod pod, Set<String> sections) {
-        var metadata = pod.getMetadata();
-        var spec = pod.getSpec();
-        var podStatus = pod.getStatus();
+        ObjectMeta metadata = pod.getMetadata();
+        PodSpec spec = pod.getSpec();
+        PodStatus podStatus = pod.getStatus();
 
         String podName = metadata.getName();
         String phase = podStatus != null ? podStatus.getPhase() : KubernetesConstants.PodPhases.UNKNOWN;
@@ -375,7 +380,7 @@ public class PodsService {
         for (Container container : containers) {
             if (container.getResources() != null) {
                 if (container.getResources().getRequests() != null) {
-                    var reqs = container.getResources().getRequests();
+                    Map<String, Quantity> reqs = container.getResources().getRequests();
                     if (reqs.get("cpu") != null) {
                         cpuRequest = reqs.get("cpu").toString();
                     }
@@ -384,7 +389,7 @@ public class PodsService {
                     }
                 }
                 if (container.getResources().getLimits() != null) {
-                    var lims = container.getResources().getLimits();
+                    Map<String, Quantity> lims = container.getResources().getLimits();
                     if (lims.get("cpu") != null) {
                         cpuLimit = lims.get("cpu").toString();
                     }
@@ -471,7 +476,7 @@ public class PodsService {
         if (container.getResources() == null) {
             return null;
         }
-        var res = container.getResources();
+        ResourceRequirements res = container.getResources();
         String cpuReq = null;
         String cpuLim = null;
         String memReq = null;
@@ -769,7 +774,7 @@ public class PodsService {
     private String fetchPodLog(final String namespace, final String podName,
                                final int tailLines, final Integer sinceSeconds,
                                final Boolean previous) {
-        var podResource = kubernetesClient.pods()
+        PodResource podResource = kubernetesClient.pods()
             .inNamespace(namespace)
             .withName(podName);
 

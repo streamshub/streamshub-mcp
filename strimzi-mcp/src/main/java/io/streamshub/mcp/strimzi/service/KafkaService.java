@@ -444,7 +444,7 @@ public class KafkaService {
             .map(listener -> {
                 String bootstrapAddress = null;
                 if (listener.getAddresses() != null && !listener.getAddresses().isEmpty()) {
-                    var addr = listener.getAddresses().getFirst();
+                    GenericKafkaListenerStatusAddresses addr = listener.getAddresses().getFirst();
                     if (addr.getHost() != null && addr.getPort() != null) {
                         bootstrapAddress = String.format("%s:%d", addr.getHost(), addr.getPort());
                     }

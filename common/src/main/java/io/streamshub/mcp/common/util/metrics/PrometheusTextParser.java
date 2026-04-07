@@ -23,6 +23,24 @@ public final class PrometheusTextParser {
 
     private static final Logger LOG = Logger.getLogger(PrometheusTextParser.class);
 
+    /**
+     * Prometheus exposition format uses curly braces to delimit the label set.
+     */
+    private static final char LABELS_OPEN_CHAR = '{';
+    private static final char LABELS_CLOSE_CHAR = '}';
+    private static final char FIELD_SEPARATOR_CHAR = ' ';
+    private static final char LABEL_SEPARATOR_CHAR = ',';
+    private static final char KEY_VALUE_SEPARATOR_CHAR = '=';
+    private static final char QUOTED_VALUE_CHAR = '"';
+    private static final char ESCAPE_CHAR = '\\';
+
+    /**
+     * A metric sample may contain the numeric value only, or value plus timestamp.
+     */
+    private static final int MAX_VALUE_AND_TIMESTAMP_PARTS = 2;
+    private static final int VALUE_PART_INDEX = 0;
+    private static final int TIMESTAMP_PART_INDEX = 1;
+
     private PrometheusTextParser() {
         // Utility class — no instantiation
     }
@@ -76,17 +94,19 @@ public final class PrometheusTextParser {
         Map<String, String> labels;
         String remainder;
 
-        int braceOpen = line.indexOf('{');
+        int braceOpen = line.indexOf(LABELS_OPEN_CHAR);
         if (braceOpen >= 0) {
             metricName = line.substring(0, braceOpen);
-            int braceClose = line.indexOf('}', braceOpen);
+            int braceClose = line.indexOf(LABELS_CLOSE_CHAR, braceOpen);
             if (braceClose < 0) {
                 return null;
             }
             labels = parseLabels(line.substring(braceOpen + 1, braceClose));
+            // Everything after the label block should contain the metric value
+            // and optionally the sample timestamp in epoch milliseconds.
             remainder = line.substring(braceClose + 1).trim();
         } else {
-            int firstSpace = line.indexOf(' ');
+            int firstSpace = line.indexOf(FIELD_SEPARATOR_CHAR);
             if (firstSpace < 0) {
                 return null;
             }
@@ -99,18 +119,19 @@ public final class PrometheusTextParser {
             return null;
         }
 
-        String[] parts = remainder.split("\\s+", 2);
+        // Split into at most two tokens: mandatory metric value and optional timestamp.
+        String[] parts = remainder.split("\\s+", MAX_VALUE_AND_TIMESTAMP_PARTS);
         double value;
         try {
-            value = Double.parseDouble(parts[0]);
+            value = Double.parseDouble(parts[VALUE_PART_INDEX]);
         } catch (NumberFormatException e) {
             return null;
         }
 
         Instant timestamp = null;
-        if (parts.length > 1) {
+        if (parts.length > TIMESTAMP_PART_INDEX) {
             try {
-                timestamp = Instant.ofEpochMilli(Long.parseLong(parts[1]));
+                timestamp = Instant.ofEpochMilli(Long.parseLong(parts[TIMESTAMP_PART_INDEX]));
             } catch (NumberFormatException e) {
                 // Ignore invalid timestamp
             }
@@ -119,6 +140,21 @@ public final class PrometheusTextParser {
         return MetricSample.of(metricName, labels, value, timestamp);
     }
 
+    /**
+     * Parse the content of a Prometheus label block into a map of label names to values.
+     * <p>
+     * The input is expected to be the text between the surrounding curly braces, for example
+     * {@code instance="broker-0",namespace="kafka"}. The parser walks the string from left
+     * to right, skipping separators, reading each label key up to {@code =}, and then reading
+     * the quoted label value. Escaped characters inside quoted values are preserved as their
+     * literal character values.
+     * <p>
+     * If the label string is blank, an empty map is returned. If malformed content is encountered,
+     * parsing stops and the labels collected so far are returned.
+     *
+     * @param labelString raw label content without the surrounding {@code {}} characters
+     * @return immutable map of parsed labels
+     */
     private static Map<String, String> parseLabels(final String labelString) {
         if (labelString.isBlank()) {
             return Map.of();
@@ -130,7 +166,8 @@ public final class PrometheusTextParser {
 
         while (i < len) {
             // Skip whitespace and commas
-            while (i < len && (labelString.charAt(i) == ',' || labelString.charAt(i) == ' ')) {
+            while (i < len && (labelString.charAt(i) == LABEL_SEPARATOR_CHAR
+                || labelString.charAt(i) == FIELD_SEPARATOR_CHAR)) {
                 i++;
             }
             if (i >= len) {
@@ -138,7 +175,7 @@ public final class PrometheusTextParser {
             }
 
             // Read key
-            int eqIdx = labelString.indexOf('=', i);
+            int eqIdx = labelString.indexOf(KEY_VALUE_SEPARATOR_CHAR, i);
             if (eqIdx < 0) {
                 break;
             }
@@ -146,7 +183,7 @@ public final class PrometheusTextParser {
 
             // Read value (expect ="...")
             int valStart = eqIdx + 1;
-            if (valStart >= len || labelString.charAt(valStart) != '"') {
+            if (valStart >= len || labelString.charAt(valStart) != QUOTED_VALUE_CHAR) {
                 break;
             }
             valStart++; // skip opening quote
@@ -155,10 +192,11 @@ public final class PrometheusTextParser {
             int j = valStart;
             while (j < len) {
                 char c = labelString.charAt(j);
-                if (c == '\\' && j + 1 < len) {
+                if (c == ESCAPE_CHAR && j + 1 < len) {
+                    // Preserve the escaped next character without the escape prefix.
                     value.append(labelString.charAt(j + 1));
                     j += 2;
-                } else if (c == '"') {
+                } else if (c == QUOTED_VALUE_CHAR) {
                     break;
                 } else {
                     value.append(c);

@@ -116,7 +116,7 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
 
             if (pod != null && pod.getSpec() != null && pod.getSpec().getContainers() != null) {
                 // First look for a port named "tcp-prometheus"
-                for (var container : pod.getSpec().getContainers()) {
+                for (io.fabric8.kubernetes.api.model.Container container : pod.getSpec().getContainers()) {
                     if (container.getPorts() != null) {
                         for (ContainerPort cp : container.getPorts()) {
                             if (PROMETHEUS_PORT_NAME.equals(cp.getName())) {
@@ -127,7 +127,7 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
                 }
 
                 // Fallback: check for known default ports
-                for (var container : pod.getSpec().getContainers()) {
+                for (io.fabric8.kubernetes.api.model.Container container : pod.getSpec().getContainers()) {
                     if (container.getPorts() != null) {
                         for (ContainerPort cp : container.getPorts()) {
                             if (cp.getContainerPort() == STRIMZI_METRICS_PORT) {
