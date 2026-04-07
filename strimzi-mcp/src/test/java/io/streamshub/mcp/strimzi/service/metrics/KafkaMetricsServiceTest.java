@@ -62,14 +62,14 @@ class KafkaMetricsServiceTest {
         setField(kafkaMetricsService, "metricsQueryService", metricsQueryService);
 
         when(metricsQueryService.providerName()).thenReturn("pod-scraping");
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), any(), any()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), any(), any(), any(), any()))
             .thenReturn(List.of());
     }
 
     @Test
     void missingClusterNameThrows() {
         ToolCallException ex = assertThrows(ToolCallException.class,
-            () -> kafkaMetricsService.getKafkaMetrics("kafka", null, null, null, null, null));
+            () -> kafkaMetricsService.getKafkaMetrics("kafka", null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Cluster name is required"));
     }
 
@@ -79,7 +79,7 @@ class KafkaMetricsServiceTest {
             .thenReturn(null);
 
         ToolCallException ex = assertThrows(ToolCallException.class,
-            () -> kafkaMetricsService.getKafkaMetrics("kafka", "missing", null, null, null, null));
+            () -> kafkaMetricsService.getKafkaMetrics("kafka", "missing", null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("not found in namespace"));
     }
 
@@ -89,7 +89,7 @@ class KafkaMetricsServiceTest {
             .thenReturn(List.of());
 
         ToolCallException ex = assertThrows(ToolCallException.class,
-            () -> kafkaMetricsService.getKafkaMetrics(null, "missing", null, null, null, null));
+            () -> kafkaMetricsService.getKafkaMetrics(null, "missing", null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("not found in any namespace"));
     }
 
@@ -100,7 +100,7 @@ class KafkaMetricsServiceTest {
             .thenReturn(kafka);
 
         ToolCallException ex = assertThrows(ToolCallException.class,
-            () -> kafkaMetricsService.getKafkaMetrics("kafka", "my-cluster", "invalid", null, null, null));
+            () -> kafkaMetricsService.getKafkaMetrics("kafka", "my-cluster", "invalid", null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Unknown metric category"));
     }
 
@@ -114,7 +114,7 @@ class KafkaMetricsServiceTest {
             .thenReturn(List.of());
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
-            "kafka", "my-cluster", null, null, null, null);
+            "kafka", "my-cluster", null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals(0, response.sampleCount());
@@ -135,11 +135,11 @@ class KafkaMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
                 Map.of("namespace", "kafka"), 0.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
-            "kafka", "my-cluster", "replication", null, null, null);
+            "kafka", "my-cluster", "replication", null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals("my-cluster", response.clusterName());
@@ -160,7 +160,7 @@ class KafkaMetricsServiceTest {
             .thenReturn(List.of(pod));
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
-            "kafka", "my-cluster", null, null, null, null);
+            "kafka", "my-cluster", null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals("my-cluster", response.clusterName());
@@ -178,7 +178,7 @@ class KafkaMetricsServiceTest {
             .thenReturn(List.of(pod));
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
-            "kafka", "my-cluster", null, "custom_metric_a,custom_metric_b", null, null);
+            "kafka", "my-cluster", null, "custom_metric_a,custom_metric_b", null, null, null, null);
 
         assertNotNull(response);
     }
@@ -191,7 +191,7 @@ class KafkaMetricsServiceTest {
             .thenReturn(List.of(kafka1, kafka2));
 
         ToolCallException ex = assertThrows(ToolCallException.class,
-            () -> kafkaMetricsService.getKafkaMetrics(null, "my-cluster", null, null, null, null));
+            () -> kafkaMetricsService.getKafkaMetrics(null, "my-cluster", null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Multiple clusters"));
         assertTrue(ex.getMessage().contains("Specify a namespace"));
     }
@@ -206,11 +206,11 @@ class KafkaMetricsServiceTest {
         when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
             eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
             .thenReturn(List.of(pod));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), eq(60), eq(15)))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15)))
             .thenReturn(List.of());
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
-            "kafka", "my-cluster", "replication", null, 60, 15);
+            "kafka", "my-cluster", "replication", null, 60, null, null, 15);
 
         assertNotNull(response);
     }
@@ -229,7 +229,7 @@ class KafkaMetricsServiceTest {
         // Provide a metric name that's already in the replication category
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
             "kafka", "my-cluster", "replication",
-            "kafka_server_replicamanager_underreplicatedpartitions,custom_metric", null, null);
+            "kafka_server_replicamanager_underreplicatedpartitions,custom_metric", null, null, null, null);
 
         assertNotNull(response);
     }

@@ -51,18 +51,27 @@ public final class KafkaMetricCategories {
 
     private static final Map<String, String> DESCRIPTIONS = Map.of(
         "replication",
-            "kafka_server_replicamanager_underreplicatedpartitions: Partitions with fewer in-sync "
-                + "replicas than configured. Should be 0. >0 means data loss risk.\n"
-                + "kafka_server_replicamanager_leadercount: Number of partition leaders per broker. "
-                + "Should be roughly equal across brokers. Large imbalance = uneven load.\n"
-                + "kafka_server_replicamanager_partitioncount: Total partitions per broker. "
-                + "Should be balanced across brokers.\n"
-                + "kafka_server_replicamanager_offlinereplicacount: Replicas that are offline. "
-                + "Should be 0. >0 = broker or disk issues.\n"
+            "**[CRITICAL - CLUSTER AVAILABILITY]**\n\n"
+                + "kafka_server_replicamanager_underreplicatedpartitions: Partitions with fewer in-sync "
+                + "replicas than configured. Should be 0. >0 means data loss risk. "
+                + "**TIME-SENSITIVE**: If >0 for >5 minutes during normal operations, indicates broker "
+                + "overload, network issues, or disk I/O problems. Transient spikes during rolling "
+                + "restarts are expected (2-3 minutes per broker).\n\n"
+                + "**[CRITICAL - PARTITION AVAILABILITY]**\n\n"
                 + "kafka_controller_kafkacontroller_offlinepartitionscount: Partitions with no active "
-                + "leader. Should be 0. >0 is critical — those partitions are unavailable.\n"
+                + "leader. Should be 0. >0 is critical — those partitions are unavailable to producers "
+                + "and consumers. **IMMEDIATE ACTION REQUIRED**. Check broker health and controller logs.\n\n"
+                + "**[HIGH - REPLICATION LAG]**\n\n"
                 + "kafka_server_replicafetchermanager_maxlag: Maximum replica lag in messages. "
-                + "Growing value = followers falling behind. Transient spikes during restarts are normal.",
+                + "Growing value = followers falling behind. Transient spikes during restarts are normal. "
+                + "**THRESHOLDS**: <1000 = healthy, 1000-10000 = monitor, >10000 = investigate broker load.\n\n"
+                + "kafka_server_replicamanager_leadercount: Number of partition leaders per broker. "
+                + "Should be roughly equal across brokers. Large imbalance = uneven load. "
+                + "**THRESHOLD**: >20% variance indicates need for partition reassignment.\n\n"
+                + "kafka_server_replicamanager_partitioncount: Total partitions per broker. "
+                + "Should be balanced across brokers.\n\n"
+                + "kafka_server_replicamanager_offlinereplicacount: Replicas that are offline. "
+                + "Should be 0. >0 = broker or disk issues. Check pod status and logs.",
         "throughput",
             "kafka_server_brokertopicmetrics_messagesin_total: Cumulative messages received. "
                 + "Rate of change = messages/sec. Sudden drops = producer issues.\n"
@@ -75,29 +84,41 @@ public final class KafkaMetricCategories {
                 + "kafka_server_brokertopicmetrics_totalfetchrequests_total: Total fetch requests. "
                 + "Includes consumer and follower fetches.",
         "resources",
-            "jvm_memory_used_bytes: Current JVM heap/non-heap memory usage. "
-                + "Java normally uses most of its allocated heap — high usage alone is not a problem. "
-                + "Only flag as concerning if combined with pod restarts (check with "
-                + "get_kafka_cluster_pods), OOM errors in logs, or excessive GC overhead.\n"
-                + "jvm_memory_max_bytes: Maximum JVM memory available per pool.\n"
+            "**[MEDIUM - JVM HEALTH]**\n\n"
+                + "jvm_memory_used_bytes: Current JVM heap/non-heap memory usage. "
+                + "**IMPORTANT**: Java normally uses most of its allocated heap — high usage alone is NOT a problem. "
+                + "Only flag as concerning if combined with: (1) pod restarts (check with get_kafka_cluster_pods), "
+                + "(2) OOM errors in logs, or (3) excessive GC overhead (rapidly increasing GC count). "
+                + "**FALSE POSITIVE TRAP**: Do not raise alerts based solely on high heap usage.\n\n"
+                + "jvm_memory_max_bytes: Maximum JVM memory available per pool.\n\n"
+                + "**[MEDIUM - GC PRESSURE]**\n\n"
                 + "jvm_gc_collection_seconds_sum/count: GC time and frequency. "
                 + "High sum/count ratio = long GC pauses. Rapidly increasing count = GC thrashing. "
-                + "Only concerning if it correlates with performance degradation or pod restarts.\n"
-                + "process_cpu_seconds_total: Cumulative CPU time. Rate of change = CPU utilization.\n"
+                + "**THRESHOLDS**: <5% of CPU time = healthy, 5-10% = monitor, >10% = investigate heap sizing. "
+                + "Only concerning if it correlates with performance degradation or pod restarts.\n\n"
+                + "process_cpu_seconds_total: Cumulative CPU time. Rate of change = CPU utilization.\n\n"
+                + "**[LOW - THREAD HEALTH]**\n\n"
                 + "jvm_threads_current: Active JVM thread count. "
-                + "Sudden increases may indicate thread leaks or connection storms.",
+                + "Sudden increases may indicate thread leaks or connection storms. "
+                + "**BASELINE**: Stable count is normal, rapid growth (>50% in <5 min) needs investigation.",
         "performance",
-            "kafka_network_requestmetrics_totaltimems: Total time for request processing "
-                + "(queue + local + remote + response). High values = slow requests.\n"
+            "**[HIGH - BROKER CAPACITY]**\n\n"
                 + "kafka_server_kafkarequesthandlerpool_brokerrequesthandleravgidle_percent: "
-                + "Request handler thread idle ratio. <0.3 = overloaded broker, needs attention. "
-                + "<0.1 = critical.\n"
+                + "Request handler thread idle ratio. **CRITICAL THRESHOLDS**: "
+                + ">0.5 = healthy headroom, 0.3-0.5 = monitor closely, <0.3 = overloaded (add capacity), "
+                + "<0.1 = critical (clients experiencing timeouts).\n\n"
+                + "**[HIGH - REQUEST LATENCY]**\n\n"
                 + "kafka_network_requestmetrics_requestqueuetimems: Time requests spend waiting "
-                + "in the request queue. Increasing = bottleneck, broker can't keep up.\n"
+                + "in the request queue. **THRESHOLDS**: <50ms = good, 50-100ms = acceptable, "
+                + ">100ms = bottleneck, >500ms = severe (clients timing out). "
+                + "Increasing trend = broker can't keep up with load.\n\n"
+                + "kafka_network_requestmetrics_totaltimems: Total time for request processing "
+                + "(queue + local + remote + response). High values = slow requests.\n\n"
                 + "kafka_network_requestmetrics_responsequeuetimems: Time responses wait before being "
-                + "sent. High values = network thread bottleneck.\n"
+                + "sent. High values = network thread bottleneck.\n\n"
+                + "**[MEDIUM - NETWORK CAPACITY]**\n\n"
                 + "kafka_network_socketserver_networkprocessoravgidle_percent: Network thread idle "
-                + "ratio. <0.3 = network bottleneck."
+                + "ratio. **THRESHOLDS**: >0.5 = healthy, 0.3-0.5 = monitor, <0.3 = network bottleneck."
     );
 
     private KafkaMetricCategories() {
@@ -142,5 +163,52 @@ public final class KafkaMetricCategories {
             .map(DESCRIPTIONS::get)
             .collect(Collectors.joining("\n\n"));
         return result.isEmpty() ? null : result;
+    }
+
+    /**
+     * Returns cascading failure patterns for cross-category correlation.
+     *
+     * @return a guide to common failure cascades
+     */
+    public static String cascadingPatterns() {
+        return """
+            **Common Cascading Failure Patterns:**
+            
+            1. **Broker Overload Cascade:**
+               - brokerrequesthandleravgidle < 0.3 (performance)
+               → requestqueuetimems increasing (performance)
+               → underreplicatedpartitions > 0 (replication)
+               → maxlag growing (replication)
+               **Root Cause**: Broker can't keep up with request load
+               **Action**: Scale horizontally or reduce producer/consumer load
+            
+            2. **Network Bottleneck Cascade:**
+               - networkprocessoravgidle < 0.3 (performance)
+               → responsequeuetimems increasing (performance)
+               → maxlag growing (replication)
+               **Root Cause**: Network threads saturated
+               **Action**: Increase network threads or reduce connection count
+            
+            3. **GC Thrashing Cascade:**
+               - jvm_gc_collection_seconds_count rapidly increasing (resources)
+               → process_cpu_seconds_total high (resources)
+               → brokerrequesthandleravgidle dropping (performance)
+               → requestqueuetimems increasing (performance)
+               **Root Cause**: Insufficient heap or memory leak
+               **Action**: Check for OOM in logs, increase heap, or investigate memory leak
+            
+            4. **Controller Failure Cascade:**
+               - offlinepartitionscount > 0 (replication)
+               + leadercount severely imbalanced (replication)
+               **Root Cause**: Controller unable to elect leaders
+               **Action**: Check controller logs, verify ZooKeeper/KRaft health
+            
+            5. **Disk I/O Cascade:**
+               - maxlag growing steadily (replication)
+               + underreplicatedpartitions increasing (replication)
+               + brokerrequesthandleravgidle normal (performance)
+               **Root Cause**: Disk I/O bottleneck (not CPU/network)
+               **Action**: Check disk metrics, consider faster storage or more brokers
+            """;
     }
 }

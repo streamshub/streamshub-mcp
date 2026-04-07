@@ -88,10 +88,12 @@ public final class StrimziToolsPrompts {
      * Metrics category parameter description.
      */
     public static final String METRICS_CATEGORY_DESC =
-        "Metric category: 'replication', 'throughput',"
-            + " 'resources', or 'performance'."
-            + " Defaults to 'replication' if no category"
-            + " or metric names are provided.";
+        "Metric category: 'replication' (CRITICAL - data availability), "
+            + "'performance' (HIGH - broker capacity), "
+            + "'resources' (MEDIUM - JVM health), "
+            + "or 'throughput' (LOW - informational). "
+            + "Defaults to 'replication' if no category or metric names are provided. "
+            + "Start with 'replication' during incident response.";
 
     /**
      * Operator metrics category parameter description.
@@ -114,9 +116,32 @@ public final class StrimziToolsPrompts {
      * Range minutes parameter description.
      */
     public static final String RANGE_MINUTES_DESC =
-        "Time range in minutes for historical data."
-            + " Omit for current point-in-time values."
-            + " Only supported with Prometheus provider.";
+        "Relative time range in minutes from now backwards (e.g., 15, 60, 240). "
+            + "Use 5-15 minutes for incident investigation to see recent trends. "
+            + "Use 60-240 minutes for capacity planning or post-mortem analysis. "
+            + "Omit for current point-in-time values (instant query). "
+            + "Mutually exclusive with startTime/endTime. "
+            + "Only supported with Prometheus provider.";
+
+    /**
+     * Start time parameter description for absolute time ranges.
+     */
+    public static final String START_TIME_DESC =
+        "Start time for absolute time range query (ISO 8601 format, e.g., '2026-04-05T10:00:00Z'). "
+            + "Use with endTime for incident investigation or post-mortem analysis of specific time windows. "
+            + "Mutually exclusive with rangeMinutes. "
+            + "Example: '2026-04-05T10:00:00Z' for 10:00 AM UTC on April 5, 2026. "
+            + "Only supported with Prometheus provider.";
+
+    /**
+     * End time parameter description for absolute time ranges.
+     */
+    public static final String END_TIME_DESC =
+        "End time for absolute time range query (ISO 8601 format, e.g., '2026-04-05T12:00:00Z'). "
+            + "Use with startTime for incident investigation or post-mortem analysis of specific time windows. "
+            + "Mutually exclusive with rangeMinutes. "
+            + "Example: '2026-04-05T12:00:00Z' for 12:00 PM UTC on April 5, 2026. "
+            + "Only supported with Prometheus provider.";
 
     /**
      * Step seconds parameter description.

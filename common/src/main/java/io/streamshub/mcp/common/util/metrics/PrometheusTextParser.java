@@ -5,6 +5,7 @@
 package io.streamshub.mcp.common.util.metrics;
 
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
+import org.jboss.logging.Logger;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -19,6 +20,8 @@ import java.util.Set;
  * Handles comment lines, metrics with and without labels, and optional timestamps.
  */
 public final class PrometheusTextParser {
+
+    private static final Logger LOG = Logger.getLogger(PrometheusTextParser.class);
 
     private PrometheusTextParser() {
         // Utility class — no instantiation
@@ -56,6 +59,7 @@ public final class PrometheusTextParser {
 
             MetricSample sample = parseLine(trimmed);
             if (sample == null) {
+                LOG.debugf("Skipping malformed metric line: %s", trimmed);
                 continue;
             }
 

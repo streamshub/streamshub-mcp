@@ -11,9 +11,11 @@ import io.streamshub.mcp.common.dto.metrics.PodTarget;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.metrics.prometheus.util.PromQLSanitizer;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.config.metrics.StrimziOperatorMetricCategories;
 import io.streamshub.mcp.strimzi.dto.metrics.StrimziOperatorMetricsResponse;
+import io.streamshub.mcp.strimzi.util.TimeRangeValidator;
 import io.strimzi.api.ResourceLabels;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -51,6 +53,8 @@ public class StrimziOperatorMetricsService {
      * @param category     the metric category (optional, defaults to "reconciliation")
      * @param metricNames  explicit metric names (optional, merged with category)
      * @param rangeMinutes range query duration in minutes (optional, null for instant)
+     * @param startTime    absolute start time in ISO 8601 format (optional, use with endTime)
+     * @param endTime      absolute end time in ISO 8601 format (optional, use with startTime)
      * @param stepSeconds  range query step interval (optional, uses default)
      * @return the operator metrics response
      */
@@ -60,10 +64,15 @@ public class StrimziOperatorMetricsService {
                                                        final String category,
                                                        final String metricNames,
                                                        final Integer rangeMinutes,
+                                                       final String startTime,
+                                                       final String endTime,
                                                        final Integer stepSeconds) {
         String ns = InputUtils.normalizeInput(namespace);
         String name = InputUtils.normalizeInput(operatorName);
         String cat = InputUtils.normalizeInput(category);
+
+        // Validate time range parameters
+        TimeRangeValidator.validateTimeRangeParameters(rangeMinutes, startTime, endTime);
 
         // Resolve metric names from category + explicit names
         List<String> resolvedMetrics = resolveMetricNames(cat, metricNames);
@@ -92,7 +101,7 @@ public class StrimziOperatorMetricsService {
 
         // Query metrics via general service
         List<MetricSample> samples = metricsQueryService.queryMetrics(
-            podTargets, labelMatchers, resolvedMetrics, rangeMinutes, stepSeconds);
+            podTargets, labelMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
 
         // Build interpretation from effective categories
         List<String> effectiveCategories = new ArrayList<>(categories);
@@ -126,8 +135,15 @@ public class StrimziOperatorMetricsService {
         if (metricNames != null && !metricNames.isBlank()) {
             for (String metric : metricNames.split(",")) {
                 String trimmed = metric.trim();
-                if (!trimmed.isEmpty() && !resolved.contains(trimmed)) {
-                    resolved.add(trimmed);
+                if (!trimmed.isEmpty()) {
+                    try {
+                        String validated = PromQLSanitizer.sanitizeMetricName(trimmed);
+                        if (!resolved.contains(validated)) {
+                            resolved.add(validated);
+                        }
+                    } catch (IllegalArgumentException e) {
+                        LOG.warnf("Invalid metric name '%s': %s", trimmed, e.getMessage());
+                    }
                 }
             }
         }
@@ -183,4 +199,5 @@ public class StrimziOperatorMetricsService {
 
         return pods;
     }
+
 }

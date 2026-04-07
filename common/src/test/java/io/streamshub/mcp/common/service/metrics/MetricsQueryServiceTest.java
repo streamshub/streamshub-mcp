@@ -70,7 +70,7 @@ class MetricsQueryServiceTest {
         List<String> metrics = List.of("metric_a");
 
         IllegalStateException ex = assertThrows(IllegalStateException.class,
-            () -> metricsQueryService.queryMetrics(targets, labels, metrics, null, null));
+            () -> metricsQueryService.queryMetrics(targets, labels, metrics, null, null, null, null));
         assertTrue(ex.getMessage().contains("No metrics provider configured"));
     }
 
@@ -87,7 +87,7 @@ class MetricsQueryServiceTest {
         List<String> metrics = List.of("metric_a");
 
         List<MetricSample> result = metricsQueryService.queryMetrics(
-            targets, labels, metrics, null, null);
+            targets, labels, metrics, null, null, null, null);
 
         assertEquals(expected, result);
 
@@ -109,7 +109,7 @@ class MetricsQueryServiceTest {
         labels.put("namespace", "ns");
         List<String> metrics = List.of("metric_a");
 
-        metricsQueryService.queryMetrics(targets, labels, metrics, 5, 30);
+        metricsQueryService.queryMetrics(targets, labels, metrics, 5, null, null, 30);
 
         ArgumentCaptor<MetricsQueryParams> captor = ArgumentCaptor.forClass(MetricsQueryParams.class);
         verify(metricsProvider).queryMetrics(captor.capture());
@@ -128,7 +128,7 @@ class MetricsQueryServiceTest {
         metricsQueryService.queryMetrics(
             List.of(PodTarget.of("ns", "pod")),
             Map.of("namespace", "ns"),
-            List.of("metric_a"), 5, null);
+            List.of("metric_a"), 5, null, null, null);
 
         ArgumentCaptor<MetricsQueryParams> captor = ArgumentCaptor.forClass(MetricsQueryParams.class);
         verify(metricsProvider).queryMetrics(captor.capture());
