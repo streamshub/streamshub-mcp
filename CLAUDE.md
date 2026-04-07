@@ -24,26 +24,33 @@ Checkstyle runs during compile phase. Fix all violations before committing.
 
 ```
 io.streamshub.mcp.common.
-├── config/    → KubernetesConstants (labels, conditions, phases, health status)
-├── dto/       → PodSummaryResponse, PodLogsResult (generic pod DTOs)
-├── service/   → KubernetesResourceService, PodsService, DeploymentService
-└── util/      → InputUtils
+├── config/      → KubernetesConstants (labels, conditions, phases, health status)
+├── dto/         → PodSummaryResponse, PodLogsResult, LogCollectionOptions (generic pod DTOs)
+├── readiness/   → KubernetesConnectionReadinessCheck (health check for kube API)
+├── service/     → KubernetesResourceService, PodsService, DeploymentService, CompletionHelper
+└── util/        → InputUtils
 ```
 
 ### Strimzi module (`strimzi-mcp/`)
 
 ```
 io.streamshub.mcp.strimzi.
-├── tool/      → MCP tool definitions (thin wrappers, no logic)
-├── service/   → Business logic (KafkaService, KafkaTopicService, KafkaNodePoolService, StrimziOperatorService)
-├── dto/       → Strimzi response records (7 DTOs)
-├── resource/  → MCP resource templates and ResourceSubscriptionManager
-└── config/    → StrimziConstants (labels, resource URIs), StrimziToolsPrompts
+├── tool/              → MCP tool definitions (thin wrappers, no logic)
+├── service/           → Business logic (KafkaService, KafkaTopicService, KafkaNodePoolService,
+│                        StrimziOperatorService, CompletionService)
+├── dto/               → Strimzi response records (10 DTOs)
+├── prompt/            → MCP prompt templates (DiagnoseClusterIssuePrompt, TroubleshootConnectivityPrompt)
+├── resource/          → ResourceSubscriptionManager (Kubernetes watches → MCP notifications)
+├── resource/template/ → MCP resource templates and completions (5 templates)
+└── config/            → StrimziConstants (labels, resource URIs), StrimziToolsPrompts
 ```
 
 ### Layer rules
 
 - **Tools** call domain services and return typed responses. No try/catch, no business logic.
+- **Prompts** return structured step-by-step instructions referencing tool names. No logic.
+- **Resource templates** fetch and serialize live Kubernetes state. Thin wrappers over services.
+- **Completions** delegate to `CompletionService` / `CompletionHelper`. No logic.
 - **Domain services** (strimzi) contain all business logic. Throw `ToolCallException` for errors.
 - **Common services** are generic Kubernetes helpers shared across modules.
 - **DTOs** are immutable `record` types. Use static factory methods (`of()`, `empty()`) not constructors directly.
@@ -93,6 +100,119 @@ to silently drop all MCP tools during discovery. Not even empty `@Tool.Annotatio
 - No filler phrases ("Perfect for...", "Essential for...", "Use this to...")
 - State what it returns, not what it's useful for
 - Use string concatenation for multi-line: `"First part." + " Second part."`
+
+### Tools with progress and cancellation
+
+Long-running tools (e.g., log collection across many pods) accept MCP framework parameters
+for client feedback. These are injected by the framework — not user-supplied:
+
+```java
+@Tool(name = "get_kafka_cluster_logs", description = "...")
+public KafkaClusterLogsResponse getKafkaClusterLogs(
+    @ToolArg(description = "...") final String clusterName,
+    @ToolArg(description = "...", required = false) final String namespace,
+    final McpLog mcpLog,           // send log-level notifications to client
+    final Progress progress,        // report completion percentage
+    final Cancellation cancellation // check if client cancelled mid-operation
+) {
+    // Build options with callbacks
+    LogCollectionOptions options = LogCollectionOptions.builder(...)
+        .notifier(mcpLog::info)
+        .cancelCheck(cancellation::skipProcessingIfCancelled)
+        .progressCallback(...)
+        .build();
+    return kafkaService.getClusterLogs(namespace, clusterName, options);
+}
+```
+
+## MCP Prompt Template Pattern
+
+Prompt templates encode domain knowledge and guide LLMs through structured workflows.
+They tell the LLM exactly which tools to call and in what order.
+
+```java
+@Singleton
+public class XxxPrompt {
+
+    @Prompt(name = "verb-noun", description = "What this workflow does.")
+    PromptMessage execute(
+        @PromptArg(description = "...") final String requiredParam,
+        @PromptArg(description = "...", required = false) final String optionalParam
+    ) {
+        String instructions = "Step-by-step instructions referencing MCP tools...";
+        return PromptMessage.withUserRole(new TextContent(instructions));
+    }
+}
+```
+
+- Prompt names use `kebab-case`: `diagnose-cluster-issue`, `troubleshoot-connectivity`
+- Return `PromptMessage.withUserRole(new TextContent(...))` with step-by-step instructions
+- Reference specific tool names in the instructions so the LLM knows what to call
+
+## MCP Resource Template Pattern
+
+Resource templates expose live Kubernetes state as structured JSON that clients can attach
+to conversations for immediate context — without requiring tool calls.
+
+```java
+@Singleton
+public class XxxResource {
+
+    @Inject
+    XxxService xxxService;
+
+    @ResourceTemplate(
+        name = "resource-name",
+        uriTemplate = StrimziConstants.ResourceUris.RESOURCE_PATTERN,
+        description = "What this resource exposes.",
+        mimeType = "application/json"
+    )
+    String getResource(final String namespace, final String name) {
+        // Fetch and serialize resource data
+    }
+}
+```
+
+- URI templates use `StrimziConstants.ResourceUris.*` constants — never hardcode URI strings
+- Return serialized JSON strings
+- Resource names use `kebab-case`: `kafka-cluster-status`, `kafka-cluster-topology`
+
+## MCP Completion Pattern
+
+Completions provide IDE-like autocomplete for prompt and resource template parameters
+by querying Kubernetes in real-time.
+
+```java
+@Singleton
+public class XxxCompletions {
+
+    @Inject
+    CompletionService completionService;
+
+    @CompletePrompt("prompt-name")
+    CompletionResponse completePrompt(final CompleteContext context) {
+        return completionService.completeByArgName(context);
+    }
+
+    @CompleteResourceTemplate("resource-name")
+    CompletionResponse completeResource(final CompleteContext context) {
+        return completionService.completeByArgName(context);
+    }
+}
+```
+
+- Use `CompletionService` (strimzi) for domain-specific completions
+- Use `CompletionHelper` (common) for generic Kubernetes completions (namespaces, etc.)
+
+## Resource Subscription Pattern
+
+`ResourceSubscriptionManager` establishes Kubernetes watches on startup and sends
+`notifications/resources/updated` to subscribed MCP clients when resource state changes.
+
+- Watches Kafka CRs, KafkaNodePool CRs, KafkaTopic CRs, and operator Deployments
+- De-duplicates by comparing serialized JSON against last known state
+- Started/stopped via `@Observes StartupEvent` / `@Observes ShutdownEvent`
+- Can be disabled via `mcp.resource-watches.enabled=false` (used in tests)
 
 ## Domain Service Pattern
 
@@ -245,8 +365,24 @@ Before adding a new constant, check if it already exists in `ResourceLabels`, `P
 ## Testing
 
 Tests use Quarkus test framework with Mockito for Kubernetes client mocking.
-Test files:
-- `strimzi-mcp/src/test/java/io/streamshub/mcp/strimzi/service/StrimziServiceTest.java` - service unit tests
-- `strimzi-mcp/src/test/java/io/streamshub/mcp/strimzi/tool/McpToolsTest.java` - MCP tool integration tests
+
+Service tests (one per domain service):
+- `strimzi-mcp/src/test/java/.../service/KafkaServiceTest.java`
+- `strimzi-mcp/src/test/java/.../service/KafkaTopicServiceTest.java`
+- `strimzi-mcp/src/test/java/.../service/StrimziOperatorServiceTest.java`
+
+Tool tests (one per tools class):
+- `strimzi-mcp/src/test/java/.../tool/KafkaToolsTest.java`
+- `strimzi-mcp/src/test/java/.../tool/KafkaTopicToolsTest.java`
+- `strimzi-mcp/src/test/java/.../tool/KafkaNodePoolToolsTest.java`
+- `strimzi-mcp/src/test/java/.../tool/StrimziOperatorToolsTest.java`
+- `strimzi-mcp/src/test/java/.../tool/McpDiscoveryTest.java`
+
+Common module tests:
+- `common/src/test/java/.../readiness/KubernetesConnectionReadinessCheckTest.java`
+- `common/src/test/java/.../service/CompletionHelperTest.java`
+- `common/src/test/java/.../service/DeploymentServiceTest.java`
+- `common/src/test/java/.../service/PodsServiceTest.java`
+- `common/src/test/java/.../util/InputUtilsTest.java`
 
 Tests verify service behavior without a live Kubernetes cluster.
