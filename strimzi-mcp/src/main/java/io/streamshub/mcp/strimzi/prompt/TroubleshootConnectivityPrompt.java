@@ -87,12 +87,22 @@ public class TroubleshootConnectivityPrompt {
             - **nodeport**: accessible via any cluster node IP on the assigned node port
             - **ingress**: accessible via the ingress hostname
 
-            ## Step 4: Check pod health
+            ## Step 4: Check TLS certificates and authentication
+            Use `get_kafka_cluster_certificates` to retrieve certificate metadata \
+            and listener authentication configuration.
+            Check for:
+            - Expired or soon-to-expire certificates (< 30 days)
+            - Mismatched certificate types for the listener being investigated
+            - Authentication type configured on each listener \
+            (scram-sha-512, tls, oauth, or none)
+            - Whether TLS is enabled on the listener the client is trying to use
+
+            ## Step 5: Check pod health
             Use `get_kafka_cluster_pods` to verify broker pods are running and ready.
             If broker pods are not ready, clients cannot connect even if the \
             listener is configured correctly.
 
-            ## Step 5: Check broker logs for connection errors
+            ## Step 6: Check broker logs for connection errors
             If pods are running but connectivity issues persist, use \
             `get_kafka_cluster_logs` to check for errors related to listeners \
             or networking.
@@ -100,7 +110,7 @@ public class TroubleshootConnectivityPrompt {
             listener binding failures, port conflicts, certificate issues, \
             `SocketException`, `SSLHandshakeException`, or `SaslAuthenticationException`.
 
-            ## Step 6: Summarize connectivity information
+            ## Step 7: Summarize connectivity information
             Provide a summary with:
             - Available listeners and their bootstrap addresses
             - Connection protocol for each listener (PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL)
