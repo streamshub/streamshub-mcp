@@ -23,6 +23,11 @@
             <artifactId>api</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.streamshub</groupId>
+            <artifactId>streamshub-metrics-prometheus</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-container-image-jib</artifactId>
         </dependency>

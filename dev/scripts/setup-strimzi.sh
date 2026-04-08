@@ -5,11 +5,16 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EXAMPLES_DIR="$SCRIPT_DIR/../manifests/strimzi"
+STRIMZI_DIR="$SCRIPT_DIR/../manifests/strimzi"
+PROMETHEUS_DIR="$SCRIPT_DIR/../manifests/prometheus"
 
 OPERATOR_NS="strimzi"
 KAFKA_NS="strimzi-kafka"
 CLUSTER_NAME="mcp-cluster"
+MONITORING_NS="monitoring"
+
+INSTALL_PROMETHEUS=false
+OCP=false
 
 # Colors
 RED='\033[0;31m'
@@ -35,11 +40,51 @@ check_kubectl() {
     log_success "kubectl connected to cluster"
 }
 
+deploy_prometheus() {
+    log_info "Deploying Prometheus operator and instance..."
+    kubectl apply --server-side -k "$PROMETHEUS_DIR/operator/"
+
+    log_info "Waiting for Prometheus operator to be ready..."
+    kubectl wait --for=condition=Available \
+        deployment/prometheus-operator \
+        -n "$MONITORING_NS" \
+        --timeout=120s
+    log_success "Prometheus operator is ready"
+
+    kubectl apply -k "$PROMETHEUS_DIR/additional-properties/"
+    kubectl apply -k "$PROMETHEUS_DIR/instance/"
+
+    log_info "Waiting for Prometheus instance to be ready..."
+    kubectl wait --for=condition=Available \
+        prometheus/prometheus \
+        -n "$MONITORING_NS" \
+        --timeout=120s 2>/dev/null || \
+    kubectl rollout status statefulset/prometheus-prometheus \
+        -n "$MONITORING_NS" \
+        --timeout=120s 2>/dev/null || true
+    log_success "Prometheus is ready"
+}
+
+teardown_prometheus() {
+    log_info "Removing Prometheus instance..."
+    kubectl delete -k "$PROMETHEUS_DIR/instance/" --ignore-not-found
+    kubectl delete -k "$PROMETHEUS_DIR/additional-properties/" --ignore-not-found
+
+    log_info "Removing Prometheus operator..."
+    kubectl delete -k "$PROMETHEUS_DIR/operator/" --ignore-not-found
+
+    log_success "Prometheus teardown complete"
+}
+
 deploy() {
     check_kubectl
 
+    if [ "$INSTALL_PROMETHEUS" = true ]; then
+        deploy_prometheus
+    fi
+
     log_info "Deploying Strimzi operator..."
-    kubectl apply -k "$EXAMPLES_DIR/strimzi-operator/"
+    kubectl apply -k "$STRIMZI_DIR/strimzi-operator/"
 
     log_info "Waiting for Strimzi operator to be ready..."
     kubectl wait --for=condition=Available \
@@ -49,7 +94,13 @@ deploy() {
     log_success "Strimzi operator is ready"
 
     log_info "Deploying Kafka cluster '$CLUSTER_NAME'..."
-    kubectl apply -k "$EXAMPLES_DIR/kafka/"
+    if [ "$OCP" = true ]; then
+        log_info "Using OpenShift route listener"
+        kubectl apply -k "$STRIMZI_DIR/kafka/"
+    else
+        log_info "Using NodePort listener"
+        kubectl apply -k "$STRIMZI_DIR/kafka-kubernetes/"
+    fi
 
     log_info "Waiting for Kafka cluster to be ready (this may take a few minutes)..."
     kubectl wait kafka/"$CLUSTER_NAME" \
@@ -59,13 +110,19 @@ deploy() {
     log_success "Kafka cluster '$CLUSTER_NAME' is ready"
 
     echo ""
-    log_success "Strimzi deployment complete"
+    log_success "Deployment complete"
     echo ""
+    if [ "$INSTALL_PROMETHEUS" = true ]; then
+        echo "Monitoring namespace: $MONITORING_NS"
+    fi
     echo "Operator namespace:  $OPERATOR_NS"
     echo "Kafka namespace:     $KAFKA_NS"
     echo "Cluster name:        $CLUSTER_NAME"
     echo ""
     echo "Verify with:"
+    if [ "$INSTALL_PROMETHEUS" = true ]; then
+        echo "  kubectl get pods -n $MONITORING_NS"
+    fi
     echo "  kubectl get pods -n $OPERATOR_NS"
     echo "  kubectl get pods -n $KAFKA_NS"
     echo "  kubectl get kafka -n $KAFKA_NS"
@@ -75,15 +132,41 @@ teardown() {
     check_kubectl
 
     log_info "Removing Kafka cluster..."
-    kubectl delete -k "$EXAMPLES_DIR/kafka/" --ignore-not-found
+    if [ "$OCP" = true ]; then
+        kubectl delete -k "$STRIMZI_DIR/kafka/" --ignore-not-found
+    else
+        kubectl delete -k "$STRIMZI_DIR/kafka-kubernetes/" --ignore-not-found
+    fi
 
     log_info "Removing Strimzi operator..."
-    kubectl delete -k "$EXAMPLES_DIR/strimzi-operator/" --ignore-not-found
+    kubectl delete -k "$STRIMZI_DIR/strimzi-operator/" --ignore-not-found
 
-    log_success "Strimzi teardown complete"
+    if [ "$INSTALL_PROMETHEUS" = true ]; then
+        teardown_prometheus
+    fi
+
+    log_success "Teardown complete"
 }
 
-case "${1:-deploy}" in
+COMMAND="${1:-deploy}"
+shift || true
+
+for arg in "$@"; do
+    case "$arg" in
+        "--prometheus")
+            INSTALL_PROMETHEUS=true
+            ;;
+        "--ocp")
+            OCP=true
+            ;;
+        *)
+            log_error "Unknown option: $arg"
+            exit 1
+            ;;
+    esac
+done
+
+case "$COMMAND" in
     "deploy"|"up")
         deploy
         ;;
@@ -91,15 +174,19 @@ case "${1:-deploy}" in
         teardown
         ;;
     "help"|"-h"|"--help")
-        echo "Usage: $0 [command]"
+        echo "Usage: $0 [command] [options]"
         echo ""
         echo "Commands:"
         echo "  deploy   - Deploy Strimzi operator and Kafka cluster (default)"
         echo "  teardown - Remove Strimzi operator and Kafka cluster"
         echo "  help     - Show this help"
+        echo ""
+        echo "Options:"
+        echo "  --ocp         Use OpenShift route listener (default: NodePort)"
+        echo "  --prometheus  Also deploy/remove Prometheus for metrics collection"
         ;;
     *)
-        log_error "Unknown command: $1"
+        log_error "Unknown command: $COMMAND"
         echo "Use '$0 help' for usage information"
         exit 1
         ;;

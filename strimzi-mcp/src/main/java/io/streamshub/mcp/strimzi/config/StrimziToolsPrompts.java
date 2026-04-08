@@ -70,12 +70,75 @@ public final class StrimziToolsPrompts {
             + " Omit for summary only.";
 
     /**
+     * Operator name parameter description for metrics.
+     */
+    public static final String OPERATOR_NAME_DESC =
+        "Strimzi operator deployment name."
+            + " Omit to auto-discover.";
+
+    /**
      * Listener name parameter description.
      */
     public static final String LISTENER_DESC =
         "Listener name to filter results"
             + " (e.g., 'plain', 'tls', 'external')."
             + " Omit to return all listeners.";
+
+    /**
+     * Metrics category parameter description.
+     */
+    public static final String METRICS_CATEGORY_DESC =
+        "Metric category: 'replication', 'performance',"
+            + " 'resources', or 'throughput'."
+            + " Defaults to 'replication' if omitted.";
+
+    /**
+     * Operator metrics category parameter description.
+     */
+    public static final String OPERATOR_METRICS_CATEGORY_DESC =
+        "Metric category: 'reconciliation', 'resources',"
+            + " or 'jvm'."
+            + " Defaults to 'reconciliation' if no category"
+            + " or metric names are provided.";
+
+    /**
+     * Metric names parameter description.
+     */
+    public static final String METRICS_NAMES_DESC =
+        "Comma-separated list of explicit Prometheus"
+            + " metric names to retrieve."
+            + " Can be combined with a category.";
+
+    /**
+     * Range minutes parameter description.
+     */
+    public static final String RANGE_MINUTES_DESC =
+        "Relative time range in minutes from now"
+            + " (e.g., 15, 60). Omit for instant query."
+            + " Mutually exclusive with startTime/endTime.";
+
+    /**
+     * Start time parameter description for absolute time ranges.
+     */
+    public static final String START_TIME_DESC =
+        "Absolute start time in ISO 8601 format"
+            + " (e.g., '2025-01-15T10:00:00Z')."
+            + " Use with endTime; mutually exclusive with rangeMinutes.";
+
+    /**
+     * End time parameter description for absolute time ranges.
+     */
+    public static final String END_TIME_DESC =
+        "Absolute end time in ISO 8601 format"
+            + " (e.g., '2025-01-15T12:00:00Z')."
+            + " Use with startTime; mutually exclusive with rangeMinutes.";
+
+    /**
+     * Step seconds parameter description.
+     */
+    public static final String STEP_SECONDS_DESC =
+        "Query resolution step in seconds for range queries."
+            + " Defaults to server-configured value (typically 60).";
 
     private StrimziToolsPrompts() {
     }
