@@ -40,6 +40,31 @@ public final class StrimziConstants {
     }
 
     /**
+     * Constants for the Strimzi entity operator deployment.
+     * The entity operator runs as a single pod per Kafka cluster with two containers:
+     * user-operator and topic-operator, each exposing metrics on a different port.
+     */
+    public static final class EntityOperator {
+        /**
+         * Value of the {@code app.kubernetes.io/name} label on entity operator pods.
+         */
+        public static final String APP_NAME_VALUE = "entity-operator";
+
+        /**
+         * Metrics port for the user-operator container.
+         */
+        public static final int USER_OPERATOR_PORT = 8081;
+
+        /**
+         * Metrics port for the topic-operator container.
+         */
+        public static final int TOPIC_OPERATOR_PORT = 8080;
+
+        private EntityOperator() {
+        }
+    }
+
+    /**
      * Values for the strimzi.io/component-type label.
      */
     public static final class ComponentTypes {

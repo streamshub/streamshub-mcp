@@ -129,7 +129,7 @@ public class MetricsQueryService {
             }
         }
 
-        // Relative time range (existing)
+        // Relative time range
         if (rangeMinutes != null && rangeMinutes > 0) {
             Instant end = Instant.now();
             Instant start = end.minusSeconds((long) rangeMinutes * SECONDS_PER_MINUTE);
@@ -137,7 +137,7 @@ public class MetricsQueryService {
             return MetricsQueryParams.range(metricNames, labelMatchers, start, end, step);
         }
 
-        // Instant query (existing)
+        // Instant query
         return MetricsQueryParams.instant(metricNames, labelMatchers, podTargets);
     }
 }

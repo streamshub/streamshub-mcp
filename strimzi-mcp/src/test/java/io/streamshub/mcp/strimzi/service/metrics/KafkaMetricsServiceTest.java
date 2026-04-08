@@ -11,6 +11,7 @@ import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
+import io.streamshub.mcp.strimzi.service.KafkaService;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,6 +54,9 @@ class KafkaMetricsServiceTest {
     @Mock
     MetricsQueryService metricsQueryService;
 
+    @Mock
+    KafkaService kafkaService;
+
     private KafkaMetricsService kafkaMetricsService;
 
     @BeforeEach
@@ -60,6 +64,7 @@ class KafkaMetricsServiceTest {
         kafkaMetricsService = new KafkaMetricsService();
         setField(kafkaMetricsService, "k8sService", k8sService);
         setField(kafkaMetricsService, "metricsQueryService", metricsQueryService);
+        setField(kafkaMetricsService, "kafkaService", kafkaService);
 
         when(metricsQueryService.providerName()).thenReturn("pod-scraping");
         when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), any(), any(), any(), any()))
@@ -75,8 +80,8 @@ class KafkaMetricsServiceTest {
 
     @Test
     void clusterNotFoundInNamespaceThrows() {
-        when(k8sService.getResource(eq(Kafka.class), eq("kafka"), eq("missing")))
-            .thenReturn(null);
+        when(kafkaService.findKafkaCluster("kafka", "missing"))
+            .thenThrow(new ToolCallException("Kafka cluster 'missing' not found in namespace kafka"));
 
         ToolCallException ex = assertThrows(ToolCallException.class,
             () -> kafkaMetricsService.getKafkaMetrics("kafka", "missing", null, null, null, null, null, null));
@@ -85,8 +90,8 @@ class KafkaMetricsServiceTest {
 
     @Test
     void clusterNotFoundInAnyNamespaceThrows() {
-        when(k8sService.queryResourcesInAnyNamespace(Kafka.class))
-            .thenReturn(List.of());
+        when(kafkaService.findKafkaCluster(null, "missing"))
+            .thenThrow(new ToolCallException("Kafka cluster 'missing' not found in any namespace"));
 
         ToolCallException ex = assertThrows(ToolCallException.class,
             () -> kafkaMetricsService.getKafkaMetrics(null, "missing", null, null, null, null, null, null));
@@ -96,7 +101,7 @@ class KafkaMetricsServiceTest {
     @Test
     void unknownCategoryThrows() {
         Kafka kafka = createKafka("my-cluster", "kafka");
-        when(k8sService.getResource(eq(Kafka.class), eq("kafka"), eq("my-cluster")))
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
 
         ToolCallException ex = assertThrows(ToolCallException.class,
@@ -107,7 +112,7 @@ class KafkaMetricsServiceTest {
     @Test
     void emptyPodsReturnsEmptyResponse() {
         Kafka kafka = createKafka("my-cluster", "kafka");
-        when(k8sService.getResource(eq(Kafka.class), eq("kafka"), eq("my-cluster")))
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
         when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
             eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
@@ -126,7 +131,7 @@ class KafkaMetricsServiceTest {
         Kafka kafka = createKafka("my-cluster", "kafka");
         Pod pod = createPod("my-cluster-kafka-0", "kafka");
 
-        when(k8sService.getResource(eq(Kafka.class), eq("kafka"), eq("my-cluster")))
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
         when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
             eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
@@ -153,7 +158,7 @@ class KafkaMetricsServiceTest {
         Kafka kafka = createKafka("my-cluster", "kafka");
         Pod pod = createPod("my-cluster-kafka-0", "kafka");
 
-        when(k8sService.getResource(eq(Kafka.class), eq("kafka"), eq("my-cluster")))
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
         when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
             eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
@@ -171,7 +176,7 @@ class KafkaMetricsServiceTest {
         Kafka kafka = createKafka("my-cluster", "kafka");
         Pod pod = createPod("my-cluster-kafka-0", "kafka");
 
-        when(k8sService.getResource(eq(Kafka.class), eq("kafka"), eq("my-cluster")))
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
         when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
             eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
@@ -185,15 +190,13 @@ class KafkaMetricsServiceTest {
 
     @Test
     void multipleClustersWithSameNameThrows() {
-        Kafka kafka1 = createKafka("my-cluster", "kafka-a");
-        Kafka kafka2 = createKafka("my-cluster", "kafka-b");
-        when(k8sService.queryResourcesInAnyNamespace(Kafka.class))
-            .thenReturn(List.of(kafka1, kafka2));
+        when(kafkaService.findKafkaCluster(null, "my-cluster"))
+            .thenThrow(new ToolCallException(
+                "Multiple clusters named 'my-cluster' found in namespaces: kafka-a, kafka-b. Please specify namespace."));
 
         ToolCallException ex = assertThrows(ToolCallException.class,
             () -> kafkaMetricsService.getKafkaMetrics(null, "my-cluster", null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Multiple clusters"));
-        assertTrue(ex.getMessage().contains("Specify a namespace"));
     }
 
     @Test
@@ -201,7 +204,7 @@ class KafkaMetricsServiceTest {
         Kafka kafka = createKafka("my-cluster", "kafka");
         Pod pod = createPod("my-cluster-kafka-0", "kafka");
 
-        when(k8sService.getResource(eq(Kafka.class), eq("kafka"), eq("my-cluster")))
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
         when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
             eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
@@ -220,7 +223,7 @@ class KafkaMetricsServiceTest {
         Kafka kafka = createKafka("my-cluster", "kafka");
         Pod pod = createPod("my-cluster-kafka-0", "kafka");
 
-        when(k8sService.getResource(eq(Kafka.class), eq("kafka"), eq("my-cluster")))
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
         when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
             eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))

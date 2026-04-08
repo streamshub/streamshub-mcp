@@ -77,6 +77,14 @@ public final class StrimziToolsPrompts {
             + " Omit to auto-discover.";
 
     /**
+     * Cluster name parameter description for operator metrics.
+     */
+    public static final String OPERATOR_CLUSTER_DESC =
+        "Kafka cluster name to include entity operator"
+            + " (user-operator and topic-operator) metrics."
+            + " Omit for cluster operator metrics only.";
+
+    /**
      * Listener name parameter description.
      */
     public static final String LISTENER_DESC =

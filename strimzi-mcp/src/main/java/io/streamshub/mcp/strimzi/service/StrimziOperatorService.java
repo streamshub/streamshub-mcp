@@ -23,6 +23,7 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Service for Strimzi operator operations.
@@ -125,8 +126,7 @@ public class StrimziOperatorService {
             }
         }
 
-        List<Pod> pods = k8sService.queryResourcesByLabel(
-            Pod.class, ns, ResourceLabels.STRIMZI_KIND_LABEL, StrimziConstants.KindValues.CLUSTER_OPERATOR);
+        List<Pod> pods = findClusterOperatorPods(ns, operatorName);
 
         if (pods.isEmpty()) {
             return StrimziOperatorLogsResponse.notFound(ns);
@@ -135,6 +135,58 @@ public class StrimziOperatorService {
         PodLogsResult result = podsService.collectLogs(ns, pods, options);
         return StrimziOperatorLogsResponse.of(ns, result.logs(), result.podNames(),
             result.hasErrors(), result.errorCount(), result.totalLines(), result.hasMore());
+    }
+
+    /**
+     * Find cluster operator pods, optionally filtered by namespace and operator name.
+     * Used by metrics services and other consumers that need CO pod references.
+     *
+     * @param namespace    the namespace (null for all namespaces)
+     * @param operatorName the operator deployment name prefix (null for any)
+     * @return list of cluster operator pods (may be empty)
+     */
+    public List<Pod> findClusterOperatorPods(final String namespace, final String operatorName) {
+        List<Pod> pods;
+
+        if (namespace != null) {
+            pods = k8sService.queryResourcesByLabel(
+                Pod.class, namespace,
+                ResourceLabels.STRIMZI_KIND_LABEL, StrimziConstants.KindValues.CLUSTER_OPERATOR);
+        } else {
+            pods = k8sService.queryResourcesByLabelInAnyNamespace(
+                Pod.class,
+                ResourceLabels.STRIMZI_KIND_LABEL, StrimziConstants.KindValues.CLUSTER_OPERATOR);
+        }
+
+        if (operatorName != null) {
+            pods = pods.stream()
+                .filter(pod -> pod.getMetadata().getName().startsWith(operatorName))
+                .toList();
+        }
+
+        return pods;
+    }
+
+    /**
+     * Find entity operator pods for a specific Kafka cluster.
+     * The entity operator is deployed as part of a Kafka cluster and manages
+     * KafkaUser and KafkaTopic custom resources.
+     *
+     * @param namespace   the namespace (null for all namespaces)
+     * @param clusterName the Kafka cluster name
+     * @return list of entity operator pods (may be empty)
+     */
+    public List<Pod> findEntityOperatorPods(final String namespace, final String clusterName) {
+        Map<String, String> labels = Map.of(
+            KubernetesConstants.Labels.APP_NAME, StrimziConstants.EntityOperator.APP_NAME_VALUE,
+            ResourceLabels.STRIMZI_CLUSTER_LABEL, clusterName
+        );
+
+        if (namespace != null) {
+            return k8sService.queryResourcesByLabels(Pod.class, namespace, labels);
+        } else {
+            return k8sService.queryResourcesByLabelsInAnyNamespace(Pod.class, labels);
+        }
     }
 
     /**

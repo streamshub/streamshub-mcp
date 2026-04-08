@@ -13,11 +13,12 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Response containing metrics data from a Strimzi cluster operator.
+ * Response containing metrics data from Strimzi operators.
  * For instant queries, metrics are returned as a flat list in {@code metrics}.
  * For range queries, metrics are grouped into compact time series in {@code timeSeries}.
  *
  * @param operatorName  the operator deployment name
+ * @param clusterName   the Kafka cluster name (present when entity operator metrics are included)
  * @param namespace     the Kubernetes namespace
  * @param provider      the metrics provider used
  * @param categories    the metric categories requested
@@ -32,6 +33,7 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record StrimziOperatorMetricsResponse(
     @JsonProperty("operator_name") String operatorName,
+    @JsonProperty("cluster_name") String clusterName,
     @JsonProperty("namespace") String namespace,
     @JsonProperty("provider") String provider,
     @JsonProperty("categories") List<String> categories,
@@ -49,6 +51,7 @@ public record StrimziOperatorMetricsResponse(
      * groups them into compact time series. Otherwise returns a flat metrics list.
      *
      * @param operatorName   the operator deployment name
+     * @param clusterName    the Kafka cluster name (null if no entity operator metrics)
      * @param namespace      the Kubernetes namespace
      * @param provider       the metrics provider name
      * @param categories     the requested categories
@@ -56,7 +59,8 @@ public record StrimziOperatorMetricsResponse(
      * @param interpretation brief guide for interpreting the returned metrics
      * @return a response with the metric data
      */
-    public static StrimziOperatorMetricsResponse of(final String operatorName, final String namespace,
+    public static StrimziOperatorMetricsResponse of(final String operatorName, final String clusterName,
+                                                     final String namespace,
                                                      final String provider, final List<String> categories,
                                                      final List<MetricSample> samples,
                                                      final String interpretation) {
@@ -65,18 +69,21 @@ public record StrimziOperatorMetricsResponse(
             .distinct()
             .count();
 
-        String msg = String.format("Retrieved %d samples across %d metrics from operator '%s'",
-            samples.size(), metricCount, operatorName);
+        String msg = clusterName != null
+            ? String.format("Retrieved %d samples across %d metrics from operator '%s' and entity operator for cluster '%s'",
+                samples.size(), metricCount, operatorName, clusterName)
+            : String.format("Retrieved %d samples across %d metrics from operator '%s'",
+                samples.size(), metricCount, operatorName);
 
         boolean isRangeData = !samples.isEmpty() && samples.getFirst().timestamp() != null;
 
         if (isRangeData) {
             List<MetricTimeSeries> series = MetricTimeSeries.fromSamples(samples);
-            return new StrimziOperatorMetricsResponse(operatorName, namespace, provider, categories,
+            return new StrimziOperatorMetricsResponse(operatorName, clusterName, namespace, provider, categories,
                 metricCount, samples.size(), null, series, interpretation, Instant.now(), msg);
         }
 
-        return new StrimziOperatorMetricsResponse(operatorName, namespace, provider, categories,
+        return new StrimziOperatorMetricsResponse(operatorName, clusterName, namespace, provider, categories,
             metricCount, samples.size(), samples, null, interpretation, Instant.now(), msg);
     }
 
@@ -90,7 +97,7 @@ public record StrimziOperatorMetricsResponse(
      */
     public static StrimziOperatorMetricsResponse empty(final String operatorName, final String namespace,
                                                         final String message) {
-        return new StrimziOperatorMetricsResponse(operatorName, namespace, null, List.of(),
+        return new StrimziOperatorMetricsResponse(operatorName, null, namespace, null, List.of(),
             0, 0, List.of(), null, null, Instant.now(), message);
     }
 }
