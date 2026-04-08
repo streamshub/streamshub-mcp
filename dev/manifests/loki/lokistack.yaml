@@ -1,0 +1,33 @@
+---
+# S3 credentials for LokiStack to access MinIO
+apiVersion: v1
+kind: Secret
+metadata:
+  name: logging-loki-s3
+  namespace: openshift-logging
+type: Opaque
+stringData:
+  access_key_id: minio
+  access_key_secret: minio123
+  bucketnames: loki
+  endpoint: http://minio.openshift-logging.svc:9000
+  region: us-east-1
+---
+# LokiStack — minimal dev instance managed by the Loki Operator
+apiVersion: loki.grafana.com/v1
+kind: LokiStack
+metadata:
+  name: logging-loki
+  namespace: openshift-logging
+spec:
+  size: 1x.demo
+  storage:
+    schemas:
+      - effectiveDate: "2024-10-01"
+        version: v13
+    secret:
+      name: logging-loki-s3
+      type: s3
+  storageClassName: rook-ceph-block
+  tenants:
+    mode: openshift-logging

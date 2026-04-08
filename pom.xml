@@ -9,6 +9,7 @@
     <modules>
         <module>common</module>
         <module>metrics-prometheus</module>
+        <module>loki-log-provider</module>
         <module>strimzi-mcp</module>
     </modules>
 
@@ -40,6 +41,16 @@
             <dependency>
                 <groupId>io.streamshub</groupId>
                 <artifactId>streamshub-mcp-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.streamshub</groupId>
+                <artifactId>streamshub-metrics-prometheus</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.streamshub</groupId>
+                <artifactId>streamshub-loki-log-provider</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

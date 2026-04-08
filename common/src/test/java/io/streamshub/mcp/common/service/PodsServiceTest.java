@@ -15,15 +15,12 @@ import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.common.dto.LogCollectionOptions;
-import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -34,8 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests for {@link PodsService} pod summary extraction,
- * log collection callbacks, and input validation.
+ * Tests for {@link PodsService} pod summary extraction and input validation.
  */
 @QuarkusTest
 class PodsServiceTest {
@@ -94,69 +90,6 @@ class PodsServiceTest {
         assertNotNull(info);
         assertEquals("no-status-pod", info.name());
         assertFalse(info.ready());
-    }
-
-    @Test
-    void testCollectLogsCancellationStopsProcessing() {
-        Pod pod = createSimplePod("pod-1");
-
-        Runnable cancelCheck = () -> {
-            throw new RuntimeException("Cancelled");
-        };
-
-        LogCollectionOptions options = LogCollectionOptions.builder(100)
-            .cancelCheck(cancelCheck)
-            .build();
-
-        assertThrows(RuntimeException.class, () ->
-            podsService.collectLogs("kafka", List.of(pod), options));
-    }
-
-    @Test
-    void testCollectLogsProgressCallbackCalledPerPod() {
-        Pod pod1 = createSimplePod("pod-1");
-        Pod pod2 = createSimplePod("pod-2");
-        Pod pod3 = createSimplePod("pod-3");
-
-        List<int[]> progressCalls = new ArrayList<>();
-
-        LogCollectionOptions options = LogCollectionOptions.builder(100)
-            .progressCallback((completed, total) -> progressCalls.add(new int[]{completed, total}))
-            .build();
-
-        podsService.collectLogs("kafka", List.of(pod1, pod2, pod3), options);
-
-        assertEquals(3, progressCalls.size());
-        assertEquals(1, progressCalls.get(0)[0]);
-        assertEquals(3, progressCalls.get(0)[1]);
-        assertEquals(3, progressCalls.get(2)[0]);
-        assertEquals(3, progressCalls.get(2)[1]);
-    }
-
-    @Test
-    void testCollectLogsNotifierCalledPerPod() {
-        Pod pod = createSimplePod("test-pod");
-
-        List<String> notifications = new ArrayList<>();
-
-        LogCollectionOptions options = LogCollectionOptions.builder(100)
-            .notifier(notifications::add)
-            .build();
-
-        podsService.collectLogs("kafka", List.of(pod), options);
-
-        assertEquals(1, notifications.size());
-        assertTrue(notifications.getFirst().contains("test-pod (1/1)"));
-    }
-
-    @Test
-    void testCollectLogsEmptyPodList() {
-        LogCollectionOptions options = LogCollectionOptions.of(null, null, 100, null);
-        PodLogsResult result = podsService.collectLogs("kafka", List.of(), options);
-
-        assertNotNull(result);
-        assertTrue(result.podNames().isEmpty());
-        assertEquals(0, result.totalLines());
     }
 
     @Test
@@ -226,15 +159,6 @@ class PodsServiceTest {
         spec.setContainers(List.of(container));
         pod.setSpec(spec);
 
-        return pod;
-    }
-
-    private Pod createSimplePod(final String name) {
-        Pod pod = new Pod();
-        ObjectMeta metadata = new ObjectMeta();
-        metadata.setName(name);
-        metadata.setNamespace("kafka");
-        pod.setMetadata(metadata);
         return pod;
     }
 }
