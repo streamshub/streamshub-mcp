@@ -4,15 +4,13 @@
  */
 package io.streamshub.mcp.loki.service;
 
+import io.streamshub.mcp.common.auth.AuthHelper;
 import io.streamshub.mcp.loki.config.LokiConfig;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.client.ClientRequestContext;
 import jakarta.ws.rs.client.ClientRequestFilter;
 import org.jboss.logging.Logger;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Locale;
 
 /**
@@ -49,41 +47,23 @@ public class LokiAuthFilter implements ClientRequestFilter {
         String authMode = config.authMode().toLowerCase(Locale.ROOT);
 
         switch (authMode) {
-            case "sa-token":
-                addServiceAccountToken(requestContext);
+            case AuthHelper.AUTH_MODE_SA_TOKEN:
+                AuthHelper.readServiceAccountToken(config.saTokenPath())
+                    .ifPresent(token -> requestContext.getHeaders()
+                        .putSingle("Authorization", "Bearer " + token));
                 break;
-            case "bearer-token":
-                addBearerToken(requestContext);
+            case AuthHelper.AUTH_MODE_BEARER_TOKEN:
+                AuthHelper.validateBearerToken(config.bearerToken(), "mcp.log.loki.bearer-token")
+                    .ifPresent(token -> requestContext.getHeaders()
+                        .putSingle("Authorization", "Bearer " + token));
                 break;
-            case "basic":
-                // Basic auth is handled by Quarkus REST client properties:
-                // quarkus.rest-client.loki.username / password
+            case AuthHelper.AUTH_MODE_BASIC:
                 break;
-            case "none":
+            case AuthHelper.AUTH_MODE_NONE:
                 break;
             default:
                 LOG.warnf("Unknown Loki auth mode: '%s'. No authentication applied.", authMode);
                 break;
         }
-    }
-
-    private void addServiceAccountToken(final ClientRequestContext requestContext) {
-        try {
-            String token = Files.readString(Path.of(config.saTokenPath())).trim();
-            requestContext.getHeaders().putSingle("Authorization", "Bearer " + token);
-        } catch (IOException e) {
-            LOG.warnf("Failed to read service account token from '%s': %s",
-                config.saTokenPath(), e.getMessage());
-        }
-    }
-
-    private void addBearerToken(final ClientRequestContext requestContext) {
-        config.bearerToken()
-            .filter(t -> !t.isBlank())
-            .ifPresentOrElse(
-                token -> requestContext.getHeaders().putSingle("Authorization",
-                    "Bearer " + token.trim()),
-                () -> LOG.warn("Bearer-token auth mode selected but no token configured."
-                    + " Set 'mcp.log.loki.bearer-token' property."));
     }
 }
