@@ -154,8 +154,7 @@ public class KubernetesResourceService {
                 .getItems();
         } catch (Exception e) {
             LOG.debugf(
-                "Error querying %s by labels %s"
-                    + " in ns %s: %s",
+                "Error querying %s by labels %s in ns %s: %s",
                 resourceClass.getSimpleName(),
                 labels, namespace, e.getMessage());
             return List.of();
