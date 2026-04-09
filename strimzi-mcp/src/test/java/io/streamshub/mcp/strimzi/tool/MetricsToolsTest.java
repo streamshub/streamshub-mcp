@@ -430,8 +430,8 @@ class MetricsToolsTest {
 
     @Test
     void testGetStrimziOperatorMetrics() {
-        when(strimziOperatorMetricsService.getOperatorMetrics(null, null, null, null, null, null, null, null))
-            .thenReturn(StrimziOperatorMetricsResponse.of("cluster-operator", "kafka-system",
+        when(strimziOperatorMetricsService.getOperatorMetrics(null, null, null, null, null, null, null, null, null))
+            .thenReturn(StrimziOperatorMetricsResponse.of("cluster-operator", null, "kafka-system",
                 "pod-scraping", List.of("reconciliation"), List.of(), null));
 
         client.when()

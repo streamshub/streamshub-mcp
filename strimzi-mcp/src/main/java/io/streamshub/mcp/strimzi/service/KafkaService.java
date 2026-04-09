@@ -501,7 +501,7 @@ public class KafkaService {
      * @param clusterName the normalized cluster name (must not be null)
      * @return the Kafka resource
      */
-    Kafka findKafkaCluster(final String namespace, final String clusterName) {
+    public Kafka findKafkaCluster(final String namespace, final String clusterName) {
         Kafka kafka;
         if (namespace != null) {
             kafka = k8sService.getResource(Kafka.class, namespace, clusterName);

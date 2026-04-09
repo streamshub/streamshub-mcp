@@ -11,6 +11,7 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Common service for Kubernetes resource operations.
@@ -128,6 +129,60 @@ public class KubernetesResourceService {
                 resourceClass.getSimpleName(),
                 labelKey, labelValue,
                 e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Query resources matching multiple labels in a namespace.
+     *
+     * @param <T>           the resource type
+     * @param resourceClass the resource class
+     * @param namespace     the namespace
+     * @param labels        the label key-value pairs to match
+     * @return list of resources found
+     */
+    public <T extends HasMetadata> List<T> queryResourcesByLabels(final Class<T> resourceClass,
+                                                                   final String namespace,
+                                                                   final Map<String, String> labels) {
+        try {
+            return kubernetesClient
+                .resources(resourceClass)
+                .inNamespace(namespace)
+                .withLabels(labels)
+                .list()
+                .getItems();
+        } catch (Exception e) {
+            LOG.debugf(
+                "Error querying %s by labels %s in ns %s: %s",
+                resourceClass.getSimpleName(),
+                labels, namespace, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Query resources matching multiple labels in all namespaces.
+     *
+     * @param <T>           the resource type
+     * @param resourceClass the resource class
+     * @param labels        the label key-value pairs to match
+     * @return list of resources found
+     */
+    public <T extends HasMetadata> List<T> queryResourcesByLabelsInAnyNamespace(final Class<T> resourceClass,
+                                                                                final Map<String, String> labels) {
+        try {
+            return kubernetesClient
+                .resources(resourceClass)
+                .inAnyNamespace()
+                .withLabels(labels)
+                .list()
+                .getItems();
+        } catch (Exception e) {
+            LOG.debugf(
+                "Error querying %s by labels %s: %s",
+                resourceClass.getSimpleName(),
+                labels, e.getMessage());
             return List.of();
         }
     }

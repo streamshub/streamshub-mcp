@@ -88,10 +88,13 @@ public class MetricsTools {
     }
 
     /**
-     * Retrieves metrics from Strimzi cluster operator pods.
+     * Retrieves metrics from Strimzi operator pods.
+     * When {@code clusterName} is provided, also includes entity operator
+     * (user-operator and topic-operator) metrics for that cluster.
      *
      * @param operatorName optional operator deployment name
      * @param namespace    optional namespace
+     * @param clusterName  optional Kafka cluster name for entity operator metrics
      * @param category     optional metric category
      * @param metricNames  optional explicit metric names
      * @param rangeMinutes optional range duration in minutes
@@ -103,6 +106,7 @@ public class MetricsTools {
     @Tool(
         name = "get_strimzi_operator_metrics",
         description = "Retrieves Prometheus metrics from Strimzi operator pods by category or explicit metric names."
+            + " When clusterName is provided, also includes entity operator (user-operator and topic-operator) metrics."
             + " Returns samples with an interpretation guide for thresholds and diagnostics."
     )
     public StrimziOperatorMetricsResponse getStrimziOperatorMetrics(
@@ -114,6 +118,10 @@ public class MetricsTools {
             description = StrimziToolsPrompts.NS_DESC,
             required = false
         ) final String namespace,
+        @ToolArg(
+            description = StrimziToolsPrompts.OPERATOR_CLUSTER_DESC,
+            required = false
+        ) final String clusterName,
         @ToolArg(
             description = StrimziToolsPrompts.OPERATOR_METRICS_CATEGORY_DESC,
             required = false
@@ -140,6 +148,6 @@ public class MetricsTools {
         ) final Integer stepSeconds
     ) {
         return strimziOperatorMetricsService.getOperatorMetrics(
-            namespace, operatorName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds);
+            namespace, operatorName, clusterName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds);
     }
 }

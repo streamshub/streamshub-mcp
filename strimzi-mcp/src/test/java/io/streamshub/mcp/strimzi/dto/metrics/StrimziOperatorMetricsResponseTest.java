@@ -31,7 +31,7 @@ class StrimziOperatorMetricsResponseTest {
         );
 
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
-            "cluster-operator", "strimzi", "pod-scraping",
+            "cluster-operator", null, "strimzi", "pod-scraping",
             List.of("reconciliation"), samples, null);
 
         assertNotNull(response.metrics());
@@ -50,7 +50,7 @@ class StrimziOperatorMetricsResponseTest {
         );
 
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
-            "cluster-operator", "strimzi", "prometheus",
+            "cluster-operator", null, "strimzi", "prometheus",
             List.of("reconciliation"), samples, null);
 
         assertNull(response.metrics());
@@ -62,7 +62,7 @@ class StrimziOperatorMetricsResponseTest {
     @Test
     void ofWithEmptySamplesReturnsEmptyMetrics() {
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
-            "cluster-operator", "strimzi", "pod-scraping",
+            "cluster-operator", null, "strimzi", "pod-scraping",
             List.of(), List.of(), null);
 
         assertNotNull(response.metrics());
@@ -74,10 +74,30 @@ class StrimziOperatorMetricsResponseTest {
     @Test
     void ofPassesThroughInterpretation() {
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
-            "cluster-operator", "strimzi", "pod-scraping",
+            "cluster-operator", null, "strimzi", "pod-scraping",
             List.of(), List.of(), "test interpretation");
 
         assertEquals("test interpretation", response.interpretation());
+    }
+
+    @Test
+    void ofWithClusterNameIncludesClusterInResponse() {
+        StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
+            "cluster-operator", "my-cluster", "strimzi", "pod-scraping",
+            List.of(), List.of(), null);
+
+        assertEquals("my-cluster", response.clusterName());
+        assertTrue(response.message().contains("my-cluster"));
+    }
+
+    @Test
+    void ofWithoutClusterNameExcludesClusterFromMessage() {
+        StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
+            "cluster-operator", null, "strimzi", "pod-scraping",
+            List.of(), List.of(), null);
+
+        assertNull(response.clusterName());
+        assertTrue(response.message().contains("operator 'cluster-operator'"));
     }
 
     @Test
