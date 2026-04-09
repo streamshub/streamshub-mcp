@@ -1,5 +1,5 @@
 ---
-# S3 credentials for LokiStack to access MinIO
+# S3 credentials for LokiStack to access SeaweedFS
 apiVersion: v1
 kind: Secret
 metadata:
@@ -7,10 +7,10 @@ metadata:
   namespace: openshift-logging
 type: Opaque
 stringData:
-  access_key_id: minio
-  access_key_secret: minio123
+  access_key_id: loki
+  access_key_secret: lokisecret
   bucketnames: loki
-  endpoint: http://minio.openshift-logging.svc:9000
+  endpoint: http://seaweedfs.openshift-logging.svc:8333
   region: us-east-1
 ---
 # LokiStack — minimal dev instance managed by the Loki Operator

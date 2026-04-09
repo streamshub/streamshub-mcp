@@ -54,6 +54,30 @@ roleRef:
   name: collect-infrastructure-logs
   apiGroup: rbac.authorization.k8s.io
 ---
+# Allow the log collector to write application logs to the LokiStack gateway
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: logcollector-loki-write
+rules:
+  - apiGroups: ["loki.grafana.com"]
+    resources: ["application"]
+    resourceNames: ["logs"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logcollector-loki-write
+subjects:
+  - kind: ServiceAccount
+    name: logcollector
+    namespace: openshift-logging
+roleRef:
+  kind: ClusterRole
+  name: logcollector-loki-write
+  apiGroup: rbac.authorization.k8s.io
+---
 # Forward strimzi logs to LokiStack
 apiVersion: observability.openshift.io/v1
 kind: ClusterLogForwarder
@@ -73,6 +97,10 @@ spec:
         authentication:
           token:
             from: serviceAccount
+      tls:
+        ca:
+          configMapName: logging-loki-gateway-ca-bundle
+          key: service-ca.crt
   inputs:
     - name: strimzi-app-logs
       type: application

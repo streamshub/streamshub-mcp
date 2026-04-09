@@ -3,5 +3,5 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - loki-operator.yaml
-  - minio.yaml
+  - s3-storage.yaml
   - lokistack.yaml

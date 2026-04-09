@@ -1,0 +1,153 @@
+---
+# SeaweedFS — lightweight S3-compatible storage for LokiStack in dev environments.
+# Runs master + volume + filer + S3 gateway in a single process.
+# NOT for production use. Replace with real S3/ODF storage in production.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: seaweedfs-data
+  namespace: openshift-logging
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seaweedfs
+  namespace: openshift-logging
+  labels:
+    app: seaweedfs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: seaweedfs
+  template:
+    metadata:
+      labels:
+        app: seaweedfs
+    spec:
+      containers:
+        - name: seaweedfs
+          image: chrislusf/seaweedfs:latest
+          args:
+            - server
+            - -s3
+            - -dir=/data
+            - -s3.config=/etc/seaweedfs/s3.json
+          ports:
+            - name: s3
+              containerPort: 8333
+            - name: master
+              containerPort: 9333
+            - name: volume
+              containerPort: 8080
+            - name: filer
+              containerPort: 8888
+          readinessProbe:
+            httpGet:
+              path: /cluster/status
+              port: master
+            initialDelaySeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/seaweedfs
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: seaweedfs-data
+        - name: config
+          configMap:
+            name: seaweedfs-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: seaweedfs-config
+  namespace: openshift-logging
+  labels:
+    app: seaweedfs
+data:
+  s3.json: |
+    {
+      "identities": [
+        {
+          "name": "admin",
+          "credentials": [
+            {
+              "accessKey": "loki",
+              "secretKey": "lokisecret"
+            }
+          ],
+          "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: seaweedfs
+  namespace: openshift-logging
+  labels:
+    app: seaweedfs
+spec:
+  selector:
+    app: seaweedfs
+  ports:
+    - name: s3
+      port: 8333
+      targetPort: s3
+    - name: master
+      port: 9333
+      targetPort: master
+---
+# Create the 'loki' bucket on startup
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seaweedfs-create-bucket
+  namespace: openshift-logging
+  labels:
+    app: seaweedfs
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: create-bucket
+          image: curlimages/curl:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until curl -sf http://seaweedfs.openshift-logging.svc:9333/cluster/status > /dev/null; do
+                echo "Waiting for SeaweedFS..."
+                sleep 2
+              done
+              echo "SeaweedFS is up, creating bucket..."
+              # Create bucket via S3 API — SeaweedFS auto-creates on PUT
+              curl -sf -X PUT "http://seaweedfs.openshift-logging.svc:8333/loki/" && \
+                echo "Bucket 'loki' created" || echo "Bucket may already exist (OK)"
+          env:
+            - name: HOME
+              value: /tmp
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+  backoffLimit: 10

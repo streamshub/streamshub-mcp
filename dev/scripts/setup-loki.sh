@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Deploy or tear down Loki via the Loki Operator on OpenShift.
-# Uses MinIO as S3 storage backend for dev/test environments.
+# Uses SeaweedFS as S3 storage backend for dev/test environments.
 #
 # Usage:
-#   ./setup-loki.sh deploy   - Deploy Loki Operator + MinIO + LokiStack
+#   ./setup-loki.sh deploy   - Deploy Loki Operator + SeaweedFS + LokiStack
 #   ./setup-loki.sh teardown - Remove everything
 #
 # After deployment, configure the MCP server to use the Loki log provider:
@@ -100,19 +100,19 @@ deploy() {
     # Phase 2: Wait for LokiStack CRD
     wait_for_crd "lokistacks.loki.grafana.com" 300
 
-    # Phase 3: MinIO + LokiStack
-    log_info "Phase 3: Deploying MinIO storage..."
-    kubectl apply -f "$MANIFESTS_DIR/minio.yaml"
+    # Phase 3: SeaweedFS + LokiStack
+    log_info "Phase 3: Deploying SeaweedFS storage..."
+    kubectl apply -f "$MANIFESTS_DIR/s3-storage.yaml"
 
-    log_info "Waiting for MinIO to be ready..."
-    kubectl wait --for=condition=Available deployment/minio \
+    log_info "Waiting for SeaweedFS to be ready..."
+    kubectl wait --for=condition=Available deployment/seaweedfs \
         -n "$LOKI_NS" --timeout=120s
-    log_success "MinIO is ready"
+    log_success "SeaweedFS is ready"
 
-    log_info "Waiting for MinIO bucket creation..."
-    kubectl wait --for=condition=Complete job/minio-create-bucket \
+    log_info "Waiting for SeaweedFS bucket creation..."
+    kubectl wait --for=condition=Complete job/seaweedfs-create-bucket \
         -n "$LOKI_NS" --timeout=120s 2>/dev/null || true
-    log_success "MinIO bucket ready"
+    log_success "SeaweedFS bucket ready"
 
     log_info "Phase 4: Creating LokiStack..."
     kubectl apply -f "$MANIFESTS_DIR/lokistack.yaml"
@@ -233,8 +233,8 @@ teardown() {
     log_info "Removing LokiStack..."
     kubectl delete lokistack logging-loki -n "$LOKI_NS" --ignore-not-found 2>/dev/null || true
 
-    log_info "Removing MinIO..."
-    kubectl delete -f "$MANIFESTS_DIR/minio.yaml" --ignore-not-found 2>/dev/null || true
+    log_info "Removing SeaweedFS..."
+    kubectl delete -f "$MANIFESTS_DIR/s3-storage.yaml" --ignore-not-found 2>/dev/null || true
 
     log_info "Removing S3 secret..."
     kubectl delete secret logging-loki-s3 -n "$LOKI_NS" --ignore-not-found 2>/dev/null || true
@@ -263,11 +263,11 @@ case "${1:-deploy}" in
         echo "Usage: $0 [command]"
         echo ""
         echo "Commands:"
-        echo "  deploy   - Deploy Loki Operator + MinIO + LokiStack (default)"
+        echo "  deploy   - Deploy Loki Operator + SeaweedFS + LokiStack (default)"
         echo "  teardown - Remove everything"
         echo "  help     - Show this help"
         echo ""
-        echo "Deploys the Loki Operator from OperatorHub with MinIO as"
+        echo "Deploys the Loki Operator from OperatorHub with SeaweedFS as"
         echo "S3 storage backend. For dev/test environments only."
         ;;
     *)
