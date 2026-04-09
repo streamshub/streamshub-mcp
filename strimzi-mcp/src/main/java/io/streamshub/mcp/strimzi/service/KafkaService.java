@@ -14,6 +14,7 @@ import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
+import io.streamshub.mcp.common.service.log.LogCollectionService;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
@@ -54,6 +55,9 @@ public class KafkaService {
 
     @Inject
     PodsService podsService;
+
+    @Inject
+    LogCollectionService logCollectionService;
 
     @Inject
     KafkaNodePoolService nodePoolService;
@@ -215,7 +219,7 @@ public class KafkaService {
             return KafkaClusterLogsResponse.empty(normalizedName, ns);
         }
 
-        PodLogsResult result = podsService.collectLogs(ns, pods, options);
+        PodLogsResult result = logCollectionService.collectLogs(ns, pods, options);
         return KafkaClusterLogsResponse.of(normalizedName, ns, result.podNames(),
             result.hasErrors(), result.errorCount(), result.totalLines(), result.hasMore(), result.logs());
     }

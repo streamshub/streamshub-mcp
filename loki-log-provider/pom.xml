@@ -7,7 +7,7 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>strimzi-mcp</artifactId>
+    <artifactId>streamshub-loki-log-provider</artifactId>
 
     <dependencies>
         <dependency>
@@ -15,24 +15,8 @@
             <artifactId>streamshub-mcp-common</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.quarkiverse.mcp</groupId>
-            <artifactId>quarkus-mcp-server-http</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.strimzi</groupId>
-            <artifactId>api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.streamshub</groupId>
-            <artifactId>streamshub-metrics-prometheus</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.streamshub</groupId>
-            <artifactId>streamshub-loki-log-provider</artifactId>
-        </dependency>
-        <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-container-image-jib</artifactId>
+            <artifactId>quarkus-rest-client-jackson</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -42,11 +26,6 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-junit-mockito</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkiverse.mcp</groupId>
-            <artifactId>quarkus-mcp-server-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
