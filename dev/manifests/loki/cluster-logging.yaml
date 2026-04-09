@@ -1,0 +1,116 @@
+---
+# Cluster Logging Operator — manages log collection and forwarding
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-logging
+  namespace: openshift-logging
+spec:
+  targetNamespaces:
+    - openshift-logging
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cluster-logging
+  namespace: openshift-logging
+spec:
+  channel: stable-6.5
+  name: cluster-logging
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+---
+# ServiceAccount for the log collector
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: logcollector
+  namespace: openshift-logging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logcollector-collect-application
+subjects:
+  - kind: ServiceAccount
+    name: logcollector
+    namespace: openshift-logging
+roleRef:
+  kind: ClusterRole
+  name: collect-application-logs
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logcollector-collect-infrastructure
+subjects:
+  - kind: ServiceAccount
+    name: logcollector
+    namespace: openshift-logging
+roleRef:
+  kind: ClusterRole
+  name: collect-infrastructure-logs
+  apiGroup: rbac.authorization.k8s.io
+---
+# Allow the log collector to write application logs to the LokiStack gateway
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: logcollector-loki-write
+rules:
+  - apiGroups: ["loki.grafana.com"]
+    resources: ["application"]
+    resourceNames: ["logs"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logcollector-loki-write
+subjects:
+  - kind: ServiceAccount
+    name: logcollector
+    namespace: openshift-logging
+roleRef:
+  kind: ClusterRole
+  name: logcollector-loki-write
+  apiGroup: rbac.authorization.k8s.io
+---
+# Forward strimzi logs to LokiStack
+apiVersion: observability.openshift.io/v1
+kind: ClusterLogForwarder
+metadata:
+  name: strimzi-logs
+  namespace: openshift-logging
+spec:
+  serviceAccount:
+    name: logcollector
+  outputs:
+    - name: lokistack
+      type: lokiStack
+      lokiStack:
+        target:
+          name: logging-loki
+          namespace: openshift-logging
+        authentication:
+          token:
+            from: serviceAccount
+      tls:
+        ca:
+          configMapName: logging-loki-gateway-ca-bundle
+          key: service-ca.crt
+  inputs:
+    - name: strimzi-app-logs
+      type: application
+      application:
+        includes:
+          - namespace: strimzi-kafka
+          - namespace: strimzi
+  pipelines:
+    - name: strimzi-to-loki
+      inputRefs:
+        - strimzi-app-logs
+      outputRefs:
+        - lokistack

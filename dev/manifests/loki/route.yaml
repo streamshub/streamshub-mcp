@@ -1,0 +1,21 @@
+---
+# OpenShift Route to expose the LokiStack gateway externally.
+# Used when the MCP server runs outside the cluster (e.g., quarkus:dev mode).
+# Edge termination — OCP handles TLS with the cluster wildcard cert.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: logging-loki
+  namespace: openshift-logging
+  labels:
+    app: loki
+spec:
+  port:
+    targetPort: public
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  to:
+    kind: Service
+    name: logging-loki-gateway-http
+    weight: 100

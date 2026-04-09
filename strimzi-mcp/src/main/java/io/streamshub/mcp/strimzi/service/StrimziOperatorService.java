@@ -12,7 +12,7 @@ import io.streamshub.mcp.common.dto.LogCollectionOptions;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.service.DeploymentService;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
-import io.streamshub.mcp.common.service.PodsService;
+import io.streamshub.mcp.common.service.log.LogCollectionService;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
@@ -37,7 +37,7 @@ public class StrimziOperatorService {
     KubernetesResourceService k8sService;
 
     @Inject
-    PodsService podsService;
+    LogCollectionService logCollectionService;
 
     @Inject
     DeploymentService deploymentService;
@@ -132,7 +132,7 @@ public class StrimziOperatorService {
             return StrimziOperatorLogsResponse.notFound(ns);
         }
 
-        PodLogsResult result = podsService.collectLogs(ns, pods, options);
+        PodLogsResult result = logCollectionService.collectLogs(ns, pods, options);
         return StrimziOperatorLogsResponse.of(ns, result.logs(), result.podNames(),
             result.hasErrors(), result.errorCount(), result.totalLines(), result.hasMore());
     }

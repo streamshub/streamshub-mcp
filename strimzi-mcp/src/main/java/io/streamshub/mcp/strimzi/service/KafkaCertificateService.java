@@ -20,6 +20,7 @@ import org.jboss.logging.Logger;
 import java.io.ByteArrayInputStream;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.Instant;
@@ -28,7 +29,6 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
 
 /**
  * Service for reading TLS certificate metadata and listener authentication
@@ -197,7 +197,7 @@ public class KafkaCertificateService {
             return sans.stream()
                 .map(san -> String.valueOf(san.get(SAN_GENERAL_NAME_INDEX)))
                 .toList();
-        } catch (Exception e) {
+        } catch (CertificateParsingException e) {
             LOG.debugf("Failed to extract SANs: %s", e.getMessage());
             return List.of();
         }
