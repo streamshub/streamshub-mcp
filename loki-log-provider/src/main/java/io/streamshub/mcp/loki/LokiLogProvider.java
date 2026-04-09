@@ -5,7 +5,7 @@
 package io.streamshub.mcp.loki;
 
 import io.quarkus.arc.lookup.LookupIfProperty;
-import io.streamshub.mcp.common.service.log.LogProvider;
+import io.streamshub.mcp.common.service.log.LogCollectorProvider;
 import io.streamshub.mcp.loki.config.LokiConfig;
 import io.streamshub.mcp.loki.service.LokiClient;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -19,10 +19,10 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * {@link LogProvider} implementation that queries a Grafana Loki instance
+ * {@link LogCollectorProvider} implementation that queries a Grafana Loki instance
  * for pod logs via the Loki HTTP API.
  *
- * <p>Active when {@code mcp.log.provider=loki} is set. Requires Loki
+ * <p>Active when {@code mcp.log.provider=streamshub-loki} is set. Requires Loki
  * connection configuration via {@code quarkus.rest-client.loki.*} properties
  * and label mapping via {@code mcp.log.loki.*} properties.</p>
  *
@@ -31,8 +31,8 @@ import java.util.List;
  * sufficiently wide time range to capture pre-restart logs.</p>
  */
 @ApplicationScoped
-@LookupIfProperty(name = "mcp.log.provider", stringValue = "loki")
-public class LokiLogProvider implements LogProvider {
+@LookupIfProperty(name = "mcp.log.provider", stringValue = "streamshub-loki")
+public class LokiLogProvider implements LogCollectorProvider {
 
     private static final Logger LOG = Logger.getLogger(LokiLogProvider.class);
     private static final long NANOS_PER_SECOND = 1_000_000_000L;

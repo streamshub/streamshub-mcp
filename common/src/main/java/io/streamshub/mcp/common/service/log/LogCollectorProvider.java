@@ -24,7 +24,7 @@ package io.streamshub.mcp.common.service.log;
  * are handled by {@link LogCollectionService} and are not the responsibility
  * of the provider.</p>
  */
-public interface LogProvider {
+public interface LogCollectorProvider {
 
     /**
      * Fetch raw log output from a single pod or log source.

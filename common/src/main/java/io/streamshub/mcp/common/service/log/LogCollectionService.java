@@ -25,7 +25,7 @@ import java.util.regex.PatternSyntaxException;
 /**
  * Service for collecting, filtering, and deduplicating logs from Kubernetes pods.
  *
- * <p>Delegates raw log fetching to the active {@link LogProvider} and applies
+ * <p>Delegates raw log fetching to the active {@link LogCollectorProvider} and applies
  * filtering, keyword matching, deduplication, and progress callbacks on top.</p>
  */
 @ApplicationScoped
@@ -34,7 +34,7 @@ public class LogCollectionService {
     private static final Logger LOG = Logger.getLogger(LogCollectionService.class);
 
     @Inject
-    Instance<LogProvider> logProvider;
+    Instance<LogCollectorProvider> logProvider;
 
     @ConfigProperty(name = "mcp.log.provider", defaultValue = "streamshub-kubernetes")
     String providerName;

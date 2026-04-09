@@ -10,7 +10,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 /**
- * Default {@link LogProvider} implementation that reads logs directly
+ * Default {@link LogCollectorProvider} implementation that reads logs directly
  * from Kubernetes pod logs via the Fabric8 client.
  *
  * <p>Active when {@code mcp.log.provider=streamshub-kubernetes} (the default).
@@ -19,7 +19,7 @@ import jakarta.inject.Inject;
  */
 @ApplicationScoped
 @LookupIfProperty(name = "mcp.log.provider", stringValue = "streamshub-kubernetes", lookupIfMissing = true)
-public class KubernetesLogProvider implements LogProvider {
+public class KubernetesLogProvider implements LogCollectorProvider {
 
     @Inject
     KubernetesClient kubernetesClient;

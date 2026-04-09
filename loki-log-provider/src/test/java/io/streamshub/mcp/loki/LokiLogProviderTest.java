@@ -23,14 +23,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class LokiLogProviderTest {
 
     @Inject
-    LokiLogProvider lokiLogProvider;
+    LokiLogProvider lokiLogCollectorProvider;
 
     LokiLogProviderTest() {
     }
 
     @Test
     void testBuildLogQueryDefaultLabels() {
-        String query = lokiLogProvider.buildLogQuery("kafka-prod", "my-cluster-kafka-0");
+        String query = lokiLogCollectorProvider.buildLogQuery("kafka-prod", "my-cluster-kafka-0");
 
         assertEquals("{namespace=\"kafka-prod\", pod=\"my-cluster-kafka-0\"}", query);
     }
@@ -49,7 +49,7 @@ class LokiLogProviderTest {
             ))
         ));
 
-        String result = lokiLogProvider.extractLogLines(response);
+        String result = lokiLogCollectorProvider.extractLogLines(response);
 
         assertNotNull(result);
         assertEquals("first line\nsecond line\nthird line\n", result);
@@ -69,7 +69,7 @@ class LokiLogProviderTest {
             ))
         ));
 
-        String result = lokiLogProvider.extractLogLines(response);
+        String result = lokiLogCollectorProvider.extractLogLines(response);
 
         assertEquals("first\nsecond\nthird\n", result);
     }
@@ -89,7 +89,7 @@ class LokiLogProviderTest {
             )
         ));
 
-        String result = lokiLogProvider.extractLogLines(response);
+        String result = lokiLogCollectorProvider.extractLogLines(response);
 
         assertEquals("stream1-line1\nstream2-line1\nstream1-line2\n", result);
     }
@@ -100,13 +100,13 @@ class LokiLogProviderTest {
             "streams", List.of()
         ));
 
-        assertNull(lokiLogProvider.extractLogLines(response));
+        assertNull(lokiLogCollectorProvider.extractLogLines(response));
     }
 
     @Test
     void testExtractLogLinesReturnsNullForNullData() {
-        assertNull(lokiLogProvider.extractLogLines(new LokiResponse("success", null)));
-        assertNull(lokiLogProvider.extractLogLines(null));
+        assertNull(lokiLogCollectorProvider.extractLogLines(new LokiResponse("success", null)));
+        assertNull(lokiLogCollectorProvider.extractLogLines(null));
     }
 
     @Test
@@ -122,7 +122,7 @@ class LokiLogProviderTest {
             ))
         ));
 
-        String result = lokiLogProvider.extractLogLines(response);
+        String result = lokiLogCollectorProvider.extractLogLines(response);
 
         assertEquals("valid line\n", result);
     }
