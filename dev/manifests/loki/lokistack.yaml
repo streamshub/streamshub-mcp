@@ -28,6 +28,6 @@ spec:
     secret:
       name: logging-loki-s3
       type: s3
-  storageClassName: rook-ceph-block
+  storageClassName: standard-csi
   tenants:
     mode: openshift-logging

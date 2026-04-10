@@ -7,7 +7,7 @@ package io.streamshub.mcp.strimzi.service;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.quarkiverse.mcp.server.ToolCallException;
-import io.streamshub.mcp.common.dto.LogCollectionOptions;
+import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.log.LogCollectionService;
@@ -68,7 +68,7 @@ class KafkaLogCollectionTest {
 
     @Test
     void testMissingClusterNameThrows() {
-        LogCollectionOptions options = LogCollectionOptions.of(null, null, 200, null);
+        LogCollectionParams options = LogCollectionParams.of(null, null, 200, null);
 
         assertThrows(ToolCallException.class,
             () -> kafkaService.getClusterLogs("kafka", null, options));
@@ -82,7 +82,7 @@ class KafkaLogCollectionTest {
             eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
             .thenReturn(List.of());
 
-        LogCollectionOptions options = LogCollectionOptions.of(null, null, 200, null);
+        LogCollectionParams options = LogCollectionParams.of(null, null, 200, null);
 
         KafkaClusterLogsResponse response = kafkaService.getClusterLogs("kafka", "my-cluster", options);
 
@@ -108,7 +108,7 @@ class KafkaLogCollectionTest {
         when(logCollectionService.collectLogs(eq("kafka"), any(), any()))
             .thenReturn(logsResult);
 
-        LogCollectionOptions options = LogCollectionOptions.of("errors", null, 200, null);
+        LogCollectionParams options = LogCollectionParams.of("errors", null, 200, null);
 
         KafkaClusterLogsResponse response = kafkaService.getClusterLogs("kafka", "my-cluster", options);
 
@@ -140,7 +140,7 @@ class KafkaLogCollectionTest {
         when(logCollectionService.collectLogs(eq("kafka"), any(), any()))
             .thenReturn(logsResult);
 
-        LogCollectionOptions options = LogCollectionOptions.of(null, null, 200, null);
+        LogCollectionParams options = LogCollectionParams.of(null, null, 200, null);
 
         KafkaClusterLogsResponse response = kafkaService.getClusterLogs("kafka", "my-cluster", options);
 
@@ -165,7 +165,7 @@ class KafkaLogCollectionTest {
         when(logCollectionService.collectLogs(eq("kafka"), any(), any()))
             .thenReturn(logsResult);
 
-        LogCollectionOptions options = LogCollectionOptions.of(null, null, 200, null);
+        LogCollectionParams options = LogCollectionParams.of(null, null, 200, null);
 
         KafkaClusterLogsResponse response = kafkaService.getClusterLogs("kafka", "my-cluster", options);
 
@@ -183,7 +183,7 @@ class KafkaLogCollectionTest {
         when(logCollectionService.collectLogs(any(), any(), any()))
             .thenReturn(new PodLogsResult(List.of(), "", 0, 0, 0, false));
 
-        LogCollectionOptions options = LogCollectionOptions.builder(100)
+        LogCollectionParams options = LogCollectionParams.builder(100)
             .filter("errors")
             .sinceSeconds(300)
             .previous(true)

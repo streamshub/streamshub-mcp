@@ -10,7 +10,7 @@ import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
-import io.streamshub.mcp.common.dto.LogCollectionOptions;
+import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.common.service.PodsService;
@@ -138,7 +138,7 @@ public class StrimziOperatorTools {
         final Progress progress,
         final Cancellation cancellation
     ) {
-        LogCollectionOptions options = LogCollectionOptions.builder(
+        LogCollectionParams options = LogCollectionParams.builder(
                 tailLines != null ? tailLines : defaultTailLines)
             .filter(filter)
             .keywords(keywords)

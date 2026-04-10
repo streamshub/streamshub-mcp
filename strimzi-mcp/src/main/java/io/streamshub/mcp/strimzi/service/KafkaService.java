@@ -8,7 +8,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
-import io.streamshub.mcp.common.dto.LogCollectionOptions;
+import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
@@ -195,7 +195,7 @@ public class KafkaService {
      * @return the cluster logs response
      */
     public KafkaClusterLogsResponse getClusterLogs(final String namespace, final String clusterName,
-                                                   final LogCollectionOptions options) {
+                                                   final LogCollectionParams options) {
         String ns = InputUtils.normalizeInput(namespace);
         String normalizedName = InputUtils.normalizeInput(clusterName);
 

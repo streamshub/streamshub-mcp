@@ -7,6 +7,7 @@ package io.streamshub.mcp.loki.config;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
+import io.streamshub.mcp.common.auth.AuthConfig;
 
 import java.util.Optional;
 
@@ -18,13 +19,14 @@ import java.util.Optional;
  * Quarkus REST client properties under {@code quarkus.rest-client.loki.*}.</p>
  */
 @ConfigMapping(prefix = "mcp.log.loki")
-public interface LokiConfig {
+public interface LokiConfig extends AuthConfig {
 
     /**
      * Authentication mode: {@code none}, {@code bearer-token}, {@code sa-token}, or {@code basic}.
      *
      * @return the auth mode
      */
+    @Override
     @WithName("auth-mode")
     @WithDefault("none")
     String authMode();
@@ -34,6 +36,7 @@ public interface LokiConfig {
      *
      * @return the bearer token, if configured
      */
+    @Override
     @WithName("bearer-token")
     Optional<String> bearerToken();
 
@@ -42,6 +45,7 @@ public interface LokiConfig {
      *
      * @return the token file path
      */
+    @Override
     @WithName("sa-token-path")
     @WithDefault("/var/run/secrets/kubernetes.io/serviceaccount/token")
     String saTokenPath();

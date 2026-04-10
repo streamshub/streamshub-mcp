@@ -26,7 +26,7 @@ Checkstyle runs during compile phase. Fix all violations before committing.
 ```
 io.streamshub.mcp.common.
 ├── config/         → KubernetesConstants (labels, conditions, phases, health status)
-├── dto/            → PodSummaryResponse, PodLogsResult, LogCollectionOptions (generic pod DTOs)
+├── dto/            → PodSummaryResponse, PodLogsResult, LogCollectionParams (generic pod DTOs)
 │   └── metrics/    → MetricSample, PodTarget, MetricsQueryParams
 ├── readiness/   → KubernetesConnectionReadinessCheck (health check for kube API)
 ├──service/        → KubernetesResourceService, PodsService, DeploymentService, CompletionHelper
@@ -132,7 +132,7 @@ public KafkaClusterLogsResponse getKafkaClusterLogs(
     final Cancellation cancellation // check if client cancelled mid-operation
 ) {
     // Build options with callbacks
-    LogCollectionOptions options = LogCollectionOptions.builder(...)
+    LogCollectionParams options = LogCollectionParams.builder(...)
         .notifier(mcpLog::info)
         .cancelCheck(cancellation::skipProcessingIfCancelled)
         .progressCallback(...)

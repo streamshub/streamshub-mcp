@@ -17,7 +17,7 @@ import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.common.dto.LogCollectionOptions;
+import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
 import jakarta.inject.Inject;
@@ -66,7 +66,7 @@ class StrimziOperatorServiceTest {
         setupEmptyPodResponses("kafka-system");
 
         StrimziOperatorLogsResponse result = operatorService.getOperatorLogs(
-            "kafka-system", null, LogCollectionOptions.of(null, null, 200, null));
+            "kafka-system", null, LogCollectionParams.of(null, null, 200, null));
 
         assertNotNull(result);
         assertEquals("kafka-system", result.namespace());
@@ -79,9 +79,9 @@ class StrimziOperatorServiceTest {
         setupEmptyPodResponses("kafka");
 
         StrimziOperatorLogsResponse result1 = operatorService.getOperatorLogs(
-            "  KAFKA  ", null, LogCollectionOptions.of(null, null, 200, null));
+            "  KAFKA  ", null, LogCollectionParams.of(null, null, 200, null));
         StrimziOperatorLogsResponse result2 = operatorService.getOperatorLogs(
-            "kafka", null, LogCollectionOptions.of(null, null, 200, null));
+            "kafka", null, LogCollectionParams.of(null, null, 200, null));
 
         assertEquals("kafka", result1.namespace());
         assertEquals("kafka", result2.namespace());

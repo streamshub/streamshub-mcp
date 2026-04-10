@@ -6,7 +6,7 @@ package io.streamshub.mcp.strimzi.service;
 
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.streamshub.mcp.common.dto.LogCollectionOptions;
+import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.service.DeploymentService;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
@@ -73,7 +73,7 @@ class OperatorLogCollectionTest {
             eq(ResourceLabels.STRIMZI_KIND_LABEL), eq(StrimziConstants.KindValues.CLUSTER_OPERATOR)))
             .thenReturn(List.of());
 
-        LogCollectionOptions options = LogCollectionOptions.of(null, null, 200, null);
+        LogCollectionParams options = LogCollectionParams.of(null, null, 200, null);
 
         StrimziOperatorLogsResponse response = operatorService.getOperatorLogs("strimzi", null, options);
 
@@ -98,7 +98,7 @@ class OperatorLogCollectionTest {
         when(logCollectionService.collectLogs(eq("strimzi"), any(), any()))
             .thenReturn(logsResult);
 
-        LogCollectionOptions options = LogCollectionOptions.of(null, null, 200, null);
+        LogCollectionParams options = LogCollectionParams.of(null, null, 200, null);
 
         StrimziOperatorLogsResponse response = operatorService.getOperatorLogs("strimzi", null, options);
 
@@ -127,7 +127,7 @@ class OperatorLogCollectionTest {
         when(logCollectionService.collectLogs(eq("strimzi"), any(), any()))
             .thenReturn(logsResult);
 
-        LogCollectionOptions options = LogCollectionOptions.of("errors", null, 200, null);
+        LogCollectionParams options = LogCollectionParams.of("errors", null, 200, null);
 
         StrimziOperatorLogsResponse response = operatorService.getOperatorLogs("strimzi", null, options);
 
@@ -146,7 +146,7 @@ class OperatorLogCollectionTest {
         when(logCollectionService.collectLogs(any(), any(), any()))
             .thenReturn(new PodLogsResult(List.of(), "", 0, 0, 0, false));
 
-        LogCollectionOptions options = LogCollectionOptions.builder(50)
+        LogCollectionParams options = LogCollectionParams.builder(50)
             .filter("warnings")
             .sinceSeconds(600)
             .previous(true)

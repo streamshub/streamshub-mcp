@@ -66,42 +66,53 @@ wait_for_crd() {
 deploy() {
     check_prerequisites
 
-    # Check loki-operator channel (pick latest stable, don't trust defaultChannel)
-    local channel
-    channel=$(kubectl get packagemanifest loki-operator -n openshift-marketplace \
-        -o jsonpath='{range .status.channels[*]}{.name}{"\n"}{end}' 2>/dev/null \
-        | grep '^stable-' | sort -V | tail -1)
-    if [ -z "$channel" ]; then
-        log_error "loki-operator not found in openshift-marketplace."
-        log_error "Ensure the OperatorHub catalog sources are available."
-        exit 1
-    fi
-    log_success "Found loki-operator (channel: $channel)"
-
-    # Update channel in manifest if different
-    sed -i.bak "s/channel: stable-.*/channel: $channel/" "$MANIFESTS_DIR/loki-operator.yaml"
-    rm -f "$MANIFESTS_DIR/loki-operator.yaml.bak"
-
     # Check for available StorageClass
     local sc
-    sc=$(kubectl get storageclass -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    sc=$(kubectl get storageclass -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}' 2>/dev/null | awk '{print $1}' || echo "")
     if [ -n "$sc" ]; then
         log_info "Using StorageClass: $sc"
         sed -i.bak "s/storageClassName: .*/storageClassName: $sc/" "$MANIFESTS_DIR/lokistack.yaml"
         rm -f "$MANIFESTS_DIR/lokistack.yaml.bak"
     fi
 
-    # Phase 1: Namespace + Operator
-    log_info "Phase 1: Installing Loki Operator..."
+    # Ensure namespaces exist
     kubectl apply -f "$MANIFESTS_DIR/namespace.yaml"
     kubectl create namespace "$OPERATOR_NS" --dry-run=client -o yaml | kubectl apply -f -
-    kubectl apply -f "$MANIFESTS_DIR/loki-operator.yaml"
+
+    # Check if loki-operator is already installed
+    local existing_csv
+    existing_csv=$(kubectl get csv -n "$OPERATOR_NS" -o name 2>/dev/null | grep loki || echo "")
+
+    if [ -n "$existing_csv" ]; then
+        log_success "Loki Operator already installed ($existing_csv)"
+    else
+        # Discover loki-operator channel (pick latest stable, don't trust defaultChannel)
+        local channel
+        channel=$(kubectl get packagemanifest loki-operator -n openshift-marketplace \
+            -o jsonpath='{range .status.channels[*]}{.name}{"\n"}{end}' 2>/dev/null \
+            | grep '^stable-' | sort -V | tail -1)
+        if [ -z "$channel" ]; then
+            log_error "loki-operator not found in openshift-marketplace."
+            log_error "Ensure the OperatorHub catalog sources are available."
+            exit 1
+        fi
+        log_success "Found loki-operator (channel: $channel)"
+
+        # Update channel in manifest if different
+        sed -i.bak "s/channel: stable-.*/channel: $channel/" "$MANIFESTS_DIR/loki-operator.yaml"
+        rm -f "$MANIFESTS_DIR/loki-operator.yaml.bak"
+
+        # Phase 1: Install Loki Operator
+        log_info "Phase 1: Installing Loki Operator..."
+        kubectl apply -f "$MANIFESTS_DIR/loki-operator.yaml"
+    fi
 
     # Phase 2: Wait for LokiStack CRD
     wait_for_crd "lokistacks.loki.grafana.com" 300
 
     # Phase 3: SeaweedFS + LokiStack
     log_info "Phase 3: Deploying SeaweedFS storage..."
+    kubectl delete job seaweedfs-create-bucket -n "$LOKI_NS" --ignore-not-found 2>/dev/null || true
     kubectl apply -f "$MANIFESTS_DIR/s3-storage.yaml"
 
     log_info "Waiting for SeaweedFS to be ready..."
