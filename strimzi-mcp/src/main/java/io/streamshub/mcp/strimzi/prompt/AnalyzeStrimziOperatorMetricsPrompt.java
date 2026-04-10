@@ -60,6 +60,10 @@ public class AnalyzeStrimziOperatorMetricsPrompt {
         String instructions = """
             You are analyzing metrics for the Strimzi cluster operator.%s
 
+            **If any tool call fails or returns an error, note the failure \
+            and continue with the next category.** Metrics may not be configured \
+            or available for all components.
+
             Each `get_strimzi_operator_metrics` response includes an `interpretation` field \
             with metric descriptions and thresholds — use it to interpret values.
 

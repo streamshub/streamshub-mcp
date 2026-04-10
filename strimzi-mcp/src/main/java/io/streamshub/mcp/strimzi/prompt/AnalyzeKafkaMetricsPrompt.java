@@ -65,6 +65,10 @@ public class AnalyzeKafkaMetricsPrompt {
         String instructions = """
             You are analyzing metrics for Kafka cluster `%s`.%s
 
+            **If any tool call fails or returns an error, note the failure \
+            and continue with the next category.** Metrics may not be configured \
+            or available for all components.
+
             **Analysis Priority (check in this order):**
             1. **CRITICAL**: Replication health → data availability
             2. **HIGH**: Performance bottlenecks → predicts replication issues

@@ -81,6 +81,11 @@ public class DiagnoseClusterIssuePrompt {
             before proceeding to the next. **Stop and escalate immediately if you find \
             offline partitions or cluster-wide unavailability.**
 
+            **IMPORTANT: If any tool call fails or returns an error, note the failure \
+            and continue with the next step.** A failed step (e.g., metrics not configured, \
+            timeouts) is useful diagnostic information itself — it does not mean \
+            you should stop the investigation.
+
             ## Step 1: Check Kafka cluster status [CRITICAL - cluster availability]
             Use `get_kafka_cluster` to retrieve the cluster status and conditions.
             

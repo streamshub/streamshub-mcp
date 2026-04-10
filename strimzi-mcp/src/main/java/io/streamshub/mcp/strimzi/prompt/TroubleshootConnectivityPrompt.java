@@ -64,7 +64,8 @@ public class TroubleshootConnectivityPrompt {
             You are troubleshooting connectivity to Kafka cluster `%s`%s.%s
 
             Follow these steps in order. After each step, analyze the results \
-            before proceeding to the next.
+            before proceeding to the next. **If any tool call fails or returns an error, \
+            note the failure and continue with the next step.**
 
             ## Step 1: Check cluster status
             Use `get_kafka_cluster` to verify the cluster exists and is Ready.
