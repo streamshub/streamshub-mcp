@@ -8,6 +8,7 @@ import io.quarkiverse.mcp.server.Prompt;
 import io.quarkiverse.mcp.server.PromptArg;
 import io.quarkiverse.mcp.server.PromptMessage;
 import io.quarkiverse.mcp.server.PromptResponse;
+import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import jakarta.inject.Singleton;
 
 import java.util.List;
@@ -60,9 +61,7 @@ public class AnalyzeStrimziOperatorMetricsPrompt {
         String instructions = """
             You are analyzing metrics for the Strimzi cluster operator.%s
 
-            **If any tool call fails or returns an error, note the failure \
-            and continue with the next category.** Metrics may not be configured \
-            or available for all components.
+            %s
 
             Each `get_strimzi_operator_metrics` response includes an `interpretation` field \
             with metric descriptions and thresholds — use it to interpret values.
@@ -105,6 +104,7 @@ public class AnalyzeStrimziOperatorMetricsPrompt {
             5. Actionable recommendations if issues are found\
             """.formatted(
                 concernClause,
+                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
                 nsArg.isEmpty() ? "" : "namespace='" + namespace + "', ",
                 nsArg.isEmpty() ? "" : "namespace='" + namespace + "', ",
                 nsArg.isEmpty() ? "" : "namespace='" + namespace + "', ");

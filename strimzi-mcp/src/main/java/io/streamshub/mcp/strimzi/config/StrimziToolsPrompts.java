@@ -148,6 +148,15 @@ public final class StrimziToolsPrompts {
         "Query resolution step in seconds for range queries."
             + " Defaults to server-configured value (typically 60).";
 
+    /**
+     * Common instruction for prompt templates to handle tool call failures gracefully.
+     */
+    public static final String ERROR_HANDLING_INSTRUCTION =
+        "**IMPORTANT: If any tool call fails or returns an error, note the failure "
+            + "and continue with the next step.** A failed step (e.g., metrics not configured, "
+            + "timeouts, missing permissions) is useful diagnostic information itself "
+            + "— it does not mean you should stop the investigation.";
+
     private StrimziToolsPrompts() {
     }
 }

@@ -8,6 +8,7 @@ import io.quarkiverse.mcp.server.Prompt;
 import io.quarkiverse.mcp.server.PromptArg;
 import io.quarkiverse.mcp.server.PromptMessage;
 import io.quarkiverse.mcp.server.PromptResponse;
+import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import jakarta.inject.Singleton;
 
 import java.util.List;
@@ -64,8 +65,9 @@ public class TroubleshootConnectivityPrompt {
             You are troubleshooting connectivity to Kafka cluster `%s`%s.%s
 
             Follow these steps in order. After each step, analyze the results \
-            before proceeding to the next. **If any tool call fails or returns an error, \
-            note the failure and continue with the next step.**
+            before proceeding to the next.
+
+            %s
 
             ## Step 1: Check cluster status
             Use `get_kafka_cluster` to verify the cluster exists and is Ready.
@@ -117,7 +119,8 @@ public class TroubleshootConnectivityPrompt {
             - Connection protocol for each listener (PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL)
             - Any issues found that could prevent connectivity
             - Example client configuration properties for the relevant listener(s)\
-            """.formatted(clusterName, nsClause, listenerClause);
+            """.formatted(clusterName, nsClause, listenerClause,
+                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION);
 
         return PromptResponse.withMessages(List.of(
             PromptMessage.withUserRole(instructions)
