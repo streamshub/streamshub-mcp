@@ -2,9 +2,8 @@
  * Copyright StreamsHub authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package io.streamshub.mcp.metrics.prometheus.service;
+package io.streamshub.mcp.common.auth;
 
-import io.streamshub.mcp.metrics.prometheus.config.PrometheusConfig;
 import jakarta.ws.rs.client.ClientRequestContext;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -24,42 +23,36 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for {@link PrometheusAuthFilter}.
- * Core authentication logic is tested in
- * {@link io.streamshub.mcp.common.auth.AbstractAuthFilterTest}.
+ * Tests for {@link AbstractAuthFilter} shared authentication logic.
  */
-class PrometheusAuthFilterTest {
+class AbstractAuthFilterTest {
 
     @Mock
     private ClientRequestContext requestContext;
 
     @Mock
-    private PrometheusConfig config;
+    private AuthConfig authConfig;
 
     private MultivaluedMap<String, Object> headers;
-    private PrometheusAuthFilter filter;
+    private TestAuthFilter filter;
 
     @TempDir
     Path tempDir;
 
-    PrometheusAuthFilterTest() {
+    AbstractAuthFilterTest() {
     }
 
     @BeforeEach
-    void setUp() throws ReflectiveOperationException {
+    void setUp() {
         MockitoAnnotations.openMocks(this);
         headers = new MultivaluedHashMap<>();
         when(requestContext.getHeaders()).thenReturn(headers);
-
-        filter = new PrometheusAuthFilter();
-        java.lang.reflect.Field configField = PrometheusAuthFilter.class.getDeclaredField("config");
-        configField.setAccessible(true);
-        configField.set(filter, config);
+        filter = new TestAuthFilter(authConfig);
     }
 
     @Test
     void noAuthModeDoesNotAddHeaders() throws IOException {
-        when(config.authMode()).thenReturn("none");
+        when(authConfig.authMode()).thenReturn("none");
 
         filter.filter(requestContext);
 
@@ -68,7 +61,7 @@ class PrometheusAuthFilterTest {
 
     @Test
     void basicAuthModeDoesNotAddHeaders() throws IOException {
-        when(config.authMode()).thenReturn("basic");
+        when(authConfig.authMode()).thenReturn("basic");
 
         filter.filter(requestContext);
 
@@ -77,8 +70,8 @@ class PrometheusAuthFilterTest {
 
     @Test
     void bearerTokenModeAddsAuthorizationHeader() throws IOException {
-        when(config.authMode()).thenReturn("bearer-token");
-        when(config.bearerToken()).thenReturn(Optional.of("test-token-123"));
+        when(authConfig.authMode()).thenReturn("bearer-token");
+        when(authConfig.bearerToken()).thenReturn(Optional.of("test-token-123"));
 
         filter.filter(requestContext);
 
@@ -87,8 +80,8 @@ class PrometheusAuthFilterTest {
 
     @Test
     void bearerTokenModeTrimsToken() throws IOException {
-        when(config.authMode()).thenReturn("bearer-token");
-        when(config.bearerToken()).thenReturn(Optional.of("  test-token-456  "));
+        when(authConfig.authMode()).thenReturn("bearer-token");
+        when(authConfig.bearerToken()).thenReturn(Optional.of("  test-token-456  "));
 
         filter.filter(requestContext);
 
@@ -97,8 +90,8 @@ class PrometheusAuthFilterTest {
 
     @Test
     void bearerTokenModeWithoutTokenDoesNotAddHeader() throws IOException {
-        when(config.authMode()).thenReturn("bearer-token");
-        when(config.bearerToken()).thenReturn(Optional.empty());
+        when(authConfig.authMode()).thenReturn("bearer-token");
+        when(authConfig.bearerToken()).thenReturn(Optional.empty());
 
         filter.filter(requestContext);
 
@@ -107,8 +100,8 @@ class PrometheusAuthFilterTest {
 
     @Test
     void bearerTokenModeWithBlankTokenDoesNotAddHeader() throws IOException {
-        when(config.authMode()).thenReturn("bearer-token");
-        when(config.bearerToken()).thenReturn(Optional.of("   "));
+        when(authConfig.authMode()).thenReturn("bearer-token");
+        when(authConfig.bearerToken()).thenReturn(Optional.of("   "));
 
         filter.filter(requestContext);
 
@@ -120,8 +113,8 @@ class PrometheusAuthFilterTest {
         Path tokenFile = tempDir.resolve("token");
         Files.writeString(tokenFile, "sa-token-content");
 
-        when(config.authMode()).thenReturn("sa-token");
-        when(config.saTokenPath()).thenReturn(tokenFile.toString());
+        when(authConfig.authMode()).thenReturn("sa-token");
+        when(authConfig.saTokenPath()).thenReturn(tokenFile.toString());
 
         filter.filter(requestContext);
 
@@ -133,8 +126,8 @@ class PrometheusAuthFilterTest {
         Path tokenFile = tempDir.resolve("token");
         Files.writeString(tokenFile, "  sa-token-with-whitespace  \n");
 
-        when(config.authMode()).thenReturn("sa-token");
-        when(config.saTokenPath()).thenReturn(tokenFile.toString());
+        when(authConfig.authMode()).thenReturn("sa-token");
+        when(authConfig.saTokenPath()).thenReturn(tokenFile.toString());
 
         filter.filter(requestContext);
 
@@ -143,8 +136,8 @@ class PrometheusAuthFilterTest {
 
     @Test
     void serviceAccountTokenModeWithMissingFileDoesNotAddHeader() throws IOException {
-        when(config.authMode()).thenReturn("sa-token");
-        when(config.saTokenPath()).thenReturn("/nonexistent/token");
+        when(authConfig.authMode()).thenReturn("sa-token");
+        when(authConfig.saTokenPath()).thenReturn("/nonexistent/token");
 
         filter.filter(requestContext);
 
@@ -153,7 +146,7 @@ class PrometheusAuthFilterTest {
 
     @Test
     void unknownAuthModeDoesNotAddHeader() throws IOException {
-        when(config.authMode()).thenReturn("unknown-mode");
+        when(authConfig.authMode()).thenReturn("unknown-mode");
 
         filter.filter(requestContext);
 
@@ -162,11 +155,38 @@ class PrometheusAuthFilterTest {
 
     @Test
     void authModeIsCaseInsensitive() throws IOException {
-        when(config.authMode()).thenReturn("BEARER-TOKEN");
-        when(config.bearerToken()).thenReturn(Optional.of("test-token"));
+        when(authConfig.authMode()).thenReturn("BEARER-TOKEN");
+        when(authConfig.bearerToken()).thenReturn(Optional.of("test-token"));
 
         filter.filter(requestContext);
 
         assertEquals("Bearer test-token", headers.getFirst("Authorization"));
+    }
+
+    /**
+     * Concrete test subclass of {@link AbstractAuthFilter}.
+     */
+    private static class TestAuthFilter extends AbstractAuthFilter {
+
+        private final AuthConfig config;
+
+        TestAuthFilter(final AuthConfig config) {
+            this.config = config;
+        }
+
+        @Override
+        protected AuthConfig authConfig() {
+            return config;
+        }
+
+        @Override
+        protected String providerName() {
+            return "Test";
+        }
+
+        @Override
+        protected String bearerTokenPropertyName() {
+            return "test.bearer-token";
+        }
     }
 }

@@ -12,7 +12,7 @@ import java.util.function.Consumer;
  * Options for log collection from Kubernetes pods.
  *
  * <p>Encapsulates filtering, pagination, and callback parameters
- * for {@link io.streamshub.mcp.common.service.PodsService#collectLogs}.</p>
+ * for {@link io.streamshub.mcp.common.service.log.LogCollectionService#collectLogs}.</p>
  *
  * @param filter           optional filter: "errors", "warnings", or a regex pattern
  * @param keywords         optional list of keywords to match lines against (case-insensitive)
@@ -23,7 +23,7 @@ import java.util.function.Consumer;
  * @param cancelCheck      optional callback invoked before each pod; should throw to abort
  * @param progressCallback optional callback receiving (completedPods, totalPods) after each pod
  */
-public record LogCollectionOptions(
+public record LogCollectionParams(
     String filter,
     List<String> keywords,
     Integer sinceSeconds,
@@ -43,9 +43,9 @@ public record LogCollectionOptions(
      * @param previous     if true, retrieve previous container logs
      * @return log collection options with no keywords or callbacks
      */
-    public static LogCollectionOptions of(final String filter, final Integer sinceSeconds,
-                                          final int tailLines, final Boolean previous) {
-        return new LogCollectionOptions(filter, null, sinceSeconds, tailLines, previous, null, null, null);
+    public static LogCollectionParams of(final String filter, final Integer sinceSeconds,
+                                         final int tailLines, final Boolean previous) {
+        return new LogCollectionParams(filter, null, sinceSeconds, tailLines, previous, null, null, null);
     }
 
     /**
@@ -59,7 +59,7 @@ public record LogCollectionOptions(
     }
 
     /**
-     * Builder for constructing {@link LogCollectionOptions} instances.
+     * Builder for constructing {@link LogCollectionParams} instances.
      */
     public static final class Builder {
 
@@ -158,8 +158,8 @@ public record LogCollectionOptions(
          *
          * @return the constructed options
          */
-        public LogCollectionOptions build() {
-            return new LogCollectionOptions(filter, keywords, sinceSeconds, tailLines,
+        public LogCollectionParams build() {
+            return new LogCollectionParams(filter, keywords, sinceSeconds, tailLines,
                 previous, notifier, cancelCheck, progressCallback);
         }
     }

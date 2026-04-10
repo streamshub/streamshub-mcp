@@ -33,7 +33,7 @@ spec:
     spec:
       containers:
         - name: seaweedfs
-          image: chrislusf/seaweedfs:latest
+          image: mirror.gcr.io/chrislusf/seaweedfs:latest
           args:
             - server
             - -s3
@@ -128,7 +128,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: create-bucket
-          image: curlimages/curl:latest
+          image: mirror.gcr.io/curlimages/curl:latest
           command:
             - /bin/sh
             - -c

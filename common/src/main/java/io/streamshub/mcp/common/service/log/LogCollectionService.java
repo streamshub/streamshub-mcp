@@ -5,7 +5,7 @@
 package io.streamshub.mcp.common.service.log;
 
 import io.fabric8.kubernetes.api.model.Pod;
-import io.streamshub.mcp.common.dto.LogCollectionOptions;
+import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -63,12 +63,12 @@ public class LogCollectionService {
      *
      * @param namespace the namespace of the pods
      * @param pods      the list of pods to collect logs from
-     * @param options   log collection options (filter, keywords, pagination, callbacks)
+     * @param options   log collection params (filter, keywords, pagination, callbacks)
      * @return the aggregated, filtered, and deduplicated log result
      */
     @SuppressWarnings("checkstyle:CyclomaticComplexity")
     public PodLogsResult collectLogs(final String namespace, final List<Pod> pods,
-                                     final LogCollectionOptions options) {
+                                     final LogCollectionParams options) {
         List<String> podNames = pods.stream()
             .map(pod -> pod.getMetadata().getName())
             .toList();

@@ -4,14 +4,11 @@
  */
 package io.streamshub.mcp.loki.service;
 
-import io.streamshub.mcp.common.auth.AuthHelper;
+import io.streamshub.mcp.common.auth.AbstractAuthFilter;
+import io.streamshub.mcp.common.auth.AuthConfig;
 import io.streamshub.mcp.loki.config.LokiConfig;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.client.ClientRequestContext;
-import jakarta.ws.rs.client.ClientRequestFilter;
-import org.jboss.logging.Logger;
-
-import java.util.Locale;
 
 /**
  * JAX-RS client request filter that adds authentication and tenant ID to Loki API calls.
@@ -21,9 +18,7 @@ import java.util.Locale;
  * <p>Registered on {@link LokiClient} via {@code @RegisterProvider},
  * so it only applies to Loki API calls.</p>
  */
-public class LokiAuthFilter implements ClientRequestFilter {
-
-    private static final Logger LOG = Logger.getLogger(LokiAuthFilter.class);
+public class LokiAuthFilter extends AbstractAuthFilter {
 
     @Inject
     LokiConfig config;
@@ -32,38 +27,24 @@ public class LokiAuthFilter implements ClientRequestFilter {
     }
 
     @Override
-    public void filter(final ClientRequestContext requestContext) {
-        addTenantId(requestContext);
-        addAuthentication(requestContext);
+    protected AuthConfig authConfig() {
+        return config;
     }
 
-    private void addTenantId(final ClientRequestContext requestContext) {
+    @Override
+    protected String providerName() {
+        return "Loki";
+    }
+
+    @Override
+    protected String bearerTokenPropertyName() {
+        return "mcp.log.loki.bearer-token";
+    }
+
+    @Override
+    protected void addProviderSpecificHeaders(final ClientRequestContext requestContext) {
         config.tenantId()
             .filter(id -> !id.isBlank())
             .ifPresent(id -> requestContext.getHeaders().putSingle("X-Scope-OrgID", id.trim()));
-    }
-
-    private void addAuthentication(final ClientRequestContext requestContext) {
-        String authMode = config.authMode().toLowerCase(Locale.ROOT);
-
-        switch (authMode) {
-            case AuthHelper.AUTH_MODE_SA_TOKEN:
-                AuthHelper.readServiceAccountToken(config.saTokenPath())
-                    .ifPresent(token -> requestContext.getHeaders()
-                        .putSingle("Authorization", "Bearer " + token));
-                break;
-            case AuthHelper.AUTH_MODE_BEARER_TOKEN:
-                AuthHelper.validateBearerToken(config.bearerToken(), "mcp.log.loki.bearer-token")
-                    .ifPresent(token -> requestContext.getHeaders()
-                        .putSingle("Authorization", "Bearer " + token));
-                break;
-            case AuthHelper.AUTH_MODE_BASIC:
-                break;
-            case AuthHelper.AUTH_MODE_NONE:
-                break;
-            default:
-                LOG.warnf("Unknown Loki auth mode: '%s'. No authentication applied.", authMode);
-                break;
-        }
     }
 }

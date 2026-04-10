@@ -9,7 +9,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.common.dto.LogCollectionOptions;
+import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
@@ -46,7 +46,7 @@ class LogCollectionServiceTest {
             throw new RuntimeException("Cancelled");
         };
 
-        LogCollectionOptions options = LogCollectionOptions.builder(100)
+        LogCollectionParams options = LogCollectionParams.builder(100)
             .cancelCheck(cancelCheck)
             .build();
 
@@ -62,7 +62,7 @@ class LogCollectionServiceTest {
 
         List<int[]> progressCalls = new ArrayList<>();
 
-        LogCollectionOptions options = LogCollectionOptions.builder(100)
+        LogCollectionParams options = LogCollectionParams.builder(100)
             .progressCallback((completed, total) -> progressCalls.add(new int[]{completed, total}))
             .build();
 
@@ -81,7 +81,7 @@ class LogCollectionServiceTest {
 
         List<String> notifications = new ArrayList<>();
 
-        LogCollectionOptions options = LogCollectionOptions.builder(100)
+        LogCollectionParams options = LogCollectionParams.builder(100)
             .notifier(notifications::add)
             .build();
 
@@ -93,7 +93,7 @@ class LogCollectionServiceTest {
 
     @Test
     void testCollectLogsEmptyPodList() {
-        LogCollectionOptions options = LogCollectionOptions.of(null, null, 100, null);
+        LogCollectionParams options = LogCollectionParams.of(null, null, 100, null);
         PodLogsResult result = logCollectionService.collectLogs("kafka", List.of(), options);
 
         assertNotNull(result);

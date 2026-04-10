@@ -8,7 +8,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
-import io.streamshub.mcp.common.dto.LogCollectionOptions;
+import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.service.DeploymentService;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
@@ -112,7 +112,7 @@ public class StrimziOperatorService {
      * @return the operator logs response
      */
     public StrimziOperatorLogsResponse getOperatorLogs(final String namespace, final String operatorName,
-                                                        final LogCollectionOptions options) {
+                                                        final LogCollectionParams options) {
         String ns = InputUtils.normalizeInput(namespace);
 
         LOG.infof("Getting operator logs (namespace=%s, name=%s, filter=%s, tailLines=%s, previous=%s)",
