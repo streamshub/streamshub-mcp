@@ -11,6 +11,7 @@ import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.dto.LogCollectionOptions;
+import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaCertificateResponse;
@@ -29,6 +30,7 @@ import java.util.List;
  * MCP tools for Kafka cluster operations.
  */
 @Singleton
+@Guarded
 @WrapBusinessError(Exception.class)
 public class KafkaTools {
 

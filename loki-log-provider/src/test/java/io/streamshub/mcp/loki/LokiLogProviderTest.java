@@ -110,6 +110,13 @@ class LokiLogProviderTest {
     }
 
     @Test
+    void testBuildLogQueryEscapesSpecialCharacters() {
+        String query = lokiLogCollectorProvider.buildLogQuery("ns\"} | logfmt", "pod-0");
+
+        assertEquals("{namespace=\"ns\\\"} | logfmt\", pod=\"pod-0\"}", query);
+    }
+
+    @Test
     void testExtractLogLinesSkipsInvalidEntries() {
         LokiResponse response = new LokiResponse("success", new LokiResponse.LokiData(
             "streams",

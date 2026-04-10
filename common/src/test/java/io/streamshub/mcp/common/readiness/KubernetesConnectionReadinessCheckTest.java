@@ -68,10 +68,12 @@ class KubernetesConnectionReadinessCheckTest {
     @Test
     void testUnhealthyWhenApiUnreachable() {
         when(kubernetesClient.authorization()).thenThrow(
-            new RuntimeException("Connection refused"));
+            new RuntimeException("Connection refused: https://10.0.0.1:6443"));
 
         HealthCheckResponse response = healthCheck.call();
 
         assertEquals(HealthCheckResponse.Status.DOWN, response.getStatus());
+        assertEquals("Kubernetes API unreachable",
+            response.getData().get().get("error"));
     }
 }
