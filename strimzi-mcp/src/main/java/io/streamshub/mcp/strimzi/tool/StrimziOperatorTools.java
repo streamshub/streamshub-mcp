@@ -12,6 +12,7 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.dto.LogCollectionOptions;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
+import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
@@ -27,6 +28,7 @@ import java.util.List;
  * MCP tools for Strimzi operator operations.
  */
 @Singleton
+@Guarded
 @WrapBusinessError(Exception.class)
 public class StrimziOperatorTools {
 

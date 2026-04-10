@@ -8,6 +8,7 @@ import io.quarkus.arc.lookup.LookupIfProperty;
 import io.streamshub.mcp.common.service.log.LogCollectorProvider;
 import io.streamshub.mcp.loki.config.LokiConfig;
 import io.streamshub.mcp.loki.service.LokiClient;
+import io.streamshub.mcp.loki.util.LogQLSanitizer;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -88,8 +89,8 @@ public class LokiLogProvider implements LogCollectorProvider {
      */
     String buildLogQuery(final String namespace, final String podName) {
         return String.format("{%s=\"%s\", %s=\"%s\"}",
-            config.label().namespace(), namespace,
-            config.label().pod(), podName);
+            config.label().namespace(), LogQLSanitizer.sanitizeLabelValue(namespace),
+            config.label().pod(), LogQLSanitizer.sanitizeLabelValue(podName));
     }
 
     /**

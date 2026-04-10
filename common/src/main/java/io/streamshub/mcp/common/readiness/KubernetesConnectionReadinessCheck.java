@@ -13,6 +13,7 @@ import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
 import org.eclipse.microprofile.health.Readiness;
+import org.jboss.logging.Logger;
 
 /**
  * Readiness health check that verifies Kubernetes API connectivity.
@@ -26,6 +27,8 @@ import org.eclipse.microprofile.health.Readiness;
 @Readiness
 @ApplicationScoped
 public class KubernetesConnectionReadinessCheck implements HealthCheck {
+
+    private static final Logger LOG = Logger.getLogger(KubernetesConnectionReadinessCheck.class);
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -61,8 +64,9 @@ public class KubernetesConnectionReadinessCheck implements HealthCheck {
 
             return builder.up().build();
         } catch (Exception e) {
+            LOG.debugf("Kubernetes API health check failed: %s", e.getMessage());
             return builder.down()
-                .withData("error", e.getMessage())
+                .withData("error", "Kubernetes API unreachable")
                 .build();
         }
     }

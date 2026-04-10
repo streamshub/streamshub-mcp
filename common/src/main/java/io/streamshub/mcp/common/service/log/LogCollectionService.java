@@ -32,6 +32,7 @@ import java.util.regex.PatternSyntaxException;
 public class LogCollectionService {
 
     private static final Logger LOG = Logger.getLogger(LogCollectionService.class);
+    private static final int MAX_FILTER_LENGTH = 200;
 
     @Inject
     Instance<LogCollectorProvider> logProvider;
@@ -204,6 +205,8 @@ public class LogCollectionService {
     /**
      * Compile a log filter string into a regex pattern.
      * Supports "errors", "warnings" shortcuts, or a custom regex.
+     * Rejects patterns longer than {@value #MAX_FILTER_LENGTH} characters
+     * to mitigate ReDoS attacks.
      *
      * @param filter the filter string
      * @return the compiled pattern, or null for no filtering
@@ -219,8 +222,14 @@ public class LogCollectionService {
         if ("warnings".equals(normalized)) {
             return Pattern.compile("(?i)(ERROR|EXCEPTION|WARN)");
         }
+        String trimmed = filter.trim();
+        if (trimmed.length() > MAX_FILTER_LENGTH) {
+            LOG.warnf("Log filter regex too long (%d chars, max %d), returning unfiltered logs",
+                trimmed.length(), MAX_FILTER_LENGTH);
+            return null;
+        }
         try {
-            return Pattern.compile(filter.trim());
+            return Pattern.compile(trimmed);
         } catch (PatternSyntaxException e) {
             LOG.warnf("Invalid log filter regex '%s', returning unfiltered logs: %s", filter, e.getMessage());
             return null;
