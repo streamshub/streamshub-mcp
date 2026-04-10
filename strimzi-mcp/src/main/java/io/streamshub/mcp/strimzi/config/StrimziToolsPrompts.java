@@ -110,6 +110,14 @@ public final class StrimziToolsPrompts {
             + " or metric names are provided.";
 
     /**
+     * Kafka Exporter metrics category parameter description.
+     */
+    public static final String EXPORTER_METRICS_CATEGORY_DESC =
+        "Metric category: 'consumer_lag', 'partitions',"
+            + " or 'resources'."
+            + " Defaults to 'consumer_lag' if omitted.";
+
+    /**
      * Metric names parameter description.
      */
     public static final String METRICS_NAMES_DESC =

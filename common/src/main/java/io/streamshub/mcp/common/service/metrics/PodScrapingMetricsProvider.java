@@ -64,6 +64,10 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
         Set<String> metricFilter = params.metricNames() != null
             ? new HashSet<>(params.metricNames()) : null;
 
+        LOG.debugf("Scraping %d pod target(s), metric filter: %s",
+            targets.size(),
+            metricFilter != null ? metricFilter : "none");
+
         List<MetricSample> allSamples = new ArrayList<>();
 
         for (PodTarget target : targets) {
@@ -78,20 +82,25 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
                 String body = kubernetesClient.raw(proxyUrl);
                 if (body != null && !body.isEmpty()) {
                     List<MetricSample> samples = PrometheusTextParser.parse(body, metricFilter);
+                    LOG.debugf("Scraped %d sample(s) from pod %s/%s",
+                        samples.size(), target.namespace(), target.podName());
                     for (MetricSample sample : samples) {
                         allSamples.add(MetricSample.of(sample.name(),
                             MetricLabelFilter.filterLabels(sample.labels()),
                             sample.value(), sample.timestamp()));
                     }
                 } else {
-                    LOG.warnf("Empty metrics response from pod %s/%s",
+                    LOG.debugf("Empty metrics response from pod %s/%s",
                         target.namespace(), target.podName());
                 }
             } catch (Exception e) {
-                LOG.warnf("Error scraping metrics from pod %s/%s: %s",
+                LOG.debugf("Error scraping metrics from pod %s/%s: %s",
                     target.namespace(), target.podName(), e.getMessage());
             }
         }
+
+        LOG.debugf("Scraping complete: collected %d total sample(s) from %d target(s)",
+            allSamples.size(), targets.size());
 
         return allSamples;
     }
