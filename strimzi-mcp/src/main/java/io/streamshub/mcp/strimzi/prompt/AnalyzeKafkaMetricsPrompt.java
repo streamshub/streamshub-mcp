@@ -8,6 +8,7 @@ import io.quarkiverse.mcp.server.Prompt;
 import io.quarkiverse.mcp.server.PromptArg;
 import io.quarkiverse.mcp.server.PromptMessage;
 import io.quarkiverse.mcp.server.PromptResponse;
+import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import jakarta.inject.Singleton;
 
 import java.util.List;
@@ -64,6 +65,8 @@ public class AnalyzeKafkaMetricsPrompt {
 
         String instructions = """
             You are analyzing metrics for Kafka cluster `%s`.%s
+
+            %s
 
             **Analysis Priority (check in this order):**
             1. **CRITICAL**: Replication health → data availability
@@ -144,6 +147,7 @@ public class AnalyzeKafkaMetricsPrompt {
             5. **Verification steps** (what to check next)\
             """.formatted(
                 clusterName, concernClause,
+                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
                 clusterName, nsArg,
                 clusterName, nsArg,
                 clusterName, nsArg,

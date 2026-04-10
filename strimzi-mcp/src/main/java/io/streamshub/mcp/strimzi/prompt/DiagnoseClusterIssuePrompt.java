@@ -8,6 +8,7 @@ import io.quarkiverse.mcp.server.Prompt;
 import io.quarkiverse.mcp.server.PromptArg;
 import io.quarkiverse.mcp.server.PromptMessage;
 import io.quarkiverse.mcp.server.PromptResponse;
+import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import jakarta.inject.Singleton;
 
 import java.util.List;
@@ -80,6 +81,8 @@ public class DiagnoseClusterIssuePrompt {
             Follow these steps in order. After each step, analyze the results \
             before proceeding to the next. **Stop and escalate immediately if you find \
             offline partitions or cluster-wide unavailability.**
+
+            %s
 
             ## Step 1: Check Kafka cluster status [CRITICAL - cluster availability]
             Use `get_kafka_cluster` to retrieve the cluster status and conditions.
@@ -229,7 +232,8 @@ public class DiagnoseClusterIssuePrompt {
             **Remember:** Symptoms are not root causes. Pod restarts are symptoms; \
             OOM or disk full are root causes. Offline partitions are symptoms; \
             broker failures or controller issues are root causes.\
-            """.formatted(clusterName, nsClause, symptomClause, clusterName);
+            """.formatted(clusterName, nsClause, symptomClause,
+                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION, clusterName);
 
         return PromptResponse.withMessages(List.of(
             PromptMessage.withUserRole(instructions)
