@@ -164,8 +164,12 @@ public class ResponseSizeLimitFilter implements GuardrailFilter {
     private int extractArrayIndex(final String segment) {
         int bracketStart = segment.indexOf('[');
         if (bracketStart >= 0) {
-            String indexStr = segment.substring(bracketStart + 1, segment.length() - 1);
-            return Integer.parseInt(indexStr);
+            try {
+                String indexStr = segment.substring(bracketStart + 1, segment.length() - 1);
+                return Integer.parseInt(indexStr);
+            } catch (NumberFormatException e) {
+                return -1;
+            }
         }
         return -1;
     }
