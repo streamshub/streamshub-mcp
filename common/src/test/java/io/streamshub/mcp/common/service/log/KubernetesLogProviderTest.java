@@ -65,7 +65,7 @@ class KubernetesLogProviderTest {
         Mockito.doReturn(prettyLoggable).when(podResource).tailingLines(TAIL_LINES + 1);
         when(prettyLoggable.getLog()).thenReturn("line1\nline2\n");
 
-        String result = kubernetesLogCollectorProvider.fetchLogs(NAMESPACE, POD_NAME, TAIL_LINES, null, null);
+        String result = kubernetesLogCollectorProvider.fetchLogs(NAMESPACE, POD_NAME, TAIL_LINES, null, null, null, null, null, null);
 
         assertEquals("line1\nline2\n", result);
     }
@@ -78,7 +78,7 @@ class KubernetesLogProviderTest {
         when(sinceLoggable.tailingLines(TAIL_LINES + 1)).thenReturn(prettyLoggable);
         when(prettyLoggable.getLog()).thenReturn("recent log\n");
 
-        String result = kubernetesLogCollectorProvider.fetchLogs(NAMESPACE, POD_NAME, TAIL_LINES, 300, null);
+        String result = kubernetesLogCollectorProvider.fetchLogs(NAMESPACE, POD_NAME, TAIL_LINES, 300, null, null, null, null, null);
 
         assertEquals("recent log\n", result);
     }
@@ -91,7 +91,7 @@ class KubernetesLogProviderTest {
         Mockito.doReturn(prettyLoggable).when(terminatedLoggable).tailingLines(TAIL_LINES + 1);
         when(prettyLoggable.getLog()).thenReturn("previous container log\n");
 
-        String result = kubernetesLogCollectorProvider.fetchLogs(NAMESPACE, POD_NAME, TAIL_LINES, null, true);
+        String result = kubernetesLogCollectorProvider.fetchLogs(NAMESPACE, POD_NAME, TAIL_LINES, null, true, null, null, null, null);
 
         assertEquals("previous container log\n", result);
         verify(podResource).terminated();
@@ -105,7 +105,7 @@ class KubernetesLogProviderTest {
         Mockito.doReturn(prettyLoggable).when(terminatedLoggable).tailingLines(TAIL_LINES + 1);
         when(prettyLoggable.getLog()).thenReturn("previous log\n");
 
-        String result = kubernetesLogCollectorProvider.fetchLogs(NAMESPACE, POD_NAME, TAIL_LINES, 300, true);
+        String result = kubernetesLogCollectorProvider.fetchLogs(NAMESPACE, POD_NAME, TAIL_LINES, 300, true, null, null, null, null);
 
         assertEquals("previous log\n", result);
         verify(podResource).terminated();
@@ -117,7 +117,7 @@ class KubernetesLogProviderTest {
         Mockito.doReturn(prettyLoggable).when(podResource).tailingLines(TAIL_LINES + 1);
         when(prettyLoggable.getLog()).thenReturn(null);
 
-        String result = kubernetesLogCollectorProvider.fetchLogs(NAMESPACE, POD_NAME, TAIL_LINES, null, null);
+        String result = kubernetesLogCollectorProvider.fetchLogs(NAMESPACE, POD_NAME, TAIL_LINES, null, null, null, null, null, null);
 
         assertNull(result);
     }

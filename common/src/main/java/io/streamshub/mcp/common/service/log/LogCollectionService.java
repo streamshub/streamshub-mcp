@@ -19,20 +19,18 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
 /**
- * Service for collecting, filtering, and deduplicating logs from Kubernetes pods.
+ * Orchestrator for collecting logs from multiple Kubernetes pods.
  *
- * <p>Delegates raw log fetching to the active {@link LogCollectorProvider} and applies
- * filtering, keyword matching, deduplication, and progress callbacks on top.</p>
+ * <p>Iterates pods, delegates fetching and filtering to the active
+ * {@link LogCollectorProvider}, then aggregates results with error counting,
+ * deduplication, and progress callbacks.</p>
  */
 @ApplicationScoped
 public class LogCollectionService {
 
     private static final Logger LOG = Logger.getLogger(LogCollectionService.class);
-    private static final int MAX_FILTER_LENGTH = 200;
 
     @Inject
     Instance<LogCollectorProvider> logProvider;
@@ -58,13 +56,17 @@ public class LogCollectionService {
     }
 
     /**
-     * Collect logs from a list of pods with optional filtering, keyword matching,
-     * deduplication, pagination, and lifecycle callbacks.
+     * Collect logs from a list of pods with error counting, deduplication,
+     * pagination, and lifecycle callbacks.
+     *
+     * <p>The active {@link LogCollectorProvider} handles fetching and filtering.
+     * This service handles orchestration: iterating pods, counting errors,
+     * deduplicating lines, and managing callbacks.</p>
      *
      * @param namespace the namespace of the pods
      * @param pods      the list of pods to collect logs from
      * @param options   log collection params (filter, keywords, pagination, callbacks)
-     * @return the aggregated, filtered, and deduplicated log result
+     * @return the aggregated, deduplicated log result
      */
     @SuppressWarnings("checkstyle:CyclomaticComplexity")
     public PodLogsResult collectLogs(final String namespace, final List<Pod> pods,
@@ -72,9 +74,6 @@ public class LogCollectionService {
         List<String> podNames = pods.stream()
             .map(pod -> pod.getMetadata().getName())
             .toList();
-
-        Pattern filterPattern = compileLogFilter(options.filter());
-        List<String> normalizedKeywords = normalizeKeywords(options.keywords());
 
         StringBuilder allLogs = new StringBuilder();
         int errorCount = 0;
@@ -95,7 +94,8 @@ public class LogCollectionService {
             }
             try {
                 String podLog = logProvider.get().fetchLogs(namespace, podName, options.tailLines(),
-                    options.sinceSeconds(), options.previous());
+                    options.sinceSeconds(), options.previous(), options.filter(), options.keywords(),
+                    options.startTime(), options.endTime());
 
                 if (podLog != null && !podLog.isEmpty()) {
                     String[] lines = podLog.split("\n");
@@ -115,10 +115,8 @@ public class LogCollectionService {
                         if (upperLine.contains("ERROR") || upperLine.contains("EXCEPTION")) {
                             errorCount++;
                         }
-                        if (matchesFilter(line, filterPattern) && matchesKeywords(upperLine, normalizedKeywords)) {
-                            matchedLines.add(line);
-                            filteredLines++;
-                        }
+                        matchedLines.add(line);
+                        filteredLines++;
                     }
 
                     if (!matchedLines.isEmpty()) {
@@ -136,45 +134,6 @@ public class LogCollectionService {
         }
 
         return new PodLogsResult(podNames, allLogs.toString(), errorCount, totalLines, filteredLines, hasMore);
-    }
-
-    /**
-     * Check whether a log line matches the compiled filter pattern.
-     *
-     * @param line          the log line to check
-     * @param filterPattern the compiled filter pattern, or null for no filtering
-     * @return true if the line matches or no filter is set
-     */
-    private boolean matchesFilter(final String line, final Pattern filterPattern) {
-        return filterPattern == null || filterPattern.matcher(line).find();
-    }
-
-    /**
-     * Check whether a log line (uppercased) contains at least one of the keywords.
-     *
-     * @param upperLine          the uppercased log line
-     * @param normalizedKeywords the list of uppercased keywords, or null for no keyword filtering
-     * @return true if the line matches at least one keyword or no keywords are set
-     */
-    private boolean matchesKeywords(final String upperLine, final List<String> normalizedKeywords) {
-        return normalizedKeywords == null || normalizedKeywords.stream().anyMatch(upperLine::contains);
-    }
-
-    /**
-     * Normalize a list of keywords to uppercase for case-insensitive matching.
-     * Returns null if the input is null or empty.
-     *
-     * @param keywords the raw keyword list
-     * @return uppercased keywords, or null if no keywords provided
-     */
-    private List<String> normalizeKeywords(final List<String> keywords) {
-        if (keywords == null || keywords.isEmpty()) {
-            return null;
-        }
-        return keywords.stream()
-            .filter(k -> k != null && !k.isBlank())
-            .map(k -> k.toUpperCase(Locale.ENGLISH).trim())
-            .toList();
     }
 
     /**
@@ -200,39 +159,5 @@ public class LogCollectionService {
             output.append("\n");
         }
         return output.toString();
-    }
-
-    /**
-     * Compile a log filter string into a regex pattern.
-     * Supports "errors", "warnings" shortcuts, or a custom regex.
-     * Rejects patterns longer than {@value #MAX_FILTER_LENGTH} characters
-     * to mitigate ReDoS attacks.
-     *
-     * @param filter the filter string
-     * @return the compiled pattern, or null for no filtering
-     */
-    private Pattern compileLogFilter(final String filter) {
-        if (filter == null || filter.isBlank()) {
-            return null;
-        }
-        String normalized = filter.trim().toLowerCase(Locale.ENGLISH);
-        if ("errors".equals(normalized)) {
-            return Pattern.compile("(?i)(ERROR|EXCEPTION)");
-        }
-        if ("warnings".equals(normalized)) {
-            return Pattern.compile("(?i)(ERROR|EXCEPTION|WARN)");
-        }
-        String trimmed = filter.trim();
-        if (trimmed.length() > MAX_FILTER_LENGTH) {
-            LOG.warnf("Log filter regex too long (%d chars, max %d), returning unfiltered logs",
-                trimmed.length(), MAX_FILTER_LENGTH);
-            return null;
-        }
-        try {
-            return Pattern.compile(trimmed);
-        } catch (PatternSyntaxException e) {
-            LOG.warnf("Invalid log filter regex '%s', returning unfiltered logs: %s", filter, e.getMessage());
-            return null;
-        }
     }
 }

@@ -18,6 +18,8 @@ import org.jboss.logging.Logger;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
 
 /**
  * {@link LogCollectorProvider} implementation that queries a Grafana Loki instance
@@ -52,25 +54,34 @@ public class LokiLogProvider implements LogCollectorProvider {
     @Override
     public String fetchLogs(final String namespace, final String podName,
                             final int tailLines, final Integer sinceSeconds,
-                            final Boolean previous) {
+                            final Boolean previous, final String filter,
+                            final List<String> keywords,
+                            final String startTime, final String endTime) {
         if (Boolean.TRUE.equals(previous)) {
             LOG.debugf("Loki does not distinguish previous container logs; "
                 + "using time range to capture pre-restart logs for pod %s", podName);
         }
 
-        String query = buildLogQuery(namespace, podName);
-        int effectiveSince = sinceSeconds != null ? sinceSeconds : DEFAULT_SINCE_SECONDS;
+        String query = buildLogQuery(namespace, podName, filter, keywords);
 
-        Instant now = Instant.now();
-        Instant start = now.minusSeconds(effectiveSince);
+        Instant start;
+        Instant end;
+        if (startTime != null && endTime != null) {
+            start = Instant.parse(startTime);
+            end = Instant.parse(endTime);
+        } else {
+            int effectiveSince = sinceSeconds != null ? sinceSeconds : DEFAULT_SINCE_SECONDS;
+            end = Instant.now();
+            start = end.minusSeconds(effectiveSince);
+        }
 
-        LOG.debugf("Querying Loki: query=%s, range=%ds", query, effectiveSince);
+        LOG.debugf("Querying Loki: query=%s, start=%s, end=%s", query, start, end);
 
         try {
             LokiResponse response = lokiClient.get().queryRange(
                 query,
                 toEpochNanos(start),
-                toEpochNanos(now),
+                toEpochNanos(end),
                 tailLines + 1,
                 "backward");
             return extractLogLines(response);
@@ -81,16 +92,57 @@ public class LokiLogProvider implements LogCollectorProvider {
     }
 
     /**
-     * Build a LogQL stream selector for the given namespace and pod.
+     * Build a LogQL query with stream selector and optional line filters.
      *
      * @param namespace the Kubernetes namespace
      * @param podName   the pod name
+     * @param filter    optional filter: "errors", "warnings", or a regex pattern
+     * @param keywords  optional list of keywords for line matching
      * @return the LogQL query string
      */
-    String buildLogQuery(final String namespace, final String podName) {
-        return String.format("{%s=\"%s\", %s=\"%s\"}",
+    String buildLogQuery(final String namespace, final String podName,
+                         final String filter, final List<String> keywords) {
+        StringBuilder query = new StringBuilder();
+        query.append(String.format("{%s=\"%s\", %s=\"%s\"}",
             config.label().namespace(), LogQLSanitizer.sanitizeLabelValue(namespace),
-            config.label().pod(), LogQLSanitizer.sanitizeLabelValue(podName));
+            config.label().pod(), LogQLSanitizer.sanitizeLabelValue(podName)));
+
+        String filterRegex = resolveFilterRegex(filter);
+        if (filterRegex != null) {
+            query.append(" |~ \"").append(LogQLSanitizer.sanitizeLabelValue(filterRegex)).append("\"");
+        }
+
+        if (keywords != null && !keywords.isEmpty()) {
+            String keywordPattern = keywords.stream()
+                .filter(k -> k != null && !k.isBlank())
+                .map(k -> LogQLSanitizer.sanitizeLabelValue(k.trim()))
+                .collect(Collectors.joining("|"));
+            if (!keywordPattern.isEmpty()) {
+                query.append(" |~ \"(?i)(").append(keywordPattern).append(")\"");
+            }
+        }
+
+        return query.toString();
+    }
+
+    /**
+     * Resolve a filter shortcut or custom regex into a LogQL regex pattern.
+     *
+     * @param filter the filter string
+     * @return the regex pattern, or null if no filter
+     */
+    private String resolveFilterRegex(final String filter) {
+        if (filter == null || filter.isBlank()) {
+            return null;
+        }
+        String normalized = filter.trim().toLowerCase(Locale.ENGLISH);
+        if ("errors".equals(normalized)) {
+            return "(?i)(ERROR|EXCEPTION)";
+        }
+        if ("warnings".equals(normalized)) {
+            return "(?i)(ERROR|EXCEPTION|WARN)";
+        }
+        return filter.trim();
     }
 
     /**

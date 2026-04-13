@@ -16,7 +16,9 @@ import java.util.function.Consumer;
  *
  * @param filter           optional filter: "errors", "warnings", or a regex pattern
  * @param keywords         optional list of keywords to match lines against (case-insensitive)
- * @param sinceSeconds     optional time range in seconds to retrieve logs from
+ * @param sinceSeconds     optional relative time range in seconds (mutually exclusive with startTime/endTime)
+ * @param startTime        optional absolute start time in ISO 8601 format (use with endTime)
+ * @param endTime          optional absolute end time in ISO 8601 format (use with startTime)
  * @param tailLines        number of log lines to tail per pod
  * @param previous         if true, retrieve logs from the previous container instance
  * @param notifier         optional callback for textual per-pod log notifications
@@ -27,6 +29,8 @@ public record LogCollectionParams(
     String filter,
     List<String> keywords,
     Integer sinceSeconds,
+    String startTime,
+    String endTime,
     int tailLines,
     Boolean previous,
     Consumer<String> notifier,
@@ -45,7 +49,8 @@ public record LogCollectionParams(
      */
     public static LogCollectionParams of(final String filter, final Integer sinceSeconds,
                                          final int tailLines, final Boolean previous) {
-        return new LogCollectionParams(filter, null, sinceSeconds, tailLines, previous, null, null, null);
+        return new LogCollectionParams(filter, null, sinceSeconds, null, null,
+            tailLines, previous, null, null, null);
     }
 
     /**
@@ -66,6 +71,8 @@ public record LogCollectionParams(
         private String filter;
         private List<String> keywords;
         private Integer sinceSeconds;
+        private String startTime;
+        private String endTime;
         private final int tailLines;
         private Boolean previous;
         private Consumer<String> notifier;
@@ -106,6 +113,28 @@ public record LogCollectionParams(
          */
         public Builder sinceSeconds(final Integer sinceSeconds) {
             this.sinceSeconds = sinceSeconds;
+            return this;
+        }
+
+        /**
+         * Set the absolute start time for log retrieval.
+         *
+         * @param startTime ISO 8601 start time
+         * @return this builder
+         */
+        public Builder startTime(final String startTime) {
+            this.startTime = startTime;
+            return this;
+        }
+
+        /**
+         * Set the absolute end time for log retrieval.
+         *
+         * @param endTime ISO 8601 end time
+         * @return this builder
+         */
+        public Builder endTime(final String endTime) {
+            this.endTime = endTime;
             return this;
         }
 
@@ -159,8 +188,8 @@ public record LogCollectionParams(
          * @return the constructed options
          */
         public LogCollectionParams build() {
-            return new LogCollectionParams(filter, keywords, sinceSeconds, tailLines,
-                previous, notifier, cancelCheck, progressCallback);
+            return new LogCollectionParams(filter, keywords, sinceSeconds, startTime, endTime,
+                tailLines, previous, notifier, cancelCheck, progressCallback);
         }
     }
 }
