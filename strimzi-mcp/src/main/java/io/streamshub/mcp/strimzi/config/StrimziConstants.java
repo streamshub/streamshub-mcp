@@ -73,6 +73,17 @@ public final class StrimziConstants {
          */
         public static final String KAFKA = "kafka";
 
+        /**
+         * Component type value for Kafka Exporter components.
+         */
+        public static final String KAFKA_EXPORTER = "kafka-exporter";
+
+        /**
+         * Component types representing Kafka broker pods.
+         */
+        public static final java.util.Set<String> BROKER_TYPES =
+            java.util.Set.of(KAFKA);
+
         private ComponentTypes() {
         }
     }

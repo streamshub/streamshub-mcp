@@ -9,8 +9,10 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.dto.metrics.KafkaExporterMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.StrimziOperatorMetricsResponse;
+import io.streamshub.mcp.strimzi.service.metrics.KafkaExporterMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.StrimziOperatorMetricsService;
 import jakarta.inject.Inject;
@@ -26,6 +28,9 @@ public class MetricsTools {
 
     @Inject
     KafkaMetricsService kafkaMetricsService;
+
+    @Inject
+    KafkaExporterMetricsService kafkaExporterMetricsService;
 
     @Inject
     StrimziOperatorMetricsService strimziOperatorMetricsService;
@@ -86,6 +91,61 @@ public class MetricsTools {
         ) final Integer stepSeconds
     ) {
         return kafkaMetricsService.getKafkaMetrics(
+            namespace, clusterName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds);
+    }
+
+    /**
+     * Retrieves metrics from Kafka Exporter pods.
+     *
+     * @param clusterName  the Kafka cluster name
+     * @param namespace    optional namespace
+     * @param category     optional metric category
+     * @param metricNames  optional explicit metric names
+     * @param rangeMinutes optional range duration in minutes
+     * @param startTime    optional absolute start time in ISO 8601 format
+     * @param endTime      optional absolute end time in ISO 8601 format
+     * @param stepSeconds  optional range query step in seconds
+     * @return the Kafka Exporter metrics response
+     */
+    @Tool(
+        name = "get_kafka_exporter_metrics",
+        description = "Retrieves Prometheus metrics from Kafka Exporter pods by category or explicit metric names."
+            + " Returns consumer group lag, topic partition offsets, and JVM metrics with interpretation guide."
+    )
+    public KafkaExporterMetricsResponse getKafkaExporterMetrics(
+        @ToolArg(
+            description = StrimziToolsPrompts.CLUSTER_DESC
+        ) final String clusterName,
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace,
+        @ToolArg(
+            description = StrimziToolsPrompts.EXPORTER_METRICS_CATEGORY_DESC,
+            required = false
+        ) final String category,
+        @ToolArg(
+            description = StrimziToolsPrompts.METRICS_NAMES_DESC,
+            required = false
+        ) final String metricNames,
+        @ToolArg(
+            description = StrimziToolsPrompts.RANGE_MINUTES_DESC,
+            required = false
+        ) final Integer rangeMinutes,
+        @ToolArg(
+            description = StrimziToolsPrompts.START_TIME_DESC,
+            required = false
+        ) final String startTime,
+        @ToolArg(
+            description = StrimziToolsPrompts.END_TIME_DESC,
+            required = false
+        ) final String endTime,
+        @ToolArg(
+            description = StrimziToolsPrompts.STEP_SECONDS_DESC,
+            required = false
+        ) final Integer stepSeconds
+    ) {
+        return kafkaExporterMetricsService.getKafkaExporterMetrics(
             namespace, clusterName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds);
     }
 
