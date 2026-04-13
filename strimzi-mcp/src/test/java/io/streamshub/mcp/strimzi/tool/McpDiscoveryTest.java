@@ -47,7 +47,7 @@ class McpDiscoveryTest {
     }
 
     /**
-     * Verify all 15 tools are registered.
+     * Verify all 16 tools are registered.
      */
     @Test
     void testToolDiscovery() {
@@ -68,7 +68,8 @@ class McpDiscoveryTest {
                     "list_strimzi_operators",
                     "get_strimzi_operator",
                     "get_strimzi_operator_logs",
-                    "get_strimzi_operator_pod"
+                    "get_strimzi_operator_pod",
+                    "get_strimzi_events"
                 );
 
                 for (String toolName : expectedTools) {

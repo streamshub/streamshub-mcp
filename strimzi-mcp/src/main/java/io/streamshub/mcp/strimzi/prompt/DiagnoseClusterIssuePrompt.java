@@ -148,7 +148,25 @@ public class DiagnoseClusterIssuePrompt {
             **If pods are healthy but cluster is NotReady, issue is likely at \
             the Kafka application level (check metrics in Step 6).**
 
-            ## Step 5: Read pod logs from unhealthy pods [HIGH - root cause identification]
+            ## Step 5: Check Kubernetes events [HIGH - recent cluster activity]
+            Use `get_strimzi_events` to retrieve events for the cluster and all \
+            related resources (pods, PVCs, node pools).
+
+            **CRITICAL EVENT PATTERNS:**
+            - "FailedScheduling" → resource constraints (CPU, memory, node affinity)
+            - "FailedMount" or "FailedAttachVolume" → storage issues (PVC, CSI driver)
+            - "Killing" → pod termination (operator rolling update, OOM, eviction)
+            - "Evicted" → node pressure (disk, memory)
+            - "BackOff" → container crash loop (check logs in Step 6)
+            - "ReconciliationException" → Strimzi operator issues
+
+            **Correlation with Step 4:**
+            - Pod in Pending + FailedScheduling event → resource exhaustion
+            - Pod restarted + Killing event → check reason (OOM, liveness probe, operator)
+            - Pod restarted + no Killing event → JVM crash or container runtime issue
+            - PVC events → storage provisioning or mount failures
+
+            ## Step 6: Read pod logs from unhealthy pods [HIGH - root cause identification]
             For any unhealthy pods found in Step 4, use `get_kafka_cluster_logs` \
             with filter 'errors' to get error logs from broker pods.
             
@@ -165,7 +183,7 @@ public class DiagnoseClusterIssuePrompt {
             - Network: Firewall rules, DNS issues, or pod network problems
             - Corruption: Disk failures, need to replace broker and rebuild replicas
 
-            ## Step 6: Check cluster metrics [CRITICAL - data availability]
+            ## Step 7: Check cluster metrics [CRITICAL - data availability]
             Use `get_kafka_metrics` with category 'replication' to check replication health.
 
             **STOP AND ESCALATE IF:**
@@ -183,8 +201,8 @@ public class DiagnoseClusterIssuePrompt {
             - Offline partitions + pod crashes → broker failures causing partition unavailability
             - Offline partitions + healthy pods → controller issues (check operator logs)
 
-            ## Step 7: Correlate and summarize [ROOT CAUSE ANALYSIS]
-            Correlate the findings from all steps, including metrics data.
+            ## Step 8: Correlate and summarize [ROOT CAUSE ANALYSIS]
+            Correlate the findings from all steps, including events and metrics data.
             
             **Distinguish between issue types:**
             
@@ -224,7 +242,7 @@ public class DiagnoseClusterIssuePrompt {
             1. **Root cause** (single most likely cause, not a list of symptoms)
             2. **Severity** (CRITICAL/HIGH/MEDIUM/LOW based on data availability impact)
             3. **Impact** (what is affected: data availability, performance, stability)
-            4. **Evidence** (specific findings from steps 1-6 that support the diagnosis)
+            4. **Evidence** (specific findings from steps 1-7 that support the diagnosis)
             5. **Actionable recommendations** (prioritized, specific steps to resolve)
             6. **Expected recovery time** (how long until cluster is healthy after fix)
             7. **Prevention** (how to avoid this issue in the future)
