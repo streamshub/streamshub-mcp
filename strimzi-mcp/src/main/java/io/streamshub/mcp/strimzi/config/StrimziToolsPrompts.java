@@ -157,6 +157,13 @@ public final class StrimziToolsPrompts {
             + " Defaults to server-configured value (typically 60).";
 
     /**
+     * Since minutes parameter description for events.
+     */
+    public static final String SINCE_MINUTES_EVENTS_DESC =
+        "Only return events newer than this many minutes."
+            + " Omit for all available events.";
+
+    /**
      * Common instruction for prompt templates to handle tool call failures gracefully.
      */
     public static final String ERROR_HANDLING_INSTRUCTION =
