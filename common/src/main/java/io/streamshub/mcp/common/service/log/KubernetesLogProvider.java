@@ -9,13 +9,16 @@ import io.quarkus.arc.lookup.LookupIfProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import java.util.List;
+
 /**
  * Default {@link LogCollectorProvider} implementation that reads logs directly
  * from Kubernetes pod logs via the Fabric8 client.
  *
  * <p>Active when {@code mcp.log.provider=streamshub-kubernetes} (the default).
- * Set {@code mcp.log.provider} to a different value (e.g., {@code loki})
- * to use an alternative log provider.</p>
+ * Since the Kubernetes pod log API does not support server-side filtering,
+ * this provider fetches raw logs and applies filter and keyword matching
+ * via {@link LogFilterUtils} before returning.</p>
  */
 @ApplicationScoped
 @LookupIfProperty(name = "mcp.log.provider", stringValue = "streamshub-kubernetes", lookupIfMissing = true)
@@ -30,23 +33,30 @@ public class KubernetesLogProvider implements LogCollectorProvider {
     @Override
     public String fetchLogs(final String namespace, final String podName,
                             final int tailLines, final Integer sinceSeconds,
-                            final Boolean previous) {
+                            final Boolean previous, final String filter,
+                            final List<String> keywords,
+                            final String startTime, final String endTime) {
         var podResource = kubernetesClient.pods()
             .inNamespace(namespace)
             .withName(podName);
 
+        String rawLogs;
         if (Boolean.TRUE.equals(previous)) {
-            return podResource.terminated()
+            rawLogs = podResource.terminated()
                 .tailingLines(tailLines + 1)
                 .getLog();
-        }
-
-        if (sinceSeconds != null) {
-            return podResource.sinceSeconds(sinceSeconds)
+        } else if (startTime != null) {
+            rawLogs = podResource.sinceTime(startTime)
                 .tailingLines(tailLines + 1)
                 .getLog();
+        } else if (sinceSeconds != null) {
+            rawLogs = podResource.sinceSeconds(sinceSeconds)
+                .tailingLines(tailLines + 1)
+                .getLog();
+        } else {
+            rawLogs = podResource.tailingLines(tailLines + 1).getLog();
         }
 
-        return podResource.tailingLines(tailLines + 1).getLog();
+        return LogFilterUtils.applyFilters(rawLogs, filter, keywords);
     }
 }

@@ -4,8 +4,10 @@
  */
 package io.streamshub.mcp.common.service.log;
 
+import java.util.List;
+
 /**
- * Provider interface for fetching raw log output from a pod or log source.
+ * Provider interface for fetching log output from a pod or log source.
  *
  * <p>The default implementation ({@code streamshub-kubernetes}) reads logs
  * directly from Kubernetes pod logs via the Fabric8 client. Custom
@@ -20,23 +22,34 @@ package io.streamshub.mcp.common.service.log;
  *   <li>Set {@code mcp.log.provider=my-provider} in configuration</li>
  * </ol>
  *
- * <p>Filtering, deduplication, keyword matching, and progress callbacks
- * are handled by {@link LogCollectionService} and are not the responsibility
- * of the provider.</p>
+ * <p>The {@code filter} and {@code keywords} parameters are filtering hints.
+ * Providers that support server-side filtering (e.g., Loki via LogQL) should
+ * use them to reduce data transfer. Providers that do not support server-side
+ * filtering (e.g., Kubernetes pod logs) should ignore them —
+ * {@link LogCollectionService} applies client-side filtering as a fallback.</p>
  */
 public interface LogCollectorProvider {
 
     /**
-     * Fetch raw log output from a single pod or log source.
+     * Fetch log output from a single pod or log source.
      *
      * @param namespace    the Kubernetes namespace of the pod
      * @param podName      the name of the pod
      * @param tailLines    the number of lines to tail (implementations should request
      *                     one extra line for has-more detection)
-     * @param sinceSeconds optional time range in seconds; null for no time restriction
+     * @param sinceSeconds optional relative time range in seconds; null for no time restriction.
+     *                     Mutually exclusive with startTime/endTime.
      * @param previous     if true, retrieve logs from the previous container instance
-     * @return the raw log string, or null if no logs are available
+     * @param filter       optional filter: "errors", "warnings", or a regex pattern;
+     *                     providers that support server-side filtering should apply this
+     * @param keywords     optional list of keywords for line matching;
+     *                     providers that support server-side filtering should apply this
+     * @param startTime    optional absolute start time in ISO 8601 format (use with endTime)
+     * @param endTime      optional absolute end time in ISO 8601 format (use with startTime)
+     * @return the log string (possibly pre-filtered), or null if no logs are available
      */
     String fetchLogs(String namespace, String podName,
-                     int tailLines, Integer sinceSeconds, Boolean previous);
+                     int tailLines, Integer sinceSeconds, Boolean previous,
+                     String filter, List<String> keywords,
+                     String startTime, String endTime);
 }

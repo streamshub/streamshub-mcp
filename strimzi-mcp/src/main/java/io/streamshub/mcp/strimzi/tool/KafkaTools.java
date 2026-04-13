@@ -20,6 +20,7 @@ import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.service.KafkaCertificateService;
 import io.streamshub.mcp.strimzi.service.KafkaService;
+import io.streamshub.mcp.strimzi.util.TimeRangeValidator;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -184,6 +185,8 @@ public class KafkaTools {
      * @param filter       optional log filter
      * @param keywords     optional keyword list for filtering
      * @param sinceMinutes optional time range in minutes
+     * @param startTime    optional absolute start time (ISO 8601)
+     * @param endTime      optional absolute end time (ISO 8601)
      * @param tailLines    optional number of lines to tail
      * @param previous     optional flag for previous container logs
      * @param mcpLog       MCP log for client notifications
@@ -217,6 +220,14 @@ public class KafkaTools {
             required = false
         ) final Integer sinceMinutes,
         @ToolArg(
+            description = StrimziToolsPrompts.START_TIME_DESC,
+            required = false
+        ) final String startTime,
+        @ToolArg(
+            description = StrimziToolsPrompts.END_TIME_DESC,
+            required = false
+        ) final String endTime,
+        @ToolArg(
             description = StrimziToolsPrompts.TAIL_LINES_DESC,
             required = false
         ) final Integer tailLines,
@@ -228,11 +239,14 @@ public class KafkaTools {
         final Progress progress,
         final Cancellation cancellation
     ) {
+        TimeRangeValidator.validateTimeRangeParameters(sinceMinutes, startTime, endTime);
         LogCollectionParams options = LogCollectionParams.builder(
                 tailLines != null ? tailLines : defaultTailLines)
             .filter(filter)
             .keywords(keywords)
             .sinceSeconds(sinceMinutes != null ? sinceMinutes * SECONDS_PER_MINUTE : null)
+            .startTime(startTime)
+            .endTime(endTime)
             .previous(previous)
             .notifier(mcpLog::info)
             .cancelCheck(cancellation::skipProcessingIfCancelled)
