@@ -75,8 +75,21 @@ MCP prompt templates encode Strimzi domain knowledge and guide LLMs through stru
 |--------|-----------|-------------|
 | `diagnose-cluster-issue` | `cluster_name` (required), `namespace`, `symptom` | Step-by-step cluster diagnosis: checks status, node pools, operator logs, pod health, and correlates findings to identify root causes. |
 | `troubleshoot-connectivity` | `cluster_name` (required), `namespace`, `listener_name` | Connectivity troubleshooting: checks listeners, bootstrap addresses, listener accessibility by type, and pod health. |
+| `analyze-kafka-metrics` | `cluster_name` (required), `namespace`, `concern` | Metrics analysis: guides through replication, throughput, performance, and resource metrics with cascading failure pattern recognition. |
+| `analyze-strimzi-operator-metrics` | `namespace`, `concern` | Operator metrics analysis: guides through reconciliation, resource, and JVM metrics with operator log correlation. |
 
 **How they work**: The MCP client discovers available prompts, the user selects one and fills in the parameters, and the client injects the structured instructions into the LLM conversation. The LLM then follows the steps, calling the MCP tools automatically.
+
+### Diagnostic Tools
+
+Diagnostic tools are composite tools that run multi-step workflows in a single call, using **Sampling** for LLM-guided triage and analysis, and **Elicitation** for user disambiguation. They fall back to gathering all data when the client does not support Sampling.
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `diagnose_kafka_cluster` | `clusterName` (required), `namespace`, `symptom`, `sinceMinutes` | Gathers cluster status, node pools, pods, operator logs, cluster logs, events, and metrics. Uses Sampling to triage which areas need deep investigation. |
+| `diagnose_kafka_connectivity` | `clusterName` (required), `namespace`, `listenerName` | Checks listeners, bootstrap addresses, TLS certificates, authentication, pod health, and connection-related logs. |
+| `diagnose_kafka_metrics` | `clusterName` (required), `namespace`, `concern` | Gathers cluster status and pod health, then selectively queries replication, performance, resource, and throughput metrics. |
+| `diagnose_operator_metrics` | `namespace`, `operatorName`, `clusterName`, `concern` | Gathers operator status, then selectively queries reconciliation, resource, and JVM metrics along with operator logs. |
 
 ## Resource Templates
 
@@ -270,4 +283,4 @@ kubectl get crd | grep strimzi
 
 ## License
 
-Apache 2.0
+[Apache License 2.0](../LICENSE)

@@ -47,7 +47,7 @@ class McpDiscoveryTest {
     }
 
     /**
-     * Verify all 16 tools are registered.
+     * Verify all 20 tools are registered.
      */
     @Test
     void testToolDiscovery() {
@@ -69,7 +69,11 @@ class McpDiscoveryTest {
                     "get_strimzi_operator",
                     "get_strimzi_operator_logs",
                     "get_strimzi_operator_pod",
-                    "get_strimzi_events"
+                    "get_strimzi_events",
+                    "diagnose_kafka_cluster",
+                    "diagnose_kafka_connectivity",
+                    "diagnose_kafka_metrics",
+                    "diagnose_operator_metrics"
                 );
 
                 for (String toolName : expectedTools) {
