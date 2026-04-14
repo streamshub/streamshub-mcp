@@ -33,6 +33,24 @@ StreamsHub MCP servers go beyond wrapping APIs as tool calls. They leverage the 
 
 Pick an MCP server from the table above and follow its README. Each server can be deployed independently as a standalone application or container.
 
+## Documentation
+
+Comprehensive documentation is available in the [`docs/`](docs/) directory:
+
+**For Users:**
+- [Getting Started](docs/user/getting-started.md) — Quick start guide
+- [Usage Guide](docs/user/usage-guide.md) — How to use with AI assistants
+- [MCP Servers](docs/user/mcp-servers/) — Browse available MCP servers
+  - [Strimzi MCP Server](docs/user/mcp-servers/strimzi-mcp/) — Kafka cluster management
+
+**For Developers:**
+- [Architecture](docs/developer/architecture.md) — System design and components
+- [Building](docs/developer/building.md) — Build and run locally
+- [Testing](docs/developer/testing.md) — Unit and system tests
+- [Contributing](docs/developer/contributing.md) — Contribution guidelines
+- [Deployment](docs/developer/deployment.md) — Kubernetes deployment patterns
+- [Module Documentation](docs/developer/modules/) — Shared module internals
+
 ## Built With
 
 - [Quarkus](https://quarkus.io/) — cloud-native Java framework
@@ -42,9 +60,12 @@ Pick an MCP server from the table above and follow its README. Each server can b
 ## Development
 
 ```bash
-mvn compile       # Compile all modules (includes checkstyle)
-mvn test          # Run unit tests
+mvn compile              # Compile all modules (includes checkstyle)
+mvn test                 # Run unit tests
+mvn verify -Psystemtest  # Run system tests (requires Kubernetes cluster)
 ```
+
+See the [Development Guide](docs/development.md) and [Testing Guide](docs/testing.md) for detailed information.
 
 ## Contributing
 

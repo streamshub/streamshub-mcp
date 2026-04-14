@@ -3,6 +3,42 @@
 Multi-module Quarkus mono-repo providing MCP (Model Context Protocol) servers for Kubernetes-based
 streaming platforms. Java 21, Quarkus 3.x, Strimzi API 0.51.x, Fabric8 Kubernetes client.
 
+## Documentation Structure
+
+Documentation is organized into user and developer sections:
+- **User docs**: `docs/user/` - Installation, configuration, usage, troubleshooting for end users
+- **Developer docs**: `docs/developer/` - Architecture, building, testing, contributing for developers
+- **Module docs**: `docs/developer/modules/` - Internal documentation for shared modules
+
+### Documentation Update Requirements
+
+**CRITICAL**: When implementing new features or modifying existing functionality, you MUST update the relevant documentation:
+
+1. **User documentation** (`docs/user/`) - Update when:
+   - Adding new MCP tools, prompts, or resource templates
+   - Changing tool parameters or behavior
+   - Modifying configuration options
+   - Adding new features visible to end users
+
+2. **Developer documentation** (`docs/developer/`) - Update when:
+   - Changing architecture or design patterns
+   - Adding new modules or services
+   - Modifying build or deployment processes
+   - Updating testing strategies
+
+3. **Module documentation** (`docs/developer/modules/`) - Update when:
+   - Adding new classes or services to a module
+   - Changing module interfaces or APIs
+   - Modifying module dependencies
+
+4. **This file** (`AGENTS.md`) - Update when:
+   - Adding new patterns or conventions
+   - Changing coding standards
+   - Introducing new architectural layers
+   - Modifying development workflows
+
+Documentation updates are NOT optional. They are part of the feature implementation and must be completed before the task is considered done.
+
 ## Modules
 
 - **`common`** (`streamshub-mcp-common`) - Generic Kubernetes helpers, DTOs, MCP framework utilities shared across modules
