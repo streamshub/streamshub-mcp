@@ -51,9 +51,8 @@ public class KafkaClusterDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(KafkaClusterDiagnosticService.class);
     private static final int SECONDS_PER_MINUTE = 60;
-    private static final int TRIAGE_MAX_TOKENS = 200;
-    private static final int ANALYSIS_MAX_TOKENS = 1500;
     private static final int TOTAL_STEPS = 7;
+    private static final String DIAGNOSTIC_LABEL = "Kafka cluster diagnostic";
 
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
     private static final String STEP_NODE_POOLS = "node_pools";
@@ -84,6 +83,12 @@ public class KafkaClusterDiagnosticService {
 
     @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
     int defaultTailLines;
+
+    @ConfigProperty(name = "mcp.sampling.triage-max-tokens", defaultValue = "200")
+    int triageMaxTokens;
+
+    @ConfigProperty(name = "mcp.sampling.analysis-max-tokens", defaultValue = "1500")
+    int analysisMaxTokens;
 
     KafkaClusterDiagnosticService() {
     }
@@ -135,7 +140,7 @@ public class KafkaClusterDiagnosticService {
         // === Phase 1: Initial data gathering ===
         KafkaClusterResponse cluster = gatherClusterStatus(
             ns, name, elicitation, completed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Diagnostic");
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 
         // Resolve namespace from cluster response for subsequent calls
@@ -143,12 +148,12 @@ public class KafkaClusterDiagnosticService {
 
         List<KafkaNodePoolResponse> nodePools = gatherNodePools(
             resolvedNs, name, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Diagnostic");
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 
         KafkaClusterPodsResponse pods = gatherClusterPods(
             resolvedNs, name, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Diagnostic");
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 
         // === Phase 2: Deep investigation ===
@@ -161,7 +166,7 @@ public class KafkaClusterDiagnosticService {
             operator = gatherOperatorStatus(resolvedNs, completed, failed, mcpLog);
             operatorLogs = gatherOperatorLogs(
                 resolvedNs, sinceMinutes, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Diagnostic");
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -169,7 +174,7 @@ public class KafkaClusterDiagnosticService {
         if (areas.clusterLogs) {
             clusterLogs = gatherClusterLogs(
                 resolvedNs, name, sinceMinutes, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Diagnostic");
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -177,7 +182,7 @@ public class KafkaClusterDiagnosticService {
         if (areas.events) {
             events = gatherEvents(
                 resolvedNs, name, sinceMinutes, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Diagnostic");
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -185,7 +190,7 @@ public class KafkaClusterDiagnosticService {
         if (areas.metrics) {
             metrics = gatherMetrics(
                 resolvedNs, name, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Diagnostic");
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -208,7 +213,7 @@ public class KafkaClusterDiagnosticService {
         try {
             KafkaClusterResponse result = kafkaService.getCluster(namespace, clusterName);
             completed.add(STEP_CLUSTER_STATUS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked cluster status: " + result.readiness());
+            DiagnosticHelper.sendClientNotification(mcpLog, "Checked Kafka cluster status: " + result.readiness());
             return result;
         } catch (ToolCallException e) {
             if (DiagnosticHelper.isMultipleNamespacesError(e)
@@ -229,10 +234,10 @@ public class KafkaClusterDiagnosticService {
         try {
             List<KafkaNodePoolResponse> result = nodePoolService.listNodePools(namespace, clusterName);
             completed.add(STEP_NODE_POOLS);
-            DiagnosticHelper.sendClientNotification(mcpLog, String.format("Found %d node pools", result.size()));
+            DiagnosticHelper.sendClientNotification(mcpLog, String.format("Found %d KafkaNodePools", result.size()));
             return result;
         } catch (Exception e) {
-            LOG.warnf("Failed to gather node pools: %s", e.getMessage());
+            LOG.warnf("Failed to gather KafkaNodePools: %s", e.getMessage());
             failed.add(STEP_NODE_POOLS + ": " + e.getMessage());
             return List.of();
         }
@@ -246,10 +251,10 @@ public class KafkaClusterDiagnosticService {
         try {
             KafkaClusterPodsResponse result = kafkaService.getClusterPods(namespace, clusterName);
             completed.add(STEP_POD_HEALTH);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked pod health");
+            DiagnosticHelper.sendClientNotification(mcpLog, "Checked Kafka pod health");
             return result;
         } catch (Exception e) {
-            LOG.warnf("Failed to gather pod health: %s", e.getMessage());
+            LOG.warnf("Failed to gather Kafka pod health: %s", e.getMessage());
             failed.add(STEP_POD_HEALTH + ": " + e.getMessage());
             return null;
         }
@@ -265,12 +270,14 @@ public class KafkaClusterDiagnosticService {
             List<StrimziOperatorResponse> operators = operatorService.listOperators(namespace);
             if (!operators.isEmpty()) {
                 completed.add(STEP_OPERATOR_STATUS);
-                DiagnosticHelper.sendClientNotification(mcpLog, "Checked operator status: " + operators.getFirst().status());
-                return operators.getFirst();
+                StrimziOperatorResponse op = operators.getFirst();
+                DiagnosticHelper.sendClientNotification(mcpLog,
+                    String.format("Checked Strimzi operator '%s' status: %s", op.name(), op.status()));
+                return op;
             }
             return null;
         } catch (Exception e) {
-            LOG.warnf("Failed to gather operator status: %s", e.getMessage());
+            LOG.warnf("Failed to gather Strimzi operator status: %s", e.getMessage());
             failed.add(STEP_OPERATOR_STATUS + ": " + e.getMessage());
             return null;
         }
@@ -285,10 +292,10 @@ public class KafkaClusterDiagnosticService {
             StrimziOperatorLogsResponse result = operatorService.getOperatorLogs(
                 namespace, null, buildErrorLogParams(sinceMinutes));
             completed.add(STEP_OPERATOR_LOGS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Collected operator logs");
+            DiagnosticHelper.sendClientNotification(mcpLog, "Collected Strimzi operator logs");
             return result;
         } catch (Exception e) {
-            LOG.warnf("Failed to gather operator logs: %s", e.getMessage());
+            LOG.warnf("Failed to gather Strimzi operator logs: %s", e.getMessage());
             failed.add(STEP_OPERATOR_LOGS + ": " + e.getMessage());
             return null;
         }
@@ -304,10 +311,10 @@ public class KafkaClusterDiagnosticService {
             KafkaClusterLogsResponse result = kafkaService.getClusterLogs(
                 namespace, clusterName, buildErrorLogParams(sinceMinutes));
             completed.add(STEP_CLUSTER_LOGS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Collected cluster logs");
+            DiagnosticHelper.sendClientNotification(mcpLog, "Collected Kafka cluster logs");
             return result;
         } catch (Exception e) {
-            LOG.warnf("Failed to gather cluster logs: %s", e.getMessage());
+            LOG.warnf("Failed to gather Kafka cluster logs: %s", e.getMessage());
             failed.add(STEP_CLUSTER_LOGS + ": " + e.getMessage());
             return null;
         }
@@ -326,7 +333,7 @@ public class KafkaClusterDiagnosticService {
             DiagnosticHelper.sendClientNotification(mcpLog, String.format("Found %d events", result.totalEvents()));
             return result;
         } catch (Exception e) {
-            LOG.warnf("Failed to gather events: %s", e.getMessage());
+            LOG.warnf("Failed to gather Kafka related events: %s", e.getMessage());
             failed.add(STEP_EVENTS + ": " + e.getMessage());
             return null;
         }
@@ -341,10 +348,10 @@ public class KafkaClusterDiagnosticService {
             KafkaMetricsResponse result = kafkaMetricsService.getKafkaMetrics(
                 namespace, clusterName, "replication", null, null, null, null, null);
             completed.add(STEP_METRICS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Retrieved replication metrics");
+            DiagnosticHelper.sendClientNotification(mcpLog, "Retrieved Kafka replication metrics");
             return result;
         } catch (Exception e) {
-            LOG.warnf("Failed to gather metrics: %s", e.getMessage());
+            LOG.warnf("Failed to gather Kafka metrics: %s", e.getMessage());
             failed.add(STEP_METRICS + ": " + e.getMessage());
             return null;
         }
@@ -368,7 +375,7 @@ public class KafkaClusterDiagnosticService {
             SamplingResponse response = sampling.requestBuilder()
                 .setSystemPrompt(TRIAGE_SYSTEM_PROMPT)
                 .addMessage(SamplingMessage.withUserRole(summaryJson))
-                .setMaxTokens(TRIAGE_MAX_TOKENS)
+                .setMaxTokens(triageMaxTokens)
                 .build()
                 .sendAndAwait();
 
@@ -403,7 +410,7 @@ public class KafkaClusterDiagnosticService {
             SamplingResponse response = sampling.requestBuilder()
                 .setSystemPrompt(ANALYSIS_SYSTEM_PROMPT)
                 .addMessage(SamplingMessage.withUserRole(dataJson))
-                .setMaxTokens(ANALYSIS_MAX_TOKENS)
+                .setMaxTokens(analysisMaxTokens)
                 .build()
                 .sendAndAwait();
 

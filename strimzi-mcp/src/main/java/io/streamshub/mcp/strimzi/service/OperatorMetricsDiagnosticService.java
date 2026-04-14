@@ -44,9 +44,8 @@ import java.util.Map;
 public class OperatorMetricsDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(OperatorMetricsDiagnosticService.class);
-    private static final int TRIAGE_MAX_TOKENS = 200;
-    private static final int ANALYSIS_MAX_TOKENS = 1500;
     private static final int TOTAL_STEPS = 5;
+    private static final String DIAGNOSTIC_LABEL = "Strimzi operator metrics diagnostic";
     private static final String STEP_OPERATOR_STATUS = "operator_status";
     private static final String STEP_RECONCILIATION_METRICS = "reconciliation_metrics";
     private static final String STEP_RESOURCE_METRICS = "resource_metrics";
@@ -64,6 +63,12 @@ public class OperatorMetricsDiagnosticService {
 
     @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
     int defaultTailLines;
+
+    @ConfigProperty(name = "mcp.sampling.triage-max-tokens", defaultValue = "200")
+    int triageMaxTokens;
+
+    @ConfigProperty(name = "mcp.sampling.analysis-max-tokens", defaultValue = "1500")
+    int analysisMaxTokens;
 
     OperatorMetricsDiagnosticService() {
     }
@@ -118,7 +123,7 @@ public class OperatorMetricsDiagnosticService {
         // === Phase 1: Initial data gathering ===
         StrimziOperatorResponse operator = gatherOperatorStatus(
             ns, name, completed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Operator metrics diagnostic");
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 
         String resolvedNs = operator.namespace();
@@ -134,7 +139,7 @@ public class OperatorMetricsDiagnosticService {
                 resolvedNs, resolvedName, cluster, "reconciliation",
                 rangeMinutes, startTime, endTime, stepSeconds,
                 STEP_RECONCILIATION_METRICS, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Operator metrics diagnostic");
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -144,7 +149,7 @@ public class OperatorMetricsDiagnosticService {
                 resolvedNs, resolvedName, cluster, "resources",
                 rangeMinutes, startTime, endTime, stepSeconds,
                 STEP_RESOURCE_METRICS, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Operator metrics diagnostic");
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -154,7 +159,7 @@ public class OperatorMetricsDiagnosticService {
                 resolvedNs, resolvedName, cluster, "jvm",
                 rangeMinutes, startTime, endTime, stepSeconds,
                 STEP_JVM_METRICS, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Operator metrics diagnostic");
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -162,7 +167,7 @@ public class OperatorMetricsDiagnosticService {
         if (areas.operatorLogs) {
             operatorLogs = gatherOperatorLogs(
                 resolvedNs, resolvedName, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Operator metrics diagnostic");
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -186,7 +191,8 @@ public class OperatorMetricsDiagnosticService {
         if (operatorName != null) {
             StrimziOperatorResponse result = operatorService.getOperator(namespace, operatorName);
             completed.add(STEP_OPERATOR_STATUS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked operator status: " + result.status());
+            DiagnosticHelper.sendClientNotification(mcpLog,
+                String.format("Checked Strimzi operator '%s' status: %s", result.name(), result.status()));
             return result;
         }
 
@@ -224,10 +230,11 @@ public class OperatorMetricsDiagnosticService {
                 namespace, operatorName, clusterName, category,
                 null, rangeMinutes, startTime, endTime, stepSeconds);
             completed.add(stepName);
-            DiagnosticHelper.sendClientNotification(mcpLog, String.format("Retrieved %s metrics", category));
+            DiagnosticHelper.sendClientNotification(mcpLog,
+                String.format("Retrieved Strimzi operator %s metrics", category));
             return result;
         } catch (Exception e) {
-            LOG.warnf("Failed to gather %s metrics: %s", category, e.getMessage());
+            LOG.warnf("Failed to gather Strimzi operator %s metrics: %s", category, e.getMessage());
             failed.add(stepName + ": " + e.getMessage());
             return null;
         }
@@ -245,10 +252,10 @@ public class OperatorMetricsDiagnosticService {
             StrimziOperatorLogsResponse result = operatorService.getOperatorLogs(
                 namespace, operatorName, params);
             completed.add(STEP_OPERATOR_LOGS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Collected operator logs");
+            DiagnosticHelper.sendClientNotification(mcpLog, "Collected Strimzi operator logs");
             return result;
         } catch (Exception e) {
-            LOG.warnf("Failed to gather operator logs: %s", e.getMessage());
+            LOG.warnf("Failed to gather Strimzi operator logs: %s", e.getMessage());
             failed.add(STEP_OPERATOR_LOGS + ": " + e.getMessage());
             return null;
         }
@@ -270,7 +277,7 @@ public class OperatorMetricsDiagnosticService {
             SamplingResponse response = sampling.requestBuilder()
                 .setSystemPrompt(TRIAGE_SYSTEM_PROMPT)
                 .addMessage(SamplingMessage.withUserRole(summaryJson))
-                .setMaxTokens(TRIAGE_MAX_TOKENS)
+                .setMaxTokens(triageMaxTokens)
                 .build()
                 .sendAndAwait();
 
@@ -302,7 +309,7 @@ public class OperatorMetricsDiagnosticService {
             SamplingResponse response = sampling.requestBuilder()
                 .setSystemPrompt(ANALYSIS_SYSTEM_PROMPT)
                 .addMessage(SamplingMessage.withUserRole(dataJson))
-                .setMaxTokens(ANALYSIS_MAX_TOKENS)
+                .setMaxTokens(analysisMaxTokens)
                 .build()
                 .sendAndAwait();
 

@@ -24,6 +24,7 @@ import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaMetricsService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
@@ -49,11 +50,14 @@ import java.util.stream.Collectors;
 public class KafkaMetricsDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(KafkaMetricsDiagnosticService.class);
-    private static final int TRIAGE_MAX_TOKENS = 200;
-    private static final int ANALYSIS_MAX_TOKENS = 1500;
     private static final int TOTAL_STEPS = 6;
+    private static final String DIAGNOSTIC_LABEL = "Kafka metrics diagnostic";
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
     private static final String STEP_POD_HEALTH = "pod_health";
+    private static final String CATEGORY_REPLICATION = "replication";
+    private static final String CATEGORY_PERFORMANCE = "performance";
+    private static final String CATEGORY_RESOURCES = "resources";
+    private static final String CATEGORY_THROUGHPUT = "throughput";
     private static final String STEP_REPLICATION_METRICS = "replication_metrics";
     private static final String STEP_PERFORMANCE_METRICS = "performance_metrics";
     private static final String STEP_RESOURCE_METRICS = "resource_metrics";
@@ -67,6 +71,12 @@ public class KafkaMetricsDiagnosticService {
 
     @Inject
     ObjectMapper objectMapper;
+
+    @ConfigProperty(name = "mcp.sampling.triage-max-tokens", defaultValue = "200")
+    int triageMaxTokens;
+
+    @ConfigProperty(name = "mcp.sampling.analysis-max-tokens", defaultValue = "1500")
+    int analysisMaxTokens;
 
     KafkaMetricsDiagnosticService() {
     }
@@ -123,14 +133,14 @@ public class KafkaMetricsDiagnosticService {
         // === Phase 1: Initial data gathering ===
         KafkaClusterResponse cluster = gatherClusterStatus(
             ns, name, elicitation, completed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Metrics diagnostic");
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 
         String resolvedNs = cluster.namespace();
 
         KafkaClusterPodsResponse pods = gatherClusterPods(
             resolvedNs, name, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Metrics diagnostic");
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 
         // === Phase 2: Metrics investigation (single scrape for all categories) ===
@@ -145,14 +155,14 @@ public class KafkaMetricsDiagnosticService {
         Map<String, KafkaMetricsResponse> categoryResults = gatherAllMetrics(
             resolvedNs, name, areas, rangeMinutes, startTime, endTime, stepSeconds,
             completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Metrics diagnostic");
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 
         if (categoryResults != null) {
-            replicationMetrics = categoryResults.get("replication");
-            performanceMetrics = categoryResults.get("performance");
-            resourceMetrics = categoryResults.get("resources");
-            throughputMetrics = categoryResults.get("throughput");
+            replicationMetrics = categoryResults.get(CATEGORY_REPLICATION);
+            performanceMetrics = categoryResults.get(CATEGORY_PERFORMANCE);
+            resourceMetrics = categoryResults.get(CATEGORY_RESOURCES);
+            throughputMetrics = categoryResults.get(CATEGORY_THROUGHPUT);
         }
 
         // === Phase 3: Final analysis ===
@@ -176,7 +186,7 @@ public class KafkaMetricsDiagnosticService {
         try {
             KafkaClusterResponse result = kafkaService.getCluster(namespace, clusterName);
             completed.add(STEP_CLUSTER_STATUS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked cluster status: " + result.readiness());
+            DiagnosticHelper.sendClientNotification(mcpLog, "Checked Kafka cluster status: " + result.readiness());
             return result;
         } catch (ToolCallException e) {
             if (DiagnosticHelper.isMultipleNamespacesError(e)
@@ -197,10 +207,10 @@ public class KafkaMetricsDiagnosticService {
         try {
             KafkaClusterPodsResponse result = kafkaService.getClusterPods(namespace, clusterName);
             completed.add(STEP_POD_HEALTH);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked pod health");
+            DiagnosticHelper.sendClientNotification(mcpLog, "Checked Kafka pod health");
             return result;
         } catch (Exception e) {
-            LOG.warnf("Failed to gather pod health: %s", e.getMessage());
+            LOG.warnf("Failed to gather Kafka pod health: %s", e.getMessage());
             failed.add(STEP_POD_HEALTH + ": " + e.getMessage());
             return null;
         }
@@ -222,16 +232,16 @@ public class KafkaMetricsDiagnosticService {
         // Collect all metric names from selected categories
         Map<String, List<String>> categoryMetricNames = new LinkedHashMap<>();
         if (areas.replication) {
-            categoryMetricNames.put("replication", KafkaMetricCategories.resolve("replication"));
+            categoryMetricNames.put(CATEGORY_REPLICATION, KafkaMetricCategories.resolve(CATEGORY_REPLICATION));
         }
         if (areas.performance) {
-            categoryMetricNames.put("performance", KafkaMetricCategories.resolve("performance"));
+            categoryMetricNames.put(CATEGORY_PERFORMANCE, KafkaMetricCategories.resolve(CATEGORY_PERFORMANCE));
         }
         if (areas.resources) {
-            categoryMetricNames.put("resources", KafkaMetricCategories.resolve("resources"));
+            categoryMetricNames.put(CATEGORY_RESOURCES, KafkaMetricCategories.resolve(CATEGORY_RESOURCES));
         }
         if (areas.throughput) {
-            categoryMetricNames.put("throughput", KafkaMetricCategories.resolve("throughput"));
+            categoryMetricNames.put(CATEGORY_THROUGHPUT, KafkaMetricCategories.resolve(CATEGORY_THROUGHPUT));
         }
 
         if (categoryMetricNames.isEmpty()) {
@@ -249,7 +259,7 @@ public class KafkaMetricsDiagnosticService {
             allMetrics = kafkaMetricsService.getKafkaMetrics(
                 namespace, clusterName, null, allNames, rangeMinutes, startTime, endTime, stepSeconds);
         } catch (Exception e) {
-            LOG.warnf("Failed to gather metrics: %s", e.getMessage());
+            LOG.warnf("Failed to gather Kafka metrics: %s", e.getMessage());
             for (String cat : categoryMetricNames.keySet()) {
                 failed.add(categoryStepName(cat) + ": " + e.getMessage());
             }
@@ -308,7 +318,7 @@ public class KafkaMetricsDiagnosticService {
             SamplingResponse response = sampling.requestBuilder()
                 .setSystemPrompt(TRIAGE_SYSTEM_PROMPT)
                 .addMessage(SamplingMessage.withUserRole(summaryJson))
-                .setMaxTokens(TRIAGE_MAX_TOKENS)
+                .setMaxTokens(triageMaxTokens)
                 .build()
                 .sendAndAwait();
 
@@ -341,7 +351,7 @@ public class KafkaMetricsDiagnosticService {
             SamplingResponse response = sampling.requestBuilder()
                 .setSystemPrompt(ANALYSIS_SYSTEM_PROMPT)
                 .addMessage(SamplingMessage.withUserRole(dataJson))
-                .setMaxTokens(ANALYSIS_MAX_TOKENS)
+                .setMaxTokens(analysisMaxTokens)
                 .build()
                 .sendAndAwait();
 
