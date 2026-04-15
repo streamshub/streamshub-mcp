@@ -1,0 +1,85 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    paths:
+      - 'common/**'
+      - 'strimzi-mcp/**'
+      - 'systemtest/**'
+      - 'dev/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  e2e-kind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+
+    - name: Cache Maven packages
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+
+    - name: Create kind cluster
+      uses: helm/kind-action@v1.12.0
+      with:
+        config: .github/config/kind-config.yaml
+        cluster_name: mcp-e2e
+
+    - name: Deploy Prometheus operator
+      run: ./dev/scripts/setup-prometheus.sh deploy
+
+    - name: Build MCP image and load into kind
+      run: |
+        ./mvnw package -pl common,metrics-prometheus,loki-log-provider,strimzi-mcp \
+          -DskipTests \
+          -Dquarkus.container-image.build=true \
+          -Dquarkus.container-image.tag=test
+        kind load docker-image quay.io/streamshub/strimzi-mcp:test --name mcp-e2e
+
+    - name: Run system tests
+      run: |
+        ./mvnw verify -pl systemtest \
+          -Psystemtest \
+          -DMCP_IMAGE=quay.io/streamshub/strimzi-mcp:test \
+          -DMCP_CONNECTIVITY=NODEPORT
+
+    - name: Generate Allure report
+      if: always()
+      run: npx allure generate systemtest/target/allure-results -o allure-report
+
+    - name: Post Allure report to PR
+      uses: allure-framework/allure-action@v0
+      if: always()
+      with:
+        report-directory: allure-report
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Allure report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: allure-report
+        path: allure-report/
+
+    - name: Upload test logs
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: test-logs
+        path: systemtest/target/logs/
