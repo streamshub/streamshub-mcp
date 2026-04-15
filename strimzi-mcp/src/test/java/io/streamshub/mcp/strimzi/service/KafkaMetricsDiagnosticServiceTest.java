@@ -18,8 +18,8 @@ import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.strimzi.dto.KafkaMetricsDiagnosticReport;
+import io.streamshub.mcp.strimzi.util.NamespaceElicitationHelper;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.kafka.KafkaStatusBuilder;
@@ -150,7 +150,7 @@ class KafkaMetricsDiagnosticServiceTest {
      */
     @Test
     void testParseNamespacesFromError() {
-        List<String> namespaces = DiagnosticHelper.parseNamespacesFromError(
+        List<String> namespaces = NamespaceElicitationHelper.parseNamespacesFromError(
             "Multiple clusters named 'my-cluster' found in namespaces: kafka-prod, kafka-dev. "
                 + "Please specify namespace.");
 
@@ -164,7 +164,7 @@ class KafkaMetricsDiagnosticServiceTest {
      */
     @Test
     void testParseNamespacesFromErrorReturnsEmptyForNull() {
-        assertTrue(DiagnosticHelper.parseNamespacesFromError(null).isEmpty());
+        assertTrue(NamespaceElicitationHelper.parseNamespacesFromError(null).isEmpty());
     }
 
     /**
@@ -172,7 +172,7 @@ class KafkaMetricsDiagnosticServiceTest {
      */
     @Test
     void testParseNamespacesFromErrorReturnsEmptyForUnrelatedMessage() {
-        assertTrue(DiagnosticHelper.parseNamespacesFromError("Some other error").isEmpty());
+        assertTrue(NamespaceElicitationHelper.parseNamespacesFromError("Some other error").isEmpty());
     }
 
     // ---- Test helpers ----

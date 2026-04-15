@@ -22,6 +22,7 @@ import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaMetricsDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaMetricsService;
+import io.streamshub.mcp.strimzi.util.NamespaceElicitationHelper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -54,10 +55,6 @@ public class KafkaMetricsDiagnosticService {
     private static final String DIAGNOSTIC_LABEL = "Kafka metrics diagnostic";
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
     private static final String STEP_POD_HEALTH = "pod_health";
-    private static final String CATEGORY_REPLICATION = "replication";
-    private static final String CATEGORY_PERFORMANCE = "performance";
-    private static final String CATEGORY_RESOURCES = "resources";
-    private static final String CATEGORY_THROUGHPUT = "throughput";
     private static final String STEP_REPLICATION_METRICS = "replication_metrics";
     private static final String STEP_PERFORMANCE_METRICS = "performance_metrics";
     private static final String STEP_RESOURCE_METRICS = "resource_metrics";
@@ -159,10 +156,10 @@ public class KafkaMetricsDiagnosticService {
         DiagnosticHelper.checkCancellation(cancellation);
 
         if (categoryResults != null) {
-            replicationMetrics = categoryResults.get(CATEGORY_REPLICATION);
-            performanceMetrics = categoryResults.get(CATEGORY_PERFORMANCE);
-            resourceMetrics = categoryResults.get(CATEGORY_RESOURCES);
-            throughputMetrics = categoryResults.get(CATEGORY_THROUGHPUT);
+            replicationMetrics = categoryResults.get(KafkaMetricCategories.REPLICATION);
+            performanceMetrics = categoryResults.get(KafkaMetricCategories.PERFORMANCE);
+            resourceMetrics = categoryResults.get(KafkaMetricCategories.RESOURCES);
+            throughputMetrics = categoryResults.get(KafkaMetricCategories.THROUGHPUT);
         }
 
         // === Phase 3: Final analysis ===
@@ -189,9 +186,9 @@ public class KafkaMetricsDiagnosticService {
             DiagnosticHelper.sendClientNotification(mcpLog, "Checked Kafka cluster status: " + result.readiness());
             return result;
         } catch (ToolCallException e) {
-            if (DiagnosticHelper.isMultipleNamespacesError(e)
+            if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isSupported()) {
-                String resolved = DiagnosticHelper.elicitNamespace(e, elicitation, "analyzed for metrics");
+                String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "analyzed for metrics");
                 return gatherClusterStatus(resolved, clusterName, null,
                     completed, mcpLog);
             }
@@ -232,16 +229,16 @@ public class KafkaMetricsDiagnosticService {
         // Collect all metric names from selected categories
         Map<String, List<String>> categoryMetricNames = new LinkedHashMap<>();
         if (areas.replication) {
-            categoryMetricNames.put(CATEGORY_REPLICATION, KafkaMetricCategories.resolve(CATEGORY_REPLICATION));
+            categoryMetricNames.put(KafkaMetricCategories.REPLICATION, KafkaMetricCategories.resolve(KafkaMetricCategories.REPLICATION));
         }
         if (areas.performance) {
-            categoryMetricNames.put(CATEGORY_PERFORMANCE, KafkaMetricCategories.resolve(CATEGORY_PERFORMANCE));
+            categoryMetricNames.put(KafkaMetricCategories.PERFORMANCE, KafkaMetricCategories.resolve(KafkaMetricCategories.PERFORMANCE));
         }
         if (areas.resources) {
-            categoryMetricNames.put(CATEGORY_RESOURCES, KafkaMetricCategories.resolve(CATEGORY_RESOURCES));
+            categoryMetricNames.put(KafkaMetricCategories.RESOURCES, KafkaMetricCategories.resolve(KafkaMetricCategories.RESOURCES));
         }
         if (areas.throughput) {
-            categoryMetricNames.put(CATEGORY_THROUGHPUT, KafkaMetricCategories.resolve(CATEGORY_THROUGHPUT));
+            categoryMetricNames.put(KafkaMetricCategories.THROUGHPUT, KafkaMetricCategories.resolve(KafkaMetricCategories.THROUGHPUT));
         }
 
         if (categoryMetricNames.isEmpty()) {

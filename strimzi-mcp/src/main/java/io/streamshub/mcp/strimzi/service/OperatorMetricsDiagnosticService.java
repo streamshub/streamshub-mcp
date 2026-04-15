@@ -15,6 +15,7 @@ import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.strimzi.config.metrics.StrimziOperatorMetricCategories;
 import io.streamshub.mcp.strimzi.dto.OperatorMetricsDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
@@ -136,7 +137,7 @@ public class OperatorMetricsDiagnosticService {
         StrimziOperatorMetricsResponse reconciliationMetrics = null;
         if (areas.reconciliation) {
             reconciliationMetrics = gatherMetrics(
-                resolvedNs, resolvedName, cluster, "reconciliation",
+                resolvedNs, resolvedName, cluster, StrimziOperatorMetricCategories.RECONCILIATION,
                 rangeMinutes, startTime, endTime, stepSeconds,
                 STEP_RECONCILIATION_METRICS, completed, failed, mcpLog);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
@@ -146,7 +147,7 @@ public class OperatorMetricsDiagnosticService {
         StrimziOperatorMetricsResponse resourceMetrics = null;
         if (areas.resources) {
             resourceMetrics = gatherMetrics(
-                resolvedNs, resolvedName, cluster, "resources",
+                resolvedNs, resolvedName, cluster, StrimziOperatorMetricCategories.RESOURCES,
                 rangeMinutes, startTime, endTime, stepSeconds,
                 STEP_RESOURCE_METRICS, completed, failed, mcpLog);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
@@ -156,7 +157,7 @@ public class OperatorMetricsDiagnosticService {
         StrimziOperatorMetricsResponse jvmMetrics = null;
         if (areas.jvm) {
             jvmMetrics = gatherMetrics(
-                resolvedNs, resolvedName, cluster, "jvm",
+                resolvedNs, resolvedName, cluster, StrimziOperatorMetricCategories.JVM,
                 rangeMinutes, startTime, endTime, stepSeconds,
                 STEP_JVM_METRICS, completed, failed, mcpLog);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);

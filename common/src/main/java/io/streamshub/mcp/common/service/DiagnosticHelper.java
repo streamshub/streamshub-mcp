@@ -12,26 +12,21 @@ import io.quarkiverse.mcp.server.ElicitationResponse;
 import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.SamplingResponse;
-import io.quarkiverse.mcp.server.ToolCallException;
 import org.jboss.logging.Logger;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Shared utilities for diagnostic service implementations.
  *
  * <p>Provides common helpers for MCP framework interactions (notifications,
- * progress, cancellation), namespace disambiguation via Elicitation,
- * and Sampling response parsing.</p>
+ * progress, cancellation, elicitation) and Sampling response parsing.
+ * All methods are generic and reusable across MCP server modules.</p>
  */
 public final class DiagnosticHelper {
 
     private static final Logger LOG = Logger.getLogger(DiagnosticHelper.class);
-    private static final Pattern NAMESPACES_PATTERN = Pattern.compile("namespaces: (.+)\\. Please");
 
     /**
      * Reusable type reference for deserializing JSON maps from Sampling responses.
@@ -99,73 +94,41 @@ public final class DiagnosticHelper {
     }
 
     /**
-     * Check if a {@link ToolCallException} indicates multiple resources
-     * found in different namespaces.
+     * Ask the user to select a single value from a list via MCP Elicitation.
      *
-     * @param e the exception
-     * @return true if the error is a multi-namespace ambiguity
-     */
-    public static boolean isMultipleNamespacesError(final ToolCallException e) {
-        return e.getMessage() != null && e.getMessage().contains("Multiple clusters named");
-    }
-
-    /**
-     * Ask the user to select a namespace via MCP Elicitation when a resource
-     * exists in multiple namespaces.
+     * <p>This is a generic Elicitation wrapper usable for any disambiguation
+     * (namespace selection, cluster selection, etc.).</p>
      *
-     * @param error       the original ambiguity error
-     * @param elicitation the MCP Elicitation interface
-     * @param context     descriptive context for the prompt (e.g., "diagnosed", "checked for connectivity")
-     * @return the selected namespace, or throws the original error
+     * @param elicitation  the MCP Elicitation interface
+     * @param message      the prompt message shown to the user
+     * @param propertyName the schema property name (e.g., "namespace")
+     * @param description  the property description
+     * @param options      the list of options to choose from
+     * @return the selected value, or null if the user declined or elicitation failed
      */
-    public static String elicitNamespace(final ToolCallException error,
-                                          final Elicitation elicitation,
-                                          final String context) {
-        List<String> namespaces = parseNamespacesFromError(error.getMessage());
-        if (namespaces.isEmpty()) {
-            throw error;
-        }
-
+    public static String elicitSelection(final Elicitation elicitation,
+                                          final String message,
+                                          final String propertyName,
+                                          final String description,
+                                          final List<String> options) {
         try {
             ElicitationResponse response = elicitation.requestBuilder()
-                .setMessage("The cluster exists in multiple namespaces. Which namespace should be "
-                    + context + "?")
-                .addSchemaProperty("namespace",
-                    ElicitationRequest.SingleSelectEnumSchema.builder(namespaces)
-                        .setDescription("Select the namespace")
+                .setMessage(message)
+                .addSchemaProperty(propertyName,
+                    ElicitationRequest.SingleSelectEnumSchema.builder(options)
+                        .setDescription(description)
                         .setRequired(true)
                         .build())
                 .build()
                 .sendAndAwait();
 
             if (response.actionAccepted()) {
-                return response.content().getString("namespace");
+                return response.content().getString(propertyName);
             }
         } catch (Exception e) {
             LOG.warnf("Elicitation failed: %s", e.getMessage());
         }
-
-        throw error;
-    }
-
-    /**
-     * Parse namespace names from a "Multiple clusters named 'x' found in namespaces: a, b" error.
-     *
-     * @param message the error message
-     * @return list of namespace names
-     */
-    public static List<String> parseNamespacesFromError(final String message) {
-        if (message == null) {
-            return List.of();
-        }
-        Matcher matcher = NAMESPACES_PATTERN.matcher(message);
-        if (matcher.find()) {
-            return Arrays.stream(matcher.group(1).split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toList();
-        }
-        return List.of();
+        return null;
     }
 
     /**

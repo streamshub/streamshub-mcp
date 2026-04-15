@@ -16,19 +16,34 @@ import java.util.stream.Collectors;
  */
 public final class StrimziOperatorMetricCategories {
 
+    /**
+     * Reconciliation category (successful, failed, total, duration).
+     */
+    public static final String RECONCILIATION = "reconciliation";
+
+    /**
+     * Strimzi resource state category.
+     */
+    public static final String RESOURCES = "resources";
+
+    /**
+     * JVM metrics category (heap, GC, CPU, threads).
+     */
+    public static final String JVM = "jvm";
+
     private static final Map<String, List<String>> CATEGORIES = Map.of(
-        "reconciliation", List.of(
+        RECONCILIATION, List.of(
             "strimzi_reconciliations_successful_total",
             "strimzi_reconciliations_failed_total",
             "strimzi_reconciliations_total",
             "strimzi_reconciliations_duration_seconds_sum",
             "strimzi_reconciliations_duration_seconds_count"
         ),
-        "resources", List.of(
+        RESOURCES, List.of(
             "strimzi_resources",
             "strimzi_resource_state"
         ),
-        "jvm", List.of(
+        JVM, List.of(
             "jvm_memory_used_bytes",
             "jvm_memory_max_bytes",
             "jvm_gc_collection_seconds_count",
@@ -39,7 +54,7 @@ public final class StrimziOperatorMetricCategories {
     );
 
     private static final Map<String, String> DESCRIPTIONS = Map.of(
-        "reconciliation",
+        RECONCILIATION,
             "**[HIGH - OPERATOR HEALTH]**\n\n"
                 + "strimzi_reconciliations_successful_total: Cumulative count of successful reconciliations. "
                 + "Should increase steadily. Flat line = no reconciliation activity (check if expected).\n\n"
@@ -54,7 +69,7 @@ public final class StrimziOperatorMetricCategories {
                 + "Divide sum by count for average. **THRESHOLDS**: <30s = good, 30-60s = acceptable, "
                 + ">60s = slow (may indicate resource contention, complex configurations, or K8s API slowness). "
                 + "Increasing trend = operator struggling to keep up.",
-        "resources",
+        RESOURCES,
             "**[HIGH - RESOURCE MANAGEMENT]**\n\n"
                 + "strimzi_resources: Count of Strimzi custom resources (Kafka, KafkaTopic, KafkaUser, etc.) "
                 + "managed by the operator. Sudden changes = resources added/removed. "
@@ -64,7 +79,7 @@ public final class StrimziOperatorMetricCategories {
                 + "1 = healthy/ready, 0 = unhealthy/not ready. "
                 + "**IMMEDIATE ACTION**: Any value != 1 indicates a resource that needs attention. "
                 + "Check resource status with get_kafka_cluster or get_kafka_topics.",
-        "jvm",
+        JVM,
             MetricsDescriptions.jvmDescription("get_strimzi_operator_pod",
                 "slow reconciliations or pod restarts")
     );

@@ -18,8 +18,8 @@ import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.strimzi.dto.KafkaConnectivityDiagnosticReport;
+import io.streamshub.mcp.strimzi.util.NamespaceElicitationHelper;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatusBuilder;
@@ -126,7 +126,7 @@ class KafkaConnectivityDiagnosticServiceTest {
 
     @Test
     void testParseNamespacesFromError() {
-        List<String> namespaces = DiagnosticHelper.parseNamespacesFromError(
+        List<String> namespaces = NamespaceElicitationHelper.parseNamespacesFromError(
             "Multiple clusters named 'my-cluster' found in namespaces: ns-a, ns-b. Please specify namespace.");
 
         assertEquals(2, namespaces.size());
@@ -136,7 +136,7 @@ class KafkaConnectivityDiagnosticServiceTest {
 
     @Test
     void testParseNamespacesFromErrorReturnsEmptyForNull() {
-        assertTrue(DiagnosticHelper.parseNamespacesFromError(null).isEmpty());
+        assertTrue(NamespaceElicitationHelper.parseNamespacesFromError(null).isEmpty());
     }
 
     // ---- Test helpers ----

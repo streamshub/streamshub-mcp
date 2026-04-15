@@ -28,8 +28,10 @@ io.streamshub.mcp.common.
 ├── config/         → KubernetesConstants (labels, conditions, phases, health status)
 ├── dto/            → PodSummaryResponse, PodLogsResult, LogCollectionParams (generic pod DTOs)
 │   └── metrics/    → MetricSample, PodTarget, MetricsQueryParams
-├── readiness/   → KubernetesConnectionReadinessCheck (health check for kube API)
-├──service/        → KubernetesResourceService, PodsService, DeploymentService, CompletionHelper
+├── readiness/      → KubernetesConnectionReadinessCheck (health check for kube API)
+├── service/        → KubernetesResourceService, PodsService, DeploymentService, CompletionHelper,
+│   │                 DiagnosticHelper (shared MCP framework utilities for diagnostic tools)
+│   ├── log/        → LogCollectionService, LogCollectorProvider, KubernetesLogProvider
 │   └── metrics/    → MetricsProvider (interface), PodScrapingMetricsProvider, MetricsQueryService
 └── util/           → InputUtils
     └── metrics/    → PrometheusTextParser
@@ -49,13 +51,24 @@ io.streamshub.mcp.metrics.prometheus.
 ```
 io.streamshub.mcp.strimzi.
 ├── tool/              → MCP tool definitions (thin wrappers, no logic)
+│                        KafkaTools, KafkaTopicTools, KafkaNodePoolTools,
+│                        StrimziOperatorTools, StrimziEventsTools, MetricsTools,
+│                        DiagnosticTools (composite diagnostic tools)
 ├── service/           → Business logic (KafkaService, KafkaTopicService, KafkaNodePoolService,
-│                        StrimziOperatorService, CompletionService)
-├── dto/               → Strimzi response records (10 DTOs)
-├── prompt/            → MCP prompt templates (DiagnoseClusterIssuePrompt, TroubleshootConnectivityPrompt)
+│                        StrimziOperatorService, StrimziEventsService, CompletionService)
+│                        Diagnostic orchestrators: KafkaClusterDiagnosticService,
+│                        KafkaConnectivityDiagnosticService, KafkaMetricsDiagnosticService,
+│                        OperatorMetricsDiagnosticService
+├── dto/               → Strimzi response records and diagnostic reports
+├── prompt/            → MCP prompt templates (DiagnoseClusterIssuePrompt, TroubleshootConnectivityPrompt,
+│                        AnalyzeKafkaMetricsPrompt, AnalyzeStrimziOperatorMetricsPrompt)
 ├── resource/          → ResourceSubscriptionManager (Kubernetes watches → MCP notifications)
 ├── resource/template/ → MCP resource templates and completions (5 templates)
-└── config/            → StrimziConstants (labels, resource URIs), StrimziToolsPrompts
+├── config/            → StrimziConstants (labels, resource URIs), StrimziToolsPrompts
+│   └── metrics/       → KafkaMetricCategories, KafkaExporterMetricCategories,
+│                        StrimziOperatorMetricCategories (category constants + metric name mappings)
+└── util/              → NamespaceElicitationHelper (Strimzi-specific namespace disambiguation),
+                         MetricNameResolver, TimeRangeValidator
 ```
 
 ### Layer rules
@@ -70,6 +83,12 @@ io.streamshub.mcp.strimzi.
 - **Metrics providers** implement `MetricsProvider` interface. Selected via `@LookupIfProperty` on `mcp.metrics.provider`.
   Domain services use `MetricsQueryService` (in common/) to query metrics — it handles provider lookup,
   query param construction, and delegation. Do not inject `Instance<MetricsProvider>` directly in domain services.
+- **Diagnostic services** orchestrate multi-step workflows by calling existing domain services.
+  They use `DiagnosticHelper` (common/) for MCP framework interactions and `NamespaceElicitationHelper`
+  (strimzi-mcp) for Strimzi-specific namespace disambiguation. Individual step failures don't abort the workflow.
+- **Metric category constants** are defined as public `static final String` fields in each `*MetricCategories` class
+  (e.g., `KafkaMetricCategories.REPLICATION`). Use these constants instead of string literals when referencing
+  metric categories in services, diagnostic tools, or prompts.
 
 ## MCP Tool Pattern
 
@@ -140,6 +159,98 @@ public KafkaClusterLogsResponse getKafkaClusterLogs(
     return kafkaService.getClusterLogs(namespace, clusterName, options);
 }
 ```
+
+## Composite Diagnostic Tool Pattern
+
+Composite diagnostic tools orchestrate multi-step workflows in a single tool call.
+They complement prompt templates: prompts are client-driven (LLM calls tools one by one),
+composite tools are server-driven (server gathers all data internally).
+
+```java
+@Singleton
+@Guarded
+@WrapBusinessError(Exception.class)
+public class DiagnosticTools {
+
+    @Inject
+    KafkaClusterDiagnosticService clusterDiagnosticService;
+
+    @Tool(name = "diagnose_kafka_cluster", description = "...")
+    public KafkaClusterDiagnosticReport diagnoseKafkaCluster(
+        @ToolArg(description = StrimziToolsPrompts.CLUSTER_DESC) final String clusterName,
+        @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
+        final Sampling sampling,       // LLM-guided selective investigation
+        final Elicitation elicitation,  // namespace disambiguation
+        final McpLog mcpLog,
+        final Progress progress,
+        final Cancellation cancellation
+    ) {
+        return clusterDiagnosticService.diagnose(...);
+    }
+}
+```
+
+### Diagnostic service structure (3-phase workflow)
+
+1. **Phase 1 — Initial data gathering**: Always runs. Gathers cluster status, node pools, pods.
+   If namespace is ambiguous and Elicitation is supported, asks the user to choose.
+2. **Phase 2 — Deep investigation**: If Sampling is supported, sends Phase 1 results to LLM
+   and asks which areas need deeper investigation. If not supported, investigates all areas.
+3. **Phase 3 — Analysis**: If Sampling is supported, sends all gathered data to LLM for
+   root cause analysis. If not supported, returns raw data without analysis.
+
+### Key behaviors
+
+- **Graceful degradation**: Works without Sampling/Elicitation support (gathers everything, returns raw data)
+- **Step failure resilience**: Individual step failures are recorded in `stepsFailed`, workflow continues
+- **Progress tracking**: Reports progress via `DiagnosticHelper.sendProgress()`
+- **Cancellation**: Checks `DiagnosticHelper.checkCancellation()` between steps
+- **No duplication**: Calls existing domain services (KafkaService, StrimziOperatorService, etc.)
+- **Configurable token limits**: `mcp.sampling.triage-max-tokens` and `mcp.sampling.analysis-max-tokens`
+
+### DiagnosticHelper (common module)
+
+Shared MCP framework utilities in `common/src/.../service/DiagnosticHelper.java`:
+- `sendClientNotification(McpLog, String)` — log-level notification to MCP client
+- `sendProgress(Progress, step, totalSteps, label)` — progress update to MCP client
+- `checkCancellation(Cancellation)` — abort if client cancelled
+- `putIfNotNull(Map, String, Object)` — conditional map insertion
+- `elicitSelection(Elicitation, message, propertyName, description, options)` — generic single-select Elicitation
+- `extractSamplingText(SamplingResponse)` — safe text extraction from Sampling response
+- `MAP_TYPE_REF` — reusable `TypeReference<Map<String, Object>>` for JSON parsing
+
+### NamespaceElicitationHelper (strimzi module)
+
+Strimzi-specific namespace disambiguation in `strimzi-mcp/src/.../util/NamespaceElicitationHelper.java`:
+- `isMultipleNamespacesError(ToolCallException)` — checks for Strimzi multi-namespace error
+- `parseNamespacesFromError(String)` — extracts namespace list from Strimzi error message
+- `elicitNamespace(ToolCallException, Elicitation, context)` — combines parsing + `DiagnosticHelper.elicitSelection`
+
+### Diagnostic report DTOs
+
+Compose existing DTOs into a single report. Follow the naming pattern `Kafka*DiagnosticReport`:
+- `KafkaClusterDiagnosticReport` — cluster, node pools, pods, operator, logs, events, metrics
+- `KafkaConnectivityDiagnosticReport` — cluster, bootstrap servers, certificates, pods, logs
+- `KafkaMetricsDiagnosticReport` — cluster, pods, replication/performance/resource/throughput metrics
+- `OperatorMetricsDiagnosticReport` — operator, reconciliation/resource/JVM metrics, logs
+
+### Adding a new composite diagnostic tool
+
+1. Create the report DTO in `strimzi-mcp/src/.../strimzi/dto/`
+2. Create the diagnostic service in `strimzi-mcp/src/.../strimzi/service/` following the 3-phase pattern
+3. Add the `@Tool` method to `DiagnosticTools`
+4. Add the tool name to `McpDiscoveryTest.testToolDiscovery()` expected list
+5. Create a service test in `strimzi-mcp/src/test/.../strimzi/service/`
+6. Run `mvn compile && mvn test`
+
+### Logging in diagnostic services
+
+Use specific resource names in log messages and client notifications:
+- "Checked Kafka cluster status" (not "Checked cluster status")
+- "Found 3 KafkaNodePools" (not "Found 3 node pools")
+- "Checked Strimzi operator 'name' status: HEALTHY" (not "Checked operator status")
+- "Collected Kafka cluster logs" (not "Collected cluster logs")
+- "Failed to gather Kafka related events" (not "Failed to gather events")
 
 ## MCP Prompt Template Pattern
 
@@ -386,6 +497,13 @@ Service tests (one per domain service):
 - `strimzi-mcp/src/test/java/.../service/KafkaServiceTest.java`
 - `strimzi-mcp/src/test/java/.../service/KafkaTopicServiceTest.java`
 - `strimzi-mcp/src/test/java/.../service/StrimziOperatorServiceTest.java`
+- `strimzi-mcp/src/test/java/.../service/StrimziEventsServiceTest.java`
+
+Diagnostic service tests (one per diagnostic service):
+- `strimzi-mcp/src/test/java/.../service/KafkaClusterDiagnosticServiceTest.java`
+- `strimzi-mcp/src/test/java/.../service/KafkaConnectivityDiagnosticServiceTest.java`
+- `strimzi-mcp/src/test/java/.../service/KafkaMetricsDiagnosticServiceTest.java`
+- `strimzi-mcp/src/test/java/.../service/OperatorMetricsDiagnosticServiceTest.java`
 
 Tool tests (one per tools class):
 - `strimzi-mcp/src/test/java/.../tool/KafkaToolsTest.java`

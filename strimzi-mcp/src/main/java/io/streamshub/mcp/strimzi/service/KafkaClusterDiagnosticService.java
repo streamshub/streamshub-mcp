@@ -26,6 +26,7 @@ import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaMetricsService;
+import io.streamshub.mcp.strimzi.util.NamespaceElicitationHelper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -216,9 +217,9 @@ public class KafkaClusterDiagnosticService {
             DiagnosticHelper.sendClientNotification(mcpLog, "Checked Kafka cluster status: " + result.readiness());
             return result;
         } catch (ToolCallException e) {
-            if (DiagnosticHelper.isMultipleNamespacesError(e)
+            if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isSupported()) {
-                String resolved = DiagnosticHelper.elicitNamespace(e, elicitation, "diagnosed");
+                String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "diagnosed");
                 return gatherClusterStatus(resolved, clusterName, null,
                     completed, mcpLog);
             }

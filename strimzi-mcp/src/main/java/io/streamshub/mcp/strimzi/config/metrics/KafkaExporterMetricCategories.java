@@ -16,13 +16,28 @@ import java.util.stream.Collectors;
  */
 public final class KafkaExporterMetricCategories {
 
+    /**
+     * Consumer group lag category (offset, lag, lag seconds).
+     */
+    public static final String CONSUMER_LAG = "consumer_lag";
+
+    /**
+     * Topic partition category (offsets, ISR, under-replicated, replicas).
+     */
+    public static final String PARTITIONS = "partitions";
+
+    /**
+     * JVM and system resource category (heap, GC, CPU, threads).
+     */
+    public static final String RESOURCES = "resources";
+
     private static final Map<String, List<String>> CATEGORIES = Map.of(
-        "consumer_lag", List.of(
+        CONSUMER_LAG, List.of(
             "kafka_consumergroup_current_offset",
             "kafka_consumergroup_lag",
             "kafka_consumergroup_lag_seconds"
         ),
-        "partitions", List.of(
+        PARTITIONS, List.of(
             "kafka_topic_partitions",
             "kafka_topic_partition_current_offset",
             "kafka_topic_partition_oldest_offset",
@@ -30,7 +45,7 @@ public final class KafkaExporterMetricCategories {
             "kafka_topic_partition_under_replicated_partition",
             "kafka_topic_partition_replicas"
         ),
-        "resources", List.of(
+        RESOURCES, List.of(
             "jvm_memory_used_bytes",
             "jvm_memory_max_bytes",
             "jvm_gc_collection_seconds_count",
@@ -41,7 +56,7 @@ public final class KafkaExporterMetricCategories {
     );
 
     private static final Map<String, String> DESCRIPTIONS = Map.of(
-        "consumer_lag",
+        CONSUMER_LAG,
             "**[HIGH - CONSUMER GROUP LAG]**\n\n"
                 + "kafka_consumergroup_lag: Number of messages a consumer group is behind the latest offset. "
                 + "**THRESHOLDS**: 0 = fully caught up, <1000 = healthy, 1000-10000 = monitor, "
@@ -51,7 +66,7 @@ public final class KafkaExporterMetricCategories {
                 + "to catch up. >60s = significant delay, >300s = investigate consumer health.\n\n"
                 + "kafka_consumergroup_current_offset: Current committed offset per consumer group/partition. "
                 + "Stalled offset = consumer is stuck or dead. Compare with partition end offset to calculate lag.",
-        "partitions",
+        PARTITIONS,
             "**[HIGH - PARTITION HEALTH]**\n\n"
                 + "kafka_topic_partition_under_replicated_partition: Partitions where ISR count < replica count. "
                 + "Should be 0. >0 means replicas are lagging — check broker health and disk I/O. "
@@ -67,7 +82,7 @@ public final class KafkaExporterMetricCategories {
                 + "Gap between oldest and current = retained data volume. "
                 + "Oldest offset advancing = log segments being cleaned/compacted.\n\n"
                 + "kafka_topic_partitions: Number of partitions per topic.",
-        "resources",
+        RESOURCES,
             MetricsDescriptions.jvmDescription("get_kafka_cluster_pods",
                 "exporter scraping failures or missing metrics")
     );

@@ -34,7 +34,7 @@ import java.util.Map;
 public class StrimziOperatorMetricsService {
 
     private static final Logger LOG = Logger.getLogger(StrimziOperatorMetricsService.class);
-    private static final String DEFAULT_CATEGORY = "reconciliation";
+    private static final String DEFAULT_CATEGORY = StrimziOperatorMetricCategories.RECONCILIATION;
 
     @Inject
     MetricsQueryService metricsQueryService;

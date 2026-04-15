@@ -37,7 +37,7 @@ import java.util.Map;
 public class KafkaExporterMetricsService {
 
     private static final Logger LOG = Logger.getLogger(KafkaExporterMetricsService.class);
-    private static final String DEFAULT_CATEGORY = "consumer_lag";
+    private static final String DEFAULT_CATEGORY = KafkaExporterMetricCategories.CONSUMER_LAG;
 
     @Inject
     KubernetesResourceService k8sService;
