@@ -11,6 +11,7 @@
         <module>metrics-prometheus</module>
         <module>loki-log-provider</module>
         <module>strimzi-mcp</module>
+        <module>systemtest</module>
     </modules>
 
     <properties>

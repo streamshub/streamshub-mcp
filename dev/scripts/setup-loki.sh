@@ -88,8 +88,8 @@ deploy() {
     else
         # Discover loki-operator channel (pick latest stable, don't trust defaultChannel)
         local channel
-        channel=$(kubectl get packagemanifest loki-operator -n openshift-marketplace \
-            -o jsonpath='{range .status.channels[*]}{.name}{"\n"}{end}' 2>/dev/null \
+        channel=$(kubectl get packagemanifest -n openshift-marketplace -o json 2>/dev/null \
+            | jq -r '.items[] | select(.metadata.name == "loki-operator" and .status.catalogSource == "redhat-operators") | .status.channels[].name' \
             | grep '^stable-' | sort -V | tail -1)
         if [ -z "$channel" ]; then
             log_error "loki-operator not found in openshift-marketplace."
