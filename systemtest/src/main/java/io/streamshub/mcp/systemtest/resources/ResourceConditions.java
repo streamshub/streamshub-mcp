@@ -70,7 +70,7 @@ public final class ResourceConditions {
      * @return  boolean value if the particular resource contains desired CR status and condition status
      * @param <T>   CR class that extends {@link CustomResource}.
      */
-    private static <T extends CustomResource<? extends Spec, ? extends Status>> boolean checkMatchingConditions(T resource, Enum<?> customResourceStatus, ConditionStatus conditionStatus) {
+    private static <T extends CustomResource<? extends Spec, ? extends Status>> boolean checkMatchingConditions(final T resource, final Enum<?> customResourceStatus, final ConditionStatus conditionStatus) {
         if (resource.getStatus() != null && resource.getStatus().getConditions() != null) {
             return resource.getStatus()
                 .getConditions()

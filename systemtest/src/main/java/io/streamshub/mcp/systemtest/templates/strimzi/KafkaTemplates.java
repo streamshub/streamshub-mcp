@@ -29,6 +29,15 @@ public final class KafkaTemplates {
     private static final Path KAFKA_FILE =
         Path.of(Constants.STRIMZI_MANIFESTS_DIR, "kafka", "010-Kafka.yaml");
 
+    /** Default Kafka version for test clusters. */
+    private static final String DEFAULT_KAFKA_VERSION = "4.2.0";
+
+    /** Maximum replication factor for Kafka internal topics. */
+    private static final int MAX_REPLICATION_FACTOR = 3;
+
+    /** Maximum min.insync.replicas value. */
+    private static final int MAX_MIN_ISR = 2;
+
     private KafkaTemplates() {
     }
 
@@ -48,7 +57,7 @@ public final class KafkaTemplates {
             .endMetadata()
             .editSpec()
                 .editKafka()
-                    .withVersion("4.2.0")
+                    .withVersion(DEFAULT_KAFKA_VERSION)
                     .withListeners(
                         new GenericKafkaListenerBuilder()
                             .withName("plain")
@@ -62,11 +71,11 @@ public final class KafkaTemplates {
                             .withType(KafkaListenerType.INTERNAL)
                             .withTls(true)
                             .build())
-                    .addToConfig("offsets.topic.replication.factor", Math.min(replicas, 3))
-                    .addToConfig("transaction.state.log.replication.factor", Math.min(replicas, 3))
-                    .addToConfig("transaction.state.log.min.isr", Math.min(replicas, 2))
-                    .addToConfig("default.replication.factor", Math.min(replicas, 3))
-                    .addToConfig("min.insync.replicas", Math.min(Math.max(replicas - 1, 1), 2))
+                    .addToConfig("offsets.topic.replication.factor", Math.min(replicas, MAX_REPLICATION_FACTOR))
+                    .addToConfig("transaction.state.log.replication.factor", Math.min(replicas, MAX_REPLICATION_FACTOR))
+                    .addToConfig("transaction.state.log.min.isr", Math.min(replicas, MAX_MIN_ISR))
+                    .addToConfig("default.replication.factor", Math.min(replicas, MAX_REPLICATION_FACTOR))
+                    .addToConfig("min.insync.replicas", Math.min(Math.max(replicas - 1, 1), MAX_MIN_ISR))
                 .endKafka()
             .endSpec();
     }

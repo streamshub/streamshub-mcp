@@ -108,11 +108,11 @@ public final class StrimziSetup {
                     try {
                         resources.addAll(KubeResourceManager.get().readResourcesFromFile(file));
                     } catch (IOException e) {
-                        throw new RuntimeException("Failed to load " + file, e);
+                        throw new IllegalStateException("Failed to load manifest file: " + file, e);
                     }
                 });
         } catch (IOException e) {
-            throw new RuntimeException("Failed to list directory " + dir, e);
+            throw new IllegalStateException("Failed to list manifest directory: " + dir, e);
         }
         return resources;
     }
