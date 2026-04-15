@@ -5,8 +5,6 @@
 package io.streamshub.mcp.systemtest.setup.mcp;
 
 import io.fabric8.kubernetes.api.model.IntOrString;
-import io.fabric8.kubernetes.api.model.Node;
-import io.fabric8.kubernetes.api.model.NodeAddress;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
@@ -21,7 +19,6 @@ import io.streamshub.mcp.systemtest.Environment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Locale;
 
 /**
@@ -114,34 +111,10 @@ public final class ConnectivitySetup {
             .build();
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(nodePortService);
 
-        String nodeIp = getNodeIp(client);
-        String url = "http://" + nodeIp + ":" + Constants.MCP_NODE_PORT;
+        // Use localhost — kind with extraPortMappings maps NodePort to host port
+        String url = "http://localhost:" + Constants.MCP_NODE_PORT;
         LOGGER.info("MCP server exposed via NodePort at {}", url);
         return url;
-    }
-
-    /**
-     * Resolve the IP address of a cluster node for NodePort access.
-     * Prefers InternalIP, falls back to ExternalIP, then Hostname.
-     *
-     * @param client the Kubernetes client
-     * @return the node IP address
-     */
-    private static String getNodeIp(final KubernetesClient client) {
-        List<Node> nodes = client.nodes().list().getItems();
-        if (nodes.isEmpty()) {
-            throw new IllegalStateException("No nodes found in the cluster");
-        }
-
-        List<NodeAddress> addresses = nodes.get(0).getStatus().getAddresses();
-        for (String type : List.of("InternalIP", "ExternalIP", "Hostname")) {
-            for (NodeAddress addr : addresses) {
-                if (type.equals(addr.getType())) {
-                    return addr.getAddress();
-                }
-            }
-        }
-        throw new IllegalStateException("Could not resolve any node address from: " + addresses);
     }
 
     // --- INGRESS (Contour) ---
