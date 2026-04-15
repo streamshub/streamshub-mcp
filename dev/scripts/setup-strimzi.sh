@@ -6,14 +6,13 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STRIMZI_DIR="$SCRIPT_DIR/../manifests/strimzi"
-PROMETHEUS_DIR="$SCRIPT_DIR/../manifests/prometheus"
 
 OPERATOR_NS="strimzi"
 KAFKA_NS="strimzi-kafka"
 CLUSTER_NAME="mcp-cluster"
-MONITORING_NS="monitoring"
 
 INSTALL_PROMETHEUS=false
+INSTALL_LOKI=false
 OCP=false
 
 # Colors
@@ -41,39 +40,19 @@ check_kubectl() {
 }
 
 deploy_prometheus() {
-    log_info "Deploying Prometheus operator and instance..."
-    kubectl apply --server-side -k "$PROMETHEUS_DIR/operator/"
-
-    log_info "Waiting for Prometheus operator to be ready..."
-    kubectl wait --for=condition=Available \
-        deployment/prometheus-operator \
-        -n "$MONITORING_NS" \
-        --timeout=120s
-    log_success "Prometheus operator is ready"
-
-    kubectl apply -k "$PROMETHEUS_DIR/additional-properties/"
-    kubectl apply -k "$PROMETHEUS_DIR/instance/"
-
-    log_info "Waiting for Prometheus instance to be ready..."
-    kubectl wait --for=condition=Available \
-        prometheus/prometheus \
-        -n "$MONITORING_NS" \
-        --timeout=120s 2>/dev/null || \
-    kubectl rollout status statefulset/prometheus-prometheus \
-        -n "$MONITORING_NS" \
-        --timeout=120s 2>/dev/null || true
-    log_success "Prometheus is ready"
+    "$SCRIPT_DIR/setup-prometheus.sh" deploy
 }
 
 teardown_prometheus() {
-    log_info "Removing Prometheus instance..."
-    kubectl delete -k "$PROMETHEUS_DIR/instance/" --ignore-not-found
-    kubectl delete -k "$PROMETHEUS_DIR/additional-properties/" --ignore-not-found
+    "$SCRIPT_DIR/setup-prometheus.sh" teardown
+}
 
-    log_info "Removing Prometheus operator..."
-    kubectl delete -k "$PROMETHEUS_DIR/operator/" --ignore-not-found
+deploy_loki() {
+    "$SCRIPT_DIR/setup-loki.sh" deploy
+}
 
-    log_success "Prometheus teardown complete"
+teardown_loki() {
+    "$SCRIPT_DIR/setup-loki.sh" teardown
 }
 
 deploy() {
@@ -81,6 +60,10 @@ deploy() {
 
     if [ "$INSTALL_PROMETHEUS" = true ]; then
         deploy_prometheus
+    fi
+
+    if [ "$INSTALL_LOKI" = true ]; then
+        deploy_loki
     fi
 
     log_info "Deploying Strimzi operator..."
@@ -113,7 +96,10 @@ deploy() {
     log_success "Deployment complete"
     echo ""
     if [ "$INSTALL_PROMETHEUS" = true ]; then
-        echo "Monitoring namespace: $MONITORING_NS"
+        echo "Monitoring namespace: monitoring"
+    fi
+    if [ "$INSTALL_LOKI" = true ]; then
+        echo "Logging namespace:   openshift-logging"
     fi
     echo "Operator namespace:  $OPERATOR_NS"
     echo "Kafka namespace:     $KAFKA_NS"
@@ -121,7 +107,10 @@ deploy() {
     echo ""
     echo "Verify with:"
     if [ "$INSTALL_PROMETHEUS" = true ]; then
-        echo "  kubectl get pods -n $MONITORING_NS"
+        echo "  kubectl get pods -n monitoring"
+    fi
+    if [ "$INSTALL_LOKI" = true ]; then
+        echo "  kubectl get pods -n openshift-logging"
     fi
     echo "  kubectl get pods -n $OPERATOR_NS"
     echo "  kubectl get pods -n $KAFKA_NS"
@@ -145,6 +134,10 @@ teardown() {
         teardown_prometheus
     fi
 
+    if [ "$INSTALL_LOKI" = true ]; then
+        teardown_loki
+    fi
+
     log_success "Teardown complete"
 }
 
@@ -155,6 +148,9 @@ for arg in "$@"; do
     case "$arg" in
         "--prometheus")
             INSTALL_PROMETHEUS=true
+            ;;
+        "--loki")
+            INSTALL_LOKI=true
             ;;
         "--ocp")
             OCP=true
@@ -184,6 +180,7 @@ case "$COMMAND" in
         echo "Options:"
         echo "  --ocp         Use OpenShift route listener (default: NodePort)"
         echo "  --prometheus  Also deploy/remove Prometheus for metrics collection"
+        echo "  --loki        Also deploy/remove Loki for log collection (OpenShift only)"
         ;;
     *)
         log_error "Unknown command: $COMMAND"

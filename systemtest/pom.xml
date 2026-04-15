@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.streamshub</groupId>
+        <artifactId>streamshub-mcp</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>systemtest</artifactId>
+    <name>StreamsHub MCP System Tests</name>
+    <description>End-to-end system tests for Strimzi MCP server</description>
+
+    <properties>
+        <kubetest4j.version>1.1.0</kubetest4j.version>
+        <quarkus.mcp.server.test.version>1.11.1</quarkus.mcp.server.test.version>
+        <strimzi.test-clients.version>0.13.0</strimzi.test-clients.version>
+        <allure.junit.version>2.34.0</allure.junit.version>
+        <allure.report.version>2.39.0</allure.report.version>
+        <allure.maven.version>2.17.0</allure.maven.version>
+        <log4j.version>2.24.3</log4j.version>
+        <slf4j.version>2.0.17</slf4j.version>
+        <!-- Skip system tests by default — enable with -Psystemtest -->
+        <skipITs>true</skipITs>
+        <!-- Define empty argLine so parent's @{argLine} doesn't fail -->
+        <argLine></argLine>
+    </properties>
+
+    <dependencies>
+        <!-- kubetest4j -->
+        <dependency>
+            <groupId>io.skodjob.kubetest4j</groupId>
+            <artifactId>junit-extension</artifactId>
+            <version>${kubetest4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.skodjob.kubetest4j</groupId>
+            <artifactId>kubernetes-resources</artifactId>
+            <version>${kubetest4j.version}</version>
+        </dependency>
+
+        <!-- MCP client (compile scope — used in main support classes, not just tests) -->
+        <dependency>
+            <groupId>io.quarkiverse.mcp</groupId>
+            <artifactId>quarkus-mcp-server-test</artifactId>
+            <version>${quarkus.mcp.server.test.version}</version>
+            <scope>compile</scope>
+            <exclusions>
+                <!-- Exclude JBoss SLF4J provider — we use log4j2 -->
+                <exclusion>
+                    <groupId>org.jboss.slf4j</groupId>
+                    <artifactId>slf4j-jboss-logmanager</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- OpenShift client (for Route creation) -->
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>openshift-client</artifactId>
+        </dependency>
+
+        <!-- Strimzi API -->
+        <dependency>
+            <groupId>io.strimzi</groupId>
+            <artifactId>api</artifactId>
+        </dependency>
+
+        <!-- strimzi test-clients builders -->
+        <dependency>
+            <groupId>io.strimzi.test-clients</groupId>
+            <artifactId>builders</artifactId>
+            <version>${strimzi.test-clients.version}</version>
+        </dependency>
+
+        <!-- Allure reporting -->
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-junit5</artifactId>
+            <version>${allure.junit.version}</version>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Compile test sources (in src/test/java) -->
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>21</source>
+                    <target>21</target>
+                </configuration>
+            </plugin>
+            <!-- Run integration tests via Failsafe -->
+            <plugin>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>${surefire-plugin.version}</version>
+                <configuration>
+                    <includes>
+                        <include>**/*ST.java</include>
+                    </includes>
+                    <systemPropertyVariables>
+                        <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
+                    </systemPropertyVariables>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Checkstyle -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+            </plugin>
+            <!-- Allure report generation -->
+            <plugin>
+                <groupId>io.qameta.allure</groupId>
+                <artifactId>allure-maven</artifactId>
+                <version>${allure.maven.version}</version>
+                <configuration>
+                    <reportVersion>${allure.report.version}</reportVersion>
+                    <resultsDirectory>${project.build.directory}/allure-results</resultsDirectory>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>systemtest</id>
+            <properties>
+                <skipITs>false</skipITs>
+            </properties>
+        </profile>
+    </profiles>
+</project>
