@@ -23,7 +23,7 @@ public final class Environment {
     public static final String MCP_CONNECTIVITY = ENV_VARIABLES.getOrDefault("MCP_CONNECTIVITY", null);
 
     /** Localhost port for Ingress access (default: 9090 for Podman Desktop kind with Contour). */
-    public static final int MCP_INGRESS_PORT = Integer.parseInt(ENV_VARIABLES.getOrDefault("MCP_INGRESS_PORT", String.valueOf(9090)));
+    public static final int MCP_INGRESS_PORT = ENV_VARIABLES.getOrDefault("MCP_INGRESS_PORT", Integer::valueOf, 9090);
 
     /** Hostname for Ingress rule. Empty string means no host constraint (matches all). */
     public static final String MCP_INGRESS_HOST = ENV_VARIABLES.getOrDefault("MCP_INGRESS_HOST", "");
