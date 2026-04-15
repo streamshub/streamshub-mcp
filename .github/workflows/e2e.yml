@@ -41,6 +41,9 @@ jobs:
         config: .github/config/kind-config.yaml
         cluster_name: mcp-e2e
 
+    - name: Deploy Prometheus operator
+      run: ./dev/scripts/setup-prometheus.sh deploy
+
     - name: Build MCP image and load into kind
       run: |
         ./mvnw package -pl common,metrics-prometheus,loki-log-provider,strimzi-mcp \
