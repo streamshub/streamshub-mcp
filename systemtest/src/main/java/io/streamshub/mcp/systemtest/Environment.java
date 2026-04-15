@@ -23,7 +23,7 @@ public final class Environment {
     public static final String MCP_CONNECTIVITY = ENV_VARIABLES.getOrDefault("MCP_CONNECTIVITY", null);
 
     /** Localhost port for Ingress access (default: 9090 for Podman Desktop kind with Contour). */
-    public static final int MCP_INGRESS_PORT = getIntOrDefault("MCP_INGRESS_PORT", 9090);
+    public static final int MCP_INGRESS_PORT = Integer.parseInt(ENV_VARIABLES.getOrDefault("MCP_INGRESS_PORT", String.valueOf(9090)));
 
     /** Hostname for Ingress rule. Empty string means no host constraint (matches all). */
     public static final String MCP_INGRESS_HOST = ENV_VARIABLES.getOrDefault("MCP_INGRESS_HOST", "");
@@ -39,22 +39,5 @@ public final class Environment {
     public static final String KAFKA_NAMESPACE = ENV_VARIABLES.getOrDefault("KAFKA_NAMESPACE", Constants.KAFKA_NAMESPACE);
 
     private Environment() {
-    }
-
-    /**
-     * Get an integer value from environment variable, system property, or use default.
-     * Returns the default if the value is not set or cannot be parsed as an integer.
-     *
-     * @param name         the environment variable / system property name
-     * @param defaultValue the default value if not set or not parsable
-     * @return the resolved integer value
-     */
-    private static int getIntOrDefault(final String name, final int defaultValue) {
-        String value = ENV_VARIABLES.getOrDefault(name, String.valueOf(defaultValue));
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException e) {
-            return defaultValue;
-        }
     }
 }
