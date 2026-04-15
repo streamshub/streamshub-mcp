@@ -10,9 +10,13 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Unit tests for {@link LogRedactionFilter}.
@@ -29,6 +33,8 @@ class LogRedactionFilterTest {
         filter = new LogRedactionFilter();
         filter.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
         filter.enabled = true;
+        filter.customPatterns = Optional.empty();
+        filter.init();
     }
 
     @Test
@@ -99,6 +105,58 @@ class LogRedactionFilterTest {
         LogDto result = (LogDto) filter.filterOutput("test_tool", input);
         assertFalse(result.logs().contains("secret123"));
         assertFalse(result.logs().contains("abc123"));
+    }
+
+    @Test
+    void testCustomPatternRedacts() {
+        filter.customPatterns = Optional.of(List.of("(?i)ssn\\s*[=:]\\s*\\d{3}-\\d{2}-\\d{4}"));
+        filter.init();
+        String result = filter.applyRedaction("User ssn=123-45-6789 logged in");
+        assertFalse(result.contains("123-45-6789"));
+        assertTrue(result.contains("[REDACTED]"));
+    }
+
+    @Test
+    void testCustomPatternMergedWithDefaults() {
+        filter.customPatterns = Optional.of(List.of("(?i)internal-id\\s*=\\s*\\S+"));
+        filter.init();
+        String result = filter.applyRedaction("Bearer secret123 internal-id=abc-999");
+        assertFalse(result.contains("secret123"));
+        assertFalse(result.contains("abc-999"));
+    }
+
+    @Test
+    void testInvalidCustomPatternSkipped() {
+        filter.customPatterns = Optional.of(List.of("[invalid", "(?i)valid-pattern=\\S+"));
+        filter.init();
+        // Default rules still work despite the invalid pattern
+        String result = filter.applyRedaction("password=secret valid-pattern=sensitive");
+        assertFalse(result.contains("secret"));
+        assertFalse(result.contains("sensitive"));
+    }
+
+    @Test
+    void testEmptyCustomPatterns() {
+        filter.customPatterns = Optional.of(List.of());
+        filter.init();
+        // Defaults still work
+        String result = filter.applyRedaction("password=secret123");
+        assertFalse(result.contains("secret123"));
+    }
+
+    @Test
+    void testMultipleCustomPatterns() {
+        filter.customPatterns = Optional.of(List.of(
+            "(?i)x-custom-header:\\s*\\S+",
+            "(?i)account-id=\\S+",
+            "(?i)session-token=\\S+"
+        ));
+        filter.init();
+        String input = "x-custom-header: val1 account-id=A123 session-token=tok456";
+        String result = filter.applyRedaction(input);
+        assertFalse(result.contains("val1"));
+        assertFalse(result.contains("A123"));
+        assertFalse(result.contains("tok456"));
     }
 
     /**

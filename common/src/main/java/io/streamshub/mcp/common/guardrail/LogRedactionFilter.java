@@ -6,14 +6,19 @@ package io.streamshub.mcp.common.guardrail;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * Output filter that redacts sensitive data patterns in tool responses.
@@ -21,6 +26,11 @@ import java.util.regex.Pattern;
  * <p>Scans all text fields for common sensitive patterns (bearer tokens,
  * passwords, API keys, connection strings with credentials) and replaces
  * matches with {@code [REDACTED]}.</p>
+ *
+ * <p>Custom patterns can be added via indexed configuration property
+ * {@code mcp.guardrail.log-redaction.custom-patterns[N]}. Custom patterns
+ * replace matches with {@code [REDACTED]}. Invalid regex patterns are
+ * logged as warnings and skipped.</p>
  *
  * <p>Can be disabled via {@code mcp.guardrail.log-redaction.enabled=false}.</p>
  *
@@ -57,7 +67,36 @@ public class LogRedactionFilter implements GuardrailFilter {
     @ConfigProperty(name = "mcp.guardrail.log-redaction.enabled", defaultValue = "true")
     boolean enabled;
 
+    @ConfigProperty(name = "mcp.guardrail.log-redaction.custom-patterns")
+    Optional<List<String>> customPatterns;
+
+    List<RedactionRule> activeRules;
+
     LogRedactionFilter() {
+    }
+
+    /**
+     * Compiles custom redaction patterns and merges them with the default rules.
+     * Invalid patterns are logged as warnings and skipped.
+     */
+    @PostConstruct
+    void init() {
+        List<RedactionRule> rules = new ArrayList<>(DEFAULT_RULES);
+        if (customPatterns.isPresent()) {
+            List<String> patterns = customPatterns.get();
+            for (int i = 0; i < patterns.size(); i++) {
+                String patternStr = patterns.get(i);
+                try {
+                    Pattern compiled = Pattern.compile(patternStr);
+                    rules.add(new RedactionRule("custom-" + i, compiled, REDACTED));
+                    LOG.debugf("Registered custom redaction pattern [%d]: %s", i, patternStr);
+                } catch (PatternSyntaxException e) {
+                    LOG.warnf("Skipping invalid custom redaction pattern [%d] '%s': %s",
+                        i, patternStr, e.getMessage());
+                }
+            }
+        }
+        activeRules = Collections.unmodifiableList(rules);
     }
 
     @Override
@@ -90,7 +129,7 @@ public class LogRedactionFilter implements GuardrailFilter {
             return text;
         }
         String result = text;
-        for (RedactionRule rule : DEFAULT_RULES) {
+        for (RedactionRule rule : activeRules) {
             result = rule.pattern().matcher(result).replaceAll(rule.replacement());
         }
         return result;
