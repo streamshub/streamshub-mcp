@@ -11,6 +11,8 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
+  checks: write
 
 jobs:
   e2e-kind:
@@ -49,7 +51,7 @@ jobs:
 
     - name: Run system tests
       run: |
-        ./mvnw failsafe:integration-test failsafe:verify -pl systemtest \
+        ./mvnw verify -pl systemtest \
           -Psystemtest \
           -DMCP_IMAGE=quay.io/streamshub/strimzi-mcp:test \
           -DMCP_CONNECTIVITY=NODEPORT
@@ -57,6 +59,13 @@ jobs:
     - name: Generate Allure report
       if: always()
       run: npx allure generate systemtest/target/allure-results -o allure-report
+
+    - name: Post Allure report to PR
+      uses: allure-framework/allure-action@v0
+      if: always()
+      with:
+        report-directory: allure-report
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload Allure report
       uses: actions/upload-artifact@v4
