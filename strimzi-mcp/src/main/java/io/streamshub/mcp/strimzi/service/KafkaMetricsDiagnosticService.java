@@ -290,10 +290,10 @@ public class KafkaMetricsDiagnosticService {
 
     private String categoryStepName(final String category) {
         return switch (category) {
-            case "replication" -> STEP_REPLICATION_METRICS;
-            case "performance" -> STEP_PERFORMANCE_METRICS;
-            case "resources" -> STEP_RESOURCE_METRICS;
-            case "throughput" -> STEP_THROUGHPUT_METRICS;
+            case KafkaMetricCategories.REPLICATION -> STEP_REPLICATION_METRICS;
+            case KafkaMetricCategories.PERFORMANCE -> STEP_PERFORMANCE_METRICS;
+            case KafkaMetricCategories.RESOURCES -> STEP_RESOURCE_METRICS;
+            case KafkaMetricCategories.THROUGHPUT -> STEP_THROUGHPUT_METRICS;
             default -> category + "_metrics";
         };
     }
