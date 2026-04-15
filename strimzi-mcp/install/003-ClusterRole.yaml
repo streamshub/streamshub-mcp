@@ -20,10 +20,18 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments"]
     verbs: ["get", "list", "watch"]
-  # Pods, logs, and services
+  # Pods and services
   - apiGroups: [""]
-    resources: ["pods", "pods/log", "services"]
+    resources: ["pods", "services"]
     verbs: ["get", "list"]
+  # Pod logs (get only, no list)
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  # Events (list only, used with field selectors)
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list"]
   # ConfigMaps (logging overrides, external configuration references)
   - apiGroups: [""]
     resources: ["configmaps"]

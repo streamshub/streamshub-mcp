@@ -164,6 +164,20 @@ public final class StrimziToolsPrompts {
             + " Omit for all available events.";
 
     /**
+     * Concern parameter description for metrics diagnostic tools.
+     */
+    public static final String CONCERN_DESC =
+        "Specific concern to investigate, e.g. 'high latency',"
+            + " 'replication lag', 'slow reconciliation'. Omit if unknown.";
+
+    /**
+     * Symptom parameter description for diagnostic tools.
+     */
+    public static final String SYMPTOM_DESC =
+        "Observed symptom, e.g. 'NotReady for 15 minutes'"
+            + " or 'pods restarting'. Omit if unknown.";
+
+    /**
      * Common instruction for prompt templates to handle tool call failures gracefully.
      */
     public static final String ERROR_HANDLING_INSTRUCTION =

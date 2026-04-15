@@ -16,8 +16,28 @@ import java.util.stream.Collectors;
  */
 public final class KafkaMetricCategories {
 
+    /**
+     * Replication health category (under-replicated partitions, offline partitions, ISR lag).
+     */
+    public static final String REPLICATION = "replication";
+
+    /**
+     * Throughput category (bytes in/out, messages in, produce/fetch requests).
+     */
+    public static final String THROUGHPUT = "throughput";
+
+    /**
+     * JVM and system resource category (heap, GC, CPU, threads).
+     */
+    public static final String RESOURCES = "resources";
+
+    /**
+     * Request performance category (handler idle, queue times, network processor idle).
+     */
+    public static final String PERFORMANCE = "performance";
+
     private static final Map<String, List<String>> CATEGORIES = Map.of(
-        "replication", List.of(
+        REPLICATION, List.of(
             "kafka_server_replicamanager_underreplicatedpartitions",
             "kafka_server_replicamanager_leadercount",
             "kafka_server_replicamanager_partitioncount",
@@ -25,14 +45,14 @@ public final class KafkaMetricCategories {
             "kafka_controller_kafkacontroller_offlinepartitionscount",
             "kafka_server_replicafetchermanager_maxlag"
         ),
-        "throughput", List.of(
+        THROUGHPUT, List.of(
             "kafka_server_brokertopicmetrics_messagesin_total",
             "kafka_server_brokertopicmetrics_bytesin_total",
             "kafka_server_brokertopicmetrics_bytesout_total",
             "kafka_server_brokertopicmetrics_totalproducerequests_total",
             "kafka_server_brokertopicmetrics_totalfetchrequests_total"
         ),
-        "resources", List.of(
+        RESOURCES, List.of(
             "jvm_memory_used_bytes",
             "jvm_memory_max_bytes",
             "jvm_gc_collection_seconds_count",
@@ -40,7 +60,7 @@ public final class KafkaMetricCategories {
             "process_cpu_seconds_total",
             "jvm_threads_current"
         ),
-        "performance", List.of(
+        PERFORMANCE, List.of(
             "kafka_network_requestmetrics_totaltimems",
             "kafka_server_kafkarequesthandlerpool_brokerrequesthandleravgidle_percent",
             "kafka_network_requestmetrics_requestqueuetimems",
@@ -50,7 +70,7 @@ public final class KafkaMetricCategories {
     );
 
     private static final Map<String, String> DESCRIPTIONS = Map.of(
-        "replication",
+        REPLICATION,
             "**[CRITICAL - CLUSTER AVAILABILITY]**\n\n"
                 + "kafka_server_replicamanager_underreplicatedpartitions: Partitions with fewer in-sync "
                 + "replicas than configured. Should be 0. >0 means data loss risk. "
@@ -72,7 +92,7 @@ public final class KafkaMetricCategories {
                 + "Should be balanced across brokers.\n\n"
                 + "kafka_server_replicamanager_offlinereplicacount: Replicas that are offline. "
                 + "Should be 0. >0 = broker or disk issues. Check pod status and logs.",
-        "throughput",
+        THROUGHPUT,
             "kafka_server_brokertopicmetrics_messagesin_total: Cumulative messages received. "
                 + "Rate of change = messages/sec. Sudden drops = producer issues.\n"
                 + "kafka_server_brokertopicmetrics_bytesin_total: Cumulative bytes received. "
@@ -83,10 +103,10 @@ public final class KafkaMetricCategories {
                 + "Rate = produce request throughput.\n"
                 + "kafka_server_brokertopicmetrics_totalfetchrequests_total: Total fetch requests. "
                 + "Includes consumer and follower fetches.",
-        "resources",
+        RESOURCES,
             MetricsDescriptions.jvmDescription("get_kafka_cluster_pods",
                 "performance degradation or pod restarts"),
-        "performance",
+        PERFORMANCE,
             "**[HIGH - BROKER CAPACITY]**\n\n"
                 + "kafka_server_kafkarequesthandlerpool_brokerrequesthandleravgidle_percent: "
                 + "Request handler thread idle ratio. **CRITICAL THRESHOLDS**: "

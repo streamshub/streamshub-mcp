@@ -35,7 +35,7 @@ import java.util.Map;
 public class KafkaMetricsService {
 
     private static final Logger LOG = Logger.getLogger(KafkaMetricsService.class);
-    private static final String DEFAULT_CATEGORY = "replication";
+    private static final String DEFAULT_CATEGORY = KafkaMetricCategories.REPLICATION;
 
     @Inject
     KubernetesResourceService k8sService;
