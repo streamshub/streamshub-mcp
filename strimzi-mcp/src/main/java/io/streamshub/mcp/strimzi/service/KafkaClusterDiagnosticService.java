@@ -523,7 +523,7 @@ public class KafkaClusterDiagnosticService {
          *
          * @return the number of enabled investigation areas
          */
-        int enabledCount() {
+        private int enabledCount() {
             int c = 0;
             if (operatorLogs) c++;
             if (clusterLogs) c++;

@@ -407,7 +407,7 @@ public class KafkaConnectivityDiagnosticService {
          *
          * @return the number of enabled investigation areas
          */
-        int enabledCount() {
+        private int enabledCount() {
             int c = 0;
             if (certificates) c++;
             if (pods) c++;

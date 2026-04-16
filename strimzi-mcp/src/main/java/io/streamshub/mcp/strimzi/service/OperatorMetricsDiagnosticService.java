@@ -407,7 +407,7 @@ public class OperatorMetricsDiagnosticService {
          *
          * @return the number of enabled investigation areas
          */
-        int enabledCount() {
+        private int enabledCount() {
             int c = 0;
             if (reconciliation) c++;
             if (resources) c++;
