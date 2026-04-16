@@ -56,6 +56,7 @@ class MetricsQueryServiceTest {
         setField(metricsQueryService, "metricsProviderInstance", metricsProviderInstance);
         setField(metricsQueryService, "providerName", "pod-scraping");
         setField(metricsQueryService, "defaultStepSeconds", 60);
+        setField(metricsQueryService, "maxRangeMinutes", 10080);
 
         when(metricsProviderInstance.isUnsatisfied()).thenReturn(false);
         when(metricsProviderInstance.get()).thenReturn(metricsProvider);

@@ -13,10 +13,13 @@ import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Strimzi-specific auto-completion service for MCP prompt and resource template parameters.
@@ -42,7 +45,18 @@ public class CompletionService {
     @Inject
     KubernetesClient kubernetesClient;
 
+    @ConfigProperty(name = "mcp.completion.cache-ttl-seconds", defaultValue = "5")
+    long cacheTtlSeconds;
+
+    private final Map<String, CachedNames> nameCache = new ConcurrentHashMap<>();
+
     CompletionService() {
+    }
+
+    private record CachedNames(List<String> names, Instant expiry) {
+        boolean isExpired() {
+            return Instant.now().isAfter(expiry);
+        }
     }
 
     /**
@@ -147,22 +161,17 @@ public class CompletionService {
      * @return list of matching cluster names
      */
     private List<String> completeClusterName(final String partial) {
-        try {
+        List<String> names = getCachedOrFetch("kafka", () -> {
             List<Kafka> kafkas = kubernetesClient.resources(Kafka.class)
                 .inAnyNamespace()
                 .list()
                 .getItems();
-            return completionHelper.filterByPrefix(
-                kafkas.stream()
-                    .map(k -> k.getMetadata().getName())
-                    .distinct()
-                    .toList(),
-                partial
-            );
-        } catch (Exception e) {
-            LOG.debugf("Error completing cluster names: %s", e.getMessage());
-            return List.of();
-        }
+            return kafkas.stream()
+                .map(k -> k.getMetadata().getName())
+                .distinct()
+                .toList();
+        });
+        return completionHelper.filterByPrefix(names, partial);
     }
 
     /**
@@ -172,22 +181,17 @@ public class CompletionService {
      * @return list of matching node pool names
      */
     private List<String> completeNodePoolName(final String partial) {
-        try {
+        List<String> names = getCachedOrFetch("nodepool", () -> {
             List<KafkaNodePool> pools = kubernetesClient.resources(KafkaNodePool.class)
                 .inAnyNamespace()
                 .list()
                 .getItems();
-            return completionHelper.filterByPrefix(
-                pools.stream()
-                    .map(p -> p.getMetadata().getName())
-                    .distinct()
-                    .toList(),
-                partial
-            );
-        } catch (Exception e) {
-            LOG.debugf("Error completing node pool names: %s", e.getMessage());
-            return List.of();
-        }
+            return pools.stream()
+                .map(p -> p.getMetadata().getName())
+                .distinct()
+                .toList();
+        });
+        return completionHelper.filterByPrefix(names, partial);
     }
 
     /**
@@ -197,22 +201,17 @@ public class CompletionService {
      * @return list of matching topic names
      */
     private List<String> completeTopicName(final String partial) {
-        try {
+        List<String> names = getCachedOrFetch("topic", () -> {
             List<KafkaTopic> topics = kubernetesClient.resources(KafkaTopic.class)
                 .inAnyNamespace()
                 .list()
                 .getItems();
-            return completionHelper.filterByPrefix(
-                topics.stream()
-                    .map(t -> t.getMetadata().getName())
-                    .distinct()
-                    .toList(),
-                partial
-            );
-        } catch (Exception e) {
-            LOG.debugf("Error completing topic names: %s", e.getMessage());
-            return List.of();
-        }
+            return topics.stream()
+                .map(t -> t.getMetadata().getName())
+                .distinct()
+                .toList();
+        });
+        return completionHelper.filterByPrefix(names, partial);
     }
 
     /**
@@ -222,21 +221,33 @@ public class CompletionService {
      * @return list of matching operator deployment names
      */
     private List<String> completeOperatorName(final String partial) {
+        List<String> names = getCachedOrFetch("operator", () ->
+            kubernetesClient.apps().deployments()
+                .inAnyNamespace()
+                .withLabel("app", StrimziConstants.Operator.APP_LABEL_VALUE)
+                .list()
+                .getItems()
+                .stream()
+                .map(d -> d.getMetadata().getName())
+                .distinct()
+                .toList()
+        );
+        return completionHelper.filterByPrefix(names, partial);
+    }
+
+    private List<String> getCachedOrFetch(final String cacheKey,
+                                           final java.util.function.Supplier<List<String>> fetcher) {
+        CachedNames cached = nameCache.get(cacheKey);
+        if (cached != null && !cached.isExpired()) {
+            return cached.names();
+        }
         try {
-            return completionHelper.filterByPrefix(
-                kubernetesClient.apps().deployments()
-                    .inAnyNamespace()
-                    .withLabel("app", StrimziConstants.Operator.APP_LABEL_VALUE)
-                    .list()
-                    .getItems()
-                    .stream()
-                    .map(d -> d.getMetadata().getName())
-                    .distinct()
-                    .toList(),
-                partial
-            );
+            List<String> names = fetcher.get();
+            nameCache.put(cacheKey, new CachedNames(names,
+                Instant.now().plusSeconds(cacheTtlSeconds)));
+            return names;
         } catch (Exception e) {
-            LOG.debugf("Error completing operator names: %s", e.getMessage());
+            LOG.debugf("Error fetching %s names for completion: %s", cacheKey, e.getMessage());
             return List.of();
         }
     }

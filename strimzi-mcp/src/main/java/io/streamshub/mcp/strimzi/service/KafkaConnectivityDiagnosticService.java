@@ -300,7 +300,8 @@ public class KafkaConnectivityDiagnosticService {
 
             return parseInvestigationAreas(response);
         } catch (Exception e) {
-            LOG.warnf("Sampling triage failed, investigating all areas: %s", e.getMessage());
+            LOG.warnf("Sampling triage failed (investigating all areas): %s: %s",
+                e.getClass().getSimpleName(), e.getMessage());
             return InvestigationAreas.all();
         }
     }
@@ -331,7 +332,7 @@ public class KafkaConnectivityDiagnosticService {
 
             return DiagnosticHelper.extractSamplingText(response);
         } catch (Exception e) {
-            LOG.warnf("Sampling analysis failed: %s", e.getMessage());
+            LOG.warnf("Sampling analysis failed: %s: %s", e.getClass().getSimpleName(), e.getMessage());
             return null;
         }
     }
