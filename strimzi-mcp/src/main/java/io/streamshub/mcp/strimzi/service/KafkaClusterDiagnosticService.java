@@ -16,6 +16,7 @@ import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
@@ -26,7 +27,6 @@ import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaMetricsService;
-import io.streamshub.mcp.strimzi.util.NamespaceElicitationHelper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -52,7 +52,8 @@ public class KafkaClusterDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(KafkaClusterDiagnosticService.class);
     private static final int SECONDS_PER_MINUTE = 60;
-    private static final int TOTAL_STEPS = 7;
+    private static final int PHASE1_STEPS = 3;
+    private static final int MAX_PHASE2_STEPS = 4;
     private static final String DIAGNOSTIC_LABEL = "Kafka cluster diagnostic";
 
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
@@ -139,9 +140,10 @@ public class KafkaClusterDiagnosticService {
         int stepIndex = 0;
 
         // === Phase 1: Initial data gathering ===
+        int maxSteps = PHASE1_STEPS + MAX_PHASE2_STEPS;
         KafkaClusterResponse cluster = gatherClusterStatus(
             ns, name, elicitation, completed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 
         // Resolve namespace from cluster response for subsequent calls
@@ -149,17 +151,19 @@ public class KafkaClusterDiagnosticService {
 
         List<KafkaNodePoolResponse> nodePools = gatherNodePools(
             resolvedNs, name, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 
         KafkaClusterPodsResponse pods = gatherClusterPods(
             resolvedNs, name, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 
         // === Phase 2: Deep investigation ===
         InvestigationAreas areas = decideInvestigationAreas(
             sampling, cluster, nodePools, pods, symptom);
+
+        int totalSteps = PHASE1_STEPS + areas.enabledCount();
 
         StrimziOperatorResponse operator = null;
         StrimziOperatorLogsResponse operatorLogs = null;
@@ -167,7 +171,7 @@ public class KafkaClusterDiagnosticService {
             operator = gatherOperatorStatus(resolvedNs, completed, failed, mcpLog);
             operatorLogs = gatherOperatorLogs(
                 resolvedNs, sinceMinutes, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -175,7 +179,7 @@ public class KafkaClusterDiagnosticService {
         if (areas.clusterLogs) {
             clusterLogs = gatherClusterLogs(
                 resolvedNs, name, sinceMinutes, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -183,7 +187,7 @@ public class KafkaClusterDiagnosticService {
         if (areas.events) {
             events = gatherEvents(
                 resolvedNs, name, sinceMinutes, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -191,7 +195,7 @@ public class KafkaClusterDiagnosticService {
         if (areas.metrics) {
             metrics = gatherMetrics(
                 resolvedNs, name, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -382,7 +386,8 @@ public class KafkaClusterDiagnosticService {
 
             return parseInvestigationAreas(response);
         } catch (Exception e) {
-            LOG.warnf("Sampling triage failed, investigating all areas: %s", e.getMessage());
+            LOG.warnf("Sampling triage failed (investigating all areas): %s: %s",
+                e.getClass().getSimpleName(), e.getMessage());
             return InvestigationAreas.all();
         }
     }
@@ -417,7 +422,7 @@ public class KafkaClusterDiagnosticService {
 
             return DiagnosticHelper.extractSamplingText(response);
         } catch (Exception e) {
-            LOG.warnf("Sampling analysis failed: %s", e.getMessage());
+            LOG.warnf("Sampling analysis failed: %s: %s", e.getClass().getSimpleName(), e.getMessage());
             return null;
         }
     }
@@ -510,6 +515,21 @@ public class KafkaClusterDiagnosticService {
          */
         static InvestigationAreas all() {
             return new InvestigationAreas(true, true, true, true);
+        }
+
+        /**
+         * Count how many investigation areas are enabled.
+         * Used to calculate the total number of diagnostic steps for progress reporting.
+         *
+         * @return the number of enabled investigation areas
+         */
+        private int enabledCount() {
+            int c = 0;
+            if (operatorLogs) c++;
+            if (clusterLogs) c++;
+            if (events) c++;
+            if (metrics) c++;
+            return c;
         }
     }
 

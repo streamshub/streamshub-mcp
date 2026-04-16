@@ -16,13 +16,13 @@ import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.config.metrics.KafkaMetricCategories;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaMetricsDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaMetricsService;
-import io.streamshub.mcp.strimzi.util.NamespaceElicitationHelper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -51,7 +51,7 @@ import java.util.stream.Collectors;
 public class KafkaMetricsDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(KafkaMetricsDiagnosticService.class);
-    private static final int TOTAL_STEPS = 6;
+    private static final int TOTAL_STEPS = 3;
     private static final String DIAGNOSTIC_LABEL = "Kafka metrics diagnostic";
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
     private static final String STEP_POD_HEALTH = "pod_health";
@@ -321,7 +321,8 @@ public class KafkaMetricsDiagnosticService {
 
             return parseInvestigationAreas(response);
         } catch (Exception e) {
-            LOG.warnf("Sampling triage failed, investigating all areas: %s", e.getMessage());
+            LOG.warnf("Sampling triage failed (investigating all areas): %s: %s",
+                e.getClass().getSimpleName(), e.getMessage());
             return InvestigationAreas.all();
         }
     }
@@ -354,7 +355,7 @@ public class KafkaMetricsDiagnosticService {
 
             return DiagnosticHelper.extractSamplingText(response);
         } catch (Exception e) {
-            LOG.warnf("Sampling analysis failed: %s", e.getMessage());
+            LOG.warnf("Sampling analysis failed: %s: %s", e.getClass().getSimpleName(), e.getMessage());
             return null;
         }
     }

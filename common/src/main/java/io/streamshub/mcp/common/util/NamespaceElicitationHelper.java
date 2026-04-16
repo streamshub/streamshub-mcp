@@ -2,7 +2,7 @@
  * Copyright StreamsHub authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package io.streamshub.mcp.strimzi.util;
+package io.streamshub.mcp.common.util;
 
 import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.ToolCallException;
@@ -14,11 +14,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Strimzi-specific helpers for resolving namespace ambiguity via MCP Elicitation.
+ * Helpers for resolving namespace ambiguity via MCP Elicitation.
  *
- * <p>When a Kafka cluster exists in multiple namespaces, these utilities
- * parse the Strimzi-specific error message and delegate to
- * {@link DiagnosticHelper#elicitSelection} for the generic Elicitation call.</p>
+ * <p>When a Kubernetes resource exists in multiple namespaces, these utilities
+ * parse the error message and delegate to {@link DiagnosticHelper#elicitSelection}
+ * for the generic Elicitation call.</p>
  */
 public final class NamespaceElicitationHelper {
 

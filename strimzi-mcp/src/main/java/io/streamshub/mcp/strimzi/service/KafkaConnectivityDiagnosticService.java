@@ -16,13 +16,13 @@ import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaCertificateResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaConnectivityDiagnosticReport;
-import io.streamshub.mcp.strimzi.util.NamespaceElicitationHelper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -47,7 +47,8 @@ import java.util.Map;
 public class KafkaConnectivityDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(KafkaConnectivityDiagnosticService.class);
-    private static final int TOTAL_STEPS = 5;
+    private static final int PHASE1_STEPS = 2;
+    private static final int MAX_PHASE2_STEPS = 3;
     private static final String DIAGNOSTIC_LABEL = "Kafka connectivity diagnostic";
     private static final List<String> CONNECTIVITY_KEYWORDS = List.of(
         "TLS", "SSL", "handshake", "authentication", "SASL",
@@ -125,27 +126,30 @@ public class KafkaConnectivityDiagnosticService {
         int stepIndex = 0;
 
         // === Phase 1: Initial data gathering ===
+        int maxSteps = PHASE1_STEPS + MAX_PHASE2_STEPS;
         KafkaClusterResponse cluster = gatherClusterStatus(
             ns, name, elicitation, completed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 
         String resolvedNs = cluster.namespace();
 
         KafkaBootstrapResponse bootstrapServers = gatherBootstrapServers(
             resolvedNs, name, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 
         // === Phase 2: Deep investigation ===
         InvestigationAreas areas = decideInvestigationAreas(
             sampling, cluster, bootstrapServers);
 
+        int totalSteps = PHASE1_STEPS + areas.enabledCount();
+
         KafkaCertificateResponse certificates = null;
         if (areas.certificates) {
             certificates = gatherCertificates(
                 resolvedNs, name, listener, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -153,7 +157,7 @@ public class KafkaConnectivityDiagnosticService {
         if (areas.pods) {
             pods = gatherClusterPods(
                 resolvedNs, name, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -161,7 +165,7 @@ public class KafkaConnectivityDiagnosticService {
         if (areas.clusterLogs) {
             clusterLogs = gatherConnectivityLogs(
                 resolvedNs, name, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -296,7 +300,8 @@ public class KafkaConnectivityDiagnosticService {
 
             return parseInvestigationAreas(response);
         } catch (Exception e) {
-            LOG.warnf("Sampling triage failed, investigating all areas: %s", e.getMessage());
+            LOG.warnf("Sampling triage failed (investigating all areas): %s: %s",
+                e.getClass().getSimpleName(), e.getMessage());
             return InvestigationAreas.all();
         }
     }
@@ -327,7 +332,7 @@ public class KafkaConnectivityDiagnosticService {
 
             return DiagnosticHelper.extractSamplingText(response);
         } catch (Exception e) {
-            LOG.warnf("Sampling analysis failed: %s", e.getMessage());
+            LOG.warnf("Sampling analysis failed: %s: %s", e.getClass().getSimpleName(), e.getMessage());
             return null;
         }
     }
@@ -394,6 +399,20 @@ public class KafkaConnectivityDiagnosticService {
          */
         static InvestigationAreas all() {
             return new InvestigationAreas(true, true, true);
+        }
+
+        /**
+         * Count how many investigation areas are enabled.
+         * Used to calculate the total number of diagnostic steps for progress reporting.
+         *
+         * @return the number of enabled investigation areas
+         */
+        private int enabledCount() {
+            int c = 0;
+            if (certificates) c++;
+            if (pods) c++;
+            if (clusterLogs) c++;
+            return c;
         }
     }
 

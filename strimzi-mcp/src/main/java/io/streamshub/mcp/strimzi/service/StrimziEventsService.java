@@ -17,6 +17,7 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
@@ -45,6 +46,9 @@ public class StrimziEventsService {
 
     @Inject
     KubernetesEventsService eventsService;
+
+    @ConfigProperty(name = "mcp.events.max-related-resources", defaultValue = "50")
+    int maxRelatedResources;
 
     StrimziEventsService() {
     }
@@ -83,9 +87,14 @@ public class StrimziEventsService {
         // Events for the Kafka CR itself
         resourceEvents.add(eventsService.getEventsForResource(resolvedNs, name, "Kafka", sinceTime));
 
-        // Events for related pods
+        // Events for related pods (limited to avoid excessive API calls on large clusters)
         List<Pod> pods = k8sService.queryResourcesByLabel(
             Pod.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, name);
+        if (pods.size() > maxRelatedResources) {
+            LOG.warnf("Cluster %s has %d pods, limiting event queries to first %d",
+                name, pods.size(), maxRelatedResources);
+            pods = pods.subList(0, maxRelatedResources);
+        }
         for (Pod pod : pods) {
             resourceEvents.add(eventsService.getEventsForResource(
                 resolvedNs, pod.getMetadata().getName(), "Pod", sinceTime));
@@ -94,6 +103,11 @@ public class StrimziEventsService {
         // Events for related PVCs
         List<PersistentVolumeClaim> pvcs = k8sService.queryResourcesByLabel(
             PersistentVolumeClaim.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, name);
+        if (pvcs.size() > maxRelatedResources) {
+            LOG.warnf("Cluster %s has %d PVCs, limiting event queries to first %d",
+                name, pvcs.size(), maxRelatedResources);
+            pvcs = pvcs.subList(0, maxRelatedResources);
+        }
         for (PersistentVolumeClaim pvc : pvcs) {
             resourceEvents.add(eventsService.getEventsForResource(
                 resolvedNs, pvc.getMetadata().getName(), "PersistentVolumeClaim", sinceTime));

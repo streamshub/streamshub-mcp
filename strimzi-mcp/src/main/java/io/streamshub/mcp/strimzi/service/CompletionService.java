@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.service;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkiverse.mcp.server.CompleteContext;
+import io.streamshub.mcp.common.service.CompletionCache;
 import io.streamshub.mcp.common.service.CompletionHelper;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.strimzi.api.kafka.model.kafka.Kafka;
@@ -13,7 +14,6 @@ import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.jboss.logging.Logger;
 
 import java.util.List;
 import java.util.Map;
@@ -28,7 +28,6 @@ import java.util.Map;
 @ApplicationScoped
 public class CompletionService {
 
-    private static final Logger LOG = Logger.getLogger(CompletionService.class);
     // Prompt arguments use descriptive names (e.g., "cluster_name")
     private static final String ARG_NAMESPACE = "namespace";
     private static final String ARG_CLUSTER_NAME = "cluster_name";
@@ -38,6 +37,9 @@ public class CompletionService {
 
     @Inject
     CompletionHelper completionHelper;
+
+    @Inject
+    CompletionCache completionCache;
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -140,104 +142,60 @@ public class CompletionService {
         return List.of();
     }
 
-    /**
-     * Complete Kafka cluster names matching a partial input.
-     *
-     * @param partial the partial cluster name input
-     * @return list of matching cluster names
-     */
     private List<String> completeClusterName(final String partial) {
-        try {
-            List<Kafka> kafkas = kubernetesClient.resources(Kafka.class)
+        List<String> names = completionCache.getOrFetch("kafka", () ->
+            kubernetesClient.resources(Kafka.class)
                 .inAnyNamespace()
                 .list()
-                .getItems();
-            return completionHelper.filterByPrefix(
-                kafkas.stream()
-                    .map(k -> k.getMetadata().getName())
-                    .distinct()
-                    .toList(),
-                partial
-            );
-        } catch (Exception e) {
-            LOG.debugf("Error completing cluster names: %s", e.getMessage());
-            return List.of();
-        }
+                .getItems()
+                .stream()
+                .map(k -> k.getMetadata().getName())
+                .distinct()
+                .toList()
+        );
+        return completionHelper.filterByPrefix(names, partial);
     }
 
-    /**
-     * Complete KafkaNodePool names matching a partial input.
-     *
-     * @param partial the partial node pool name input
-     * @return list of matching node pool names
-     */
     private List<String> completeNodePoolName(final String partial) {
-        try {
-            List<KafkaNodePool> pools = kubernetesClient.resources(KafkaNodePool.class)
+        List<String> names = completionCache.getOrFetch("nodepool", () ->
+            kubernetesClient.resources(KafkaNodePool.class)
                 .inAnyNamespace()
                 .list()
-                .getItems();
-            return completionHelper.filterByPrefix(
-                pools.stream()
-                    .map(p -> p.getMetadata().getName())
-                    .distinct()
-                    .toList(),
-                partial
-            );
-        } catch (Exception e) {
-            LOG.debugf("Error completing node pool names: %s", e.getMessage());
-            return List.of();
-        }
+                .getItems()
+                .stream()
+                .map(p -> p.getMetadata().getName())
+                .distinct()
+                .toList()
+        );
+        return completionHelper.filterByPrefix(names, partial);
     }
 
-    /**
-     * Complete KafkaTopic names matching a partial input.
-     *
-     * @param partial the partial topic name input
-     * @return list of matching topic names
-     */
     private List<String> completeTopicName(final String partial) {
-        try {
-            List<KafkaTopic> topics = kubernetesClient.resources(KafkaTopic.class)
+        List<String> names = completionCache.getOrFetch("topic", () ->
+            kubernetesClient.resources(KafkaTopic.class)
                 .inAnyNamespace()
                 .list()
-                .getItems();
-            return completionHelper.filterByPrefix(
-                topics.stream()
-                    .map(t -> t.getMetadata().getName())
-                    .distinct()
-                    .toList(),
-                partial
-            );
-        } catch (Exception e) {
-            LOG.debugf("Error completing topic names: %s", e.getMessage());
-            return List.of();
-        }
+                .getItems()
+                .stream()
+                .map(t -> t.getMetadata().getName())
+                .distinct()
+                .toList()
+        );
+        return completionHelper.filterByPrefix(names, partial);
     }
 
-    /**
-     * Complete Strimzi operator deployment names matching a partial input.
-     *
-     * @param partial the partial operator name input
-     * @return list of matching operator deployment names
-     */
     private List<String> completeOperatorName(final String partial) {
-        try {
-            return completionHelper.filterByPrefix(
-                kubernetesClient.apps().deployments()
-                    .inAnyNamespace()
-                    .withLabel("app", StrimziConstants.Operator.APP_LABEL_VALUE)
-                    .list()
-                    .getItems()
-                    .stream()
-                    .map(d -> d.getMetadata().getName())
-                    .distinct()
-                    .toList(),
-                partial
-            );
-        } catch (Exception e) {
-            LOG.debugf("Error completing operator names: %s", e.getMessage());
-            return List.of();
-        }
+        List<String> names = completionCache.getOrFetch("operator", () ->
+            kubernetesClient.apps().deployments()
+                .inAnyNamespace()
+                .withLabel("app", StrimziConstants.Operator.APP_LABEL_VALUE)
+                .list()
+                .getItems()
+                .stream()
+                .map(d -> d.getMetadata().getName())
+                .distinct()
+                .toList()
+        );
+        return completionHelper.filterByPrefix(names, partial);
     }
 }

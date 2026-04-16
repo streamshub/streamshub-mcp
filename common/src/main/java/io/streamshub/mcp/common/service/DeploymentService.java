@@ -47,6 +47,13 @@ public class DeploymentService {
      * @return the full image name or null if not determinable
      */
     public String extractImage(Deployment deployment) {
+        if (deployment.getSpec() == null
+            || deployment.getSpec().getTemplate() == null
+            || deployment.getSpec().getTemplate().getSpec() == null
+            || deployment.getSpec().getTemplate().getSpec().getContainers() == null
+            || deployment.getSpec().getTemplate().getSpec().getContainers().isEmpty()) {
+            return null;
+        }
         return deployment.getSpec().getTemplate().getSpec()
             .getContainers().getFirst().getImage();
     }

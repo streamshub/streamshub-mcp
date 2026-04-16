@@ -71,6 +71,8 @@ public class KafkaCertificateService {
             throw new ToolCallException("Cluster name is required");
         }
 
+        InputUtils.validateK8sName(normalizedName, "cluster name");
+
         LOG.infof("Getting certificates for cluster=%s (namespace=%s, listener=%s)",
             normalizedName, ns != null ? ns : "auto",
             normalizedListener != null ? normalizedListener : "all");

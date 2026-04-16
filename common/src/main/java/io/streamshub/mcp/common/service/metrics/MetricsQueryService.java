@@ -7,6 +7,7 @@ package io.streamshub.mcp.common.service.metrics;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.dto.metrics.MetricsQueryParams;
 import io.streamshub.mcp.common.dto.metrics.PodTarget;
+import io.streamshub.mcp.common.util.InputUtils;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -37,6 +38,9 @@ public class MetricsQueryService {
 
     @ConfigProperty(name = "mcp.metrics.default-step-seconds", defaultValue = "60")
     int defaultStepSeconds;
+
+    @ConfigProperty(name = "mcp.metrics.max-range-minutes", defaultValue = "10080")  // 7 days
+    int maxRangeMinutes;
 
     MetricsQueryService() {
         // package-private no-arg constructor for CDI
@@ -112,25 +116,30 @@ public class MetricsQueryService {
                                             final Integer stepSeconds) {
         // Absolute time range
         if (startTimeStr != null && endTimeStr != null) {
-            try {
-                Instant start = Instant.parse(startTimeStr);
-                Instant end = Instant.parse(endTimeStr);
+            Instant start = InputUtils.parseIso8601(startTimeStr, "startTime");
+            Instant end = InputUtils.parseIso8601(endTimeStr, "endTime");
 
-                if (start.isAfter(end)) {
-                    throw new IllegalArgumentException("startTime must be before endTime");
-                }
-
-                int step = stepSeconds != null ? stepSeconds : defaultStepSeconds;
-                return MetricsQueryParams.range(metricNames, labelMatchers, start, end, step);
-            } catch (Exception e) {
-                throw new IllegalArgumentException(
-                    "Invalid time format. Use ISO 8601 format (e.g., '2026-04-05T10:00:00Z'): "
-                        + e.getMessage(), e);
+            if (start.isAfter(end)) {
+                throw new IllegalArgumentException("startTime must be before endTime");
             }
+
+            long durationMinutes = java.time.Duration.between(start, end).toMinutes();
+            if (durationMinutes > maxRangeMinutes) {
+                throw new IllegalArgumentException(
+                    "Time range exceeds maximum of " + maxRangeMinutes + " minutes ("
+                        + durationMinutes + " minutes requested)");
+            }
+
+            int step = stepSeconds != null ? stepSeconds : defaultStepSeconds;
+            return MetricsQueryParams.range(metricNames, labelMatchers, start, end, step);
         }
 
         // Relative time range
         if (rangeMinutes != null && rangeMinutes > 0) {
+            if (rangeMinutes > maxRangeMinutes) {
+                throw new IllegalArgumentException(
+                    "rangeMinutes exceeds maximum of " + maxRangeMinutes + " minutes (" + rangeMinutes + " minutes requested)");
+            }
             Instant end = Instant.now();
             Instant start = end.minusSeconds((long) rangeMinutes * SECONDS_PER_MINUTE);
             int step = stepSeconds != null ? stepSeconds : defaultStepSeconds;

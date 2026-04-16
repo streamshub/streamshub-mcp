@@ -43,7 +43,7 @@ public class KubernetesResourceService {
                 .list()
                 .getItems();
         } catch (Exception e) {
-            LOG.debugf(
+            LOG.warnf(
                 "Error querying %s in ns %s: %s",
                 resourceClass.getSimpleName(),
                 namespace, e.getMessage());
@@ -66,7 +66,7 @@ public class KubernetesResourceService {
                 .list()
                 .getItems();
         } catch (Exception e) {
-            LOG.debugf(
+            LOG.warnf(
                 "Error querying %s in any ns: %s",
                 resourceClass.getSimpleName(),
                 e.getMessage());
@@ -94,7 +94,7 @@ public class KubernetesResourceService {
                 .list()
                 .getItems();
         } catch (Exception e) {
-            LOG.debugf(
+            LOG.warnf(
                 "Error querying %s by %s=%s"
                     + " in ns %s: %s",
                 resourceClass.getSimpleName(),
@@ -124,7 +124,7 @@ public class KubernetesResourceService {
                 .list()
                 .getItems();
         } catch (Exception e) {
-            LOG.debugf(
+            LOG.warnf(
                 "Error querying %s by %s=%s: %s",
                 resourceClass.getSimpleName(),
                 labelKey, labelValue,
@@ -153,7 +153,7 @@ public class KubernetesResourceService {
                 .list()
                 .getItems();
         } catch (Exception e) {
-            LOG.debugf(
+            LOG.warnf(
                 "Error querying %s by labels %s in ns %s: %s",
                 resourceClass.getSimpleName(),
                 labels, namespace, e.getMessage());
@@ -179,7 +179,7 @@ public class KubernetesResourceService {
                 .list()
                 .getItems();
         } catch (Exception e) {
-            LOG.debugf(
+            LOG.warnf(
                 "Error querying %s by labels %s: %s",
                 resourceClass.getSimpleName(),
                 labels, e.getMessage());
@@ -204,7 +204,7 @@ public class KubernetesResourceService {
                 .withName(name)
                 .get();
         } catch (Exception e) {
-            LOG.debugf(
+            LOG.warnf(
                 "Error getting %s %s in ns %s: %s",
                 resourceClass.getSimpleName(),
                 name, namespace, e.getMessage());
