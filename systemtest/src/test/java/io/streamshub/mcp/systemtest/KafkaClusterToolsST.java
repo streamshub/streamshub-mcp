@@ -14,6 +14,7 @@ import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.CleanupStrategy;
+import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
@@ -50,6 +51,9 @@ class KafkaClusterToolsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaClusterToolsST.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    @InjectResourceManager
+    KubeResourceManager krm;
+
     @ClassNamespace(name = Constants.MCP_NAMESPACE)
     static Namespace mcpNamespace;
 
@@ -65,7 +69,7 @@ class KafkaClusterToolsST extends AbstractST {
     }
 
     @BeforeAll
-    static void setup() {
+    void setup() {
         if (!Environment.SKIP_STRIMZI_INSTALL) {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
 
@@ -73,7 +77,7 @@ class KafkaClusterToolsST extends AbstractST {
 
             KafkaTemplates.deployMetricsConfigMap(kafkaNs);
 
-            KubeResourceManager.get().createOrUpdateResourceWithoutWait(
+            krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
                     Constants.KAFKA_CLUSTER_NAME, 3).build(),
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np1",
@@ -81,7 +85,7 @@ class KafkaClusterToolsST extends AbstractST {
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np2",
                     Constants.KAFKA_CLUSTER_NAME, 3).build());
 
-            KubeResourceManager.get().createOrUpdateResourceWithWait(
+            krm.createOrUpdateResourceWithWait(
                 KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 3).build());
         }
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
