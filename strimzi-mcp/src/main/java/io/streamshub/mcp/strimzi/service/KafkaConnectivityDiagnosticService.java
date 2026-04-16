@@ -143,7 +143,7 @@ public class KafkaConnectivityDiagnosticService {
         InvestigationAreas areas = decideInvestigationAreas(
             sampling, cluster, bootstrapServers);
 
-        int totalSteps = PHASE1_STEPS + areas.count();
+        int totalSteps = PHASE1_STEPS + areas.enabledCount();
 
         KafkaCertificateResponse certificates = null;
         if (areas.certificates) {
@@ -401,7 +401,13 @@ public class KafkaConnectivityDiagnosticService {
             return new InvestigationAreas(true, true, true);
         }
 
-        int count() {
+        /**
+         * Count how many investigation areas are enabled.
+         * Used to calculate the total number of diagnostic steps for progress reporting.
+         *
+         * @return the number of enabled investigation areas
+         */
+        int enabledCount() {
             int c = 0;
             if (certificates) c++;
             if (pods) c++;

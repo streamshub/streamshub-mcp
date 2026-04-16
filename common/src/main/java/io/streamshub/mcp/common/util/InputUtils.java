@@ -6,6 +6,8 @@ package io.streamshub.mcp.common.util;
 
 import io.quarkiverse.mcp.server.ToolCallException;
 
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
@@ -65,6 +67,24 @@ public final class InputUtils {
             throw new ToolCallException(
                 "Invalid " + label + " '" + name + "': must consist of lowercase alphanumeric characters, '-', or '.', "
                     + "and must start and end with an alphanumeric character");
+        }
+    }
+
+    /**
+     * Parse an ISO 8601 timestamp string into an {@link Instant}.
+     *
+     * @param value     the timestamp string to parse
+     * @param paramName a human-readable label for error messages (e.g., "startTime")
+     * @return the parsed Instant
+     * @throws IllegalArgumentException if the value cannot be parsed
+     */
+    public static Instant parseIso8601(String value, String paramName) {
+        try {
+            return Instant.parse(value);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException(
+                "Invalid " + paramName + " format: '" + value
+                    + "'. Expected ISO 8601 format (e.g., 2025-01-15T10:00:00Z).");
         }
     }
 }

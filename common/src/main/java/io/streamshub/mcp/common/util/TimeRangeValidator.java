@@ -7,7 +7,6 @@ package io.streamshub.mcp.common.util;
 import io.quarkiverse.mcp.server.ToolCallException;
 
 import java.time.Instant;
-import java.time.format.DateTimeParseException;
 
 /**
  * Utility class for validating time range parameters in metrics queries.
@@ -58,21 +57,12 @@ public final class TimeRangeValidator {
 
         // Validate startTime and endTime format and ordering
         if (startTime != null) {
-            Instant start = parseIso8601(startTime, "startTime");
-            Instant end = parseIso8601(endTime, "endTime");
+            Instant start = InputUtils.parseIso8601(startTime, "startTime");
+            Instant end = InputUtils.parseIso8601(endTime, "endTime");
             if (!start.isBefore(end)) {
                 throw new ToolCallException(
                     "startTime must be before endTime. Got startTime=" + startTime + ", endTime=" + endTime);
             }
-        }
-    }
-
-    private static Instant parseIso8601(final String value, final String paramName) {
-        try {
-            return Instant.parse(value);
-        } catch (DateTimeParseException e) {
-            throw new ToolCallException(
-                "Invalid " + paramName + " format: '" + value + "'. Expected ISO 8601 format (e.g., 2025-01-15T10:00:00Z).");
         }
     }
 }

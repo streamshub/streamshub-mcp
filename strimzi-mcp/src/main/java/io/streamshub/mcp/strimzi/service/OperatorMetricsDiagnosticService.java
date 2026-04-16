@@ -136,7 +136,7 @@ public class OperatorMetricsDiagnosticService {
         InvestigationAreas areas = decideInvestigationAreas(
             sampling, operator, concern);
 
-        int totalSteps = PHASE1_STEPS + areas.count();
+        int totalSteps = PHASE1_STEPS + areas.enabledCount();
 
         StrimziOperatorMetricsResponse reconciliationMetrics = null;
         if (areas.reconciliation) {
@@ -401,7 +401,13 @@ public class OperatorMetricsDiagnosticService {
             return new InvestigationAreas(true, true, true, true);
         }
 
-        int count() {
+        /**
+         * Count how many investigation areas are enabled.
+         * Used to calculate the total number of diagnostic steps for progress reporting.
+         *
+         * @return the number of enabled investigation areas
+         */
+        int enabledCount() {
             int c = 0;
             if (reconciliation) c++;
             if (resources) c++;
