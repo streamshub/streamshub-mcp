@@ -45,7 +45,8 @@ import java.util.Map;
 public class OperatorMetricsDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(OperatorMetricsDiagnosticService.class);
-    private static final int TOTAL_STEPS = 5;
+    private static final int PHASE1_STEPS = 1;
+    private static final int MAX_PHASE2_STEPS = 4;
     private static final String DIAGNOSTIC_LABEL = "Strimzi operator metrics diagnostic";
     private static final String STEP_OPERATOR_STATUS = "operator_status";
     private static final String STEP_RECONCILIATION_METRICS = "reconciliation_metrics";
@@ -122,9 +123,10 @@ public class OperatorMetricsDiagnosticService {
         int stepIndex = 0;
 
         // === Phase 1: Initial data gathering ===
+        int maxSteps = PHASE1_STEPS + MAX_PHASE2_STEPS;
         StrimziOperatorResponse operator = gatherOperatorStatus(
             ns, name, completed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 
         String resolvedNs = operator.namespace();
@@ -134,13 +136,15 @@ public class OperatorMetricsDiagnosticService {
         InvestigationAreas areas = decideInvestigationAreas(
             sampling, operator, concern);
 
+        int totalSteps = PHASE1_STEPS + areas.count();
+
         StrimziOperatorMetricsResponse reconciliationMetrics = null;
         if (areas.reconciliation) {
             reconciliationMetrics = gatherMetrics(
                 resolvedNs, resolvedName, cluster, StrimziOperatorMetricCategories.RECONCILIATION,
                 rangeMinutes, startTime, endTime, stepSeconds,
                 STEP_RECONCILIATION_METRICS, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -150,7 +154,7 @@ public class OperatorMetricsDiagnosticService {
                 resolvedNs, resolvedName, cluster, StrimziOperatorMetricCategories.RESOURCES,
                 rangeMinutes, startTime, endTime, stepSeconds,
                 STEP_RESOURCE_METRICS, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -160,7 +164,7 @@ public class OperatorMetricsDiagnosticService {
                 resolvedNs, resolvedName, cluster, StrimziOperatorMetricCategories.JVM,
                 rangeMinutes, startTime, endTime, stepSeconds,
                 STEP_JVM_METRICS, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -168,7 +172,7 @@ public class OperatorMetricsDiagnosticService {
         if (areas.operatorLogs) {
             operatorLogs = gatherOperatorLogs(
                 resolvedNs, resolvedName, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -394,6 +398,15 @@ public class OperatorMetricsDiagnosticService {
          */
         static InvestigationAreas all() {
             return new InvestigationAreas(true, true, true, true);
+        }
+
+        int count() {
+            int c = 0;
+            if (reconciliation) c++;
+            if (resources) c++;
+            if (jvm) c++;
+            if (operatorLogs) c++;
+            return c;
         }
     }
 

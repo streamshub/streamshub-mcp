@@ -104,8 +104,10 @@ public class LokiLogProvider implements LogCollectorProvider {
                          final String filter, final List<String> keywords) {
         StringBuilder query = new StringBuilder();
         query.append(String.format("{%s=\"%s\", %s=\"%s\"}",
-            config.label().namespace(), LogQLSanitizer.sanitizeLabelValue(namespace),
-            config.label().pod(), LogQLSanitizer.sanitizeLabelValue(podName)));
+            LogQLSanitizer.sanitizeLabelName(config.label().namespace()),
+            LogQLSanitizer.sanitizeLabelValue(namespace),
+            LogQLSanitizer.sanitizeLabelName(config.label().pod()),
+            LogQLSanitizer.sanitizeLabelValue(podName)));
 
         String filterRegex = resolveFilterRegex(filter);
         if (filterRegex != null) {

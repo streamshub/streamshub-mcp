@@ -51,7 +51,7 @@ import java.util.stream.Collectors;
 public class KafkaMetricsDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(KafkaMetricsDiagnosticService.class);
-    private static final int TOTAL_STEPS = 6;
+    private static final int TOTAL_STEPS = 3;
     private static final String DIAGNOSTIC_LABEL = "Kafka metrics diagnostic";
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
     private static final String STEP_POD_HEALTH = "pod_health";

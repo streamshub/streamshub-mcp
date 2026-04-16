@@ -87,6 +87,10 @@ public class KubernetesEventsService {
             return true;
         }
         Instant eventTime = parseTimestamp(event.getLastTimestamp());
+        if (eventTime.equals(Instant.EPOCH)) {
+            // Keep events with unparseable timestamps rather than silently dropping them
+            return true;
+        }
         return eventTime.isAfter(sinceTime);
     }
 

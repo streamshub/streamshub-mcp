@@ -6,6 +6,9 @@ package io.streamshub.mcp.strimzi.util;
 
 import io.quarkiverse.mcp.server.ToolCallException;
 
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
+
 /**
  * Utility class for validating time range parameters in metrics queries.
  */
@@ -22,6 +25,8 @@ public final class TimeRangeValidator {
      * <ul>
      *   <li>Cannot specify both rangeMinutes and absolute time range (startTime/endTime)</li>
      *   <li>If using absolute time range, both startTime and endTime must be provided</li>
+     *   <li>rangeMinutes must be positive</li>
+     *   <li>startTime must be before endTime</li>
      * </ul>
      *
      * @param rangeMinutes relative time range in minutes (optional)
@@ -39,10 +44,35 @@ public final class TimeRangeValidator {
                     + "Use rangeMinutes for relative ranges or startTime/endTime for absolute ranges.");
         }
 
+        // Validate rangeMinutes is positive
+        if (rangeMinutes != null && rangeMinutes <= 0) {
+            throw new ToolCallException(
+                "rangeMinutes must be a positive integer, got: " + rangeMinutes);
+        }
+
         // Ensure both startTime and endTime are provided together
         if (startTime != null && endTime == null || startTime == null && endTime != null) {
             throw new ToolCallException(
                 "Both startTime and endTime must be specified for absolute time range queries.");
+        }
+
+        // Validate startTime and endTime format and ordering
+        if (startTime != null) {
+            Instant start = parseIso8601(startTime, "startTime");
+            Instant end = parseIso8601(endTime, "endTime");
+            if (!start.isBefore(end)) {
+                throw new ToolCallException(
+                    "startTime must be before endTime. Got startTime=" + startTime + ", endTime=" + endTime);
+            }
+        }
+    }
+
+    private static Instant parseIso8601(final String value, final String paramName) {
+        try {
+            return Instant.parse(value);
+        } catch (DateTimeParseException e) {
+            throw new ToolCallException(
+                "Invalid " + paramName + " format: '" + value + "'. Expected ISO 8601 format (e.g., 2025-01-15T10:00:00Z).");
         }
     }
 }

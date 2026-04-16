@@ -39,8 +39,8 @@ public class GuardrailInterceptor {
     @Inject
     Instance<GuardrailFilter> filterInstances;
 
-    private List<GuardrailFilter> sortedFilters;
-    private boolean initialized;
+    private volatile List<GuardrailFilter> sortedFilters;
+    private volatile boolean initialized;
 
     GuardrailInterceptor() {
     }
@@ -77,18 +77,22 @@ public class GuardrailInterceptor {
 
     private void ensureInitialized() {
         if (!initialized) {
-            List<GuardrailFilter> filters = new ArrayList<>();
-            for (GuardrailFilter filter : filterInstances) {
-                filters.add(filter);
+            synchronized (this) {
+                if (!initialized) {
+                    List<GuardrailFilter> filters = new ArrayList<>();
+                    for (GuardrailFilter filter : filterInstances) {
+                        filters.add(filter);
+                    }
+                    filters.sort(Comparator.comparingInt(this::getPriority));
+                    LOG.infof("Guardrail filter chain initialized with %d filter(s): %s",
+                        filters.size(),
+                        filters.stream()
+                            .map(f -> f.getClass().getSimpleName())
+                            .toList());
+                    sortedFilters = List.copyOf(filters);
+                    initialized = true;
+                }
             }
-            filters.sort(Comparator.comparingInt(this::getPriority));
-            LOG.infof("Guardrail filter chain initialized with %d filter(s): %s",
-                filters.size(),
-                filters.stream()
-                    .map(f -> f.getClass().getSimpleName())
-                    .toList());
-            sortedFilters = List.copyOf(filters);
-            initialized = true;
         }
     }
 

@@ -4,13 +4,26 @@
  */
 package io.streamshub.mcp.common.util;
 
+import io.quarkiverse.mcp.server.ToolCallException;
+
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 /**
  * Pure-function utilities for normalizing user-supplied input
  * (namespace names, cluster names, etc.) before passing to Kubernetes APIs.
  */
 public final class InputUtils {
+
+    /**
+     * Kubernetes DNS-1123 subdomain name pattern.
+     * Must consist of lowercase alphanumeric characters, '-', or '.',
+     * and must start and end with an alphanumeric character.
+     */
+    private static final Pattern K8S_NAME_PATTERN =
+        Pattern.compile("^[a-z0-9]([a-z0-9.\\-]*[a-z0-9])?$");
+
+    private static final int K8S_NAME_MAX_LENGTH = 253;
 
     private InputUtils() {
         // Utility class — no instantiation
@@ -29,5 +42,29 @@ public final class InputUtils {
             return null;
         }
         return input.toLowerCase(Locale.ENGLISH).trim();
+    }
+
+    /**
+     * Validate that a string is a valid Kubernetes resource name (DNS-1123 subdomain).
+     * Must consist of lowercase alphanumeric characters, '-', or '.', start and end
+     * with an alphanumeric character, and be at most 253 characters.
+     *
+     * @param name  the name to validate
+     * @param label a human-readable label for error messages (e.g., "cluster name", "namespace")
+     * @throws ToolCallException if the name is not valid
+     */
+    public static void validateK8sName(String name, String label) {
+        if (name == null) {
+            return;
+        }
+        if (name.length() > K8S_NAME_MAX_LENGTH) {
+            throw new ToolCallException(
+                "Invalid " + label + " '" + name + "': exceeds maximum length of " + K8S_NAME_MAX_LENGTH + " characters");
+        }
+        if (!K8S_NAME_PATTERN.matcher(name).matches()) {
+            throw new ToolCallException(
+                "Invalid " + label + " '" + name + "': must consist of lowercase alphanumeric characters, '-', or '.', "
+                    + "and must start and end with an alphanumeric character");
+        }
     }
 }
