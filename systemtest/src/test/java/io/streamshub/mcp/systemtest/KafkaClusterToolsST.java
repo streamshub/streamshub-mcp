@@ -52,7 +52,7 @@ class KafkaClusterToolsST extends AbstractST {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @InjectResourceManager
-    static KubeResourceManager krm;
+    KubeResourceManager krm;
 
     @ClassNamespace(name = Constants.MCP_NAMESPACE)
     static Namespace mcpNamespace;
@@ -69,7 +69,7 @@ class KafkaClusterToolsST extends AbstractST {
     }
 
     @BeforeAll
-    static void setup() {
+    void setup() {
         if (!Environment.SKIP_STRIMZI_INSTALL) {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
 
