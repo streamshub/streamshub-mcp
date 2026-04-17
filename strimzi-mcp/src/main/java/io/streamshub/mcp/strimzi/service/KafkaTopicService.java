@@ -8,12 +8,14 @@ import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.strimzi.dto.KafkaTopicListResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.List;
@@ -29,17 +31,23 @@ public class KafkaTopicService {
     @Inject
     KubernetesResourceService k8sService;
 
+    @ConfigProperty(name = "mcp.topics.default-page-size", defaultValue = "100")
+    int defaultPageSize;
+
     KafkaTopicService() {
     }
 
     /**
-     * List Kafka topics for a specific cluster, optionally filtered by namespace.
+     * List Kafka topics for a specific cluster with pagination.
      *
      * @param namespace   the namespace, or null for all namespaces
      * @param clusterName the cluster name
-     * @return list of topic responses
+     * @param offset      zero-based offset, or null for 0
+     * @param limit       maximum topics to return, or null for the configured default
+     * @return paginated topic list response
      */
-    public List<KafkaTopicResponse> listTopics(final String namespace, final String clusterName) {
+    public KafkaTopicListResponse listTopics(final String namespace, final String clusterName,
+                                              final Integer offset, final Integer limit) {
         String ns = InputUtils.normalizeInput(namespace);
         String normalizedClusterName = InputUtils.normalizeInput(clusterName);
 
@@ -47,7 +55,11 @@ public class KafkaTopicService {
             throw new ToolCallException("Cluster name is required");
         }
 
-        LOG.infof("Listing Kafka topics for cluster=%s (namespace=%s)", normalizedClusterName, ns != null ? ns : "all");
+        int effectiveOffset = offset != null ? Math.max(0, offset) : 0;
+        int effectiveLimit = limit != null ? Math.max(1, limit) : defaultPageSize;
+
+        LOG.infof("Listing Kafka topics for cluster=%s (namespace=%s, offset=%d, limit=%d)",
+            normalizedClusterName, ns != null ? ns : "all", effectiveOffset, effectiveLimit);
 
         List<KafkaTopic> topics;
         if (ns != null) {
@@ -58,9 +70,16 @@ public class KafkaTopicService {
                 KafkaTopic.class, ResourceLabels.STRIMZI_CLUSTER_LABEL, normalizedClusterName);
         }
 
-        return topics.stream()
+        int total = topics.size();
+        int fromIndex = Math.min(effectiveOffset, total);
+        int toIndex = Math.min(effectiveOffset + effectiveLimit, total);
+        boolean hasMore = toIndex < total;
+
+        List<KafkaTopicResponse> page = topics.subList(fromIndex, toIndex).stream()
             .map(this::createTopicResponse)
             .toList();
+
+        return KafkaTopicListResponse.of(page, total, effectiveOffset, effectiveLimit, hasMore);
     }
 
     /**
