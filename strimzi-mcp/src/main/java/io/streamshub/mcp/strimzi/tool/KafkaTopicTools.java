@@ -9,12 +9,11 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.dto.KafkaTopicListResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.service.KafkaTopicService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
-import java.util.List;
 
 /**
  * MCP tools for Kafka topic operations.
@@ -31,27 +30,37 @@ public class KafkaTopicTools {
     }
 
     /**
-     * List Kafka topics for a cluster.
+     * List Kafka topics for a cluster with pagination.
      *
      * @param clusterName the cluster name
      * @param namespace   optional namespace
-     * @return list of topic responses
+     * @param limit       optional max topics per page
+     * @param offset      optional zero-based offset
+     * @return paginated topic list response
      */
     @Tool(
         name = "list_kafka_topics",
         description = "List Kafka topics for a cluster with partitions, replicas, and status."
-            + " Optionally filter by namespace."
+            + " Returns paginated results (default 100 per page). Use offset to get more."
     )
-    public List<KafkaTopicResponse> listKafkaTopics(
+    public KafkaTopicListResponse listKafkaTopics(
         @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
-        ) final String namespace
+        ) final String namespace,
+        @ToolArg(
+            description = "Maximum number of topics to return per page.",
+            required = false
+        ) final Integer limit,
+        @ToolArg(
+            description = "Zero-based offset for pagination (default: 0).",
+            required = false
+        ) final Integer offset
     ) {
-        return topicService.listTopics(namespace, clusterName);
+        return topicService.listTopics(namespace, clusterName, offset, limit);
     }
 
     /**

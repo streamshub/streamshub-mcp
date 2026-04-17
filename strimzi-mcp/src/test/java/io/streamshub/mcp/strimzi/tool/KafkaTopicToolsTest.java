@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.tool;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.streamshub.mcp.strimzi.dto.KafkaTopicListResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.service.KafkaTopicService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -54,9 +55,11 @@ class KafkaTopicToolsTest {
 
     @Test
     void testListKafkaTopics() {
-        when(topicService.listTopics(null, "my-cluster")).thenReturn(List.of(
-            new KafkaTopicResponse("user-events", "my-cluster", 12, 3, "Ready")
-        ));
+        when(topicService.listTopics(null, "my-cluster", null, null)).thenReturn(
+            KafkaTopicListResponse.of(
+                List.of(new KafkaTopicResponse("user-events", "my-cluster", 12, 3, "Ready")),
+                1, 0, 100, false)
+        );
 
         client.when()
             .toolsCall("list_kafka_topics", Map.of("clusterName", "my-cluster"), response -> {
@@ -64,6 +67,8 @@ class KafkaTopicToolsTest {
                 String json = response.content().getFirst().asText().text();
                 assertTrue(json.contains("user-events"));
                 assertTrue(json.contains("my-cluster"));
+                assertTrue(json.contains("\"total\":1"));
+                assertTrue(json.contains("\"has_more\":false"));
             })
             .thenAssertResults();
     }

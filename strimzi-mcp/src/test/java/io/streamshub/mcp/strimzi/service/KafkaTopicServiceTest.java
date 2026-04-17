@@ -15,14 +15,14 @@ import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
+import io.streamshub.mcp.strimzi.dto.KafkaTopicListResponse;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import java.util.List;
-
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -56,9 +56,34 @@ class KafkaTopicServiceTest {
 
     @Test
     void testListTopicsReturnsEmptyWhenNoneExist() {
-        List<KafkaTopicResponse> result = topicService.listTopics("kafka", "my-cluster");
+        KafkaTopicListResponse result = topicService.listTopics("kafka", "my-cluster", null, null);
 
         assertNotNull(result);
-        assertTrue(result.isEmpty());
+        assertTrue(result.topics().isEmpty());
+        assertEquals(0, result.total());
+        assertFalse(result.hasMore());
+    }
+
+    @Test
+    void testListTopicsDefaultPagination() {
+        KafkaTopicListResponse result = topicService.listTopics("kafka", "my-cluster", null, null);
+
+        assertEquals(0, result.offset());
+        assertEquals(100, result.limit());
+    }
+
+    @Test
+    void testListTopicsCustomPagination() {
+        KafkaTopicListResponse result = topicService.listTopics("kafka", "my-cluster", 5, 10);
+
+        assertEquals(5, result.offset());
+        assertEquals(10, result.limit());
+    }
+
+    @Test
+    void testListTopicsNegativeOffsetNormalized() {
+        KafkaTopicListResponse result = topicService.listTopics("kafka", "my-cluster", -1, null);
+
+        assertEquals(0, result.offset());
     }
 }

@@ -16,6 +16,7 @@ import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
+import io.streamshub.mcp.strimzi.dto.KafkaTopicListResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.dto.ListenerInfo;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
@@ -214,9 +215,11 @@ class MetricsToolsTest {
 
     @Test
     void testListKafkaTopics() {
-        when(topicService.listTopics(null, "my-cluster")).thenReturn(List.of(
-            new KafkaTopicResponse("user-events", "my-cluster", 12, 3, "Ready")
-        ));
+        when(topicService.listTopics(null, "my-cluster", null, null)).thenReturn(
+            KafkaTopicListResponse.of(
+                List.of(new KafkaTopicResponse("user-events", "my-cluster", 12, 3, "Ready")),
+                1, 0, 100, false)
+        );
 
         client.when()
             .toolsCall("list_kafka_topics", Map.of("clusterName", "my-cluster"), response -> {
