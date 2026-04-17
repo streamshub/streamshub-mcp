@@ -12,6 +12,7 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.guardrail.Guarded;
+import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
@@ -199,6 +200,7 @@ public class KafkaTools {
         description = "Get logs from Kafka cluster pods with error analysis."
             + " Returns logs from all pods belonging to the cluster."
     )
+    @RateCategory("log")
     public KafkaClusterLogsResponse getKafkaClusterLogs(
         @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC

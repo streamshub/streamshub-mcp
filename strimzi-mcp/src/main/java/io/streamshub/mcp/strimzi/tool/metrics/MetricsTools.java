@@ -8,6 +8,7 @@ import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.guardrail.Guarded;
+import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaExporterMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
@@ -57,6 +58,7 @@ public class MetricsTools {
         description = "Retrieves Prometheus metrics from Kafka cluster pods by category or explicit metric names."
             + " Returns samples with an interpretation guide for thresholds and diagnostics."
     )
+    @RateCategory("metrics")
     public KafkaMetricsResponse getKafkaMetrics(
         @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
@@ -112,6 +114,7 @@ public class MetricsTools {
         description = "Retrieves Prometheus metrics from Kafka Exporter pods by category or explicit metric names."
             + " Returns consumer group lag, topic partition offsets, and JVM metrics with interpretation guide."
     )
+    @RateCategory("metrics")
     public KafkaExporterMetricsResponse getKafkaExporterMetrics(
         @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
@@ -171,6 +174,7 @@ public class MetricsTools {
             + " When clusterName is provided, also includes entity operator (user-operator and topic-operator) metrics."
             + " Returns samples with an interpretation guide for thresholds and diagnostics."
     )
+    @RateCategory("metrics")
     public StrimziOperatorMetricsResponse getStrimziOperatorMetrics(
         @ToolArg(
             description = StrimziToolsPrompts.OPERATOR_NAME_DESC,

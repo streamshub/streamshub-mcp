@@ -13,6 +13,7 @@ import jakarta.interceptor.Interceptor;
 import jakarta.interceptor.InvocationContext;
 import org.jboss.logging.Logger;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -55,12 +56,13 @@ public class GuardrailInterceptor {
     @AroundInvoke
     Object intercept(final InvocationContext ctx) throws Exception {
         ensureInitialized();
-        String toolName = ctx.getMethod().getName();
+        Method method = ctx.getMethod();
+        String toolName = method.getName();
 
         // Apply input filters
         Object[] params = ctx.getParameters();
         for (GuardrailFilter filter : sortedFilters) {
-            params = filter.filterInput(toolName, params);
+            params = filter.filterInput(toolName, params, method);
         }
         ctx.setParameters(params);
 

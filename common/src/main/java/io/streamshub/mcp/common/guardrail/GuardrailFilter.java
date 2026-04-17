@@ -4,6 +4,8 @@
  */
 package io.streamshub.mcp.common.guardrail;
 
+import java.lang.reflect.Method;
+
 /**
  * Pluggable filter for MCP tool request/response processing.
  *
@@ -32,6 +34,22 @@ public interface GuardrailFilter {
      */
     default Object[] filterInput(final String toolName, final Object[] parameters) {
         return parameters;
+    }
+
+    /**
+     * Filter tool input parameters before execution, with access to the tool method.
+     * Delegates to {@link #filterInput(String, Object[])} by default.
+     * Override this method when access to method annotations (such as
+     * {@link RateCategory}) is needed.
+     *
+     * @param toolName   the tool method name
+     * @param parameters the tool method parameters
+     * @param method     the tool method being invoked
+     * @return the (possibly modified) parameters
+     */
+    default Object[] filterInput(final String toolName, final Object[] parameters,
+                                  final Method method) {
+        return filterInput(toolName, parameters);
     }
 
     /**
