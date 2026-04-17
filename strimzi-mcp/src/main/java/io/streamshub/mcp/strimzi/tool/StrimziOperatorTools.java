@@ -13,6 +13,7 @@ import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.guardrail.Guarded;
+import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
@@ -112,6 +113,7 @@ public class StrimziOperatorTools {
         description = "Get logs from Strimzi operator pods with error analysis."
             + " Returns logs from all operator pods."
     )
+    @RateCategory("log")
     public StrimziOperatorLogsResponse getStrimziOperatorLogs(
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
