@@ -15,8 +15,7 @@ import java.util.List;
 /**
  * Auto-completions for MCP prompt template parameters.
  *
- * <p>Provides namespace and cluster name completions for the
- * {@code diagnose-cluster-issue} and {@code troubleshoot-connectivity}
+ * <p>Provides namespace and cluster name completions for all
  * prompt templates by querying the Kubernetes API.</p>
  */
 @Singleton
@@ -55,6 +54,36 @@ public class PromptCompletions {
      */
     @CompletePrompt("troubleshoot-connectivity")
     public List<String> completeTroubleshootArgs(final String partial, final CompleteContext context) {
+        return completionService.completeByArgumentName(partial, context);
+    }
+
+    /**
+     * Complete arguments for the analyze-kafka-metrics prompt.
+     *
+     * <p>Supports completions for {@code namespace} and {@code cluster_name} arguments.
+     * The argument being completed is identified via the MCP completion request context.</p>
+     *
+     * @param partial the partial input value
+     * @param context the completion context with argument metadata
+     * @return matching values for the requested argument
+     */
+    @CompletePrompt("analyze-kafka-metrics")
+    public List<String> completeAnalyzeKafkaMetricsArgs(final String partial, final CompleteContext context) {
+        return completionService.completeByArgumentName(partial, context);
+    }
+
+    /**
+     * Complete arguments for the analyze-strimzi-operator-metrics prompt.
+     *
+     * <p>Supports completions for the {@code namespace} argument.
+     * The argument being completed is identified via the MCP completion request context.</p>
+     *
+     * @param partial the partial input value
+     * @param context the completion context with argument metadata
+     * @return matching values for the requested argument
+     */
+    @CompletePrompt("analyze-strimzi-operator-metrics")
+    public List<String> completeAnalyzeOperatorMetricsArgs(final String partial, final CompleteContext context) {
         return completionService.completeByArgumentName(partial, context);
     }
 }
