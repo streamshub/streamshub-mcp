@@ -29,14 +29,14 @@ jobs:
         distribution: 'temurin'
 
     - name: Cache Maven packages
-      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: ~/.m2
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
 
     - name: Create kind cluster
-      uses: helm/kind-action@v1.12.0
+      uses: helm/kind-action@v1.14.0
       with:
         config: .github/config/kind-config.yaml
         cluster_name: mcp-e2e
@@ -71,14 +71,14 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload Allure report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       if: always()
       with:
         name: allure-report
         path: allure-report/
 
     - name: Upload test logs
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       if: failure()
       with:
         name: test-logs
