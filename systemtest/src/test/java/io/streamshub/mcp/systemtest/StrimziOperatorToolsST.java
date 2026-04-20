@@ -201,20 +201,21 @@ class StrimziOperatorToolsST extends AbstractST {
     @DisplayName("get_strimzi_operator_pod returns pod details")
     @Story("Get Strimzi Operator Pod")
     void testGetStrimziOperatorPod() {
-        // First discover the operator pod name via list
-        Map<String, Object> listArgs = Map.of("namespace", Constants.STRIMZI_NAMESPACE);
+        // First discover the operator pod name via operator logs
+        Map<String, Object> logsArgs = Map.of("namespace", Constants.STRIMZI_NAMESPACE);
         mcpClient.when()
-            .toolsCall("get_strimzi_operator_logs", listArgs, response -> {
+            .toolsCall("get_strimzi_operator_logs", logsArgs, response -> {
                 assertFalse(response.isError(), "get_strimzi_operator_logs should not return error");
 
                 String json = response.content().getFirst().asText().text();
+                LOGGER.info("get_strimzi_operator_logs response (length={}):\n{}", json.length(), json);
                 JsonNode root = parseJson(json);
 
-                // Extract a pod name from the logs response
-                JsonNode pods = root.path("pods");
-                assertTrue(pods.isArray() && !pods.isEmpty(),
-                    "Should have at least one operator pod in logs");
-                String podName = pods.get(0).path("pod_name").asText();
+                // operator_pods is a string array of pod names
+                JsonNode operatorPods = root.path("operator_pods");
+                assertTrue(operatorPods.isArray() && !operatorPods.isEmpty(),
+                    "Should have at least one operator pod name");
+                String podName = operatorPods.get(0).asText();
                 assertFalse(podName.isEmpty(), "Pod name should not be empty");
 
                 LOGGER.info("Discovered operator pod: {}", podName);
