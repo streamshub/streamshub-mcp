@@ -3,7 +3,8 @@ kind: Role
 metadata:
   name: streamshub-strimzi-mcp-sensitive
   labels:
-    app: streamshub-strimzi-mcp
+    app.kubernetes.io/name: strimzi-mcp
+    app.kubernetes.io/part-of: streamshub
 rules:
   - apiGroups: [""]
     resources: ["secrets"]

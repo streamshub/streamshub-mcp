@@ -28,7 +28,7 @@ import java.util.function.Consumer;
 
 /**
  * Deploys the MCP server by loading install YAMLs from
- * {@code strimzi-mcp/install/} and modifying them with Fabric8 builders.
+ * {@code install/strimzi-mcp/base/} and modifying them with Fabric8 builders.
  *
  * <p>Uses a builder pattern for composing deployment configuration:
  * <pre>{@code
@@ -197,17 +197,17 @@ public final class McpServerSetup {
     @Step("Deploy MCP server RBAC into namespace {namespace}")
     static void deployRbac(final String namespace) {
         ServiceAccount sa = KubeTestUtils.configFromYaml(
-            installFile("002-ServiceAccount.yaml"), ServiceAccount.class);
+            installFile("serviceaccount.yaml"), ServiceAccount.class);
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(new ServiceAccountBuilder(sa)
             .editMetadata().withNamespace(namespace).endMetadata()
             .build());
 
         ClusterRole cr = KubeTestUtils.configFromYaml(
-            installFile("003-ClusterRole.yaml"), ClusterRole.class);
+            installFile("clusterrole.yaml"), ClusterRole.class);
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(cr);
 
         ClusterRoleBinding crb = KubeTestUtils.configFromYaml(
-            installFile("004-ClusterRoleBinding.yaml"), ClusterRoleBinding.class);
+            installFile("clusterrolebinding.yaml"), ClusterRoleBinding.class);
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(new ClusterRoleBindingBuilder(crb)
             .editFirstSubject().withNamespace(namespace).endSubject()
             .build());
@@ -217,7 +217,7 @@ public final class McpServerSetup {
     static void deployServer(final String namespace, final String image,
                               final Consumer<DeploymentBuilder> modifier) {
         Deployment deployment = KubeTestUtils.configFromYaml(
-            installFile("005-Deployment.yaml"), Deployment.class);
+            installFile("deployment.yaml"), Deployment.class);
 
         DeploymentBuilder db = new DeploymentBuilder(deployment)
             .editMetadata().withNamespace(namespace).endMetadata()
@@ -235,7 +235,7 @@ public final class McpServerSetup {
         KubeResourceManager.get().createOrUpdateResourceWithWait(db.build());
 
         Service service = KubeTestUtils.configFromYaml(
-            installFile("006-Service.yaml"), Service.class);
+            installFile("service.yaml"), Service.class);
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(new ServiceBuilder(service)
             .editMetadata().withNamespace(namespace).endMetadata()
             .build());

@@ -117,30 +117,39 @@ The default image location is `quay.io/streamshub/strimzi-mcp:latest`.
 
 ### Deploy to cluster
 
-Deploy all resources to your Kubernetes cluster:
+Deploy all resources to your Kubernetes cluster using Kustomize:
 
 ```bash
-# Deploy all resources
-kubectl apply -f install/
+# Deploy with Kustomize
+kubectl apply -k install/strimzi-mcp/base/
 
 # Verify the deployment
 kubectl -n streamshub-mcp rollout status deployment/streamshub-strimzi-mcp
 kubectl -n streamshub-mcp get pods
 ```
 
+To override the image tag or registry:
+
+```bash
+cd install/strimzi-mcp/base
+kustomize edit set image quay.io/streamshub/strimzi-mcp=my-registry.io/my-org/strimzi-mcp:1.0.0
+kubectl apply -k .
+```
+
 ### Deployment resources
 
-The `install/` directory contains the following resources:
+The `install/strimzi-mcp/base/` directory contains the following resources:
 
 | File | Resource | Purpose |
 |------|----------|---------|
-| `001-Namespace.yaml` | Namespace | Creates the `streamshub-mcp` namespace |
-| `002-ServiceAccount.yaml` | ServiceAccount | Provides identity for the MCP server |
-| `003-ClusterRole.yaml` | ClusterRole | Grants read-only permissions for non-sensitive resources |
-| `004-ClusterRoleBinding.yaml` | ClusterRoleBinding | Binds the ClusterRole to the ServiceAccount |
-| `005-Deployment.yaml` | Deployment | Deploys the MCP server with health probes |
-| `006-Service.yaml` | Service | Exposes the MCP server on port 8080 |
-| `007-Role-sensitive.yaml` | Role | Optional per-namespace permissions for sensitive resources |
+| `namespace.yaml` | Namespace | Creates the `streamshub-mcp` namespace |
+| `serviceaccount.yaml` | ServiceAccount | Provides identity for the MCP server |
+| `clusterrole.yaml` | ClusterRole | Grants read-only permissions for non-sensitive resources |
+| `clusterrolebinding.yaml` | ClusterRoleBinding | Binds the ClusterRole to the ServiceAccount |
+| `deployment.yaml` | Deployment | Deploys the MCP server with health probes |
+| `service.yaml` | Service | Exposes the MCP server on port 8080 |
+| `role-sensitive.yaml` | Role | Optional per-namespace permissions for sensitive resources |
+| `rolebinding-sensitive.yaml` | RoleBinding | Companion RoleBinding for the sensitive Role |
 
 ### RBAC configuration
 
@@ -164,17 +173,11 @@ The optional Role grants access to:
 - Secrets -- `get` (for certificate metadata only, not secret data)
 - Pods/proxy -- `get` (for direct metrics scraping from pods)
 
-Deploy the sensitive Role only in namespaces where you need these features:
+Deploy the sensitive Role and its RoleBinding only in namespaces where you need these features:
 
 ```bash
-# Apply the Role in a specific namespace
-kubectl apply -f install/007-Role-sensitive.yaml -n kafka-namespace
-
-# Create a RoleBinding to grant the permissions
-kubectl create rolebinding streamshub-mcp-sensitive \
-  --role=streamshub-mcp-sensitive \
-  --serviceaccount=streamshub-mcp:streamshub-mcp \
-  -n kafka-namespace
+kubectl apply -f install/strimzi-mcp/base/role-sensitive.yaml -n kafka-namespace
+kubectl apply -f install/strimzi-mcp/base/rolebinding-sensitive.yaml -n kafka-namespace
 ```
 
 ## Accessing the server

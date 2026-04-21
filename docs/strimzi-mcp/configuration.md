@@ -458,7 +458,7 @@ spec:
 Apply the updated Deployment:
 
 ```bash
-kubectl apply -f install/005-Deployment.yaml
+kubectl apply -k install/strimzi-mcp/base/
 ```
 
 ### Quick configuration update

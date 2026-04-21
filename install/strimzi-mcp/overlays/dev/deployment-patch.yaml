@@ -1,0 +1,10 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamshub-strimzi-mcp
+spec:
+  template:
+    spec:
+      containers:
+        - name: strimzi-mcp
+          imagePullPolicy: IfNotPresent

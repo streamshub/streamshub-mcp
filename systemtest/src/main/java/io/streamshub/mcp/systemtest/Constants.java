@@ -62,7 +62,7 @@ public final class Constants {
     public static final String PROJECT_ROOT = System.getProperty("user.dir") + "/..";
 
     /** Path to MCP server install directory. */
-    public static final String INSTALL_DIR = PROJECT_ROOT + "/strimzi-mcp/install/";
+    public static final String INSTALL_DIR = PROJECT_ROOT + "/install/strimzi-mcp/base/";
 
     /** Path to Strimzi manifests directory. */
     public static final String STRIMZI_MANIFESTS_DIR = PROJECT_ROOT + "/dev/manifests/strimzi/";

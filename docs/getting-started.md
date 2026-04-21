@@ -91,7 +91,7 @@ The AI assistant uses the MCP tools to query your cluster and provide answers.
 For production use, deploy MCP servers to Kubernetes instead of running them locally:
 
 ```bash
-kubectl apply -f strimzi-mcp/install/
+kubectl apply -k install/strimzi-mcp/base/
 ```
 
 For detailed instructions on Kubernetes deployments, RBAC configuration, and external access, see the [installation guide](strimzi-mcp/installation.md#kubernetes-deployment).
