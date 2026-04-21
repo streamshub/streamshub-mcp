@@ -16,14 +16,14 @@ import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.KafkaConnectivityDiagnosticReport;
-import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.KafkaMetricsDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.OperatorMetricsDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorDiagnosticReport;
 import io.streamshub.mcp.strimzi.service.KafkaClusterDiagnosticService;
 import io.streamshub.mcp.strimzi.service.KafkaConnectivityDiagnosticService;
-import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectorDiagnosticService;
 import io.streamshub.mcp.strimzi.service.KafkaMetricsDiagnosticService;
 import io.streamshub.mcp.strimzi.service.OperatorMetricsDiagnosticService;
+import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectorDiagnosticService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
