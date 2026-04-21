@@ -1,13 +1,13 @@
----
-title: "Troubleshooting"
-weight: 5
----
++++
+title = 'Troubleshooting'
+weight = 5
++++
 
 Resolve common issues when using the Strimzi MCP Server.
 
-## Server Issues
+## Server issues
 
-### Server Won't Start
+### Server does not start
 
 **Symptom**: MCP server fails to start or crashes immediately
 
@@ -59,9 +59,9 @@ Resolve common issues when using the Strimzi MCP Server.
    ./dev/scripts/setup-strimzi.sh
    ```
 
-### Server Starts But AI Can't Connect
+### Server starts but AI assistant cannot connect
 
-**Symptom**: Server is running but AI assistant can't discover tools
+**Symptom**: Server is running but AI assistant cannot discover tools
 
 **Diagnosis**:
 ```bash
@@ -91,7 +91,7 @@ curl -X POST http://localhost:8080/mcp \
 - Verify endpoint path is `/mcp` not `/`
 - Check server logs for startup errors
 
-### Tools Return Errors
+### Tools return errors
 
 **Symptom**: AI assistant reports tool execution failures
 
@@ -139,9 +139,9 @@ curl -X POST http://localhost:8080/mcp \
    kubectl create namespace kafka-ns
    ```
 
-## Kubernetes Deployment Issues
+## Kubernetes deployment issues
 
-### Pods Not Starting
+### Pods not starting
 
 **Symptom**: MCP server pods stuck in Pending or CrashLoopBackOff
 
@@ -210,9 +210,9 @@ kubectl -n streamshub-mcp logs <pod-name>
    # Or scale down other workloads
    ```
 
-### Service Not Accessible
+### Service not accessible
 
-**Symptom**: Can't connect to MCP server service
+**Symptom**: Cannot connect to MCP server service
 
 **Diagnosis**:
 ```bash
@@ -238,17 +238,17 @@ kubectl -n streamshub-mcp run test --rm -it --image=curlimages/curl -- \
    kubectl -n streamshub-mcp describe pod <pod-name>
    ```
 
-2. **Port mismatch**: Service port doesn't match container port
+2. **Port mismatch**: Service port does not match container port
    ```bash
    # Verify service configuration
    kubectl -n streamshub-mcp get svc streamshub-strimzi-mcp -o yaml
    ```
 
-## AI Assistant Issues
+## AI assistant issues
 
-### Claude Desktop Not Showing Tools
+### Claude Desktop not showing tools
 
-**Symptom**: MCP server connected but tools don't appear
+**Symptom**: MCP server connected but tools do not appear
 
 **Solutions**:
 
@@ -283,7 +283,7 @@ kubectl -n streamshub-mcp run test --rm -it --image=curlimages/curl -- \
    curl http://localhost:8080/q/health
    ```
 
-### Tools Timeout
+### Tools timeout
 
 **Symptom**: AI reports tool execution timeouts
 
@@ -316,9 +316,9 @@ kubectl -n streamshub-mcp run test --rm -it --image=curlimages/curl -- \
    kubectl exec -it <mcp-pod> -- curl http://loki.monitoring:3100/ready
    ```
 
-## Log Collection Issues
+## Log collection issues
 
-### No Logs Returned
+### No logs returned
 
 **Symptom**: Log collection tools return empty results
 
@@ -344,7 +344,7 @@ kubectl -n streamshub-mcp run test --rm -it --image=curlimages/curl -- \
 2. **No logs in time range**: Expand time window
 3. **Container not specified**: Specify container name for multi-container pods
 
-### Loki Integration Not Working
+### Loki integration not working
 
 **Symptom**: Logs always come from Kubernetes, never from Loki
 
@@ -387,9 +387,9 @@ kubectl -n streamshub-mcp exec <mcp-pod> -- \
      --from=secret/loki-auth
    ```
 
-## Metrics Issues
+## Metrics issues
 
-### No Metrics Returned
+### No metrics returned
 
 **Symptom**: Metrics queries return no data
 
@@ -421,7 +421,7 @@ kubectl -n streamshub-mcp exec <mcp-pod> -- \
    ```
 3. **Wrong metric name**: Use Prometheus UI to find correct names
 
-### Pod Metrics Scraping Fails
+### Pod metrics scraping fails
 
 **Symptom**: Direct pod metrics scraping returns errors
 
@@ -448,9 +448,9 @@ kubectl -n streamshub-mcp exec <mcp-pod> -- \
    - Verify pod has metrics port configured
    - Check pod annotations for metrics path
 
-## Performance Issues
+## Performance issues
 
-### Slow Response Times
+### Slow response times
 
 **Symptom**: Tools take a long time to execute
 
@@ -479,7 +479,7 @@ kubectl -n streamshub-mcp exec <mcp-pod> -- \
      --requests=cpu=500m,memory=512Mi
    ```
 
-### High Memory Usage
+### High memory usage
 
 **Symptom**: MCP server pod using excessive memory
 
@@ -505,9 +505,9 @@ kubectl -n streamshub-mcp get pod <pod-name> -o yaml | grep -A 5 resources
      --limits=memory=2Gi
    ```
 
-## Getting Help
+## Getting help
 
-### Enable Debug Logging
+### Enable debug logging
 
 ```bash
 # For local development
@@ -521,7 +521,7 @@ kubectl -n streamshub-mcp set env deployment/streamshub-strimzi-mcp \
   QUARKUS_LOG_CATEGORY__IO_STREAMSHUB_MCP__LEVEL=TRACE
 ```
 
-### Collect Diagnostic Information
+### Collect diagnostic information
 
 ```bash
 # Server logs
@@ -537,7 +537,7 @@ kubectl auth can-i --list --as=system:serviceaccount:streamshub-mcp:streamshub-m
 kubectl -n streamshub-mcp get deployment streamshub-strimzi-mcp -o yaml
 ```
 
-### Report Issues
+### Report issues
 
 When reporting issues, include:
 
@@ -564,14 +564,9 @@ When reporting issues, include:
 
 **GitHub Issues**: https://github.com/streamshub/streamshub-mcp/issues
 
-## Next Steps
+## Next steps
 
 - **[Installation](installation.md)** — Reinstall or reconfigure
 - **[Configuration](configuration.md)** — Adjust settings
 - **[Usage Examples](usage-examples.md)** — See working examples
 
-## Related Documentation
-
-- [Tools Reference](tools.md) — Complete tool catalog
-- [Architecture](../../architecture.md) — System architecture
-- [Deployment Guide](../../deployment.md) — Production deployment

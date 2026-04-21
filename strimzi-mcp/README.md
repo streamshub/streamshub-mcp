@@ -1,53 +1,55 @@
 # Strimzi MCP Server
 
-A Quarkus application that provides Strimzi Kafka management tools via **MCP (Model Context Protocol)** for AI assistants and automation.
+A Quarkus application that provides Strimzi Kafka management tools via MCP (Model Context Protocol) for AI assistants and automation.
 
 > [!WARNING]
 > This project is in early alpha and under active development. APIs, tool definitions, and configuration may change without notice.
 
-## What is Strimzi MCP?
+## Overview
 
-Strimzi MCP enables AI assistants to manage and troubleshoot Strimzi-managed Kafka clusters on Kubernetes. Ask your AI assistant questions like:
+The Strimzi MCP Server enables AI assistants to manage and troubleshoot Strimzi-managed Kafka clusters on Kubernetes.
+Ask your AI assistant questions like:
 
-- "What's the status of my Kafka cluster?"
+- "List all Kafka clusters"
 - "Show me error logs from the last hour"
 - "Are there any under-replicated partitions?"
 - "Diagnose connectivity issues"
 
 The AI assistant uses MCP tools to interact with your Kubernetes cluster and provide answers.
 
-## Quick Start
+## Quick start
 
 ### Prerequisites
 
 - Kubernetes cluster with Strimzi installed
-- kubectl configured to access your cluster
-- Java 21+ and Maven 3.8+ (for local development)
+- `kubectl` configured to access your cluster
+- Java 21 or later and Maven 3.8 or later (for local development)
 
 ### Deploy Strimzi (if needed)
 
 ```bash
-# Deploy Strimzi operator and sample Kafka cluster
 ../dev/scripts/setup-strimzi.sh
 ```
 
-### Run Locally
+### Run locally
 
 ```bash
 mvn clean package
 mvn quarkus:dev
 ```
 
-Server starts on `http://localhost:8080/mcp`
+The server starts on `http://localhost:8080/mcp`.
 
-### Connect AI Assistant
+### Connect AI assistant
 
-**Claude Code**:
+For Claude Code:
+
 ```bash
 claude mcp add --transport http strimzi http://localhost:8080/mcp
 ```
 
-**Claude Desktop**: Add to configuration file:
+For Claude Desktop, add the following to your configuration file:
+
 ```json
 {
   "mcpServers": {
@@ -59,70 +61,73 @@ claude mcp add --transport http strimzi http://localhost:8080/mcp
 }
 ```
 
-### Try It
+### Verify
 
 Ask your AI assistant:
+
 - "List all Kafka clusters"
-- "What's the status of mcp-cluster?"
+- "What is the status of mcp-cluster?"
 - "Diagnose issues with mcp-cluster"
 
 ## Documentation
 
-**📚 For comprehensive documentation, see [`../docs/user/mcp-servers/strimzi-mcp/`](../docs/user/mcp-servers/strimzi-mcp/)**
+For comprehensive documentation, see [`../docs/strimzi-mcp/`](../docs/strimzi-mcp/):
 
-The full documentation covers:
-- **[Installation](../docs/user/mcp-servers/strimzi-mcp/installation.md)** — Local and Kubernetes deployment
-- **[Configuration](../docs/user/mcp-servers/strimzi-mcp/configuration.md)** — Environment variables, integrations, security
-- **[Tools Reference](../docs/user/mcp-servers/strimzi-mcp/tools.md)** — Complete tool catalog with parameters
-- **[Usage Examples](../docs/user/mcp-servers/strimzi-mcp/usage-examples.md)** — Practical workflows
-- **[Troubleshooting](../docs/user/mcp-servers/strimzi-mcp/troubleshooting.md)** — Common issues and solutions
+- **[Installation](../docs/strimzi-mcp/installation.md)** -- Local and Kubernetes deployment
+- **[Configuration](../docs/strimzi-mcp/configuration.md)** -- Environment variables, integrations, security
+- **[Tools reference](../docs/strimzi-mcp/tools.md)** -- Complete tool catalog with parameters
+- **[Usage examples](../docs/strimzi-mcp/usage-examples.md)** -- Practical workflows
+- **[Troubleshooting](../docs/strimzi-mcp/troubleshooting.md)** -- Common issues and solutions
 
-## Key Features
+## Key features
 
-### Composite Diagnostic Tools
+### Composite diagnostic tools
 
 Multi-step workflows with LLM-guided triage:
-- **`diagnose_kafka_cluster`** — Comprehensive cluster health check
-- **`diagnose_kafka_connectivity`** — Connectivity troubleshooting
-- **`diagnose_kafka_metrics`** — Metrics analysis and anomaly detection
-- **`diagnose_operator_metrics`** — Operator performance analysis
 
-### Cluster Management Tools
+- **`diagnose_kafka_cluster`** -- Comprehensive cluster health check
+- **`diagnose_kafka_connectivity`** -- Connectivity troubleshooting
+- **`diagnose_kafka_metrics`** -- Metrics analysis and anomaly detection
+- **`diagnose_operator_metrics`** -- Operator performance analysis
 
-- **List and inspect** — Clusters, topics, node pools, operators
-- **Pod operations** — Status, logs, events
-- **Bootstrap servers** — Get connection endpoints
-- **Certificates** — TLS certificate information
+### Cluster management tools
 
-### Advanced Log Collection
+- **List and inspect** -- Clusters, topics, node pools, operators
+- **Pod operations** -- Status, logs, events
+- **Bootstrap servers** -- Connection endpoints
+- **Certificates** -- TLS certificate information
 
-- **Error analysis** — Automatic detection and categorization
-- **Advanced filtering** — By log level, keywords, time ranges
-- **Multiple providers** — Kubernetes API or Loki
-- **Progress tracking** — Real-time updates
+### Log collection
 
-### Metrics Analysis
+- **Error analysis** -- Automatic detection and categorization
+- **Advanced filtering** -- By log level, keywords, time ranges
+- **Multiple providers** -- Kubernetes API or Loki
+- **Progress tracking** -- Real-time updates
 
-- **Category-based queries** — Replication, throughput, performance, resources
-- **Interpretation guides** — Thresholds and diagnostic recommendations
-- **Multiple providers** — Pod scraping or Prometheus
-- **Kafka Exporter metrics** — Consumer lag, topic partitions
+### Metrics analysis
 
-### Security Guardrails
+- **Category-based queries** -- Replication, throughput, performance, resources
+- **Interpretation guides** -- Thresholds and diagnostic recommendations
+- **Multiple providers** -- Pod scraping or Prometheus
+- **Kafka Exporter metrics** -- Consumer lag, topic partitions
 
-- **Log redaction** — Automatic removal of sensitive patterns
-- **Response size limits** — Prevents excessive responses
-- **Rate limiting** — Per-category request throttling
+### Security guardrails
 
-### Resource Monitoring
+- **Log redaction** -- Automatic removal of sensitive patterns
+- **Response size limits** -- Prevents excessive responses
+- **Rate limiting** -- Per-category request throttling
+
+### Resource monitoring
 
 Real-time subscriptions to Kubernetes resources with automatic notifications when state changes.
 
-## Kubernetes Deployment
+## Kubernetes deployment
 
 ```bash
 # Build container image
-mvn clean package -DskipTests -Dquarkus.container-image.build=true -Dquarkus.container-image.push=true
+mvn clean package -DskipTests \
+  -Dquarkus.container-image.build=true \
+  -Dquarkus.container-image.push=true
 
 # Deploy to Kubernetes
 kubectl apply -f install/
@@ -131,7 +136,7 @@ kubectl apply -f install/
 kubectl -n streamshub-mcp get pods
 ```
 
-See [Deployment Guide](../docs/deployment.md) for detailed instructions.
+For detailed instructions, see the [installation guide](../docs/strimzi-mcp/installation.md).
 
 ## Configuration
 
@@ -143,13 +148,13 @@ See [Deployment Guide](../docs/deployment.md) for detailed instructions.
 | `QUARKUS_REST_CLIENT_LOKI_URL` | - | Loki endpoint URL |
 | `QUARKUS_REST_CLIENT_PROMETHEUS_URL` | - | Prometheus endpoint URL |
 
-See [Configuration Guide](../docs/user/mcp-servers/strimzi-mcp/configuration.md) for complete configuration options including security, integrations, and advanced settings.
+For complete configuration options, see the [configuration guide](../docs/strimzi-mcp/configuration.md).
 
 ## Requirements
 
-- Java 21+
-- Maven 3.8+
-- Access to Kubernetes cluster with Strimzi
+- Java 21 or later
+- Maven 3.8 or later
+- Access to a Kubernetes cluster with Strimzi
 
 ## License
 

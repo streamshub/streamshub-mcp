@@ -5,39 +5,28 @@ streaming platforms. Java 21, Quarkus 3.x, Strimzi API 0.51.x, Fabric8 Kubernete
 
 ## Documentation Structure
 
-Documentation is organized into user and developer sections:
-- **User docs**: `docs/user/` - Installation, configuration, usage, troubleshooting for end users
-- **Developer docs**: `docs/developer/` - Architecture, building, testing, contributing for developers
-- **Module docs**: `docs/developer/modules/` - Internal documentation for shared modules
+- **User docs**: `docs/` -- Installation, configuration, usage, and troubleshooting for end users. Each MCP server has its own subdirectory (e.g., `docs/strimzi-mcp/`).
+- **Developer docs**: This file (`AGENTS.md`) -- Architecture, patterns, and conventions for developers
 
 ### Documentation Update Requirements
 
 **CRITICAL**: When implementing new features or modifying existing functionality, you MUST update the relevant documentation:
 
-1. **User documentation** (`docs/user/`) - Update when:
+1. **User documentation** (`docs/`) -- Update when:
    - Adding new MCP tools, prompts, or resource templates
    - Changing tool parameters or behavior
    - Modifying configuration options
    - Adding new features visible to end users
 
-2. **Developer documentation** (`docs/developer/`) - Update when:
+2. **This file** (`AGENTS.md`) -- Update when:
    - Changing architecture or design patterns
    - Adding new modules or services
-   - Modifying build or deployment processes
-   - Updating testing strategies
-
-3. **Module documentation** (`docs/developer/modules/`) - Update when:
-   - Adding new classes or services to a module
-   - Changing module interfaces or APIs
-   - Modifying module dependencies
-
-4. **This file** (`AGENTS.md`) - Update when:
-   - Adding new patterns or conventions
    - Changing coding standards
    - Introducing new architectural layers
    - Modifying development workflows
 
-Documentation updates are NOT optional. They are part of the feature implementation and must be completed before the task is considered done.
+Documentation updates are NOT optional.
+They are part of the feature implementation and must be completed before the task is considered done.
 
 ## Modules
 
@@ -132,7 +121,7 @@ io.streamshub.mcp.strimzi.
   query param construction, and delegation. Do not inject `Instance<MetricsProvider>` directly in domain services.
 - **Diagnostic services** orchestrate multi-step workflows by calling existing domain services.
   They use `DiagnosticHelper` (common/) for MCP framework interactions and `NamespaceElicitationHelper`
-  (strimzi-mcp) for Strimzi-specific namespace disambiguation. Individual step failures don't abort the workflow.
+  (strimzi-mcp) for Strimzi-specific namespace disambiguation. Individual step failures do not abort the workflow.
 - **Metric category constants** are defined as public `static final String` fields in each `*MetricCategories` class
   (e.g., `KafkaMetricCategories.REPLICATION`). Use these constants instead of string literals when referencing
   metric categories in services, diagnostic tools, or prompts.
@@ -538,32 +527,7 @@ Before adding a new constant, check if it already exists in `ResourceLabels`, `P
 
 ## Testing
 
-Tests use Quarkus test framework with Mockito for Kubernetes client mocking.
+Unit tests use Quarkus test framework with Mockito for Kubernetes client mocking.
+System tests use kubetest4j against a real Kubernetes cluster and are skipped by default.
 
-Service tests (one per domain service):
-- `strimzi-mcp/src/test/java/.../service/KafkaServiceTest.java`
-- `strimzi-mcp/src/test/java/.../service/KafkaTopicServiceTest.java`
-- `strimzi-mcp/src/test/java/.../service/StrimziOperatorServiceTest.java`
-- `strimzi-mcp/src/test/java/.../service/StrimziEventsServiceTest.java`
-
-Diagnostic service tests (one per diagnostic service):
-- `strimzi-mcp/src/test/java/.../service/KafkaClusterDiagnosticServiceTest.java`
-- `strimzi-mcp/src/test/java/.../service/KafkaConnectivityDiagnosticServiceTest.java`
-- `strimzi-mcp/src/test/java/.../service/KafkaMetricsDiagnosticServiceTest.java`
-- `strimzi-mcp/src/test/java/.../service/OperatorMetricsDiagnosticServiceTest.java`
-
-Tool tests (one per tools class):
-- `strimzi-mcp/src/test/java/.../tool/KafkaToolsTest.java`
-- `strimzi-mcp/src/test/java/.../tool/KafkaTopicToolsTest.java`
-- `strimzi-mcp/src/test/java/.../tool/KafkaNodePoolToolsTest.java`
-- `strimzi-mcp/src/test/java/.../tool/StrimziOperatorToolsTest.java`
-- `strimzi-mcp/src/test/java/.../tool/McpDiscoveryTest.java`
-
-Common module tests:
-- `common/src/test/java/.../readiness/KubernetesConnectionReadinessCheckTest.java`
-- `common/src/test/java/.../service/CompletionHelperTest.java`
-- `common/src/test/java/.../service/DeploymentServiceTest.java`
-- `common/src/test/java/.../service/PodsServiceTest.java`
-- `common/src/test/java/.../util/InputUtilsTest.java`
-
-Tests verify service behavior without a live Kubernetes cluster.
+For detailed testing documentation including test locations, patterns, system test configuration, and the systemtest module structure, see [dev/docs/TESTING.md](dev/docs/TESTING.md).

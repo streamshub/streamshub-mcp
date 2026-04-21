@@ -1,13 +1,13 @@
----
-title: "Usage Examples"
-weight: 4
----
++++
+title = 'Usage Examples'
+weight = 4
++++
 
 Practical examples of using the Strimzi MCP Server with AI assistants to manage and troubleshoot Kafka infrastructure.
 
-## Basic Cluster Operations
+## Basic cluster operations
 
-### Listing Clusters
+### Listing clusters
 
 **Question**: "What Kafka clusters are running?"
 
@@ -31,7 +31,7 @@ I found 2 Kafka clusters:
    - Nodes: 1 broker
 ```
 
-### Checking Cluster Status
+### Checking cluster status
 
 **Question**: "What's the status of mcp-cluster?"
 
@@ -60,7 +60,7 @@ Node Pools:
 - broker: 3/3 replicas ready (broker role)
 ```
 
-### Viewing Cluster Topology
+### Viewing cluster topology
 
 **Question**: "Show me the topology of mcp-cluster"
 
@@ -85,9 +85,9 @@ Node Pool: controller
 - Resources: 1 CPU, 2Gi memory per pod
 ```
 
-## Diagnostic Workflows
+## Diagnostic workflows
 
-### Comprehensive Cluster Diagnosis
+### Comprehensive cluster diagnosis
 
 **Question**: "Diagnose issues with mcp-cluster"
 
@@ -129,9 +129,9 @@ Recommendation: Increase the persistent volume size or clean up old log
 segments. Check retention policies.
 ```
 
-### Connectivity Troubleshooting
+### Connectivity troubleshooting
 
-**Question**: "Why can't I connect to mcp-cluster from outside the cluster?"
+**Question**: "Why can I not connect to mcp-cluster from outside the cluster?"
 
 **What happens**:
 - AI calls `diagnose_kafka_connectivity`
@@ -166,13 +166,13 @@ The cluster is properly configured for external access. You can connect using:
 - Security protocol: SSL
 - Required: Client certificate for authentication
 
-If you still can't connect, check:
+If you still cannot connect, check:
 1. Firewall rules allowing port 9094
 2. Client has the correct CA certificate
 3. Client certificate is properly configured
 ```
 
-### Metrics Analysis
+### Metrics analysis
 
 **Question**: "Are there any performance issues with mcp-cluster?"
 
@@ -217,9 +217,9 @@ Recommendations:
 3. Monitor for memory-related GC pauses
 ```
 
-## Log Analysis
+## Log analysis
 
-### Finding Errors
+### Finding errors
 
 **Question**: "Show me errors from mcp-cluster in the last hour"
 
@@ -252,7 +252,7 @@ Recent error from mcp-cluster-kafka-2:
 user-events partition 5. Current ISR: [0,1], required: 3
 ```
 
-### Operator Logs
+### Operator logs
 
 **Question**: "What's the Strimzi operator doing?"
 
@@ -275,9 +275,9 @@ The operator is functioning normally, completing reconciliation cycles
 every 2-3 seconds. No errors or warnings in the last hour.
 ```
 
-## Topic Management
+## Topic management
 
-### Listing Topics
+### Listing topics
 
 **Question**: "What topics exist in mcp-cluster?"
 
@@ -313,7 +313,7 @@ Found 5 topics in mcp-cluster:
    - Replication factor: 3
 ```
 
-### Topic Status
+### Topic status
 
 **Question**: "What's the status of the user-events topic?"
 
@@ -339,9 +339,9 @@ Configuration:
 All partitions are healthy with sufficient replicas.
 ```
 
-## Metrics Queries
+## Metrics queries
 
-### Specific Metrics
+### Specific metrics
 
 **Question**: "What's the current message rate for mcp-cluster?"
 
@@ -369,7 +369,7 @@ The cluster is processing approximately 1,250 messages per second
 with balanced load across all brokers.
 ```
 
-### Replication Metrics
+### Replication metrics
 
 **Question**: "Are there any under-replicated partitions?"
 
@@ -390,9 +390,9 @@ replication balance with only 2% imbalance in preferred replica
 distribution.
 ```
 
-## Operator Monitoring
+## Operator monitoring
 
-### Operator Status
+### Operator status
 
 **Question**: "Is the Strimzi operator healthy?"
 
@@ -423,9 +423,9 @@ Resource Usage:
 The operator is healthy and functioning normally.
 ```
 
-## Best Practices
+## Best practices
 
-### Effective Questions
+### Effective questions
 
 **Good**: "What's the status of mcp-cluster and are there any issues?"
 - Specific cluster name
@@ -437,7 +437,7 @@ The operator is healthy and functioning normally.
 - Guides the diagnostic approach
 - More efficient tool usage
 
-### Iterative Investigation
+### Iterative investigation
 
 Start broad, then narrow down:
 1. "What clusters are running?" → Get overview
@@ -445,14 +445,14 @@ Start broad, then narrow down:
 3. "Show me errors from mcp-cluster" → Investigate issues
 4. "What's causing the connection errors?" → Root cause analysis
 
-### Using Context
+### Using context
 
 Attach resources for faster responses:
 1. Attach cluster status resource
 2. Ask: "Based on this status, what should I check?"
 3. AI can analyze without additional tool calls
 
-## Using with Different AI Assistants
+## Using with different AI assistants
 
 ### Claude Desktop
 
@@ -468,7 +468,7 @@ Code-focused queries:
 - "What configuration should I use for this use case?"
 - "Review this Kafka configuration"
 
-### Programmatic Access
+### Programmatic access
 
 Direct tool calls via MCP protocol:
 ```json
@@ -484,13 +484,9 @@ Direct tool calls via MCP protocol:
 }
 ```
 
-## Next Steps
+## Next steps
 
 - **[Tools Reference](tools.md)** — Complete tool catalog
 - **[Troubleshooting](troubleshooting.md)** — Resolve common issues
 - **[Configuration](configuration.md)** — Configure integrations
 
-## Related Documentation
-
-- [Installation](installation.md) — Deploy the server
-- [Architecture](../../architecture.md) — System architecture

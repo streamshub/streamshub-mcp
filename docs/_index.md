@@ -1,96 +1,39 @@
 +++
-title = 'StreamsHub MCP Documentation'
+title = 'StreamsHub MCP'
+weight = 0
+
+[[cascade]]
+    type = 'docs'
 +++
 
-Welcome to the StreamsHub MCP documentation. This mono-repository provides Model Context Protocol (MCP) servers that give AI assistants direct access to Kubernetes-based streaming infrastructure.
+StreamsHub MCP provides Model Context Protocol (MCP) servers for managing Kubernetes-based streaming infrastructure through AI assistants.
 
-## I want to...
+## Getting started
 
-### Use StreamsHub MCP
+To set up your first MCP server, see the [getting started guide](getting-started.md).
 
-→ [User Documentation](user/) — Installation, configuration, and usage
+## Available MCP servers
 
-Start here if you want to:
-- Install and configure MCP servers
-- Use MCP servers with AI assistants (Claude, etc.)
-- Troubleshoot issues
-- Learn practical workflows
+### Strimzi MCP server
 
-Quick links:
-- [Getting Started](user/getting-started.md) — 5-minute setup
-- [Usage Guide](user/usage-guide.md) — How to use with AI assistants
-- [MCP Servers](user/mcp-servers/) — Browse available servers
+The Strimzi MCP Server provides tools for managing and troubleshooting Apache Kafka clusters deployed with the Strimzi operator on Kubernetes.
 
-### Develop or Contribute
+- Monitoring cluster health and status
+- Running diagnostic workflows with intelligent triage
+- Collecting and analyzing logs with filtering
+- Querying metrics from Kafka brokers and the Strimzi operator
+- Troubleshooting connectivity and performance issues
+- Monitoring Strimzi operator health and reconciliation
 
-→ [Developer Documentation](developer/) — Architecture, building, and testing
-
-Start here if you want to:
-- Understand the architecture
-- Build from source
-- Add new features or fix bugs
-- Contribute code
-
-Quick links:
-- [Architecture](developer/architecture.md) — System design
-- [Building](developer/building.md) — Build and run locally
-- [Testing](developer/testing.md) — Unit and system tests
-- [Contributing](developer/contributing.md) — Contribution guidelines
-
-## Available MCP Servers
-
-### Strimzi MCP Server
-
-Manage and troubleshoot Apache Kafka clusters running on Kubernetes via the Strimzi operator.
-
-Features:
-- Cluster status and diagnostics
-- Log collection and analysis
-- Metrics queries and monitoring
-- Connectivity troubleshooting
-- Operator health monitoring
-
-Documentation:
-- [User Guide](user/mcp-servers/strimzi-mcp/) — Installation and usage
-- [Developer Guide](developer/modules/strimzi-mcp/) — Architecture and internals
-
-### Future MCP Servers
-
-Additional MCP servers for other streaming technologies will be added to this repository.
+For more information, see the [Strimzi MCP Server documentation](strimzi-mcp/).
 
 ## What is MCP?
 
-The Model Context Protocol (MCP) is an open protocol that enables AI assistants to securely interact with external systems. StreamsHub MCP implements this protocol to give AI assistants access to Kubernetes-based streaming infrastructure.
+The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open protocol that enables AI assistants to interact with external systems.
+StreamsHub MCP implements this protocol to provide AI assistants with access to Kubernetes-based streaming infrastructure.
 
-Key Benefits:
-- Natural Language Interface — Ask questions in plain English
-- Intelligent Diagnostics — AI-guided troubleshooting workflows
-- Real-time Monitoring — Subscribe to resource changes
-- Secure Access — Kubernetes RBAC integration
+## Getting help
 
-## Project Structure
-
-This is a Maven mono-repository with the following structure:
-
-```
-streamshub-mcp/
-├── common/                    # Shared utilities and services
-├── loki-log-provider/        # Loki integration module
-├── metrics-prometheus/       # Prometheus integration module
-├── strimzi-mcp/             # Strimzi MCP Server
-└── docs/                     # Documentation
-    ├── user/                # User documentation
-    │   └── mcp-servers/    # Per-server user guides
-    └── developer/           # Developer documentation
-        └── modules/         # Module documentation
-```
-
-## Getting Help
-
-- [GitHub Issues](https://github.com/streamshub/streamshub-mcp/issues) — Report bugs or request features
-- [GitHub Discussions](https://github.com/streamshub/streamshub-mcp/discussions) — Ask questions and share ideas
-- [Strimzi MCP Troubleshooting](user/mcp-servers/strimzi-mcp/troubleshooting.md) — Common issues and solutions
-
-## License
-
-This project is licensed under the [Apache License 2.0](../LICENSE).
+- [GitHub Issues](https://github.com/streamshub/streamshub-mcp/issues) -- Report bugs or request features
+- [GitHub Discussions](https://github.com/streamshub/streamshub-mcp/discussions) -- Ask questions and share ideas
+- [Troubleshooting](strimzi-mcp/troubleshooting.md) -- Common issues and solutions

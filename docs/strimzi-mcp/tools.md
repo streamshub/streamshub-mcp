@@ -1,11 +1,11 @@
----
-title: "Tools Reference"
-weight: 3
----
++++
+title = 'Tools Reference'
+weight = 3
++++
 
 Complete reference for all tools, prompts, and resources provided by the Strimzi MCP Server.
 
-## Tool Categories
+## Tool categories
 
 - [Cluster Management](#cluster-management)
 - [Topic Management](#topic-management)
@@ -17,11 +17,11 @@ Complete reference for all tools, prompts, and resources provided by the Strimzi
 - [Prompt Templates](#prompt-templates)
 - [Resource Templates](#resource-templates)
 
-## Smart Discovery
+## Smart discovery
 
 All tools support **smart discovery** - the namespace parameter is always optional. When omitted, tools automatically search across the entire cluster to find the requested resources.
 
-## Cluster Management
+## Cluster management
 
 ### list_kafka_clusters
 
@@ -119,7 +119,7 @@ Get logs from Kafka cluster pods with error analysis and advanced filtering.
 Get ERROR logs from mcp-cluster for the last 60 minutes
 ```
 
-## Topic Management
+## Topic management
 
 ### list_kafka_topics
 
@@ -154,7 +154,7 @@ Get detailed information for a specific Kafka topic including configuration, par
 Get details for my-topic in mcp-cluster
 ```
 
-## Node Pool Management
+## Node pool management
 
 ### list_kafka_node_pools
 
@@ -203,7 +203,7 @@ Get pod information for a specific KafkaNodePool.
 Show me the pods for broker-pool
 ```
 
-## Operator Management
+## Operator management
 
 ### list_strimzi_operators
 
@@ -289,7 +289,7 @@ Get Kubernetes events for a Kafka cluster and all related resources (pods, PVCs,
 Get events for mcp-cluster in the last hour
 ```
 
-## Diagnostic Tools
+## Diagnostic tools
 
 Composite diagnostic tools run multi-step workflows in a single tool call, using Sampling for LLM-guided triage and Elicitation for user input (e.g., namespace disambiguation).
 
@@ -368,7 +368,7 @@ Runs a multi-step operator metrics diagnostic workflow. Analyzes reconciliation,
 Analyze Strimzi operator metrics
 ```
 
-## Metrics Tools
+## Metrics tools
 
 ### get_kafka_metrics
 
@@ -434,7 +434,7 @@ Retrieves Prometheus metrics from Strimzi operator pods by category or explicit 
 Get reconciliation metrics for the Strimzi operator
 ```
 
-## Prompt Templates
+## Prompt templates
 
 Prompt templates encode Strimzi domain knowledge and guide LLMs through structured diagnostic workflows.
 
@@ -508,11 +508,11 @@ Structured workflow for analyzing Strimzi operator metrics.
 4. Query JVM metrics
 5. Correlate with operator logs
 
-## Resource Templates
+## Resource templates
 
 Resource templates expose Strimzi data as structured JSON that clients can attach to conversations.
 
-### Kafka Cluster Status
+### Kafka cluster status
 
 **URI**: `strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkas/{name}/status`
 
@@ -525,7 +525,7 @@ Resource templates expose Strimzi data as structured JSON that clients can attac
 
 **Usage**: Attach this resource to provide cluster context to your AI assistant.
 
-### Kafka Cluster Topology
+### Kafka cluster topology
 
 **URI**: `strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkas/{name}/topology`
 
@@ -535,7 +535,7 @@ Resource templates expose Strimzi data as structured JSON that clients can attac
 - Storage configuration
 - Resource allocation
 
-### KafkaNodePool Status
+### KafkaNodePool status
 
 **URI**: `strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkanodepools/{name}/status`
 
@@ -544,7 +544,7 @@ Resource templates expose Strimzi data as structured JSON that clients can attac
 - Node roles (broker, controller, or both)
 - Storage configuration
 
-### KafkaTopic Status
+### KafkaTopic status
 
 **URI**: `strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkatopics/{name}/status`
 
@@ -554,7 +554,7 @@ Resource templates expose Strimzi data as structured JSON that clients can attac
 - Replication factor
 - Configuration
 
-### Strimzi Operator Status
+### Strimzi operator status
 
 **URI**: `strimzi://operator.strimzi.io/namespaces/{namespace}/clusteroperator/{name}/status`
 
@@ -564,30 +564,26 @@ Resource templates expose Strimzi data as structured JSON that clients can attac
 - Readiness
 - Uptime
 
-## Resource Subscriptions
+## Resource subscriptions
 
 The server watches Kubernetes resources and sends notifications when they change, enabling reactive LLM agents.
 
-### Supported Resources
+### Supported resources
 
 - **Kafka clusters** — Notifies when cluster status changes
 - **KafkaNodePools** — Notifies when node pool status changes
 - **Strimzi operator Deployments** — Notifies when operator status changes
 
-### Use Cases
+### Use cases
 
 - Automatic issue detection
 - Proactive troubleshooting
 - Real-time monitoring
 - Event-driven workflows
 
-## Next Steps
+## Next steps
 
 - **[Usage Examples](usage-examples.md)** — See practical examples
 - **[Configuration](configuration.md)** — Configure integrations
 - **[Troubleshooting](troubleshooting.md)** — Resolve common issues
 
-## Related Documentation
-
-- [Installation](installation.md) — Deploy the server
-- [Architecture](../../architecture.md) — System architecture
