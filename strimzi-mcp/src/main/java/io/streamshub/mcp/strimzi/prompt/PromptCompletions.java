@@ -73,6 +73,21 @@ public class PromptCompletions {
     }
 
     /**
+     * Complete arguments for the troubleshoot-connector prompt.
+     *
+     * <p>Supports completions for {@code namespace}, {@code connector_name},
+     * and {@code connect_cluster} arguments.</p>
+     *
+     * @param partial the partial input value
+     * @param context the completion context with argument metadata
+     * @return matching values for the requested argument
+     */
+    @CompletePrompt("troubleshoot-connector")
+    public List<String> completeTroubleshootConnectorArgs(final String partial, final CompleteContext context) {
+        return completionService.completeByArgumentName(partial, context);
+    }
+
+    /**
      * Complete arguments for the analyze-strimzi-operator-metrics prompt.
      *
      * <p>Supports completions for the {@code namespace} argument.

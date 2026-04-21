@@ -35,6 +35,11 @@ public final class StrimziConstants {
          */
         public static final String CLUSTER_OPERATOR = "cluster-operator";
 
+        /**
+         * Kind label value for KafkaConnect pods.
+         */
+        public static final String KAFKA_CONNECT = "KafkaConnect";
+
         private KindValues() {
         }
     }
