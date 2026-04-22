@@ -19,7 +19,11 @@ import io.streamshub.mcp.systemtest.Environment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Locale;
+
+import static io.netty.util.NetUtil.getHostname;
 
 /**
  * Sets up connectivity to the MCP server from the test JVM.
@@ -202,5 +206,31 @@ public final class ConnectivitySetup {
             LOGGER.debug("Failed to detect OpenShift, assuming vanilla Kubernetes", e);
             return false;
         }
+    }
+
+    /**
+     * Get the container image output registry for KafkaConnect builds.
+     *
+     * @return the registry hostname
+     */
+    public static String getImageOutputRegistry() {
+        if (isOpenShift()) {
+            return "image-registry.openshift-image-registry.svc:5000";
+        } else {
+            // we will need a hostname of machine
+            String hostname = getHostname();
+            LOGGER.info("Using container registry '{}'", hostname);
+            return hostname;
+        }
+    }
+
+    private static String getHostname() {
+        String hostname = "";
+        try {
+            hostname = InetAddress.getLocalHost().getHostAddress() + ":5001";
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
+        }
+        return hostname;
     }
 }

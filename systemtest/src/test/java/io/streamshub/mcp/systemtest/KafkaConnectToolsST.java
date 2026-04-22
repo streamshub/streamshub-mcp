@@ -34,6 +34,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectTemplates.ECHO_SINK_CLASS_NAME;
+import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectorTemplates.CONNECTOR_NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -53,7 +55,6 @@ class KafkaConnectToolsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaConnectToolsST.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String CONNECT_CLUSTER_NAME = "mcp-connect";
-    private static final String CONNECTOR_NAME = "mcp-file-sink";
 
     @InjectResourceManager
     KubeResourceManager krm;
@@ -188,7 +189,7 @@ class KafkaConnectToolsST extends AbstractST {
                 JsonNode root = parseJson(json);
                 JsonNode connector = findByName(root, CONNECTOR_NAME);
                 assertNotNull(connector, "Should find connector '" + CONNECTOR_NAME + "'");
-                assertTrue(connector.path("class_name").asText().contains("FileStreamSinkConnector"),
+                assertTrue(connector.path("class_name").asText().contains(ECHO_SINK_CLASS_NAME),
                     "Should have correct class name");
             })
             .thenAssertResults();
@@ -232,7 +233,7 @@ class KafkaConnectToolsST extends AbstractST {
                 JsonNode connector = parseJson(json);
                 assertEquals(CONNECTOR_NAME, connector.path("name").asText());
                 assertEquals(CONNECT_CLUSTER_NAME, connector.path("connect_cluster").asText());
-                assertTrue(connector.path("class_name").asText().contains("FileStreamSinkConnector"));
+                assertTrue(connector.path("class_name").asText().contains(ECHO_SINK_CLASS_NAME));
                 assertEquals(1, connector.path("tasks_max").asInt());
                 assertEquals("running", connector.path("state").asText());
                 assertTrue(connector.has("config"), "Should have config for get operation");

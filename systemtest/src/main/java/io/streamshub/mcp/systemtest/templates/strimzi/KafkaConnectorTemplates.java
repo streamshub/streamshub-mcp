@@ -6,10 +6,16 @@ package io.streamshub.mcp.systemtest.templates.strimzi;
 
 import io.strimzi.api.kafka.model.connector.KafkaConnectorBuilder;
 
+import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectTemplates.ECHO_SINK_CLASS_NAME;
+
 /**
  * Template builders for KafkaConnector custom resources with sensible defaults.
  */
 public final class KafkaConnectorTemplates {
+
+    /** Default connector name used in system tests. */
+    public static final String CONNECTOR_NAME = "mcp-file-sink";
+
 
     private KafkaConnectorTemplates() {
     }
@@ -33,9 +39,9 @@ public final class KafkaConnectorTemplates {
                 .addToLabels("strimzi.io/cluster", connectClusterName)
             .endMetadata()
             .withNewSpec()
-                .withClassName("org.apache.kafka.connect.file.FileStreamSinkConnector")
+                .withClassName(ECHO_SINK_CLASS_NAME)
                 .withTasksMax(1)
-                .addToConfig("file", "/tmp/" + name + "-output.txt")
+                .addToConfig("level", "INFO")
                 .addToConfig("topics", topicName)
             .endSpec();
     }
