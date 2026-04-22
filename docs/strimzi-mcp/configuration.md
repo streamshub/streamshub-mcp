@@ -43,7 +43,7 @@ In dev mode, CORS is permissive (`/.*/`) to simplify testing.
 Override with a specific domain:
 
 ```bash
-export QUARKUS_HTTP_CORS_ORIGINS=https://your-domain.com
+QUARKUS_HTTP_CORS_ORIGINS=https://your-domain.com
 ```
 
 ## Log configuration
@@ -65,7 +65,7 @@ No additional configuration is required.
 To change the default number of log lines:
 
 ```bash
-export MCP_LOG_TAIL_LINES=500
+MCP_LOG_TAIL_LINES=500
 ```
 
 ### Loki log provider
@@ -81,8 +81,8 @@ Use Grafana Loki for centralized log collection and historical log queries.
 To enable Loki:
 
 ```bash
-export QUARKUS_REST_CLIENT_LOKI_URL=http://loki.monitoring:3100
-export MCP_LOG_PROVIDER=streamshub-loki
+QUARKUS_REST_CLIENT_LOKI_URL=http://loki.monitoring:3100
+MCP_LOG_PROVIDER=streamshub-loki
 ```
 
 #### Loki authentication
@@ -90,15 +90,15 @@ export MCP_LOG_PROVIDER=streamshub-loki
 **Basic authentication:**
 
 ```bash
-export MCP_LOG_LOKI_AUTH_MODE=basic
-export QUARKUS_REST_CLIENT_LOKI_USERNAME=your-username
-export QUARKUS_REST_CLIENT_LOKI_PASSWORD=your-password
+MCP_LOG_LOKI_AUTH_MODE=basic
+QUARKUS_REST_CLIENT_LOKI_USERNAME=your-username
+QUARKUS_REST_CLIENT_LOKI_PASSWORD=your-password
 ```
 
 **ServiceAccount token (Kubernetes):**
 
 ```bash
-export MCP_LOG_LOKI_AUTH_MODE=serviceaccount
+MCP_LOG_LOKI_AUTH_MODE=serviceaccount
 # The token is automatically read from the mounted ServiceAccount
 ```
 
@@ -124,16 +124,16 @@ mcp.log.loki.label.pod=kubernetes_pod_name
 **Server certificate verification:**
 
 ```bash
-export QUARKUS_REST_CLIENT_LOKI_TRUST_STORE=/etc/loki-tls/ca.crt
-export QUARKUS_REST_CLIENT_LOKI_TRUST_STORE_TYPE=PEM
+QUARKUS_REST_CLIENT_LOKI_TRUST_STORE=/etc/loki-tls/ca.crt
+QUARKUS_REST_CLIENT_LOKI_TRUST_STORE_TYPE=PEM
 ```
 
 **Mutual TLS with client certificate:**
 
 ```bash
-export QUARKUS_REST_CLIENT_LOKI_KEY_STORE=/etc/loki-tls/client.p12
-export QUARKUS_REST_CLIENT_LOKI_KEY_STORE_PASSWORD=changeit
-export QUARKUS_REST_CLIENT_LOKI_KEY_STORE_TYPE=PKCS12
+QUARKUS_REST_CLIENT_LOKI_KEY_STORE=/etc/loki-tls/client.p12
+QUARKUS_REST_CLIENT_LOKI_KEY_STORE_PASSWORD=changeit
+QUARKUS_REST_CLIENT_LOKI_KEY_STORE_TYPE=PKCS12
 ```
 
 ## Metrics configuration
@@ -165,8 +165,8 @@ Use Prometheus for centralized metrics with long-term retention.
 To enable Prometheus:
 
 ```bash
-export QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://prometheus.monitoring:9090
-export MCP_METRICS_PROVIDER=streamshub-prometheus
+QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://prometheus.monitoring:9090
+MCP_METRICS_PROVIDER=streamshub-prometheus
 ```
 
 #### Prometheus authentication
@@ -174,15 +174,15 @@ export MCP_METRICS_PROVIDER=streamshub-prometheus
 **Basic authentication:**
 
 ```bash
-export MCP_METRICS_PROMETHEUS_AUTH_MODE=basic
-export QUARKUS_REST_CLIENT_PROMETHEUS_USERNAME=your-username
-export QUARKUS_REST_CLIENT_PROMETHEUS_PASSWORD=your-password
+MCP_METRICS_PROMETHEUS_AUTH_MODE=basic
+QUARKUS_REST_CLIENT_PROMETHEUS_USERNAME=your-username
+QUARKUS_REST_CLIENT_PROMETHEUS_PASSWORD=your-password
 ```
 
 **ServiceAccount token (Kubernetes):**
 
 ```bash
-export MCP_METRICS_PROMETHEUS_AUTH_MODE=serviceaccount
+MCP_METRICS_PROMETHEUS_AUTH_MODE=serviceaccount
 ```
 
 #### Prometheus TLS configuration
@@ -190,17 +190,17 @@ export MCP_METRICS_PROMETHEUS_AUTH_MODE=serviceaccount
 **Server certificate verification:**
 
 ```bash
-export QUARKUS_REST_CLIENT_PROMETHEUS_TRUST_STORE=/etc/prometheus-tls/ca.crt
-export QUARKUS_REST_CLIENT_PROMETHEUS_TRUST_STORE_TYPE=PEM
-export QUARKUS_REST_CLIENT_PROMETHEUS_VERIFY_HOST=true
+QUARKUS_REST_CLIENT_PROMETHEUS_TRUST_STORE=/etc/prometheus-tls/ca.crt
+QUARKUS_REST_CLIENT_PROMETHEUS_TRUST_STORE_TYPE=PEM
+QUARKUS_REST_CLIENT_PROMETHEUS_VERIFY_HOST=true
 ```
 
 **Mutual TLS with client certificate:**
 
 ```bash
-export QUARKUS_REST_CLIENT_PROMETHEUS_KEY_STORE=/etc/prometheus-tls/client.p12
-export QUARKUS_REST_CLIENT_PROMETHEUS_KEY_STORE_PASSWORD=changeit
-export QUARKUS_REST_CLIENT_PROMETHEUS_KEY_STORE_TYPE=PKCS12
+QUARKUS_REST_CLIENT_PROMETHEUS_KEY_STORE=/etc/prometheus-tls/client.p12
+QUARKUS_REST_CLIENT_PROMETHEUS_KEY_STORE_PASSWORD=changeit
+QUARKUS_REST_CLIENT_PROMETHEUS_KEY_STORE_TYPE=PKCS12
 ```
 
 ## Advanced configuration
@@ -222,11 +222,11 @@ These settings control how much context the LLM receives during diagnostic workf
 To adjust token limits:
 
 ```bash
-export MCP_SAMPLING_TRIAGE_MAX_TOKENS=300
-export MCP_SAMPLING_ANALYSIS_MAX_TOKENS=2000
+MCP_SAMPLING_TRIAGE_MAX_TOKENS=300
+MCP_SAMPLING_ANALYSIS_MAX_TOKENS=2000
 ```
 
-See [Diagnostic Tools](tools.md#diagnostic-tools) for more information.
+See [Diagnostic tools](tools/diagnostics.md) for more information.
 
 ### Resource watch configuration
 
@@ -248,7 +248,7 @@ Changes trigger `notifications/resources/updated` messages to subscribed MCP cli
 To disable (useful for testing):
 
 ```bash
-export MCP_RESOURCE_WATCHES_ENABLED=false
+MCP_RESOURCE_WATCHES_ENABLED=false
 ```
 
 ### Events configuration
@@ -259,10 +259,10 @@ Control Kubernetes events collection behavior.
 |----------|---------|-------------|
 | `mcp.events.max-related-resources` | `50` | Maximum related resources (pods, PVCs) to query events for per cluster |
 
-This limits the number of related resources for which events are collected when using [`get_strimzi_events`](tools.md#get_strimzi_events).
+This limits the number of related resources for which events are collected when using [`get_strimzi_events`](tools/strimzi-operators.md#get_strimzi_events).
 
 ```bash
-export MCP_EVENTS_MAX_RELATED_RESOURCES=100
+MCP_EVENTS_MAX_RELATED_RESOURCES=100
 ```
 
 ### Completion cache configuration
@@ -276,7 +276,7 @@ Control autocomplete caching for prompt and resource template parameters.
 Completion results (namespace lists, cluster names, etc.) are cached to improve performance.
 
 ```bash
-export MCP_COMPLETION_CACHE_TTL_SECONDS=10
+MCP_COMPLETION_CACHE_TTL_SECONDS=10
 ```
 
 ### Topic pagination configuration
@@ -287,10 +287,10 @@ Control default pagination for topic listing.
 |----------|---------|-------------|
 | `mcp.topics.default-page-size` | `100` | Default number of topics per page |
 
-Used by [`list_kafka_topics`](tools.md#list_kafka_topics) when no explicit limit is provided.
+Used by [`list_kafka_topics`](tools/kafka-topics.md#list_kafka_topics) when no explicit limit is provided.
 
 ```bash
-export MCP_TOPICS_DEFAULT_PAGE_SIZE=50
+MCP_TOPICS_DEFAULT_PAGE_SIZE=50
 ```
 
 ## Security configuration
@@ -317,14 +317,14 @@ This prevents accidental exposure of credentials, tokens, and other secrets.
 **To disable (not recommended for production):**
 
 ```bash
-export MCP_GUARDRAIL_LOG_REDACTION_ENABLED=false
+MCP_GUARDRAIL_LOG_REDACTION_ENABLED=false
 ```
 
 **To add custom patterns:**
 
 ```bash
-export MCP_GUARDRAIL_LOG_REDACTION_CUSTOM_PATTERNS_0='(?i)ssn\s*[=:]\s*\d{3}-\d{2}-\d{4}'
-export MCP_GUARDRAIL_LOG_REDACTION_CUSTOM_PATTERNS_1='(?i)x-custom-header:\s*\S+'
+MCP_GUARDRAIL_LOG_REDACTION_CUSTOM_PATTERNS_0='(?i)ssn\s*[=:]\s*\d{3}-\d{2}-\d{4}'
+MCP_GUARDRAIL_LOG_REDACTION_CUSTOM_PATTERNS_1='(?i)x-custom-header:\s*\S+'
 ```
 
 Or in `application.properties`:
@@ -352,7 +352,7 @@ Prevent excessive response sizes that could impact client performance.
 When a response exceeds this limit, the largest text fields are truncated to fit.
 
 ```bash
-export MCP_GUARDRAIL_MAX_RESPONSE_BYTES=1000000  # 1MB
+MCP_GUARDRAIL_MAX_RESPONSE_BYTES=1000000  # 1MB
 ```
 
 ### Rate limiting
@@ -367,16 +367,16 @@ Control request rates per tool category to prevent resource exhaustion.
 
 Rate limits are enforced per tool category:
 
-- **Log category** — [`get_kafka_cluster_logs`](tools.md#get_kafka_cluster_logs), [`get_strimzi_operator_logs`](tools.md#get_strimzi_operator_logs)
-- **Metrics category** — [`get_kafka_metrics`](tools.md#get_kafka_metrics), [`get_kafka_exporter_metrics`](tools.md#get_kafka_exporter_metrics), [`get_strimzi_operator_metrics`](tools.md#get_strimzi_operator_metrics)
+- **Log category** — [`get_kafka_cluster_logs`](tools/kafka-clusters.md#get_kafka_cluster_logs), [`get_strimzi_operator_logs`](tools/strimzi-operators.md#get_strimzi_operator_logs)
+- **Metrics category** — [`get_kafka_metrics`](tools/metrics.md#get_kafka_metrics), [`get_kafka_exporter_metrics`](tools/metrics.md#get_kafka_exporter_metrics), [`get_strimzi_operator_metrics`](tools/metrics.md#get_strimzi_operator_metrics)
 - **General category** — All other tools
 
 To enable rate limiting:
 
 ```bash
-export MCP_GUARDRAIL_RATE_LIMIT_LOG_RPM=30
-export MCP_GUARDRAIL_RATE_LIMIT_METRICS_RPM=60
-export MCP_GUARDRAIL_RATE_LIMIT_GENERAL_RPM=120
+MCP_GUARDRAIL_RATE_LIMIT_LOG_RPM=30
+MCP_GUARDRAIL_RATE_LIMIT_METRICS_RPM=60
+MCP_GUARDRAIL_RATE_LIMIT_GENERAL_RPM=120
 ```
 
 When a rate limit is exceeded, the tool returns an error indicating the limit and retry time.
@@ -494,7 +494,8 @@ When configured, the MCP server uses Loki for centralized log collection instead
 
 ### Setup Loki
 
-Deploy Loki to your cluster using the Loki Operator:
+Deploy Loki to your cluster using the Loki Operator.
+The provided manifests use the Loki Operator from the Red Hat catalog.
 
 ```bash
 # Deploy Loki operator and instance
@@ -676,7 +677,7 @@ Load and run:
 
 ```bash
 export $(cat .env | xargs)
-mvn quarkus:dev
+./mvnw quarkus:dev
 ```
 
 ## Verification
@@ -762,7 +763,7 @@ kubectl -n streamshub-mcp logs -l app=streamshub-strimzi-mcp | grep -i auth
 
 ## Next steps
 
-- **[Tools Reference](tools.md)** — Explore available tools and their parameters
+- **[Tools reference](tools/)** — Explore available tools and their parameters
 - **[Usage Examples](usage-examples.md)** — See practical examples and workflows
 - **[Troubleshooting](troubleshooting.md)** — Resolve common issues
 

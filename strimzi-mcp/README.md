@@ -3,7 +3,7 @@
 A Quarkus application that provides Strimzi Kafka management tools via MCP (Model Context Protocol) for AI assistants and automation.
 
 > [!WARNING]
-> This project is in early alpha and under active development. APIs, tool definitions, and configuration may change without notice.
+> This project is in early alpha version and under active development. APIs, tool definitions, and configuration may change without notice.
 
 ## Overview
 
@@ -25,17 +25,28 @@ The AI assistant uses MCP tools to interact with your Kubernetes cluster and pro
 - `kubectl` configured to access your cluster
 - Java 21 or later and Maven 3.8 or later (for local development)
 
-### Deploy Strimzi (if needed)
+#### Deploy Strimzi (if needed)
 
 ```bash
-../dev/scripts/setup-strimzi.sh
+../dev/scripts/setup-strimzi.sh deploy
+```
+
+The script also supports optional flags for deploying observability infrastructure:
+
+```bash
+# Deploy Strimzi with Prometheus and Loki
+../dev/scripts/setup-strimzi.sh deploy --prometheus --loki
+
+# Or deploy them separately
+../dev/scripts/setup-prometheus.sh deploy
+../dev/scripts/setup-loki.sh deploy
 ```
 
 ### Run locally
 
 ```bash
-mvn clean package
-mvn quarkus:dev
+../mvnw clean package
+../mvnw quarkus:dev
 ```
 
 The server starts on `http://localhost:8080/mcp`.
@@ -73,9 +84,9 @@ Ask your AI assistant:
 
 For comprehensive documentation, see [`../docs/strimzi-mcp/`](../docs/strimzi-mcp/):
 
-- **[Installation](../docs/strimzi-mcp/installation.md)** -- Local and Kubernetes deployment
-- **[Configuration](../docs/strimzi-mcp/configuration.md)** -- Environment variables, integrations, security
-- **[Tools reference](../docs/strimzi-mcp/tools.md)** -- Complete tool catalog with parameters
+- **[Installation](../docs/strimzi-mcp/installation.md)** -- Strimzi MCP deployment locally or on top of Kubernetes
+- **[Configuration](../docs/strimzi-mcp/configuration.md)** -- Details about configuration options, integrations, security
+- **[Tools reference](../docs/strimzi-mcp/tools/)** -- Complete tool catalog with parameters
 - **[Usage examples](../docs/strimzi-mcp/usage-examples.md)** -- Practical workflows
 - **[Troubleshooting](../docs/strimzi-mcp/troubleshooting.md)** -- Common issues and solutions
 
@@ -99,17 +110,13 @@ Multi-step workflows with LLM-guided triage:
 
 ### Log collection
 
-- **Error analysis** -- Automatic detection and categorization
-- **Advanced filtering** -- By log level, keywords, time ranges
-- **Multiple providers** -- Kubernetes API or Loki
-- **Progress tracking** -- Real-time updates
+Collects logs from Kafka and Strimzi operator pods with automatic error detection and categorization, filtering by level, keywords, and time range, and support for multiple providers (Kubernetes API or Grafana Loki).
+Long-running collections report real-time progress to the client.
 
 ### Metrics analysis
 
-- **Category-based queries** -- Replication, throughput, performance, resources
-- **Interpretation guides** -- Thresholds and diagnostic recommendations
-- **Multiple providers** -- Pod scraping or Prometheus
-- **Kafka Exporter metrics** -- Consumer lag, topic partitions
+Queries metrics from Kafka brokers and the Strimzi operator with category-based queries (replication, throughput, performance, resources), built-in interpretation guides with thresholds, and support for multiple providers (pod scraping or Prometheus).
+Also includes Kafka Exporter metrics for consumer lag and topic partition analysis.
 
 ### Security guardrails
 
@@ -125,7 +132,7 @@ Real-time subscriptions to Kubernetes resources with automatic notifications whe
 
 ```bash
 # Build container image
-mvn clean package -DskipTests \
+../mvnw clean package -DskipTests \
   -Dquarkus.container-image.build=true \
   -Dquarkus.container-image.push=true
 
@@ -139,6 +146,8 @@ kubectl -n streamshub-mcp get pods
 For detailed instructions, see the [installation guide](../docs/strimzi-mcp/installation.md).
 
 ## Configuration
+
+The following table shows key environment variables for configuring log and metrics providers:
 
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|

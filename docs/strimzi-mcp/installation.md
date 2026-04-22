@@ -3,106 +3,96 @@ title = 'Installation'
 weight = 1
 +++
 
-This guide describes how to deploy the Strimzi MCP Server for local development or to a Kubernetes cluster for production use.
+This guide describes how to deploy the Strimzi MCP Server to a Kubernetes cluster.
+For a local development setup using `quarkus:dev`, see the [getting started guide](../getting-started.md).
 
 ## Prerequisites
 
 Before you begin, ensure you have:
 
-- A Kubernetes cluster with kubectl configured
+- A Kubernetes cluster with `kubectl` configured
 - The Strimzi operator deployed (see [Deploy Strimzi](#deploy-strimzi))
-- Java 21 or later and Maven 3.8 or later (for local development)
 - An AI assistant that supports MCP (Claude Desktop, Claude Code, or similar)
 
-## Quick start
+## Deploy Strimzi
 
-### Step 1: Deploy Strimzi
+If you do not have Strimzi deployed, follow these steps.
 
-```bash
-git clone https://github.com/streamshub/streamshub-mcp.git
-cd streamshub-mcp
-./dev/scripts/setup-strimzi.sh
-```
+### Using the setup script (recommended)
 
-This script deploys the Strimzi operator and creates a sample Kafka cluster named `mcp-cluster`.
-
-### Step 2: Start the MCP server
+The setup script automates the entire deployment process:
 
 ```bash
-cd strimzi-mcp
-mvn quarkus:dev
+./dev/scripts/setup-strimzi.sh deploy
 ```
 
-The server starts on `http://localhost:8080/mcp`.
+This script performs the following steps:
 
-### Step 3: Connect your AI assistant
+1. Deploys the Strimzi operator to the `strimzi` namespace
+2. Waits for the operator to be ready
+3. Creates the `strimzi-kafka` namespace
+4. Deploys a sample Kafka cluster named `mcp-cluster`
+5. Waits for the cluster to be ready
 
-**For Claude Code:**
+You can pass additional flags to deploy observability infrastructure alongside Strimzi:
 
 ```bash
-claude mcp add --transport http strimzi http://localhost:8080/mcp
+# Deploy Strimzi with Prometheus for metrics collection
+./dev/scripts/setup-strimzi.sh deploy --prometheus
+
+# Deploy Strimzi with Loki for log collection (OpenShift only)
+./dev/scripts/setup-strimzi.sh deploy --loki
+
+# Deploy Strimzi with both
+./dev/scripts/setup-strimzi.sh deploy --prometheus --loki
 ```
 
-**For Claude Desktop:**
-
-Add the following to your config file at `~/Library/Application Support/Claude/claude_desktop_config.json` (on macOS):
-
-```json
-{
-  "mcpServers": {
-    "strimzi": {
-      "transport": "http",
-      "url": "http://localhost:8080/mcp"
-    }
-  }
-}
-```
-
-Restart your AI assistant after making this change.
-
-### Step 4: Verify installation
-
-Ask your AI assistant:
-
-- "List all Kafka clusters"
-- "What's the status of mcp-cluster?"
-- "Diagnose issues with mcp-cluster"
-
-## Local development
-
-### Build and run
+On OpenShift, add the `--ocp` flag to use Route listeners instead of NodePort:
 
 ```bash
-# Navigate to the strimzi-mcp directory
-cd strimzi-mcp
-
-# Build the project
-mvn clean package
-
-# Start in development mode with hot reload
-mvn quarkus:dev
+./dev/scripts/setup-strimzi.sh deploy --ocp
 ```
 
-The server starts on `http://localhost:8080/mcp` with:
+### Manual deployment
 
-- Hot reload enabled for code changes
-- Dev UI available at `http://localhost:8080/q/dev`
-- Health checks at `http://localhost:8080/q/health`
-
-### Test with MCP inspector
-
-The MCP Inspector provides a web UI for testing tools without an AI assistant.
+If you prefer to deploy manually:
 
 ```bash
-npx @modelcontextprotocol/inspector http://localhost:8080/mcp
+# Deploy the Strimzi operator
+kubectl apply -k dev/manifests/strimzi/strimzi-operator/
+
+# Wait for the operator to be ready
+kubectl wait --for=condition=Available \
+  deployment/strimzi-cluster-operator \
+  -n strimzi \
+  --timeout=120s
+
+# Deploy a Kafka cluster
+kubectl apply -k dev/manifests/strimzi/kafka/
+
+# Wait for the cluster to be ready
+kubectl wait kafka/mcp-cluster \
+  --for=condition=Ready \
+  -n strimzi-kafka \
+  --timeout=300s
 ```
 
-This opens a browser interface where you can:
+### Verify Strimzi installation
 
-- Browse available tools and their parameters
-- Test tool invocations with sample data
-- View responses in real-time
-- Debug issues with tool calls
+Check that Strimzi is running correctly:
+
+```bash
+# Check the operator
+kubectl get deployment -n strimzi
+
+# Check the Kafka cluster
+kubectl get kafka -n strimzi-kafka
+
+# Check the pods
+kubectl get pods -n strimzi-kafka
+```
+
+You should see the operator running and the Kafka cluster in a Ready state.
 
 ## Kubernetes deployment
 
@@ -114,7 +104,7 @@ Build and push the container image to your registry:
 cd strimzi-mcp
 
 # Build and push to your registry
-mvn clean package -DskipTests \
+../mvnw clean package -DskipTests \
   -Dquarkus.container-image.build=true \
   -Dquarkus.container-image.push=true \
   -Dquarkus.container-image.registry=quay.io \
@@ -160,19 +150,19 @@ The MCP server uses a two-tier RBAC model for security.
 
 The ClusterRole grants read-only access to:
 
-- Strimzi custom resources: `get`, `list`, `watch`
-- Deployments: `get`, `list`, `watch`
-- Pods and logs: `get`, `list`
-- Services and ConfigMaps: `get`, `list`
-- Routes and Ingresses: `get`, `list`
-- Leases: `get`, `list`
+- Strimzi custom resources -- `get`, `list`, `watch`
+- Deployments -- `get`, `list`, `watch`
+- Pods and logs -- `get`, `list`
+- Services and ConfigMaps -- `get`, `list`
+- Routes and Ingresses -- `get`, `list`
+- Leases -- `get`, `list`
 
 **Role (opt-in per namespace, sensitive resources):**
 
 The optional Role grants access to:
 
-- Secrets: `get` (for certificate metadata only, not secret data)
-- Pods/proxy: `get` (for direct metrics scraping from pods)
+- Secrets -- `get` (for certificate metadata only, not secret data)
+- Pods/proxy -- `get` (for direct metrics scraping from pods)
 
 Deploy the sensitive Role only in namespaces where you need these features:
 
@@ -249,67 +239,6 @@ spec:
 
 Apply the Ingress and configure your MCP client with: `https://mcp.example.com/mcp`.
 
-## Deploy strimzi
-
-If you do not have Strimzi deployed, follow these steps.
-
-### Using the setup script (recommended)
-
-The setup script automates the entire deployment process:
-
-```bash
-./dev/scripts/setup-strimzi.sh
-```
-
-This script performs the following steps:
-
-1. Deploys the Strimzi operator to the `strimzi` namespace
-2. Waits for the operator to be ready
-3. Creates the `strimzi-kafka` namespace
-4. Deploys a sample Kafka cluster named `mcp-cluster`
-5. Waits for the cluster to be ready
-
-### Manual deployment
-
-If you prefer to deploy manually:
-
-```bash
-# Deploy the Strimzi operator
-kubectl apply -k dev/manifests/strimzi/strimzi-operator/
-
-# Wait for the operator to be ready
-kubectl wait --for=condition=Available \
-  deployment/strimzi-cluster-operator \
-  -n strimzi \
-  --timeout=120s
-
-# Deploy a Kafka cluster
-kubectl apply -k dev/manifests/strimzi/kafka/
-
-# Wait for the cluster to be ready
-kubectl wait kafka/mcp-cluster \
-  --for=condition=Ready \
-  -n strimzi-kafka \
-  --timeout=300s
-```
-
-### Verify strimzi installation
-
-Check that Strimzi is running correctly:
-
-```bash
-# Check the operator
-kubectl get deployment -n strimzi
-
-# Check the Kafka cluster
-kubectl get kafka -n strimzi-kafka
-
-# Check the pods
-kubectl get pods -n strimzi-kafka
-```
-
-You should see the operator running and the Kafka cluster in a Ready state.
-
 ## Verification
 
 ### Health checks
@@ -340,18 +269,11 @@ curl -X POST http://localhost:8080/mcp \
 
 You should see a JSON response listing all available MCP tools.
 
-## Next steps
-
-- **[Configuration](configuration.md)** — Configure Loki, Prometheus, and other settings
-- **[Tools Reference](tools.md)** — Explore available tools and their parameters
-- **[Usage Examples](usage-examples.md)** — See practical examples and workflows
-- **[Troubleshooting](troubleshooting.md)** — Resolve common issues
-
 ## Troubleshooting installation
 
 ### Server does not start
 
-If the server fails to start:
+If the server fails to start in Kubernetes:
 
 ```bash
 # Check Kubernetes connectivity
@@ -360,8 +282,8 @@ kubectl cluster-info
 # Verify Strimzi CRDs exist
 kubectl get crd | grep strimzi
 
-# Check server logs for errors
-mvn quarkus:dev
+# Check server logs
+kubectl -n streamshub-mcp logs deployment/streamshub-strimzi-mcp
 ```
 
 ### RBAC permission errors
@@ -388,4 +310,11 @@ If your AI assistant cannot connect:
 3. Verify your MCP client configuration has the correct URL
 4. Check server logs for connection attempts
 
-For more help, see the [Troubleshooting Guide](troubleshooting.md).
+For more help, see the [troubleshooting guide](troubleshooting.md).
+
+## Next steps
+
+- **[Configuration](configuration.md)** -- Configure Loki, Prometheus, and other settings
+- **[Tools reference](tools/)** -- Explore available tools and their parameters
+- **[Usage examples](usage-examples.md)** -- See practical examples and workflows
+- **[Troubleshooting](troubleshooting.md)** -- Resolve common issues

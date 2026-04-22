@@ -44,9 +44,9 @@ Documentation is available in the [`docs/`](docs/) directory:
 ## Development
 
 ```bash
-mvn compile              # Compile all modules (includes checkstyle)
-mvn test                 # Run unit tests
-mvn verify -Psystemtest  # Run system tests (requires Kubernetes cluster)
+./mvnw compile              # Compile all modules (includes checkstyle)
+./mvnw test                 # Run unit tests
+./mvnw verify -Psystemtest  # Run system tests (requires Kubernetes cluster)
 ```
 
 For more details:

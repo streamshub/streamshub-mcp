@@ -8,13 +8,9 @@ weight = 0
 
 StreamsHub MCP provides Model Context Protocol (MCP) servers for managing Kubernetes-based streaming infrastructure through AI assistants.
 
-## Getting started
-
-To set up your first MCP server, see the [getting started guide](getting-started.md).
-
 ## Available MCP servers
 
-### Strimzi MCP server
+### Strimzi MCP Server
 
 The Strimzi MCP Server provides tools for managing and troubleshooting Apache Kafka clusters deployed with the Strimzi operator on Kubernetes.
 
@@ -26,6 +22,10 @@ The Strimzi MCP Server provides tools for managing and troubleshooting Apache Ka
 - Monitoring Strimzi operator health and reconciliation
 
 For more information, see the [Strimzi MCP Server documentation](strimzi-mcp/).
+
+## Getting started
+
+To set up your first MCP server, see the [getting started guide](getting-started.md).
 
 ## What is MCP?
 

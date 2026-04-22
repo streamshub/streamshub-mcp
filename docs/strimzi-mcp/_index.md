@@ -6,7 +6,7 @@ weight = 1
 The Strimzi MCP Server provides AI assistants with tools to manage and troubleshoot Apache Kafka clusters deployed with the Strimzi operator on Kubernetes.
 
 > **Warning:**
-> This project is in early alpha and under active development.
+> This project is in early alpha version and under active development.
 > APIs, tool definitions, and configuration may change without notice.
 
 ## Overview
@@ -31,6 +31,7 @@ With the Strimzi MCP Server, AI assistants can:
 All tools support automatic namespace discovery.
 The namespace parameter is optional on every tool.
 When no namespace is specified, tools search across the entire cluster to find matching resources.
+Note that access to listing namespaces may be limited by RBAC configuration.
 
 ### Composite diagnostic tools
 
@@ -44,10 +45,10 @@ These tools use LLM-guided triage to focus investigation on problem areas:
 
 Available diagnostic tools:
 
-- [`diagnose_kafka_cluster`](tools.md#diagnose_kafka_cluster) -- Cluster health check
-- [`diagnose_kafka_connectivity`](tools.md#diagnose_kafka_connectivity) -- Connectivity troubleshooting
-- [`diagnose_kafka_metrics`](tools.md#diagnose_kafka_metrics) -- Metrics analysis and anomaly detection
-- [`diagnose_operator_metrics`](tools.md#diagnose_operator_metrics) -- Operator performance analysis
+- [`diagnose_kafka_cluster`](tools/diagnostics.md#diagnose_kafka_cluster) -- Cluster health check
+- [`diagnose_kafka_connectivity`](tools/diagnostics.md#diagnose_kafka_connectivity) -- Connectivity troubleshooting
+- [`diagnose_kafka_metrics`](tools/diagnostics.md#diagnose_kafka_metrics) -- Metrics analysis and anomaly detection
+- [`diagnose_operator_metrics`](tools/diagnostics.md#diagnose_operator_metrics) -- Operator performance analysis
 
 ### Log collection
 
@@ -95,8 +96,8 @@ The server integrates with the following observability platforms:
 ## Documentation
 
 - **[Installation](installation.md)** -- Deploy locally or to Kubernetes
-- **[Configuration](configuration.md)** -- Environment variables and integration setup
-- **[Tools reference](tools.md)** -- Complete tool catalog
+- **[Configuration](configuration.md)** -- Detailed configuration and integration setup
+- **[Tools reference](tools/)** -- Complete tool catalog
 - **[Usage examples](usage-examples.md)** -- Practical workflows and patterns
 - **[Troubleshooting](troubleshooting.md)** -- Common issues and solutions
 

@@ -7,8 +7,8 @@ Contributions to StreamsHub MCP are welcome.
 1. Fork the repository and create a feature branch
 2. Make your changes following the code style and patterns in [AGENTS.md](AGENTS.md)
 3. Write tests for new functionality
-4. Run `mvn compile` to verify checkstyle compliance
-5. Run `mvn test` to ensure all tests pass
+4. Run `./mvnw compile` to verify checkstyle compliance
+5. Run `./mvnw test` to ensure all tests pass
 6. Open a pull request
 
 ## Branch naming
@@ -22,9 +22,9 @@ Use descriptive branch names:
 ## Build and test
 
 ```bash
-mvn compile              # Compile and run checkstyle
-mvn test                 # Run unit tests
-mvn verify -Psystemtest  # Run system tests (requires Kubernetes cluster)
+./mvnw compile              # Compile and run checkstyle
+./mvnw test                 # Run unit tests
+./mvnw verify -Psystemtest  # Run system tests (requires Kubernetes cluster)
 ```
 
 ## Code style and patterns
@@ -43,8 +43,8 @@ Key points:
 
 Before submitting:
 
-- [ ] All tests pass (`mvn test`)
-- [ ] Checkstyle passes (`mvn compile`)
+- [ ] All tests pass (`./mvnw test`)
+- [ ] Checkstyle passes (`./mvnw compile`)
 - [ ] Code is documented (Javadoc on public APIs)
 - [ ] Changes are covered by tests
 - [ ] User documentation updated if applicable (see `docs/`)

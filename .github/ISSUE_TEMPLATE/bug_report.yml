@@ -1,0 +1,79 @@
+---
+name: Bug report
+description: Create a report to help us improve
+title: '[Bug]: '
+labels: ['bug', 'needs-triage']
+body:
+  - type: markdown
+    attributes:
+      value: _Please use this only for bug reports. For questions or when you need help, use [GitHub Discussions](https://github.com/streamshub/streamshub-mcp/discussions)._
+  - type: textarea
+    attributes:
+      label: Bug description
+      description: Describe the bug
+      placeholder: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected behavior
+      description: What is the behavior you expected to see?
+      placeholder: A clear and concise description of what you expected to happen.
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Configure MCP server with ...
+        2. Ask the AI assistant ...
+        3. See error ...
+    validations:
+      required: false
+  - type: input
+    id: mcp-version
+    attributes:
+      label: StreamsHub MCP version
+      description: Version or commit where the bug occurred
+      placeholder: e.g. main, 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: kubernetes-version
+    attributes:
+      label: Kubernetes version
+      description: Kubernetes version where the bug occurred
+      placeholder: e.g. Kubernetes 1.31, OpenShift 4.17
+    validations:
+      required: true
+  - type: input
+    id: strimzi-version
+    attributes:
+      label: Strimzi version
+      description: Strimzi operator version
+      placeholder: e.g. 0.45.0
+    validations:
+      required: false
+  - type: input
+    id: mcp-client
+    attributes:
+      label: MCP client
+      description: AI assistant or MCP client used
+      placeholder: e.g. Claude Desktop, Claude Code, VS Code
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: Logs
+      description: All relevant configuration and log files
+      placeholder: Attach or copy and paste the relevant logs.
+    validations:
+      required: false
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Any additional context related to the problem
+      placeholder: Add any other context about the problem here.
+    validations:
+      required: false

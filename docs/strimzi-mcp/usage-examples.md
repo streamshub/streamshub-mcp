@@ -486,7 +486,7 @@ Direct tool calls via MCP protocol:
 
 ## Next steps
 
-- **[Tools Reference](tools.md)** — Complete tool catalog
+- **[Tools reference](tools/)** — Complete tool catalog
 - **[Troubleshooting](troubleshooting.md)** — Resolve common issues
 - **[Configuration](configuration.md)** — Configure integrations
 

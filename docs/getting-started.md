@@ -39,7 +39,7 @@ cd streamshub-mcp
 To deploy the Strimzi operator and a sample Kafka cluster, run the setup script:
 
 ```bash
-./dev/scripts/setup-strimzi.sh
+./dev/scripts/setup-strimzi.sh deploy
 ```
 
 The script deploys the Strimzi operator and creates a Kafka cluster named `mcp-cluster`.
@@ -48,7 +48,7 @@ The script deploys the Strimzi operator and creates a Kafka cluster named `mcp-c
 
 ```bash
 cd strimzi-mcp
-mvn quarkus:dev
+../mvnw quarkus:dev
 ```
 
 The server starts on `http://localhost:8080/mcp`.
@@ -100,6 +100,6 @@ For detailed instructions on Kubernetes deployments, RBAC configuration, and ext
 
 - **[Installation](strimzi-mcp/installation.md)** -- Detailed setup including Kubernetes deployment
 - **[Configuration](strimzi-mcp/configuration.md)** -- Configure Loki and Prometheus integration
-- **[Tools reference](strimzi-mcp/tools.md)** -- Available tools and prompts
+- **[Tools reference](strimzi-mcp/tools/)** -- Available tools and prompts
 - **[Usage examples](strimzi-mcp/usage-examples.md)** -- Practical workflows
 - **[Troubleshooting](strimzi-mcp/troubleshooting.md)** -- Resolve common issues

@@ -25,8 +25,7 @@ streaming platforms. Java 21, Quarkus 3.x, Strimzi API 0.51.x, Fabric8 Kubernete
    - Introducing new architectural layers
    - Modifying development workflows
 
-Documentation updates are NOT optional.
-They are part of the feature implementation and must be completed before the task is considered done.
+Documentation updates are mandatory and must be completed before the task is considered done.
 
 ## Modules
 
@@ -38,9 +37,9 @@ They are part of the feature implementation and must be completed before the tas
 ## Build & Test
 
 ```bash
-mvn compile                      # compile all modules + checkstyle
-mvn test                         # unit tests (no live cluster needed)
-mvn quarkus:dev -pl strimzi-mcp  # dev mode on http://localhost:8080/mcp
+./mvnw compile                      # compile all modules + checkstyle
+./mvnw test                         # unit tests (no live cluster needed)
+./mvnw quarkus:dev -pl strimzi-mcp  # dev mode on http://localhost:8080/mcp
 ```
 
 Checkstyle runs during compile phase. Fix all violations before committing.
@@ -277,7 +276,7 @@ Compose existing DTOs into a single report. Follow the naming pattern `Kafka*Dia
 3. Add the `@Tool` method to `DiagnosticTools`
 4. Add the tool name to `McpDiscoveryTest.testToolDiscovery()` expected list
 5. Create a service test in `strimzi-mcp/src/test/.../strimzi/service/`
-6. Run `mvn compile && mvn test`
+6. Run `./mvnw compile && ./mvnw test`
 
 ### Logging in diagnostic services
 
@@ -514,8 +513,8 @@ Before adding a new constant, check if it already exists in `ResourceLabels`, `P
 1. Create or update the DTO record in `strimzi-mcp/src/.../strimzi/dto/`
 2. Add the service method to the appropriate domain service in `strimzi-mcp/src/.../strimzi/service/`
 3. Add the `@Tool` method to the corresponding tools class in `strimzi-mcp/src/.../strimzi/tool/`
-4. Run `mvn compile` to verify checkstyle + compilation
-5. Run `mvn test` to verify tests pass
+4. Run `./mvnw compile` to verify checkstyle + compilation
+5. Run `./mvnw test` to verify tests pass
 
 ## Adding a New Module
 

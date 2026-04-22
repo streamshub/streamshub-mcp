@@ -6,10 +6,10 @@ Unit tests use Quarkus test framework with Mockito to mock Kubernetes API intera
 No live Kubernetes cluster is required.
 
 ```bash
-mvn test                                        # Run all unit tests
-mvn test -pl strimzi-mcp                        # Run tests for a specific module
-mvn test -Dtest=KafkaServiceTest                # Run a single test class
-mvn test -Dtest=KafkaServiceTest#listClusters   # Run a single test method
+./mvnw test                                        # Run all unit tests
+./mvnw test -pl strimzi-mcp                        # Run tests for a specific module
+./mvnw test -Dtest=KafkaServiceTest                # Run a single test class
+./mvnw test -Dtest=KafkaServiceTest#listClusters   # Run a single test method
 ```
 
 ### Writing unit tests
@@ -28,11 +28,14 @@ System tests are **skipped by default**.
 Enable them with the `systemtest` Maven profile:
 
 ```bash
-mvn verify -Psystemtest
+# Default execution
+./mvnw verify -Psystemtest
 
-mvn verify -Psystemtest -DMCP_IMAGE=quay.io/myorg/strimzi-mcp:dev
+# Using custom MCP image
+./mvnw verify -Psystemtest -DMCP_IMAGE=quay.io/myorg/strimzi-mcp:dev
 
-mvn verify -Psystemtest -DSKIP_STRIMZI_INSTALL=true
+# Use existing Strimzi installation on the cluster
+./mvnw verify -Psystemtest -DSKIP_STRIMZI_INSTALL=true
 ```
 
 ### Configuration
@@ -40,7 +43,7 @@ mvn verify -Psystemtest -DSKIP_STRIMZI_INSTALL=true
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `MCP_IMAGE` | MCP server container image | `quay.io/streamshub/strimzi-mcp:latest` |
-| `MCP_URL` | Direct MCP URL (skips connectivity setup) | `null` |
+| `MCP_URL` | Direct MCP URL (skips connectivity setup). Not all system tests support this option. | `null` |
 | `MCP_CONNECTIVITY` | Connectivity strategy: `NODEPORT`, `INGRESS`, or `ROUTE` | Auto-detected |
 | `MCP_INGRESS_PORT` | Localhost port for Ingress access | `9090` |
 | `MCP_INGRESS_HOST` | Hostname for Ingress rule | `""` (no host constraint) |

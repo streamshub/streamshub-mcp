@@ -42,7 +42,7 @@ Resolve common issues when using the Strimzi MCP Server.
    lsof -i :8080
    
    # Kill the process or use a different port
-   mvn quarkus:dev -Dquarkus.http.port=8081
+   ./mvnw quarkus:dev -Dquarkus.http.port=8081
    ```
 
 3. **Missing Strimzi CRDs**
@@ -56,7 +56,7 @@ Resolve common issues when using the Strimzi MCP Server.
    kubectl get crd | grep strimzi
    
    # Deploy Strimzi operator if missing
-   ./dev/scripts/setup-strimzi.sh
+   ./dev/scripts/setup-strimzi.sh deploy
    ```
 
 ### Server starts but AI assistant cannot connect
@@ -513,7 +513,7 @@ kubectl -n streamshub-mcp get pod <pod-name> -o yaml | grep -A 5 resources
 # For local development
 export QUARKUS_LOG_LEVEL=DEBUG
 export QUARKUS_LOG_CATEGORY__IO_STREAMSHUB_MCP__LEVEL=TRACE
-mvn quarkus:dev
+./mvnw quarkus:dev
 
 # For Kubernetes deployment
 kubectl -n streamshub-mcp set env deployment/streamshub-strimzi-mcp \
