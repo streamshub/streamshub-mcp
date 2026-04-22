@@ -10,13 +10,12 @@ import io.strimzi.api.kafka.model.connect.KafkaConnectBuilder;
 import io.strimzi.api.kafka.model.connect.KafkaConnectResources;
 import io.strimzi.api.kafka.model.connect.build.DockerOutput;
 import io.strimzi.api.kafka.model.connect.build.DockerOutputBuilder;
-import io.strimzi.api.kafka.model.connect.build.JarArtifactBuilder;
 import io.strimzi.api.kafka.model.connect.build.Plugin;
 import io.strimzi.api.kafka.model.connect.build.PluginBuilder;
+import io.strimzi.api.kafka.model.connect.build.TgzArtifactBuilder;
 import io.strimzi.api.kafka.model.kafka.KafkaResources;
 
 import static io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup.isOpenShift;
-import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectorTemplates.CONNECTOR_NAME;
 import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates.DEFAULT_KAFKA_VERSION;
 
 /**
@@ -27,18 +26,18 @@ public final class KafkaConnectTemplates {
     /** Default number of Connect replicas. */
     private static final int DEFAULT_REPLICAS = 1;
 
-    /**
-     * Constants for KafkaConnect EchoSink plugin
-     */
-    private static final String ECHO_SINK_CONNECTOR_NAME = "echo-sink-connector";
-    /** Fully qualified class name for the EchoSink connector. */
-    public static final String ECHO_SINK_CLASS_NAME = "cz.scholz.kafka.connect.echosink.EchoSinkConnector";
-    private static final String ECHO_SINK_TGZ_URL = "https://github.com/scholzj/echo-sink/archive/1.6.0.tar.gz";
-    private static final String ECHO_SINK_TGZ_CHECKSUM = "19b8d501ce0627cff2770ee489e59c205ac81263e771aa11b5848c2c289d917cda22f1fc7fc693a91bad63181787d7c48791796f1a33f8f75d594aefebf1e684";
-    private static final String ECHO_SINK_JAR_URL = "https://github.com/scholzj/echo-sink/releases/download/1.6.0/echo-sink-1.6.0.jar";
-    private static final String ECHO_SINK_JAR_CHECKSUM = "3f30d48079578f9f2d0a097ed9a7088773b135dff3dc8e70d87f8422c073adc1181cb41d823c1d1472b0447a337e4877e535daa34ca8ef21d608f8ee6f5e4a9c";
-    private static final String ECHO_SINK_FILE_NAME = "echo-sink-test.jar";
-    private static final String ECHO_SINK_JAR_WRONG_CHECKSUM = "f1f167902325062efc8c755647bc1b782b2b067a87a6e507ff7a3f6205803220";
+    /** Fully qualified class name for the Camel Timer Source connector. */
+    public static final String CAMEL_TIMER_SOURCE_CLASS_NAME =
+        "org.apache.camel.kafkaconnector.timersource.CamelTimersourceSourceConnector";
+
+    private static final String CAMEL_TIMER_SOURCE_PLUGIN_NAME = "camel-timer-source";
+    private static final String CAMEL_TIMER_SOURCE_TGZ_URL =
+        "https://repo.maven.apache.org/maven2/org/apache/camel/kafkaconnector/"
+            + "camel-timer-source-kafka-connector/4.18.0/"
+            + "camel-timer-source-kafka-connector-4.18.0-package.tar.gz";
+    private static final String CAMEL_TIMER_SOURCE_TGZ_SHA512 =
+        "79fd69db4a99911d952630cd14cee4e2447c2dad1c47d59910c71218701535c09be4171ebd76f689695892b711a71553"
+            + "bb91ef6b33c52ee795a7c173a0f3a69e";
 
     private KafkaConnectTemplates() {
     }
@@ -56,11 +55,11 @@ public final class KafkaConnectTemplates {
                                                     final String kafkaClusterName, final int replicas) {
 
         Plugin plugin = new PluginBuilder()
-            .withName(CONNECTOR_NAME)
+            .withName(CAMEL_TIMER_SOURCE_PLUGIN_NAME)
             .withArtifacts(
-                new JarArtifactBuilder()
-                    .withUrl(ECHO_SINK_JAR_URL)
-                    .withSha512sum(ECHO_SINK_JAR_CHECKSUM)
+                new TgzArtifactBuilder()
+                    .withUrl(CAMEL_TIMER_SOURCE_TGZ_URL)
+                    .withSha512sum(CAMEL_TIMER_SOURCE_TGZ_SHA512)
                     .build())
             .build();
 
@@ -92,11 +91,13 @@ public final class KafkaConnectTemplates {
                 .withOffsetStorageTopic(KafkaConnectResources.configStorageTopicOffsets(name))
                 .withStatusStorageTopic(KafkaConnectResources.configStorageTopicStatus(name))
                 // Maybe not needed?
+                .addToConfig("key.converter", "org.apache.kafka.connect.storage.StringConverter")
+                .addToConfig("value.converter", "org.apache.kafka.connect.storage.StringConverter")
                 .addToConfig("config.storage.replication.factor", "-1")
                 .addToConfig("offset.storage.replication.factor", "-1")
                 .addToConfig("status.storage.replication.factor", "-1")
                 .withNewInlineLogging()
-                    .addToLoggers("rootLogger.level", "DEBUG")
+                    .addToLoggers("rootLogger.level", "INFO")
                 .endInlineLogging()
             .endSpec();
     }

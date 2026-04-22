@@ -6,7 +6,7 @@ package io.streamshub.mcp.systemtest.templates.strimzi;
 
 import io.strimzi.api.kafka.model.connector.KafkaConnectorBuilder;
 
-import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectTemplates.ECHO_SINK_CLASS_NAME;
+import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectTemplates.CAMEL_TIMER_SOURCE_CLASS_NAME;
 
 /**
  * Template builders for KafkaConnector custom resources with sensible defaults.
@@ -14,24 +14,23 @@ import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectTemplat
 public final class KafkaConnectorTemplates {
 
     /** Default connector name used in system tests. */
-    public static final String CONNECTOR_NAME = "mcp-file-sink";
-
+    public static final String CONNECTOR_NAME = "mcp-timer-source";
 
     private KafkaConnectorTemplates() {
     }
 
     /**
-     * Create a KafkaConnector builder for a FileStreamSink connector.
+     * Create a KafkaConnector builder for a Camel Timer Source connector.
      *
      * @param namespace          the namespace
      * @param name               the connector name
      * @param connectClusterName the parent KafkaConnect cluster name
-     * @param topicName          the topic to consume from
+     * @param topicName          the topic to produce to
      * @return a pre-configured KafkaConnectorBuilder
      */
-    public static KafkaConnectorBuilder fileStreamSink(final String namespace, final String name,
-                                                        final String connectClusterName,
-                                                        final String topicName) {
+    public static KafkaConnectorBuilder camelTimerSource(final String namespace, final String name,
+                                                          final String connectClusterName,
+                                                          final String topicName) {
         return new KafkaConnectorBuilder()
             .withNewMetadata()
                 .withName(name)
@@ -39,10 +38,11 @@ public final class KafkaConnectorTemplates {
                 .addToLabels("strimzi.io/cluster", connectClusterName)
             .endMetadata()
             .withNewSpec()
-                .withClassName(ECHO_SINK_CLASS_NAME)
+                .withClassName(CAMEL_TIMER_SOURCE_CLASS_NAME)
                 .withTasksMax(1)
-                .addToConfig("level", "INFO")
                 .addToConfig("topics", topicName)
+                .addToConfig("camel.kamelet.timer-source.message", "mcp-test")
+                .addToConfig("camel.kamelet.timer-source.period", 60000)
             .endSpec();
     }
 
