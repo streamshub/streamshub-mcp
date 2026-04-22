@@ -56,11 +56,12 @@ jobs:
         kind load docker-image quay.io/streamshub/strimzi-mcp:test --name kind-cluster
 
     - name: Run system tests
+      env:
+        MCP_IMAGE: quay.io/streamshub/strimzi-mcp:test
+        MCP_CONNECTIVITY: NODEPORT
       run: |
         ./mvnw verify -pl systemtest \
-          -Psystemtest \
-          -DMCP_IMAGE=quay.io/streamshub/strimzi-mcp:test \
-          -DMCP_CONNECTIVITY=NODEPORT
+          -Psystemtest
 
     - name: Generate Allure report
       if: always()
