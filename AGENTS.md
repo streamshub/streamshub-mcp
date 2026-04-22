@@ -3,6 +3,30 @@
 Multi-module Quarkus mono-repo providing MCP (Model Context Protocol) servers for Kubernetes-based
 streaming platforms. Java 21, Quarkus 3.x, Strimzi API 0.51.x, Fabric8 Kubernetes client.
 
+## Documentation Structure
+
+- **User docs**: `docs/` -- Installation, configuration, usage, and troubleshooting for end users. Each MCP server has its own subdirectory (e.g., `docs/strimzi-mcp/`).
+- **Developer docs**: This file (`AGENTS.md`) -- Architecture, patterns, and conventions for developers
+
+### Documentation Update Requirements
+
+**CRITICAL**: When implementing new features or modifying existing functionality, you MUST update the relevant documentation:
+
+1. **User documentation** (`docs/`) -- Update when:
+   - Adding new MCP tools, prompts, or resource templates
+   - Changing tool parameters or behavior
+   - Modifying configuration options
+   - Adding new features visible to end users
+
+2. **This file** (`AGENTS.md`) -- Update when:
+   - Changing architecture or design patterns
+   - Adding new modules or services
+   - Changing coding standards
+   - Introducing new architectural layers
+   - Modifying development workflows
+
+Documentation updates are mandatory and must be completed before the task is considered done.
+
 ## Modules
 
 - **`common`** (`streamshub-mcp-common`) - Generic Kubernetes helpers, DTOs, MCP framework utilities shared across modules
@@ -13,9 +37,9 @@ streaming platforms. Java 21, Quarkus 3.x, Strimzi API 0.51.x, Fabric8 Kubernete
 ## Build & Test
 
 ```bash
-mvn compile                      # compile all modules + checkstyle
-mvn test                         # unit tests (no live cluster needed)
-mvn quarkus:dev -pl strimzi-mcp  # dev mode on http://localhost:8080/mcp
+./mvnw compile                      # compile all modules + checkstyle
+./mvnw test                         # unit tests (no live cluster needed)
+./mvnw quarkus:dev -pl strimzi-mcp  # dev mode on http://localhost:8080/mcp
 ```
 
 Checkstyle runs during compile phase. Fix all violations before committing.
@@ -96,7 +120,7 @@ io.streamshub.mcp.strimzi.
   query param construction, and delegation. Do not inject `Instance<MetricsProvider>` directly in domain services.
 - **Diagnostic services** orchestrate multi-step workflows by calling existing domain services.
   They use `DiagnosticHelper` (common/) for MCP framework interactions and `NamespaceElicitationHelper`
-  (strimzi-mcp) for Strimzi-specific namespace disambiguation. Individual step failures don't abort the workflow.
+  (strimzi-mcp) for Strimzi-specific namespace disambiguation. Individual step failures do not abort the workflow.
 - **Metric category constants** are defined as public `static final String` fields in each `*MetricCategories` class
   (e.g., `KafkaMetricCategories.REPLICATION`). Use these constants instead of string literals when referencing
   metric categories in services, diagnostic tools, or prompts.
@@ -252,7 +276,7 @@ Compose existing DTOs into a single report. Follow the naming pattern `Kafka*Dia
 3. Add the `@Tool` method to `DiagnosticTools`
 4. Add the tool name to `McpDiscoveryTest.testToolDiscovery()` expected list
 5. Create a service test in `strimzi-mcp/src/test/.../strimzi/service/`
-6. Run `mvn compile && mvn test`
+6. Run `./mvnw compile && ./mvnw test`
 
 ### Logging in diagnostic services
 
@@ -489,8 +513,8 @@ Before adding a new constant, check if it already exists in `ResourceLabels`, `P
 1. Create or update the DTO record in `strimzi-mcp/src/.../strimzi/dto/`
 2. Add the service method to the appropriate domain service in `strimzi-mcp/src/.../strimzi/service/`
 3. Add the `@Tool` method to the corresponding tools class in `strimzi-mcp/src/.../strimzi/tool/`
-4. Run `mvn compile` to verify checkstyle + compilation
-5. Run `mvn test` to verify tests pass
+4. Run `./mvnw compile` to verify checkstyle + compilation
+5. Run `./mvnw test` to verify tests pass
 
 ## Adding a New Module
 
@@ -502,32 +526,7 @@ Before adding a new constant, check if it already exists in `ResourceLabels`, `P
 
 ## Testing
 
-Tests use Quarkus test framework with Mockito for Kubernetes client mocking.
+Unit tests use Quarkus test framework with Mockito for Kubernetes client mocking.
+System tests use kubetest4j against a real Kubernetes cluster and are skipped by default.
 
-Service tests (one per domain service):
-- `strimzi-mcp/src/test/java/.../service/KafkaServiceTest.java`
-- `strimzi-mcp/src/test/java/.../service/KafkaTopicServiceTest.java`
-- `strimzi-mcp/src/test/java/.../service/StrimziOperatorServiceTest.java`
-- `strimzi-mcp/src/test/java/.../service/StrimziEventsServiceTest.java`
-
-Diagnostic service tests (one per diagnostic service):
-- `strimzi-mcp/src/test/java/.../service/KafkaClusterDiagnosticServiceTest.java`
-- `strimzi-mcp/src/test/java/.../service/KafkaConnectivityDiagnosticServiceTest.java`
-- `strimzi-mcp/src/test/java/.../service/KafkaMetricsDiagnosticServiceTest.java`
-- `strimzi-mcp/src/test/java/.../service/OperatorMetricsDiagnosticServiceTest.java`
-
-Tool tests (one per tools class):
-- `strimzi-mcp/src/test/java/.../tool/KafkaToolsTest.java`
-- `strimzi-mcp/src/test/java/.../tool/KafkaTopicToolsTest.java`
-- `strimzi-mcp/src/test/java/.../tool/KafkaNodePoolToolsTest.java`
-- `strimzi-mcp/src/test/java/.../tool/StrimziOperatorToolsTest.java`
-- `strimzi-mcp/src/test/java/.../tool/McpDiscoveryTest.java`
-
-Common module tests:
-- `common/src/test/java/.../readiness/KubernetesConnectionReadinessCheckTest.java`
-- `common/src/test/java/.../service/CompletionHelperTest.java`
-- `common/src/test/java/.../service/DeploymentServiceTest.java`
-- `common/src/test/java/.../service/PodsServiceTest.java`
-- `common/src/test/java/.../util/InputUtilsTest.java`
-
-Tests verify service behavior without a live Kubernetes cluster.
+For detailed testing documentation including test locations, patterns, system test configuration, and the systemtest module structure, see [dev/docs/TESTING.md](dev/docs/TESTING.md).
