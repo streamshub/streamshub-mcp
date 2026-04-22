@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: streamshub-strimzi-mcp
 spec:
+  selector:
+    app.kubernetes.io/name: strimzi-mcp
   ports:
     - name: http
       port: 8080
