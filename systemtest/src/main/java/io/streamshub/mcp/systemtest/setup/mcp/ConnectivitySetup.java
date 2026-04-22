@@ -113,7 +113,8 @@ public final class ConnectivitySetup {
             .build();
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(nodePortService);
 
-        String url = "http://" + getHostIpAddress() + ":" + Constants.MCP_NODE_PORT;
+        String nodeIp = getNodeInternalIp(client);
+        String url = "http://" + nodeIp + ":" + Constants.MCP_NODE_PORT;
         LOGGER.info("MCP server exposed via NodePort at {}", url);
         return url;
     }
@@ -227,5 +228,21 @@ public final class ConnectivitySetup {
         } catch (UnknownHostException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Get the InternalIP of the first Kubernetes node.
+     * On Kind clusters this is the Docker container IP reachable from the host.
+     *
+     * @param client the Kubernetes client
+     * @return the node's InternalIP address
+     */
+    private static String getNodeInternalIp(final KubernetesClient client) {
+        return client.nodes().list().getItems().stream()
+            .flatMap(node -> node.getStatus().getAddresses().stream())
+            .filter(addr -> "InternalIP".equals(addr.getType()))
+            .map(io.fabric8.kubernetes.api.model.NodeAddress::getAddress)
+            .findFirst()
+            .orElseThrow(() -> new RuntimeException("No node with InternalIP found"));
     }
 }
