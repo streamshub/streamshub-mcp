@@ -85,4 +85,4 @@ jobs:
       if: failure()
       with:
         name: test-logs
-        path: systemtest/target/logs/
+        path: systemtest/target/test-logs/
