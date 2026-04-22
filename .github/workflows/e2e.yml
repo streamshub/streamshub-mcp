@@ -53,7 +53,7 @@ jobs:
           -DskipTests \
           -Dquarkus.container-image.build=true \
           -Dquarkus.container-image.tag=test
-        kind load docker-image quay.io/streamshub/strimzi-mcp:test --name mcp-e2e
+        kind load docker-image quay.io/streamshub/strimzi-mcp:test --name kind-cluster
 
     - name: Run system tests
       run: |
