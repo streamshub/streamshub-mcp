@@ -38,11 +38,11 @@ jobs:
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
 
-    - name: Create kind cluster
-      uses: helm/kind-action@v1.14.0
+    - name: Create kind cluster with registry
+      uses: strimzi/github-actions/.github/actions/dependencies/setup-kind@main
       with:
-        config: .github/config/kind-config.yaml
-        cluster_name: mcp-e2e
+        controlNodes: "1"
+        workerNodes: "3"
 
     - name: Deploy Prometheus operator
       run: ./dev/scripts/setup-prometheus.sh deploy

@@ -23,8 +23,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Locale;
 
-import static io.netty.util.NetUtil.getHostname;
-
 /**
  * Sets up connectivity to the MCP server from the test JVM.
  * All resources created via {@link KubeResourceManager#get()} for proper lifecycle management.
@@ -115,8 +113,7 @@ public final class ConnectivitySetup {
             .build();
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(nodePortService);
 
-        // Use localhost — kind with extraPortMappings maps NodePort to host port
-        String url = "http://localhost:" + Constants.MCP_NODE_PORT;
+        String url = "http://" + getHostIpAddress() + ":" + Constants.MCP_NODE_PORT;
         LOGGER.info("MCP server exposed via NodePort at {}", url);
         return url;
     }
@@ -218,19 +215,17 @@ public final class ConnectivitySetup {
             return "image-registry.openshift-image-registry.svc:5000";
         } else {
             // we will need a hostname of machine
-            String hostname = getHostname();
-            LOGGER.info("Using container registry '{}'", hostname);
-            return hostname;
+            String registry = getHostIpAddress() + ":5001";
+            LOGGER.info("Using container registry '{}'", registry);
+            return registry;
         }
     }
 
-    private static String getHostname() {
-        String hostname = "";
+    private static String getHostIpAddress() {
         try {
-            hostname = InetAddress.getLocalHost().getHostAddress() + ":5001";
+            return InetAddress.getLocalHost().getHostAddress();
         } catch (UnknownHostException e) {
             throw new RuntimeException(e);
         }
-        return hostname;
     }
 }
