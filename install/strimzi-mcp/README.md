@@ -6,24 +6,25 @@ This directory contains [Kustomize](https://kustomize.io/) manifests for deployi
 
 ```
 install/strimzi-mcp/
-├── base/                    # Base resources (all environments)
+├── base/                        # Base resources (all environments)
 │   ├── kustomization.yaml
 │   ├── namespace.yaml
 │   ├── serviceaccount.yaml
 │   ├── clusterrole.yaml
 │   ├── clusterrolebinding.yaml
 │   ├── deployment.yaml
-│   ├── service.yaml
-│   ├── role-sensitive.yaml         # Optional: per-namespace sensitive permissions
-│   └── rolebinding-sensitive.yaml  # Optional: companion RoleBinding
+│   └── service.yaml
+├── optional/                    # Per-namespace sensitive RBAC
+│   ├── role-sensitive.yaml
+│   └── rolebinding-sensitive.yaml
 └── overlays/
-    ├── dev/                 # Local development
+    ├── dev/                     # Local development
     │   ├── kustomization.yaml
     │   └── deployment-patch.yaml
-    ├── prod/                # Production (Kubernetes)
+    ├── prod/                    # Production (Kubernetes)
     │   ├── kustomization.yaml
     │   └── deployment-patch.yaml
-    └── prod-openshift/      # Production (OpenShift)
+    └── prod-openshift/          # Production (OpenShift)
         ├── kustomization.yaml
         └── route.yaml
 ```
@@ -32,9 +33,7 @@ install/strimzi-mcp/
 
 ### Base
 
-Contains the core resources shared by all environments.
-The sensitive Role and RoleBinding (`role-sensitive.yaml`, `rolebinding-sensitive.yaml`) are **not** included by default.
-They grant access to Secrets and pod metrics scraping -- deploy them only in namespaces where you need these features.
+Contains the core resources shared by all environments: namespace, service account, RBAC, deployment, and service.
 
 ### Dev
 
@@ -106,8 +105,8 @@ These are not included in any overlay by default.
 To grant sensitive permissions in the namespaces where you need them:
 
 ```bash
-kubectl apply -f install/strimzi-mcp/base/role-sensitive.yaml -n <kafka-namespace>
-kubectl apply -f install/strimzi-mcp/base/rolebinding-sensitive.yaml -n <kafka-namespace>
+kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n <kafka-namespace>
+kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n <kafka-namespace>
 ```
 
 ## Verification

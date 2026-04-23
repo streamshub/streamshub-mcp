@@ -170,8 +170,8 @@ The `install/strimzi-mcp/base/` directory contains the following resources:
 | `clusterrolebinding.yaml` | ClusterRoleBinding | Binds the ClusterRole to the ServiceAccount |
 | `deployment.yaml` | Deployment | Deploys the MCP server with health probes |
 | `service.yaml` | Service | Exposes the MCP server on port 8080 |
-| `role-sensitive.yaml` | Role | Optional per-namespace permissions for sensitive resources |
-| `rolebinding-sensitive.yaml` | RoleBinding | Companion RoleBinding for the sensitive Role |
+| `../optional/role-sensitive.yaml` | Role | Optional per-namespace permissions for sensitive resources |
+| `../optional/rolebinding-sensitive.yaml` | RoleBinding | Companion RoleBinding for the sensitive Role |
 
 For the full directory structure and overlay details, see the [install README](../../install/strimzi-mcp/README.md).
 
@@ -200,8 +200,8 @@ The optional Role grants access to:
 Deploy the sensitive Role and its RoleBinding only in namespaces where you need these features:
 
 ```bash
-kubectl apply -f install/strimzi-mcp/base/role-sensitive.yaml -n kafka-namespace
-kubectl apply -f install/strimzi-mcp/base/rolebinding-sensitive.yaml -n kafka-namespace
+kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n kafka-namespace
+kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n kafka-namespace
 ```
 
 ### Production configuration
