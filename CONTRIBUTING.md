@@ -38,6 +38,12 @@ Set up a local Strimzi environment for testing:
 # With Prometheus for metrics
 ./dev/scripts/setup-strimzi.sh deploy --prometheus
 
+# With Loki for log collection (OpenShift only)
+./dev/scripts/setup-strimzi.sh deploy --loki
+
+# With both, on OpenShift
+./dev/scripts/setup-strimzi.sh deploy --prometheus --loki --ocp
+
 # Teardown when done
 ./dev/scripts/setup-strimzi.sh teardown
 ```
