@@ -115,32 +115,65 @@ cd strimzi-mcp
 
 The default image location is `quay.io/streamshub/strimzi-mcp:latest`.
 
+### Choose an overlay
+
+The deployment manifests use [Kustomize](https://kustomize.io/) with a base and environment-specific overlays:
+
+| Overlay | Command | Use case |
+|---------|---------|----------|
+| `base` | `kubectl apply -k install/strimzi-mcp/base/` | Minimal deployment with defaults |
+| `overlays/dev` | `kubectl apply -k install/strimzi-mcp/overlays/dev/` | Local development (Kind, minikube) |
+| `overlays/prod` | `kubectl apply -k install/strimzi-mcp/overlays/prod/` | Production Kubernetes |
+| `overlays/prod-openshift` | `kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/` | Production OpenShift |
+
+The **prod** overlay adds:
+
+- 2 replicas for high availability
+- Higher resource requests and limits
+- Optional ConfigMap and Secret references for configuration via `envFrom`
+
+The **prod-openshift** overlay extends prod with an edge-terminated TLS Route for external access.
+
 ### Deploy to cluster
 
-Deploy all resources to your Kubernetes cluster:
+Deploy using the overlay that matches your environment:
 
 ```bash
-# Deploy all resources
-kubectl apply -f install/
+# Production Kubernetes
+kubectl apply -k install/strimzi-mcp/overlays/prod/
+
+# Production OpenShift
+kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/
 
 # Verify the deployment
 kubectl -n streamshub-mcp rollout status deployment/streamshub-strimzi-mcp
 kubectl -n streamshub-mcp get pods
 ```
 
+To override the image tag or registry:
+
+```bash
+cd install/strimzi-mcp/base
+kustomize edit set image quay.io/streamshub/strimzi-mcp=my-registry.io/my-org/strimzi-mcp:1.0.0
+kubectl apply -k ../overlays/prod/
+```
+
 ### Deployment resources
 
-The `install/` directory contains the following resources:
+The `install/strimzi-mcp/base/` directory contains the following resources:
 
 | File | Resource | Purpose |
 |------|----------|---------|
-| `001-Namespace.yaml` | Namespace | Creates the `streamshub-mcp` namespace |
-| `002-ServiceAccount.yaml` | ServiceAccount | Provides identity for the MCP server |
-| `003-ClusterRole.yaml` | ClusterRole | Grants read-only permissions for non-sensitive resources |
-| `004-ClusterRoleBinding.yaml` | ClusterRoleBinding | Binds the ClusterRole to the ServiceAccount |
-| `005-Deployment.yaml` | Deployment | Deploys the MCP server with health probes |
-| `006-Service.yaml` | Service | Exposes the MCP server on port 8080 |
-| `007-Role-sensitive.yaml` | Role | Optional per-namespace permissions for sensitive resources |
+| `namespace.yaml` | Namespace | Creates the `streamshub-mcp` namespace |
+| `serviceaccount.yaml` | ServiceAccount | Provides identity for the MCP server |
+| `clusterrole.yaml` | ClusterRole | Grants read-only permissions for non-sensitive resources |
+| `clusterrolebinding.yaml` | ClusterRoleBinding | Binds the ClusterRole to the ServiceAccount |
+| `deployment.yaml` | Deployment | Deploys the MCP server with health probes |
+| `service.yaml` | Service | Exposes the MCP server on port 8080 |
+| `../optional/role-sensitive.yaml` | Role | Optional per-namespace permissions for sensitive resources |
+| `../optional/rolebinding-sensitive.yaml` | RoleBinding | Companion RoleBinding for the sensitive Role |
+
+For the full directory structure and overlay details, see the [install README](../../install/strimzi-mcp/README.md).
 
 ### RBAC configuration
 
@@ -164,18 +197,33 @@ The optional Role grants access to:
 - Secrets -- `get` (for certificate metadata only, not secret data)
 - Pods/proxy -- `get` (for direct metrics scraping from pods)
 
-Deploy the sensitive Role only in namespaces where you need these features:
+Deploy the sensitive Role and its RoleBinding only in namespaces where you need these features:
 
 ```bash
-# Apply the Role in a specific namespace
-kubectl apply -f install/007-Role-sensitive.yaml -n kafka-namespace
-
-# Create a RoleBinding to grant the permissions
-kubectl create rolebinding streamshub-mcp-sensitive \
-  --role=streamshub-mcp-sensitive \
-  --serviceaccount=streamshub-mcp:streamshub-mcp \
-  -n kafka-namespace
+kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n kafka-namespace
+kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n kafka-namespace
 ```
+
+### Production configuration
+
+The prod overlay references an optional ConfigMap (`strimzi-mcp-config`) and Secret (`strimzi-mcp-secrets`) via `envFrom`.
+Create these before deploying to configure the server:
+
+```bash
+# Create a ConfigMap with your configuration
+kubectl -n streamshub-mcp create configmap strimzi-mcp-config \
+  --from-literal=MCP_LOG_TAIL_LINES=500 \
+  --from-literal=MCP_METRICS_PROVIDER=streamshub-prometheus \
+  --from-literal=QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://prometheus.monitoring:9090
+
+# Create a Secret for sensitive values
+kubectl -n streamshub-mcp create secret generic strimzi-mcp-secrets \
+  --from-literal=QUARKUS_REST_CLIENT_PROMETHEUS_USERNAME=your-username \
+  --from-literal=QUARKUS_REST_CLIENT_PROMETHEUS_PASSWORD=your-password
+```
+
+Both are marked as `optional` so the deployment works without them.
+See the [configuration guide](configuration.md) for all available settings.
 
 ## Accessing the server
 
@@ -191,17 +239,22 @@ Configure your MCP client to use `http://localhost:8080/mcp`.
 
 ### OpenShift route
 
-Create an edge-terminated Route for external access on OpenShift:
+The `prod-openshift` overlay includes an edge-terminated Route automatically:
 
 ```bash
-# Create the Route
-oc -n streamshub-mcp create route edge streamshub-strimzi-mcp \
-  --service=streamshub-strimzi-mcp \
-  --port=http
+kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/
 
 # Get the Route hostname
 ROUTE_HOST=$(oc -n streamshub-mcp get route streamshub-strimzi-mcp -o jsonpath='{.spec.host}')
 echo "MCP Server URL: https://${ROUTE_HOST}/mcp"
+```
+
+Alternatively, create a Route manually:
+
+```bash
+oc -n streamshub-mcp create route edge streamshub-strimzi-mcp \
+  --service=streamshub-strimzi-mcp \
+  --port=http
 ```
 
 Configure your MCP client with the HTTPS URL: `https://<route-hostname>/mcp`.

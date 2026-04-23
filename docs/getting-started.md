@@ -88,10 +88,15 @@ The AI assistant uses the MCP tools to query your cluster and provide answers.
 
 ## Production deployment
 
-For production use, deploy MCP servers to Kubernetes instead of running them locally:
+For production use, deploy MCP servers to Kubernetes instead of running them locally.
+Choose the overlay that matches your environment:
 
 ```bash
-kubectl apply -f strimzi-mcp/install/
+# Production Kubernetes
+kubectl apply -k install/strimzi-mcp/overlays/prod/
+
+# Production OpenShift (includes TLS Route)
+kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/
 ```
 
 For detailed instructions on Kubernetes deployments, RBAC configuration, and external access, see the [installation guide](strimzi-mcp/installation.md#kubernetes-deployment).

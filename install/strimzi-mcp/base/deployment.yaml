@@ -2,18 +2,15 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: streamshub-strimzi-mcp
-  namespace: streamshub-mcp
-  labels:
-    app: streamshub-strimzi-mcp
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: streamshub-strimzi-mcp
+      app.kubernetes.io/name: strimzi-mcp
   template:
     metadata:
       labels:
-        app: streamshub-strimzi-mcp
+        app.kubernetes.io/name: strimzi-mcp
     spec:
       serviceAccountName: streamshub-strimzi-mcp
       containers:
@@ -52,10 +49,17 @@ spec:
               memory: 512Mi
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false
+            readOnlyRootFilesystem: true
             runAsNonRoot: true
             capabilities:
               drop:
                 - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
       securityContext:
         runAsNonRoot: true
+      volumes:
+        - name: tmp
+          emptyDir: {}
+

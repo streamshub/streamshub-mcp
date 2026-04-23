@@ -194,7 +194,7 @@ kubectl -n streamshub-mcp logs <pod-name>
    kubectl get clusterrolebinding streamshub-mcp-reader
    
    # Recreate if missing
-   kubectl apply -f install/004-ClusterRoleBinding.yaml
+   kubectl apply -k install/strimzi-mcp/base/
    ```
 
 3. **Insufficient resources**
@@ -434,14 +434,8 @@ kubectl -n streamshub-mcp exec <mcp-pod> -- \
    
    **Solution**:
    ```bash
-   # Deploy sensitive Role
-   kubectl apply -f install/007-Role-sensitive.yaml -n kafka-ns
-   
-   # Create RoleBinding
-   kubectl create rolebinding streamshub-mcp-sensitive \
-     --role=streamshub-mcp-sensitive \
-     --serviceaccount=streamshub-mcp:streamshub-mcp \
-     -n kafka-ns
+   kubectl apply -f install/strimzi-mcp/base/role-sensitive.yaml -n kafka-ns
+   kubectl apply -f install/strimzi-mcp/base/rolebinding-sensitive.yaml -n kafka-ns
    ```
 
 2. **Metrics endpoint not exposed**

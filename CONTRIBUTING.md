@@ -27,6 +27,52 @@ Use descriptive branch names:
 ./mvnw verify -Psystemtest  # Run system tests (requires Kubernetes cluster)
 ```
 
+## Local cluster development
+
+Set up a local Strimzi environment for testing:
+
+```bash
+# Deploy Strimzi operator and Kafka cluster
+./dev/scripts/setup-strimzi.sh deploy
+
+# With Prometheus for metrics
+./dev/scripts/setup-strimzi.sh deploy --prometheus
+
+# With Loki for log collection (OpenShift only)
+./dev/scripts/setup-strimzi.sh deploy --loki
+
+# With both, on OpenShift
+./dev/scripts/setup-strimzi.sh deploy --prometheus --loki --ocp
+
+# Teardown when done
+./dev/scripts/setup-strimzi.sh teardown
+```
+
+Build the container image and deploy to a local cluster:
+
+```bash
+# Build the image
+./mvnw package -pl strimzi-mcp -am -DskipTests \
+  -Dquarkus.container-image.build=true \
+  -Dquarkus.container-image.tag=dev
+
+# Deploy (with Kind, Minikube, or k3d image loading)
+./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:dev --kind
+./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:dev --minikube
+./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:dev --k3d
+
+# Or build and push to a custom registry, then deploy
+./mvnw package -pl strimzi-mcp -am -DskipTests \
+  -Dquarkus.container-image.build=true \
+  -Dquarkus.container-image.push=true \
+  -Dquarkus.container-image.registry=quay.io \
+  -Dquarkus.container-image.group=your-user \
+  -Dquarkus.container-image.name=strimzi-mcp \
+  -Dquarkus.container-image.tag=test
+
+./dev/scripts/dev-deploy.sh quay.io/your-user/strimzi-mcp:test
+```
+
 ## Code style and patterns
 
 All code style rules, architecture patterns, and conventions are documented in [AGENTS.md](AGENTS.md).

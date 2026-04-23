@@ -25,8 +25,11 @@ public final class Constants {
     /** Name of the MCP server deployment, service, and related resources. */
     public static final String MCP_NAME = "streamshub-strimzi-mcp";
 
-    /** Label used to identify MCP server resources. */
-    public static final String MCP_APP_LABEL = "streamshub-strimzi-mcp";
+    /** Label key used to identify MCP server resources. */
+    public static final String MCP_APP_LABEL_KEY = "app.kubernetes.io/name";
+
+    /** Label value used to identify MCP server resources. */
+    public static final String MCP_APP_LABEL = "strimzi-mcp";
 
     /** Default container port for the MCP server. */
     public static final int MCP_PORT = 8080;
@@ -62,7 +65,7 @@ public final class Constants {
     public static final String PROJECT_ROOT = System.getProperty("user.dir") + "/..";
 
     /** Path to MCP server install directory. */
-    public static final String INSTALL_DIR = PROJECT_ROOT + "/strimzi-mcp/install/";
+    public static final String INSTALL_DIR = PROJECT_ROOT + "/install/strimzi-mcp/base/";
 
     /** Path to Strimzi manifests directory. */
     public static final String STRIMZI_MANIFESTS_DIR = PROJECT_ROOT + "/dev/manifests/strimzi/";

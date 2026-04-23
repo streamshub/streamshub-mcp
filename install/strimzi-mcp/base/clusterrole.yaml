@@ -2,15 +2,19 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: streamshub-strimzi-mcp
-  labels:
-    app: streamshub-strimzi-mcp
 rules:
   # Strimzi custom resources
   - apiGroups: ["kafka.strimzi.io"]
     resources:
       - kafkas
+      - kafkabridges
+      - kafkaconnectors
+      - kafkaconnects
+      - kafkamirrormaker2s
       - kafkanodepools
+      - kafkarebalances
       - kafkatopics
+      - kafkausers
     verbs: ["get", "list", "watch"]
   - apiGroups: ["core.strimzi.io"]
     resources:

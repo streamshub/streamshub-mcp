@@ -2,12 +2,9 @@ apiVersion: v1
 kind: Service
 metadata:
   name: streamshub-strimzi-mcp
-  namespace: streamshub-mcp
-  labels:
-    app: streamshub-strimzi-mcp
 spec:
   selector:
-    app: streamshub-strimzi-mcp
+    app.kubernetes.io/name: strimzi-mcp
   ports:
     - name: http
       port: 8080

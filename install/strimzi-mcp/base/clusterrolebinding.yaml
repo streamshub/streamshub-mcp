@@ -2,8 +2,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: streamshub-strimzi-mcp
-  labels:
-    app: streamshub-strimzi-mcp
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

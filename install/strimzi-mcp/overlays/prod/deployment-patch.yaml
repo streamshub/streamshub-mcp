@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamshub-strimzi-mcp
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        - name: strimzi-mcp
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          envFrom:
+            - configMapRef:
+                name: strimzi-mcp-config
+                optional: true
+            - secretRef:
+                name: strimzi-mcp-secrets
+                optional: true
