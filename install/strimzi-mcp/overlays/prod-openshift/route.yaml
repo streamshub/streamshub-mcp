@@ -2,6 +2,9 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: streamshub-strimzi-mcp
+  annotations:
+    haproxy.router.openshift.io/timeout: 3600s
+    haproxy.router.openshift.io/balance: source
 spec:
   to:
     kind: Service
