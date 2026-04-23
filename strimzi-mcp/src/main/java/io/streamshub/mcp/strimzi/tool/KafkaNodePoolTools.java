@@ -40,7 +40,13 @@ public class KafkaNodePoolTools {
      */
     @Tool(
         name = "list_kafka_node_pools",
-        description = "List KafkaNodePools for a cluster showing roles, replicas, and storage configuration."
+        description = "List KafkaNodePools for a cluster showing roles, replicas, and storage configuration.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public List<KafkaNodePoolResponse> listKafkaNodePools(
         @ToolArg(
@@ -64,7 +70,13 @@ public class KafkaNodePoolTools {
      */
     @Tool(
         name = "get_kafka_node_pool",
-        description = "Get detailed information about a specific KafkaNodePool including roles, replicas, and storage."
+        description = "Get detailed information about a specific KafkaNodePool including roles, replicas, and storage.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public KafkaNodePoolResponse getKafkaNodePool(
         @ToolArg(
@@ -91,7 +103,13 @@ public class KafkaNodePoolTools {
      */
     @Tool(
         name = "get_kafka_node_pool_pods",
-        description = "Get pod summaries for a KafkaNodePool with phase, readiness, restarts, and age."
+        description = "Get pod summaries for a KafkaNodePool with phase, readiness, restarts, and age.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public List<PodSummaryResponse.PodInfo> getKafkaNodePoolPods(
         @ToolArg(
