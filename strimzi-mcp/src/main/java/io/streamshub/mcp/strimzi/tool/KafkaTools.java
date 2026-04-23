@@ -60,7 +60,13 @@ public class KafkaTools {
         name = "list_kafka_clusters",
         description = "List Kafka clusters with status"
             + " and configuration."
-            + " Optionally filter by namespace."
+            + " Optionally filter by namespace.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public List<KafkaClusterResponse> listKafkaClusters(
         @ToolArg(
@@ -82,7 +88,13 @@ public class KafkaTools {
         name = "get_kafka_cluster",
         description = "Get detailed information about"
             + " a specific Kafka cluster including"
-            + " status, version, and configuration."
+            + " status, version, and configuration.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public KafkaClusterResponse getKafkaCluster(
         @ToolArg(
@@ -107,7 +119,13 @@ public class KafkaTools {
         name = "get_kafka_cluster_pods",
         description = "Get pod summaries for a Kafka"
             + " cluster with component type, phase,"
-            + " readiness, restarts, and age."
+            + " readiness, restarts, and age.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public KafkaClusterPodsResponse getKafkaClusterPods(
         @ToolArg(
@@ -133,7 +151,13 @@ public class KafkaTools {
     @Tool(
         name = "get_kafka_bootstrap_servers",
         description = "Get bootstrap server addresses for a Kafka cluster"
-            + " with listener names, types, hosts, and ports."
+            + " with listener names, types, hosts, and ports.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public KafkaBootstrapResponse getKafkaBootstrapServers(
         @ToolArg(
@@ -160,7 +184,13 @@ public class KafkaTools {
         description = "Returns TLS certificate metadata and listener authentication"
             + " configuration for a Kafka cluster."
             + " Includes certificate expiry dates, issuers, and SANs from"
-            + " Strimzi-managed secrets. Requires opt-in sensitive RBAC Role."
+            + " Strimzi-managed secrets. Requires opt-in sensitive RBAC Role.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public KafkaCertificateResponse getKafkaClusterCertificates(
         @ToolArg(
@@ -198,7 +228,13 @@ public class KafkaTools {
     @Tool(
         name = "get_kafka_cluster_logs",
         description = "Get logs from Kafka cluster pods with error analysis."
-            + " Returns logs from all pods belonging to the cluster."
+            + " Returns logs from all pods belonging to the cluster.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     @RateCategory("log")
     public KafkaClusterLogsResponse getKafkaClusterLogs(

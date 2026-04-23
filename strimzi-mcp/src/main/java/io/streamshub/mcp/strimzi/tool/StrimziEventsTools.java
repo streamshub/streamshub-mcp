@@ -40,7 +40,13 @@ public class StrimziEventsTools {
         name = "get_strimzi_events",
         description = "Get Kubernetes events for a Kafka cluster and all related resources"
             + " (pods, PVCs, node pools). Shows scheduling, restarts, volume issues,"
-            + " and operator reconciliation events."
+            + " and operator reconciliation events.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public StrimziEventsResponse getStrimziEvents(
         @ToolArg(

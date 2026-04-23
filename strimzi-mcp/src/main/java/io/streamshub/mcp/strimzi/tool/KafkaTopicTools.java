@@ -41,7 +41,13 @@ public class KafkaTopicTools {
     @Tool(
         name = "list_kafka_topics",
         description = "List Kafka topics for a cluster with partitions, replicas, and status."
-            + " Returns paginated results (default 100 per page). Use offset to get more."
+            + " Returns paginated results (default 100 per page). Use offset to get more.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public KafkaTopicListResponse listKafkaTopics(
         @ToolArg(
@@ -74,7 +80,13 @@ public class KafkaTopicTools {
     @Tool(
         name = "get_kafka_topic",
         description = "Get detailed information for a specific Kafka topic including"
-            + " configuration, partitions, replicas, and status."
+            + " configuration, partitions, replicas, and status.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public KafkaTopicResponse getKafkaTopic(
         @ToolArg(
