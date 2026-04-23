@@ -1,6 +1,9 @@
 name: E2E Tests
 
 on:
+  push:
+    branches:
+      - 'release/*'
   pull_request:
     paths:
       - 'common/**'
@@ -65,7 +68,7 @@ jobs:
 
     - name: Post Allure report to PR
       uses: allure-framework/allure-action@v0
-      if: always()
+      if: always() && github.event_name == 'pull_request'
       with:
         report-directory: allure-report
         github-token: ${{ secrets.GITHUB_TOKEN }}
