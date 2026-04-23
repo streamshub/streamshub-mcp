@@ -152,10 +152,12 @@ public class XxxTools {
 }
 ```
 
-### Critical: No @Tool.Annotations
+### Tool Annotations
 
-Do NOT use `annotations = @Tool.Annotations(...)` on any `@Tool`. This causes Claude Code
-to silently drop all MCP tools during discovery. Not even empty `@Tool.Annotations()` works.
+All tools declare `@Tool.Annotations` with `readOnlyHint = true`, `destructiveHint = false`,
+`idempotentHint = true`, `openWorldHint = false` since all tools are read-only Kubernetes queries.
+When adding new tools, always include these annotations — MCP clients like ChatGPT default
+tools to "write" mode without them.
 
 ### Tool naming
 

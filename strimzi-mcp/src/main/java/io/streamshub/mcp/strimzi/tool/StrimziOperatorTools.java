@@ -57,7 +57,13 @@ public class StrimziOperatorTools {
     @Tool(
         name = "list_strimzi_operators",
         description = "List Strimzi cluster operators with deployment status and health."
-            + " Optionally filter by namespace."
+            + " Optionally filter by namespace.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public List<StrimziOperatorResponse> listStrimziOperators(
         @ToolArg(
@@ -78,7 +84,13 @@ public class StrimziOperatorTools {
     @Tool(
         name = "get_strimzi_operator",
         description = "Get detailed information about a specific Strimzi operator"
-            + " including status, version, image, and uptime."
+            + " including status, version, image, and uptime.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public StrimziOperatorResponse getStrimziOperator(
         @ToolArg(
@@ -111,7 +123,13 @@ public class StrimziOperatorTools {
     @Tool(
         name = "get_strimzi_operator_logs",
         description = "Get logs from Strimzi operator pods with error analysis."
-            + " Returns logs from all operator pods."
+            + " Returns logs from all operator pods.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     @RateCategory("log")
     public StrimziOperatorLogsResponse getStrimziOperatorLogs(
@@ -184,7 +202,13 @@ public class StrimziOperatorTools {
     @Tool(
         name = "get_strimzi_operator_pod",
         description = "Get detailed description of a Strimzi operator pod including"
-            + " environment, resources, volumes, and conditions."
+            + " environment, resources, volumes, and conditions.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public PodSummaryResponse getStrimziOperatorPod(
         @ToolArg(

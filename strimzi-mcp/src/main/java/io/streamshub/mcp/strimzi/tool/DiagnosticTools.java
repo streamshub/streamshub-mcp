@@ -72,7 +72,13 @@ public class DiagnosticTools {
             + " events, and metrics in a single call."
             + " Uses Sampling to get LLM analysis of intermediate results"
             + " and Elicitation to resolve ambiguity (e.g., multiple namespaces)."
-            + " Falls back to gathering all data when Sampling is not supported."
+            + " Falls back to gathering all data when Sampling is not supported.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public KafkaClusterDiagnosticReport diagnoseKafkaCluster(
         @ToolArg(
@@ -120,7 +126,13 @@ public class DiagnosticTools {
             + " Checks listeners, bootstrap addresses, TLS certificates,"
             + " authentication, pod health, and connection-related logs."
             + " Uses Sampling for analysis and Elicitation for disambiguation."
-            + " Falls back to gathering all data when Sampling is not supported."
+            + " Falls back to gathering all data when Sampling is not supported.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public KafkaConnectivityDiagnosticReport diagnoseKafkaConnectivity(
         @ToolArg(
@@ -168,7 +180,13 @@ public class DiagnosticTools {
             + " Gathers cluster status and pod health, then selectively queries"
             + " replication, performance, resource, and throughput metrics."
             + " Uses Sampling for analysis and Elicitation for disambiguation."
-            + " Falls back to gathering all metric categories when Sampling is not supported."
+            + " Falls back to gathering all metric categories when Sampling is not supported.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public KafkaMetricsDiagnosticReport diagnoseKafkaMetrics(
         @ToolArg(
@@ -233,7 +251,13 @@ public class DiagnosticTools {
             + " Gathers operator status, then selectively queries reconciliation,"
             + " resource, and JVM metrics along with operator logs."
             + " Uses Sampling for analysis."
-            + " Falls back to gathering all data when Sampling is not supported."
+            + " Falls back to gathering all data when Sampling is not supported.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public OperatorMetricsDiagnosticReport diagnoseOperatorMetrics(
         @ToolArg(

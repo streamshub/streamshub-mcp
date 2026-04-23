@@ -56,7 +56,13 @@ public class MetricsTools {
     @Tool(
         name = "get_kafka_metrics",
         description = "Retrieves Prometheus metrics from Kafka cluster pods by category or explicit metric names."
-            + " Returns samples with an interpretation guide for thresholds and diagnostics."
+            + " Returns samples with an interpretation guide for thresholds and diagnostics.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     @RateCategory("metrics")
     public KafkaMetricsResponse getKafkaMetrics(
@@ -112,7 +118,13 @@ public class MetricsTools {
     @Tool(
         name = "get_kafka_exporter_metrics",
         description = "Retrieves Prometheus metrics from Kafka Exporter pods by category or explicit metric names."
-            + " Returns consumer group lag, topic partition offsets, and JVM metrics with interpretation guide."
+            + " Returns consumer group lag, topic partition offsets, and JVM metrics with interpretation guide.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     @RateCategory("metrics")
     public KafkaExporterMetricsResponse getKafkaExporterMetrics(
@@ -172,7 +184,13 @@ public class MetricsTools {
         name = "get_strimzi_operator_metrics",
         description = "Retrieves Prometheus metrics from Strimzi operator pods by category or explicit metric names."
             + " When clusterName is provided, also includes entity operator (user-operator and topic-operator) metrics."
-            + " Returns samples with an interpretation guide for thresholds and diagnostics."
+            + " Returns samples with an interpretation guide for thresholds and diagnostics.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     @RateCategory("metrics")
     public StrimziOperatorMetricsResponse getStrimziOperatorMetrics(
