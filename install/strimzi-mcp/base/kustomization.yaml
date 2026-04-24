@@ -23,4 +23,4 @@ resources:
 
 images:
 - name: quay.io/streamshub/strimzi-mcp
-  newTag: 0.0.1-RC1
+  newTag: 0.0.1

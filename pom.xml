@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.streamshub</groupId>
     <artifactId>streamshub-mcp</artifactId>
-    <version>0.0.1-RC1</version>
+    <version>0.0.1</version>
     <packaging>pom</packaging>
 
     <modules>
