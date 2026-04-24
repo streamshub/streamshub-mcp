@@ -1,0 +1,141 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      description:
+        description: 'Optional description to prepend to the auto-generated release notes.'
+        required: false
+        type: string
+
+env:
+  REGISTRY: quay.io
+  IMAGE_GROUP: streamshub
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Validate release branch
+      run: |
+        BRANCH="${GITHUB_REF_NAME}"
+        if [[ ! "$BRANCH" =~ ^release-[0-9]+\.[0-9]+$ ]]; then
+          echo "::error::This workflow must be run from a release-X.Y branch (got: $BRANCH)"
+          exit 1
+        fi
+
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        fetch-depth: 0
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+
+    - name: Cache Maven packages
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+
+    - name: Determine version
+      id: version
+      run: |
+        VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+        TAG="v${VERSION}"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        echo "Version: $VERSION"
+        echo "Tag: $TAG"
+
+    - name: Validate version
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        if [[ "$VERSION" == *SNAPSHOT* ]]; then
+          echo "::error::Version $VERSION is a SNAPSHOT — run dev/scripts/release.sh first"
+          exit 1
+        fi
+        if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+          echo "::error::Version $VERSION does not match expected format X.Y.Z or X.Y.Z-qualifier"
+          exit 1
+        fi
+
+    - name: Check tag does not exist
+      id: tagcheck
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ steps.version.outputs.tag }}
+      run: |
+        if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+          if gh release view "$TAG" --json tagName >/dev/null 2>&1; then
+            echo "::error::Tag $TAG already exists with a published release"
+            exit 1
+          fi
+          echo "Tag $TAG exists but has no release — resuming"
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Login to container registry
+      uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.IMAGE_REPO_USERNAME }}
+        password: ${{ secrets.IMAGE_REPO_PASSWORD }}
+
+    - name: Build and push container image
+      run: |
+        ./mvnw package -DskipTests \
+          -Dquarkus.container-image.build=true \
+          -Dquarkus.container-image.push=true \
+          -Dquarkus.container-image.registry=${{ env.REGISTRY }} \
+          -Dquarkus.container-image.group=${{ env.IMAGE_GROUP }}
+
+    - name: Create and push tag
+      if: steps.tagcheck.outputs.exists == 'false'
+      env:
+        TAG: ${{ steps.version.outputs.tag }}
+      run: |
+        git tag "$TAG"
+        git push origin "$TAG"
+
+    - name: Create GitHub release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ steps.version.outputs.tag }}
+        VERSION: ${{ steps.version.outputs.version }}
+        RELEASE_DESCRIPTION: ${{ inputs.description }}
+      run: |
+        PREV_TAG=$(git tag -l "v*" --sort=-v:refname | grep -v "^${TAG}$" | head -n1)
+
+        API_ARGS=(-f tag_name="$TAG")
+        if [[ -n "$PREV_TAG" ]]; then
+          API_ARGS+=(-f previous_tag_name="$PREV_TAG")
+        fi
+
+        AUTO_NOTES=$(gh api "repos/${{ github.repository }}/releases/generate-notes" \
+          "${API_ARGS[@]}" --jq '.body')
+
+        if [[ -n "$RELEASE_DESCRIPTION" ]]; then
+          printf '%s\n\n---\n\n%s' "$RELEASE_DESCRIPTION" "$AUTO_NOTES" > release-notes.md
+        else
+          echo "$AUTO_NOTES" > release-notes.md
+        fi
+
+        PRERELEASE_FLAG=""
+        if [[ "$VERSION" == *-* ]]; then
+          PRERELEASE_FLAG="--prerelease"
+        fi
+
+        gh release create "$TAG" \
+          --title "$TAG" \
+          --notes-file release-notes.md \
+          $PRERELEASE_FLAG

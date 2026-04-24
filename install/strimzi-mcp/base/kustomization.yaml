@@ -4,23 +4,23 @@ kind: Kustomization
 namespace: streamshub-mcp
 
 labels:
-  - pairs:
-      app.kubernetes.io/name: strimzi-mcp
-    includeSelectors: true
-    includeTemplates: true
-  - pairs:
-      app.kubernetes.io/part-of: streamshub
-      app.kubernetes.io/managed-by: kustomize
-    includeTemplates: true
+- includeSelectors: true
+  includeTemplates: true
+  pairs:
+    app.kubernetes.io/name: strimzi-mcp
+- includeTemplates: true
+  pairs:
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/part-of: streamshub
 
 resources:
-  - namespace.yaml
-  - serviceaccount.yaml
-  - clusterrole.yaml
-  - clusterrolebinding.yaml
-  - deployment.yaml
-  - service.yaml
+- namespace.yaml
+- serviceaccount.yaml
+- clusterrole.yaml
+- clusterrolebinding.yaml
+- deployment.yaml
+- service.yaml
 
 images:
-  - name: quay.io/streamshub/strimzi-mcp
-    newTag: "latest"
+- name: quay.io/streamshub/strimzi-mcp
+  newTag: latest
