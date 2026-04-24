@@ -13,13 +13,14 @@ usage() {
     echo "The release branch name is derived from the version by stripping any"
     echo "pre-release qualifier (e.g., 0.1.0-RC1 -> release/0.1.0)."
     echo ""
-    echo "  New branch:      creates release/X.Y.Z from main"
+    echo "  New branch:      creates release/X.Y from main"
     echo "  Existing branch: checks it out and bumps the version"
     echo ""
     echo "Examples:"
-    echo "  $0 0.1.0-RC1    # creates release/0.1.0, sets version to 0.1.0-RC1"
-    echo "  $0 0.1.0-RC2    # updates release/0.1.0, bumps to 0.1.0-RC2"
-    echo "  $0 0.1.0        # updates release/0.1.0, sets final 0.1.0"
+    echo "  $0 0.1.0-RC1    # creates release/0.1, sets version to 0.1.0-RC1"
+    echo "  $0 0.1.0-RC2    # updates release/0.1, bumps to 0.1.0-RC2"
+    echo "  $0 0.1.0        # updates release/0.1, sets final 0.1.0"
+    echo "  $0 0.1.1        # updates release/0.1, sets patch 0.1.1"
     exit 1
 }
 
@@ -35,8 +36,8 @@ if ! echo "$RELEASE_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)
     exit 1
 fi
 
-BRANCH_VERSION=$(echo "$RELEASE_VERSION" | sed 's/-.*//')
-RELEASE_BRANCH="release/${BRANCH_VERSION}"
+MINOR_VERSION=$(echo "$RELEASE_VERSION" | sed 's/-.*//' | sed 's/\.[^.]*$//')
+RELEASE_BRANCH="release/${MINOR_VERSION}"
 
 cd "$PROJECT_ROOT"
 
