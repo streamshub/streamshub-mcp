@@ -10,8 +10,8 @@ usage() {
     echo "Prepare a release by creating or updating a release branch with the"
     echo "given version, updating pom.xml and kustomize image tag."
     echo ""
-    echo "The release branch name is derived from the version by stripping any"
-    echo "pre-release qualifier (e.g., 0.1.0-RC1 -> release/0.1.0)."
+    echo "The release branch name is derived from the major.minor components"
+    echo "of the version (e.g., 0.1.0-RC1 -> release/0.1)."
     echo ""
     echo "  New branch:      creates release/X.Y from main"
     echo "  Existing branch: checks it out and bumps the version"
@@ -64,8 +64,7 @@ echo "==> Setting version to $RELEASE_VERSION"
     -DgenerateBackupPoms=false \
     -q
 
-sed -i '' "s/newTag: \".*\"/newTag: \"${RELEASE_VERSION}\"/" \
-    install/strimzi-mcp/base/kustomization.yaml
+(cd install/strimzi-mcp/base && kustomize edit set image "quay.io/streamshub/strimzi-mcp:${RELEASE_VERSION}")
 
 echo "==> Verifying build compiles"
 ./mvnw package -DskipTests -Dquarkus.container-image.build=false -q
