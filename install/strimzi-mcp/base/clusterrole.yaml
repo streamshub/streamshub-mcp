@@ -14,8 +14,6 @@ rules:
       - kafkanodepools
       - kafkarebalances
       - kafkatopics
-      - kafkaconnects
-      - kafkaconnectors
       - kafkausers
     verbs: ["get", "list", "watch"]
   - apiGroups: ["core.strimzi.io"]
