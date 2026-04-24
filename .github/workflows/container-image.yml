@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - 'release-*'
   pull_request:
 
 env:
@@ -56,12 +55,3 @@ jobs:
           -Dquarkus.container-image.registry=${{ env.REGISTRY }} \
           -Dquarkus.container-image.group=${{ env.IMAGE_GROUP }} \
           -Dquarkus.container-image.tag=latest
-
-    - name: Build and push container images (release)
-      if: startsWith(github.ref, 'refs/heads/release-') && github.event_name == 'push'
-      run: |
-        ./mvnw package -DskipTests \
-          -Dquarkus.container-image.build=true \
-          -Dquarkus.container-image.push=true \
-          -Dquarkus.container-image.registry=${{ env.REGISTRY }} \
-          -Dquarkus.container-image.group=${{ env.IMAGE_GROUP }}

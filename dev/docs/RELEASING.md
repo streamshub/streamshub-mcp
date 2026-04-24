@@ -1,8 +1,8 @@
 # Releasing
 
-Releases are made from `release-*` branches using the `dev/scripts/release.sh` script.
-The version in `pom.xml` is the single source of truth — the container image tag and MCP
-server version are derived from it automatically.
+Releases are made from `release-*` branches using the `dev/scripts/release.sh` script
+and the **Release** GitHub Actions workflow. The version in `pom.xml` is the single source
+of truth — the container image tag and MCP server version are derived from it automatically.
 
 Release branches use the `release-X.Y` naming convention (major.minor), so a single branch
 handles all patch releases and release candidates for that minor version series.
@@ -16,22 +16,35 @@ handles all patch releases and release candidates for that minor version series.
 # 2. Review the commit, then push to trigger CI
 git push origin release-0.1
 
-# 3. If fixes are needed: fix on main, cherry-pick to release branch
+# 3. Wait for CI checks to pass (build + e2e) in the GitHub Actions tab.
+#    Pushing to a release branch does NOT push a container image.
+
+# 4. If fixes are needed: fix on main, cherry-pick to release branch
 git checkout release-0.1
 git cherry-pick <commit-sha>
-git push origin release-0.1    # CI rebuilds with current version
+git push origin release-0.1    # CI runs again, still no image push
 
-# 4. When ready for next RC, run the script again on the same branch
+# 5. Once CI is green, trigger the Release workflow:
+#    - Go to Actions > Release in GitHub
+#    - Click "Run workflow"
+#    - Select branch: release-0.1
+#    - Optionally add a description for the release notes
+#    - Click "Run workflow"
+#
+#    This builds + pushes the container image, creates git tag v0.1.0-RC1,
+#    and creates a GitHub Release (pre-release for RCs).
+
+# 6. When ready for next RC, run the script again on the same branch
 ./dev/scripts/release.sh 0.1.0-RC2
 git push origin release-0.1
+# Wait for CI, then trigger Release workflow again
 
-# 5. Final release
+# 7. Final release
 ./dev/scripts/release.sh 0.1.0
 git push origin release-0.1
+# Wait for CI, then trigger Release workflow again (creates full release)
 
-# 6. Create GitHub Release manually with changelog
-
-# 7. Bump main to next SNAPSHOT via a PR
+# 8. Bump main to next SNAPSHOT via a PR
 ```
 
 ## Patch releases
@@ -46,9 +59,10 @@ git cherry-pick <commit-sha>
 # Bump to patch version
 ./dev/scripts/release.sh 0.1.1
 git push origin release-0.1
+# Wait for CI, then trigger Release workflow
 ```
 
-## What the script does
+## What the release script does
 
 1. Validates version format
 2. Creates or checks out the release branch (`release-X.Y`, derived from the major.minor components)
@@ -60,8 +74,29 @@ git push origin release-0.1
 ## What CI does on push to `release-*`
 
 - **Build** (`build.yml`): compile + unit tests
-- **Container Image** (`container-image.yml`): builds and pushes `quay.io/streamshub/strimzi-mcp:<version>` (tag from pom.xml)
 - **E2E Tests** (`e2e.yml`): full system test suite on Kind cluster
+
+Container images are **not** pushed on branch push. Use the Release workflow after CI passes.
+
+## Release workflow (GitHub Actions)
+
+The `release.yml` workflow is triggered manually from the GitHub Actions UI.
+It must be run on a `release-X.Y` branch after CI checks have passed.
+
+What it does:
+
+1. Validates the branch matches `release-X.Y`
+2. Reads the version from `pom.xml` and validates it is not a SNAPSHOT
+3. Checks the git tag `v<version>` does not already exist
+4. Builds and pushes the container image to `quay.io/streamshub/strimzi-mcp:<version>`
+5. Creates and pushes git tag `v<version>`
+6. Creates a GitHub Release with auto-generated notes
+   - **Pre-release** if version contains `-` (e.g., `0.1.0-RC1`)
+   - **Full release** otherwise (e.g., `0.1.0`, `0.1.1`)
+
+Inputs:
+
+- **description** (optional): text prepended to the auto-generated release notes
 
 ## Version sources
 
