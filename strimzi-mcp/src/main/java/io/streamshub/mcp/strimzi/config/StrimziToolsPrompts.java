@@ -178,6 +178,20 @@ public final class StrimziToolsPrompts {
             + " or 'pods restarting'. Omit if unknown.";
 
     /**
+     * Second cluster name parameter description for comparison tools.
+     */
+    public static final String CLUSTER2_DESC =
+        "Name of the second Kafka cluster to compare"
+            + " (e.g., 'my-cluster-prod').";
+
+    /**
+     * Second namespace parameter description for comparison tools.
+     */
+    public static final String NS2_DESC =
+        "Kubernetes namespace for the second cluster."
+            + " Omit to search all namespaces.";
+
+    /**
      * Common instruction for prompt templates to handle tool call failures gracefully.
      */
     public static final String ERROR_HANDLING_INSTRUCTION =

@@ -101,6 +101,21 @@ Get logs from Kafka cluster pods with error analysis and advanced filtering.
 Get ERROR logs from mcp-cluster for the last 60 minutes
 ```
 
+## get_kafka_cluster_config
+
+Returns the effective configuration of a Kafka cluster including broker config, resources, JVM options, listeners, authorization, metrics, logging, Entity Operator, Cruise Control, Kafka Exporter, and per-node-pool overrides. Resolves referenced ConfigMap content for metrics and logging.
+
+**Parameters**:
+- `clusterName` (required) -- Name of the Kafka cluster
+- `namespace` (optional) -- Kubernetes namespace
+
+**Returns**: Complete configuration breakdown with all Kafka CR spec sections and resolved ConfigMap content
+
+**Example**:
+```
+Show the configuration for mcp-cluster
+```
+
 ## Next steps
 
 - **[Kafka topic and node pool tools](kafka-topics.md)** -- Manage topics and node pools
