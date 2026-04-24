@@ -3,7 +3,7 @@ name: E2E Tests
 on:
   push:
     branches:
-      - 'release/*'
+      - 'release-*'
   pull_request:
     paths:
       - 'common/**'

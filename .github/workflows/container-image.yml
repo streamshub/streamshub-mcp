@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'release/*'
+      - 'release-*'
   pull_request:
 
 env:
@@ -58,7 +58,7 @@ jobs:
           -Dquarkus.container-image.tag=latest
 
     - name: Build and push container images (release)
-      if: startsWith(github.ref, 'refs/heads/release/') && github.event_name == 'push'
+      if: startsWith(github.ref, 'refs/heads/release-') && github.event_name == 'push'
       run: |
         ./mvnw package -DskipTests \
           -Dquarkus.container-image.build=true \

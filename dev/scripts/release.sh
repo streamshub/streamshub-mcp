@@ -11,16 +11,16 @@ usage() {
     echo "given version, updating pom.xml and kustomize image tag."
     echo ""
     echo "The release branch name is derived from the major.minor components"
-    echo "of the version (e.g., 0.1.0-RC1 -> release/0.1)."
+    echo "of the version (e.g., 0.1.0-RC1 -> release-0.1)."
     echo ""
-    echo "  New branch:      creates release/X.Y from main"
+    echo "  New branch:      creates release-X.Y from main"
     echo "  Existing branch: checks it out and bumps the version"
     echo ""
     echo "Examples:"
-    echo "  $0 0.1.0-RC1    # creates release/0.1, sets version to 0.1.0-RC1"
-    echo "  $0 0.1.0-RC2    # updates release/0.1, bumps to 0.1.0-RC2"
-    echo "  $0 0.1.0        # updates release/0.1, sets final 0.1.0"
-    echo "  $0 0.1.1        # updates release/0.1, sets patch 0.1.1"
+    echo "  $0 0.1.0-RC1    # creates release-0.1, sets version to 0.1.0-RC1"
+    echo "  $0 0.1.0-RC2    # updates release-0.1, bumps to 0.1.0-RC2"
+    echo "  $0 0.1.0        # updates release-0.1, sets final 0.1.0"
+    echo "  $0 0.1.1        # updates release-0.1, sets patch 0.1.1"
     exit 1
 }
 
@@ -37,7 +37,7 @@ if ! echo "$RELEASE_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)
 fi
 
 MINOR_VERSION=$(echo "$RELEASE_VERSION" | sed 's/-.*//' | sed 's/\.[^.]*$//')
-RELEASE_BRANCH="release/${MINOR_VERSION}"
+RELEASE_BRANCH="release-${MINOR_VERSION}"
 
 cd "$PROJECT_ROOT"
 
