@@ -70,6 +70,13 @@ class McpDiscoveryTest {
                     "get_strimzi_operator_logs",
                     "get_strimzi_operator_pod",
                     "get_strimzi_events",
+                    "list_kafka_connects",
+                    "get_kafka_connect",
+                    "get_kafka_connect_pods",
+                    "get_kafka_connect_logs",
+                    "list_kafka_connectors",
+                    "get_kafka_connector",
+                    "diagnose_kafka_connector",
                     "diagnose_kafka_cluster",
                     "diagnose_kafka_connectivity",
                     "diagnose_kafka_metrics",
@@ -99,6 +106,8 @@ class McpDiscoveryTest {
                     "Prompt 'analyze-kafka-metrics' should be registered");
                 assertNotNull(page.findByName("analyze-strimzi-operator-metrics"),
                     "Prompt 'analyze-strimzi-operator-metrics' should be registered");
+                assertNotNull(page.findByName("troubleshoot-connector"),
+                    "Prompt 'troubleshoot-connector' should be registered");
             })
             .send()
             .thenAssertResults();
@@ -164,6 +173,27 @@ class McpDiscoveryTest {
                 assertTrue(content.contains("replication"));
                 assertTrue(content.contains("throughput"));
                 assertTrue(content.contains("performance"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify troubleshoot-connector prompt generates correct instructions.
+     */
+    @Test
+    void testPromptGetTroubleshootConnector() {
+        client.when()
+            .promptsGet("troubleshoot-connector")
+            .withArguments(Map.of("connector_name", "my-debezium", "namespace", "kafka-prod"))
+            .withAssert(response -> {
+                assertFalse(response.messages().isEmpty());
+                String content = response.messages().getFirst().content().asText().text();
+                assertTrue(content.contains("my-debezium"));
+                assertTrue(content.contains("kafka-prod"));
+                assertTrue(content.contains("get_kafka_connector"));
+                assertTrue(content.contains("get_kafka_connect"));
+                assertTrue(content.contains("get_kafka_connect_logs"));
             })
             .send()
             .thenAssertResults();

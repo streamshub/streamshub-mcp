@@ -19,6 +19,8 @@ import io.streamshub.mcp.systemtest.Environment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Locale;
 
 /**
@@ -111,8 +113,8 @@ public final class ConnectivitySetup {
             .build();
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(nodePortService);
 
-        // Use localhost — kind with extraPortMappings maps NodePort to host port
-        String url = "http://localhost:" + Constants.MCP_NODE_PORT;
+        String nodeIp = getNodeInternalIp(client);
+        String url = "http://" + nodeIp + ":" + Constants.MCP_NODE_PORT;
         LOGGER.info("MCP server exposed via NodePort at {}", url);
         return url;
     }
@@ -202,5 +204,45 @@ public final class ConnectivitySetup {
             LOGGER.debug("Failed to detect OpenShift, assuming vanilla Kubernetes", e);
             return false;
         }
+    }
+
+    /**
+     * Get the container image output registry for KafkaConnect builds.
+     *
+     * @return the registry hostname
+     */
+    public static String getImageOutputRegistry() {
+        if (isOpenShift()) {
+            return "image-registry.openshift-image-registry.svc:5000";
+        } else {
+            // we will need a hostname of machine
+            String registry = getHostIpAddress() + ":5001";
+            LOGGER.info("Using container registry '{}'", registry);
+            return registry;
+        }
+    }
+
+    private static String getHostIpAddress() {
+        try {
+            return InetAddress.getLocalHost().getHostAddress();
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Get the InternalIP of the first Kubernetes node.
+     * On Kind clusters this is the Docker container IP reachable from the host.
+     *
+     * @param client the Kubernetes client
+     * @return the node's InternalIP address
+     */
+    private static String getNodeInternalIp(final KubernetesClient client) {
+        return client.nodes().list().getItems().stream()
+            .flatMap(node -> node.getStatus().getAddresses().stream())
+            .filter(addr -> "InternalIP".equals(addr.getType()))
+            .map(io.fabric8.kubernetes.api.model.NodeAddress::getAddress)
+            .findFirst()
+            .orElseThrow(() -> new RuntimeException("No node with InternalIP found"));
     }
 }

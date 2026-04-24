@@ -186,6 +186,27 @@ public final class StrimziToolsPrompts {
             + "timeouts, missing permissions) is useful diagnostic information itself "
             + "— it does not mean you should stop the investigation.";
 
+    /**
+     * KafkaConnect cluster name parameter description.
+     */
+    public static final String CONNECT_CLUSTER_DESC =
+        "KafkaConnect cluster name"
+            + " (e.g., 'my-connect-cluster').";
+
+    /**
+     * KafkaConnector name parameter description.
+     */
+    public static final String CONNECTOR_NAME_DESC =
+        "KafkaConnector name"
+            + " (e.g., 'my-debezium-connector').";
+
+    /**
+     * Optional connect cluster filter for connector listing.
+     */
+    public static final String CONNECT_CLUSTER_FILTER_DESC =
+        "KafkaConnect cluster name to filter connectors."
+            + " Omit to list connectors across all Connect clusters.";
+
     private StrimziToolsPrompts() {
     }
 }

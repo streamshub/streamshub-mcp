@@ -38,11 +38,11 @@ jobs:
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
 
-    - name: Create kind cluster
-      uses: helm/kind-action@v1.14.0
+    - name: Create kind cluster with registry
+      uses: strimzi/github-actions/.github/actions/dependencies/setup-kind@v1
       with:
-        config: .github/config/kind-config.yaml
-        cluster_name: mcp-e2e
+        controlNodes: "1"
+        workerNodes: "1"
 
     - name: Deploy Prometheus operator
       run: ./dev/scripts/setup-prometheus.sh deploy
@@ -53,14 +53,15 @@ jobs:
           -DskipTests \
           -Dquarkus.container-image.build=true \
           -Dquarkus.container-image.tag=test
-        kind load docker-image quay.io/streamshub/strimzi-mcp:test --name mcp-e2e
+        kind load docker-image quay.io/streamshub/strimzi-mcp:test --name kind-cluster
 
     - name: Run system tests
+      env:
+        MCP_IMAGE: quay.io/streamshub/strimzi-mcp:test
+        MCP_CONNECTIVITY: NODEPORT
       run: |
         ./mvnw verify -pl systemtest \
-          -Psystemtest \
-          -DMCP_IMAGE=quay.io/streamshub/strimzi-mcp:test \
-          -DMCP_CONNECTIVITY=NODEPORT
+          -Psystemtest
 
     - name: Generate Allure report
       if: always()
@@ -85,4 +86,4 @@ jobs:
       if: failure()
       with:
         name: test-logs
-        path: systemtest/target/logs/
+        path: systemtest/target/test-logs/

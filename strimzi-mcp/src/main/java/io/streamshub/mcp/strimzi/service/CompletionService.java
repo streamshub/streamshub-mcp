@@ -9,6 +9,8 @@ import io.quarkiverse.mcp.server.CompleteContext;
 import io.streamshub.mcp.common.service.CompletionCache;
 import io.streamshub.mcp.common.service.CompletionHelper;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
+import io.strimzi.api.kafka.model.connect.KafkaConnect;
+import io.strimzi.api.kafka.model.connector.KafkaConnector;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
@@ -31,6 +33,8 @@ public class CompletionService {
     // Prompt arguments use descriptive names (e.g., "cluster_name")
     private static final String ARG_NAMESPACE = "namespace";
     private static final String ARG_CLUSTER_NAME = "cluster_name";
+    private static final String ARG_CONNECTOR_NAME = "connector_name";
+    private static final String ARG_CONNECT_CLUSTER = "connect_cluster";
 
     // Resource template variables match URI template placeholders (e.g., {name})
     private static final String ARG_NAME = "name";
@@ -62,6 +66,12 @@ public class CompletionService {
         }
         if (args.containsKey(ARG_CLUSTER_NAME)) {
             return completeClusterName(partial);
+        }
+        if (args.containsKey(ARG_CONNECTOR_NAME)) {
+            return completeConnectorName(partial);
+        }
+        if (args.containsKey(ARG_CONNECT_CLUSTER)) {
+            return completeConnectClusterName(partial);
         }
         return List.of();
     }
@@ -178,6 +188,34 @@ public class CompletionService {
                 .getItems()
                 .stream()
                 .map(t -> t.getMetadata().getName())
+                .distinct()
+                .toList()
+        );
+        return completionHelper.filterByPrefix(names, partial);
+    }
+
+    private List<String> completeConnectClusterName(final String partial) {
+        List<String> names = completionCache.getOrFetch("kafkaconnect", () ->
+            kubernetesClient.resources(KafkaConnect.class)
+                .inAnyNamespace()
+                .list()
+                .getItems()
+                .stream()
+                .map(c -> c.getMetadata().getName())
+                .distinct()
+                .toList()
+        );
+        return completionHelper.filterByPrefix(names, partial);
+    }
+
+    private List<String> completeConnectorName(final String partial) {
+        List<String> names = completionCache.getOrFetch("kafkaconnector", () ->
+            kubernetesClient.resources(KafkaConnector.class)
+                .inAnyNamespace()
+                .list()
+                .getItems()
+                .stream()
+                .map(c -> c.getMetadata().getName())
                 .distinct()
                 .toList()
         );

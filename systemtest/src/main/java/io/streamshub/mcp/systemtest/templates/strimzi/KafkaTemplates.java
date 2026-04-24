@@ -30,7 +30,7 @@ public final class KafkaTemplates {
         Path.of(Constants.STRIMZI_MANIFESTS_DIR, "kafka", "010-Kafka.yaml");
 
     /** Default Kafka version for test clusters. */
-    private static final String DEFAULT_KAFKA_VERSION = "4.2.0";
+    public static final String DEFAULT_KAFKA_VERSION = "4.2.0";
 
     /** Maximum replication factor for Kafka internal topics. */
     private static final int MAX_REPLICATION_FACTOR = 3;
