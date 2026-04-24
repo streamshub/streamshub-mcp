@@ -134,7 +134,23 @@ The **prod** overlay adds:
 
 The **prod-openshift** overlay extends prod with an edge-terminated TLS Route for external access.
 
-### Deploy to cluster
+### Deploy a released version
+
+Install directly from a release tag without cloning the repository.
+Replace `<version>` with a tag from the [releases page](https://github.com/streamshub/streamshub-mcp/releases) (e.g., `v0.1.0`):
+
+```bash
+# Production Kubernetes
+kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/overlays/prod?ref=<version>"
+
+# Production OpenShift
+kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/overlays/prod-openshift?ref=<version>"
+
+# Base (minimal deployment)
+kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/base?ref=<version>"
+```
+
+### Deploy from a local clone
 
 Deploy using the overlay that matches your environment:
 

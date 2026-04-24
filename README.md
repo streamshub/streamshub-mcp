@@ -1,6 +1,7 @@
 # StreamsHub MCP
 
 [![Build](https://github.com/streamshub/streamshub-mcp/actions/workflows/build.yml/badge.svg)](https://github.com/streamshub/streamshub-mcp/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/streamshub/streamshub-mcp)](https://github.com/streamshub/streamshub-mcp/releases/latest)
 [![License](https://img.shields.io/github/license/streamshub/streamshub-mcp)](LICENSE)
 ![Java](https://img.shields.io/badge/Java-21%2B-blue)
 
