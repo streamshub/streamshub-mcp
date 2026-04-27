@@ -86,15 +86,11 @@ class KafkaConfigToolsST extends AbstractST {
                     Constants.KAFKA_CLUSTER_NAME, 1).build(),
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build(),
-                KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np-2",
-                    SECOND_CLUSTER_NAME, 1).build(),
-                KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np-2",
+                KafkaNodePoolTemplates.mixedPool(kafkaNs, "mixed-np",
                     SECOND_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
-                KafkaTemplates.kafkaMinimal(kafkaNs, Constants.KAFKA_CLUSTER_NAME).build());
-
-            krm.createOrUpdateResourceWithWait(
+                KafkaTemplates.kafkaMinimal(kafkaNs, Constants.KAFKA_CLUSTER_NAME).build(),
                 secondCluster(kafkaNs).build());
         }
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
@@ -264,18 +260,15 @@ class KafkaConfigToolsST extends AbstractST {
                     brokerConfig2.path("log.retention.hours").asInt(),
                     "log.retention.hours should match configured value");
 
-                // Verify node pool difference: different pool names
+                // Verify node pool difference: cluster 2 uses a single mixed pool
+                JsonNode nodePools1 = cluster1.path("node_pools");
                 JsonNode nodePools2 = cluster2.path("node_pools");
-                assertTrue(nodePools2.isArray() && !nodePools2.isEmpty(),
-                    "Cluster 2 should have node pools");
-                boolean hasPool2 = false;
-                for (JsonNode pool : nodePools2) {
-                    if ("broker-np-2".equals(pool.path("name").asText())) {
-                        hasPool2 = true;
-                        break;
-                    }
-                }
-                assertTrue(hasPool2, "Cluster 2 should have 'broker-np-2' node pool");
+                assertTrue(nodePools1.size() > nodePools2.size(),
+                    "Cluster 1 should have more node pools than cluster 2");
+                assertEquals(1, nodePools2.size(),
+                    "Cluster 2 should have exactly one mixed node pool");
+                assertEquals("mixed-np", nodePools2.get(0).path("name").asText(),
+                    "Cluster 2 node pool should be 'mixed-np'");
 
                 // Steps tracking
                 assertTrue(report.has("steps_completed"), "Should have steps_completed");
