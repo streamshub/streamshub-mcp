@@ -53,7 +53,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class KafkaUserToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUserToolsST.class);
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @InjectResourceManager
     KubeResourceManager krm;
