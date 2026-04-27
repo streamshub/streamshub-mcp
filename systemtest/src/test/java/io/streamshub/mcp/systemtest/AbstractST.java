@@ -4,6 +4,9 @@
  */
 package io.streamshub.mcp.systemtest;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.skodjob.kubetest4j.annotations.ResourceManager;
 import io.skodjob.kubetest4j.resources.ClusterRoleBindingType;
 import io.skodjob.kubetest4j.resources.ClusterRoleType;
@@ -52,5 +55,19 @@ public abstract class AbstractST {
             new KafkaConnectType(),
             new KafkaConnectorType()
         );
+    }
+
+    /**
+     * Helper method to jet json object from json string
+     * @param json json string
+     * @return json object
+     */
+    static JsonNode parseJson(final String json) {
+        final ObjectMapper mapper = new ObjectMapper();
+        try {
+            return mapper.readTree(json);
+        } catch (JsonProcessingException e) {
+            throw new AssertionError("Failed to parse JSON response: " + json, e);
+        }
     }
 }

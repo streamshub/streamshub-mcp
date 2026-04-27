@@ -4,9 +4,7 @@
  */
 package io.streamshub.mcp.systemtest;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
@@ -53,7 +51,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class KafkaConnectToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaConnectToolsST.class);
-    private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String CONNECT_CLUSTER_NAME = "mcp-connect";
 
     @InjectResourceManager
@@ -259,19 +256,5 @@ class KafkaConnectToolsST extends AbstractST {
             return root;
         }
         return null;
-    }
-
-    /**
-     * Parse a JSON string into a Jackson tree node.
-     *
-     * @param json the JSON string
-     * @return parsed JsonNode
-     */
-    private static JsonNode parseJson(final String json) {
-        try {
-            return MAPPER.readTree(json);
-        } catch (JsonProcessingException e) {
-            throw new AssertionError("Failed to parse JSON response: " + json, e);
-        }
     }
 }
