@@ -90,7 +90,7 @@ class KafkaConfigToolsST extends AbstractST {
                     SECOND_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
-                KafkaTemplates.kafkaMinimal(kafkaNs, Constants.KAFKA_CLUSTER_NAME).build(),
+                KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build(),
                 secondCluster(kafkaNs).build());
         }
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());

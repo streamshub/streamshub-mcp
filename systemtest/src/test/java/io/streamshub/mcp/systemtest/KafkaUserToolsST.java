@@ -4,7 +4,6 @@
  */
 package io.streamshub.mcp.systemtest;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -342,19 +341,5 @@ class KafkaUserToolsST extends AbstractST {
             return root;
         }
         return null;
-    }
-
-    /**
-     * Parse a JSON string into a Jackson tree node.
-     *
-     * @param json the JSON string
-     * @return parsed JsonNode
-     */
-    private static JsonNode parseJson(final String json) {
-        try {
-            return MAPPER.readTree(json);
-        } catch (JsonProcessingException e) {
-            throw new AssertionError("Failed to parse JSON response: " + json, e);
-        }
     }
 }
