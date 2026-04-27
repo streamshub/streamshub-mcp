@@ -5,7 +5,6 @@
 package io.streamshub.mcp.systemtest;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
