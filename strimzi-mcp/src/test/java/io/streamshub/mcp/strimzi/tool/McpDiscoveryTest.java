@@ -47,7 +47,7 @@ class McpDiscoveryTest {
     }
 
     /**
-     * Verify all 20 tools are registered.
+     * Verify all tools are registered.
      */
     @Test
     void testToolDiscovery() {
@@ -60,6 +60,7 @@ class McpDiscoveryTest {
                     "get_kafka_bootstrap_servers",
                     "get_kafka_cluster_certificates",
                     "get_kafka_cluster_logs",
+                    "get_kafka_cluster_config",
                     "list_kafka_topics",
                     "get_kafka_topic",
                     "list_kafka_node_pools",
@@ -80,7 +81,8 @@ class McpDiscoveryTest {
                     "diagnose_kafka_cluster",
                     "diagnose_kafka_connectivity",
                     "diagnose_kafka_metrics",
-                    "diagnose_operator_metrics"
+                    "diagnose_operator_metrics",
+                    "compare_kafka_clusters"
                 );
 
                 for (String toolName : expectedTools) {
@@ -108,6 +110,8 @@ class McpDiscoveryTest {
                     "Prompt 'analyze-strimzi-operator-metrics' should be registered");
                 assertNotNull(page.findByName("troubleshoot-connector"),
                     "Prompt 'troubleshoot-connector' should be registered");
+                assertNotNull(page.findByName("compare-cluster-configs"),
+                    "Prompt 'compare-cluster-configs' should be registered");
             })
             .send()
             .thenAssertResults();
@@ -173,6 +177,28 @@ class McpDiscoveryTest {
                 assertTrue(content.contains("replication"));
                 assertTrue(content.contains("throughput"));
                 assertTrue(content.contains("performance"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify compare-cluster-configs prompt generates correct instructions.
+     */
+    @Test
+    void testPromptGetCompareClusterConfigs() {
+        client.when()
+            .promptsGet("compare-cluster-configs")
+            .withArguments(Map.of(
+                "cluster_name_1", "cluster-a",
+                "cluster_name_2", "cluster-b",
+                "namespace_1", "ns-a"))
+            .withAssert(response -> {
+                assertFalse(response.messages().isEmpty());
+                String content = response.messages().getFirst().content().asText().text();
+                assertTrue(content.contains("cluster-a"));
+                assertTrue(content.contains("cluster-b"));
+                assertTrue(content.contains("get_kafka_cluster_config"));
             })
             .send()
             .thenAssertResults();

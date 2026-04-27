@@ -79,6 +79,26 @@ Structured workflow for analyzing Strimzi operator metrics.
 4. Query JVM metrics
 5. Correlate with operator logs
 
+### compare-cluster-configs
+
+Structured workflow for comparing two Kafka cluster configurations.
+
+**Parameters**:
+- `cluster_name_1` (required) -- Name of the first cluster
+- `cluster_name_2` (required) -- Name of the second cluster
+- `namespace_1` (optional) -- Namespace for the first cluster
+- `namespace_2` (optional) -- Namespace for the second cluster
+
+**Workflow**:
+1. Get configuration for cluster 1
+2. Get configuration for cluster 2
+3. Compare broker configuration
+4. Compare resources and JVM options
+5. Compare listeners and authorization
+6. Compare component settings (Entity Operator, Cruise Control, Kafka Exporter)
+7. Compare metrics and logging
+8. Summarize differences by impact (CRITICAL/HIGH/MEDIUM/LOW)
+
 ## Resource templates
 
 Resource templates expose Strimzi data as structured JSON that clients can attach to conversations.

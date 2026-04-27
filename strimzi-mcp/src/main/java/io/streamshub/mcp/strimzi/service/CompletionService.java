@@ -53,7 +53,8 @@ public class CompletionService {
 
     /**
      * Complete prompt arguments by dispatching on the argument name from context.
-     * Supports {@code namespace} and {@code cluster_name} arguments.
+     * Supports {@code namespace} and {@code cluster_name} arguments, including
+     * numbered variants like {@code namespace_1} and {@code cluster_name_2}.
      *
      * @param partial the partial input value
      * @param context the completion context identifying which argument is being completed
@@ -61,11 +62,13 @@ public class CompletionService {
      */
     public List<String> completeByArgumentName(final String partial, final CompleteContext context) {
         Map<String, String> args = context.arguments();
-        if (args.containsKey(ARG_NAMESPACE)) {
-            return completionHelper.completeNamespace(partial);
-        }
-        if (args.containsKey(ARG_CLUSTER_NAME)) {
-            return completeClusterName(partial);
+        for (String key : args.keySet()) {
+            if (key.startsWith(ARG_NAMESPACE)) {
+                return completionHelper.completeNamespace(partial);
+            }
+            if (key.startsWith(ARG_CLUSTER_NAME)) {
+                return completeClusterName(partial);
+            }
         }
         if (args.containsKey(ARG_CONNECTOR_NAME)) {
             return completeConnectorName(partial);

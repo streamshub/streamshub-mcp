@@ -15,11 +15,13 @@ import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.KafkaConfigComparisonReport;
 import io.streamshub.mcp.strimzi.dto.KafkaConnectivityDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.KafkaMetricsDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.OperatorMetricsDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorDiagnosticReport;
 import io.streamshub.mcp.strimzi.service.KafkaClusterDiagnosticService;
+import io.streamshub.mcp.strimzi.service.KafkaConfigComparisonService;
 import io.streamshub.mcp.strimzi.service.KafkaConnectivityDiagnosticService;
 import io.streamshub.mcp.strimzi.service.KafkaMetricsDiagnosticService;
 import io.streamshub.mcp.strimzi.service.OperatorMetricsDiagnosticService;
@@ -46,6 +48,9 @@ public class DiagnosticTools {
 
     @Inject
     KafkaMetricsDiagnosticService metricsDiagnosticService;
+
+    @Inject
+    KafkaConfigComparisonService configComparisonService;
 
     @Inject
     OperatorMetricsDiagnosticService operatorMetricsDiagnosticService;
@@ -158,6 +163,60 @@ public class DiagnosticTools {
     ) {
         return clusterDiagnosticService.diagnose(
             namespace, clusterName, symptom, sinceMinutes,
+            sampling, elicitation, mcpLog, progress, cancellation);
+    }
+
+    /**
+     * Compare the effective configuration of two Kafka clusters.
+     *
+     * @param clusterName1 the first Kafka cluster name
+     * @param namespace1   optional namespace for the first cluster
+     * @param clusterName2 the second Kafka cluster name
+     * @param namespace2   optional namespace for the second cluster
+     * @param sampling     MCP Sampling for LLM analysis
+     * @param elicitation  MCP Elicitation for namespace disambiguation
+     * @param mcpLog       MCP log for progress notifications
+     * @param progress     MCP progress tracking
+     * @param cancellation MCP cancellation checking
+     * @return a configuration comparison report
+     */
+    @Tool(
+        name = "compare_kafka_clusters",
+        description = "Compares the effective configuration of two Kafka clusters."
+            + " Gathers broker config, resources, JVM options, listeners,"
+            + " and component settings for both clusters."
+            + " Uses Sampling to analyze differences by impact."
+            + " Returns both configs side-by-side when Sampling is not supported.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    public KafkaConfigComparisonReport compareKafkaClusters(
+        @ToolArg(
+            description = StrimziToolsPrompts.CLUSTER_DESC
+        ) final String clusterName1,
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace1,
+        @ToolArg(
+            description = StrimziToolsPrompts.CLUSTER2_DESC
+        ) final String clusterName2,
+        @ToolArg(
+            description = StrimziToolsPrompts.NS2_DESC,
+            required = false
+        ) final String namespace2,
+        final Sampling sampling,
+        final Elicitation elicitation,
+        final McpLog mcpLog,
+        final Progress progress,
+        final Cancellation cancellation
+    ) {
+        return configComparisonService.compare(
+            namespace1, clusterName1, namespace2, clusterName2,
             sampling, elicitation, mcpLog, progress, cancellation);
     }
 

@@ -88,6 +88,25 @@ Analyzes reconciliation, resource, and JVM metrics, correlating with operator lo
 Analyze Strimzi operator metrics
 ```
 
+## compare_kafka_clusters
+
+Compares the effective configuration of two Kafka clusters.
+Gathers broker config, resources, JVM options, listeners, and component settings for both clusters.
+
+**Parameters**:
+- `clusterName1` (required) -- Name of the first Kafka cluster
+- `namespace1` (optional) -- Namespace for the first cluster
+- `clusterName2` (required) -- Name of the second Kafka cluster
+- `namespace2` (optional) -- Namespace for the second cluster
+
+**Uses Sampling**: Yes -- Analyzes differences by impact category (CRITICAL/HIGH/MEDIUM/LOW)
+**Uses Elicitation**: Yes -- Namespace disambiguation for each cluster
+
+**Example**:
+```
+Compare the configuration of cluster-dev and cluster-prod
+```
+
 ## Next steps
 
 - **[Metrics tools](metrics.md)** -- Retrieve and analyze Prometheus metrics
