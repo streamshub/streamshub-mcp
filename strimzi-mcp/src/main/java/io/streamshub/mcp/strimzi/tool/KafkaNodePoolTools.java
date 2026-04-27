@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.tool;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
@@ -38,6 +39,7 @@ public class KafkaNodePoolTools {
      * @param namespace   optional namespace
      * @return list of node pool responses
      */
+    @WithSpan("tool.list_kafka_node_pools")
     @Tool(
         name = "list_kafka_node_pools",
         description = "List KafkaNodePools for a cluster showing roles, replicas, and storage configuration.",
@@ -68,6 +70,7 @@ public class KafkaNodePoolTools {
      * @param namespace    optional namespace
      * @return the node pool response
      */
+    @WithSpan("tool.get_kafka_node_pool")
     @Tool(
         name = "get_kafka_node_pool",
         description = "Get detailed information about a specific KafkaNodePool including roles, replicas, and storage.",
@@ -101,6 +104,7 @@ public class KafkaNodePoolTools {
      * @param namespace    optional namespace
      * @return list of pod info summaries
      */
+    @WithSpan("tool.get_kafka_node_pool_pods")
     @Tool(
         name = "get_kafka_node_pool_pods",
         description = "Get pod summaries for a KafkaNodePool with phase, readiness, restarts, and age.",

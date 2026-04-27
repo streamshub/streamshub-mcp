@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.tool;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
@@ -56,6 +57,7 @@ public class KafkaTools {
      * @param namespace optional namespace filter
      * @return list of cluster responses
      */
+    @WithSpan("tool.list_kafka_clusters")
     @Tool(
         name = "list_kafka_clusters",
         description = "List Kafka clusters with status"
@@ -84,6 +86,7 @@ public class KafkaTools {
      * @param namespace   optional namespace
      * @return the cluster response
      */
+    @WithSpan("tool.get_kafka_cluster")
     @Tool(
         name = "get_kafka_cluster",
         description = "Get detailed information about"
@@ -115,6 +118,7 @@ public class KafkaTools {
      * @param namespace   optional namespace
      * @return the cluster pods response
      */
+    @WithSpan("tool.get_kafka_cluster_pods")
     @Tool(
         name = "get_kafka_cluster_pods",
         description = "Get pod summaries for a Kafka"
@@ -148,6 +152,7 @@ public class KafkaTools {
      * @param namespace   optional namespace
      * @return the bootstrap response with listener addresses
      */
+    @WithSpan("tool.get_kafka_bootstrap_servers")
     @Tool(
         name = "get_kafka_bootstrap_servers",
         description = "Get bootstrap server addresses for a Kafka cluster"
@@ -179,6 +184,7 @@ public class KafkaTools {
      * @param listenerName optional listener name filter
      * @return the certificate and authentication response
      */
+    @WithSpan("tool.get_kafka_cluster_certificates")
     @Tool(
         name = "get_kafka_cluster_certificates",
         description = "Returns TLS certificate metadata and listener authentication"
@@ -225,6 +231,7 @@ public class KafkaTools {
      * @param cancellation MCP cancellation checking
      * @return the cluster logs response with error analysis
      */
+    @WithSpan("tool.get_kafka_cluster_logs")
     @Tool(
         name = "get_kafka_cluster_logs",
         description = "Get logs from Kafka cluster pods with error analysis."

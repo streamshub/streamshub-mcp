@@ -150,6 +150,7 @@ public class XxxTools {
     XxxTools() {  // package-private no-arg constructor for CDI
     }
 
+    @WithSpan("tool.verb_noun")
     @Tool(
         name = "verb_noun",
         description = "Short description of what the tool does."
@@ -163,6 +164,11 @@ public class XxxTools {
     }
 }
 ```
+
+### OpenTelemetry tracing on tools
+
+Every tool method is annotated with `@WithSpan("tool.<tool_name>")` where the span name
+matches the `@Tool(name = ...)` value. This creates a named parent span for each MCP tool call.
 
 ### Tool Annotations
 
@@ -256,6 +262,10 @@ public class DiagnosticTools {
 - **Cancellation**: Checks `DiagnosticHelper.checkCancellation()` between steps
 - **No duplication**: Calls existing domain services (KafkaService, StrimziOperatorService, etc.)
 - **Configurable token limits**: `mcp.sampling.triage-max-tokens` and `mcp.sampling.analysis-max-tokens`
+- **OpenTelemetry tracing**: Gather/triage/analysis methods are annotated with `@WithSpan` for
+  distributed tracing. Methods are package-private (not private) so Quarkus ArC subclass-based
+  interception can intercept self-invocations from `diagnose()`. Span names follow the pattern
+  `diagnose.{domain}.{step}` (e.g., `diagnose.cluster.status`, `diagnose.connectivity.triage`).
 
 ### DiagnosticHelper (common module)
 

@@ -5,6 +5,7 @@
 package io.streamshub.mcp.strimzi.service.kafkaconnect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpLog;
@@ -142,7 +143,7 @@ public class KafkaConnectorDiagnosticService {
         DiagnosticHelper.checkCancellation(cancellation);
 
         // === Phase 2: Deep investigation ===
-        InvestigationAreas areas = decideInvestigationAreas(
+        InvestigationAreas areas = investigateAreas(
             sampling, connector, connectCluster, symptom);
 
         int totalSteps = PHASE1_STEPS + areas.enabledCount();
@@ -182,11 +183,12 @@ public class KafkaConnectorDiagnosticService {
 
     // ---- Phase 1: Initial data gathering ----
 
-    private KafkaConnectorResponse gatherConnectorStatus(final String namespace,
-                                                          final String connectorName,
-                                                          final Elicitation elicitation,
-                                                          final List<String> completed,
-                                                          final McpLog mcpLog) {
+    @WithSpan("diagnose.connector.status")
+    KafkaConnectorResponse gatherConnectorStatus(final String namespace,
+                                                  final String connectorName,
+                                                  final Elicitation elicitation,
+                                                  final List<String> completed,
+                                                  final McpLog mcpLog) {
         try {
             KafkaConnectorResponse result = connectorService.getConnector(namespace, connectorName);
             completed.add(STEP_CONNECTOR_STATUS);
@@ -203,11 +205,12 @@ public class KafkaConnectorDiagnosticService {
         }
     }
 
-    private KafkaConnectResponse gatherConnectCluster(final String namespace,
-                                                       final String connectClusterName,
-                                                       final List<String> completed,
-                                                       final List<String> failed,
-                                                       final McpLog mcpLog) {
+    @WithSpan("diagnose.connector.connect_cluster")
+    KafkaConnectResponse gatherConnectCluster(final String namespace,
+                                               final String connectClusterName,
+                                               final List<String> completed,
+                                               final List<String> failed,
+                                               final McpLog mcpLog) {
         if (connectClusterName == null) {
             failed.add(STEP_CONNECT_CLUSTER + ": no strimzi.io/cluster label on connector");
             return null;
@@ -227,11 +230,12 @@ public class KafkaConnectorDiagnosticService {
 
     // ---- Phase 2: Deep investigation ----
 
-    private KafkaConnectPodsResponse gatherConnectPods(final String namespace,
-                                                        final String connectClusterName,
-                                                        final List<String> completed,
-                                                        final List<String> failed,
-                                                        final McpLog mcpLog) {
+    @WithSpan("diagnose.connector.connect_pods")
+    KafkaConnectPodsResponse gatherConnectPods(final String namespace,
+                                                final String connectClusterName,
+                                                final List<String> completed,
+                                                final List<String> failed,
+                                                final McpLog mcpLog) {
         try {
             KafkaConnectPodsResponse result = connectService.getConnectPods(namespace, connectClusterName);
             completed.add(STEP_CONNECT_PODS);
@@ -244,13 +248,14 @@ public class KafkaConnectorDiagnosticService {
         }
     }
 
-    private KafkaConnectLogsResponse gatherConnectLogs(final String namespace,
-                                                        final String connectClusterName,
-                                                        final String connectorClassName,
-                                                        final Integer sinceMinutes,
-                                                        final List<String> completed,
-                                                        final List<String> failed,
-                                                        final McpLog mcpLog) {
+    @WithSpan("diagnose.connector.connect_logs")
+    KafkaConnectLogsResponse gatherConnectLogs(final String namespace,
+                                                final String connectClusterName,
+                                                final String connectorClassName,
+                                                final Integer sinceMinutes,
+                                                final List<String> completed,
+                                                final List<String> failed,
+                                                final McpLog mcpLog) {
         try {
             LogCollectionParams.Builder builder = LogCollectionParams.builder(defaultTailLines)
                 .filter("errors")
@@ -275,12 +280,13 @@ public class KafkaConnectorDiagnosticService {
         }
     }
 
-    private StrimziEventsResponse gatherEvents(final String namespace,
-                                                final String connectClusterName,
-                                                final Integer sinceMinutes,
-                                                final List<String> completed,
-                                                final List<String> failed,
-                                                final McpLog mcpLog) {
+    @WithSpan("diagnose.connector.events")
+    StrimziEventsResponse gatherEvents(final String namespace,
+                                        final String connectClusterName,
+                                        final Integer sinceMinutes,
+                                        final List<String> completed,
+                                        final List<String> failed,
+                                        final McpLog mcpLog) {
         try {
             StrimziEventsResponse result = eventsService.getClusterEvents(
                 namespace, connectClusterName, sinceMinutes);
@@ -297,10 +303,11 @@ public class KafkaConnectorDiagnosticService {
 
     // ---- Sampling: triage and analysis ----
 
-    private InvestigationAreas decideInvestigationAreas(final Sampling sampling,
-                                                         final KafkaConnectorResponse connector,
-                                                         final KafkaConnectResponse connectCluster,
-                                                         final String symptom) {
+    @WithSpan("diagnose.connector.investigation")
+    InvestigationAreas investigateAreas(final Sampling sampling,
+                                                 final KafkaConnectorResponse connector,
+                                                 final KafkaConnectResponse connectCluster,
+                                                 final String symptom) {
         if (sampling == null || !sampling.isSupported()) {
             return InvestigationAreas.all();
         }
@@ -324,14 +331,15 @@ public class KafkaConnectorDiagnosticService {
         }
     }
 
+    @WithSpan("diagnose.connector.analysis")
     @SuppressWarnings("checkstyle:ParameterNumber")
-    private String produceAnalysis(final Sampling sampling,
-                                   final KafkaConnectorResponse connector,
-                                   final KafkaConnectResponse connectCluster,
-                                   final KafkaConnectPodsResponse connectPods,
-                                   final KafkaConnectLogsResponse connectLogs,
-                                   final StrimziEventsResponse events,
-                                   final String symptom) {
+    String produceAnalysis(final Sampling sampling,
+                           final KafkaConnectorResponse connector,
+                           final KafkaConnectResponse connectCluster,
+                           final KafkaConnectPodsResponse connectPods,
+                           final KafkaConnectLogsResponse connectLogs,
+                           final StrimziEventsResponse events,
+                           final String symptom) {
         if (sampling == null || !sampling.isSupported()) {
             return null;
         }

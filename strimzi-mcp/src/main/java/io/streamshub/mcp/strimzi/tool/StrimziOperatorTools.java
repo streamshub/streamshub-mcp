@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.tool;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
@@ -54,6 +55,7 @@ public class StrimziOperatorTools {
      * @param namespace optional namespace filter
      * @return list of operator responses
      */
+    @WithSpan("tool.list_strimzi_operators")
     @Tool(
         name = "list_strimzi_operators",
         description = "List Strimzi cluster operators with deployment status and health."
@@ -81,6 +83,7 @@ public class StrimziOperatorTools {
      * @param namespace    optional namespace
      * @return the operator response
      */
+    @WithSpan("tool.get_strimzi_operator")
     @Tool(
         name = "get_strimzi_operator",
         description = "Get detailed information about a specific Strimzi operator"
@@ -120,6 +123,7 @@ public class StrimziOperatorTools {
      * @param cancellation MCP cancellation checking
      * @return the operator logs response
      */
+    @WithSpan("tool.get_strimzi_operator_logs")
     @Tool(
         name = "get_strimzi_operator_logs",
         description = "Get logs from Strimzi operator pods with error analysis."
@@ -199,6 +203,7 @@ public class StrimziOperatorTools {
      * @param sections  optional detail sections
      * @return the pod summary response
      */
+    @WithSpan("tool.get_strimzi_operator_pod")
     @Tool(
         name = "get_strimzi_operator_pod",
         description = "Get detailed description of a Strimzi operator pod including"

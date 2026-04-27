@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.tool;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpLog;
@@ -75,6 +76,7 @@ public class DiagnosticTools {
      * @param cancellation  MCP cancellation checking
      * @return a consolidated connector diagnostic report
      */
+    @WithSpan("tool.diagnose_kafka_connector")
     @Tool(
         name = "diagnose_kafka_connector",
         description = "Runs a multi-step diagnostic workflow for a KafkaConnector."
@@ -130,6 +132,7 @@ public class DiagnosticTools {
      * @param cancellation MCP cancellation checking
      * @return a consolidated diagnostic report
      */
+    @WithSpan("tool.diagnose_kafka_cluster")
     @Tool(
         name = "diagnose_kafka_cluster",
         description = "Runs a multi-step diagnostic workflow for a Kafka cluster."
@@ -186,6 +189,7 @@ public class DiagnosticTools {
      * @param cancellation MCP cancellation checking
      * @return a configuration comparison report
      */
+    @WithSpan("tool.compare_kafka_clusters")
     @Tool(
         name = "compare_kafka_clusters",
         description = "Compares the effective configuration of two Kafka clusters."
@@ -239,6 +243,7 @@ public class DiagnosticTools {
      * @param cancellation MCP cancellation checking
      * @return a consolidated connectivity diagnostic report
      */
+    @WithSpan("tool.diagnose_kafka_connectivity")
     @Tool(
         name = "diagnose_kafka_connectivity",
         description = "Runs a multi-step connectivity diagnostic for a Kafka cluster."
@@ -293,6 +298,7 @@ public class DiagnosticTools {
      * @param cancellation MCP cancellation checking
      * @return a consolidated metrics diagnostic report
      */
+    @WithSpan("tool.diagnose_kafka_metrics")
     @Tool(
         name = "diagnose_kafka_metrics",
         description = "Runs a multi-step metrics diagnostic for a Kafka cluster."
@@ -364,6 +370,7 @@ public class DiagnosticTools {
      * @param cancellation MCP cancellation checking
      * @return a consolidated operator metrics diagnostic report
      */
+    @WithSpan("tool.diagnose_operator_metrics")
     @Tool(
         name = "diagnose_operator_metrics",
         description = "Runs a multi-step metrics diagnostic for a Strimzi operator."

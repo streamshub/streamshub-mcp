@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.tool.kafkaconnect;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
@@ -50,6 +51,7 @@ public class KafkaConnectTools {
      * @param namespace optional namespace filter
      * @return list of KafkaConnect responses
      */
+    @WithSpan("tool.list_kafka_connects")
     @Tool(
         name = "list_kafka_connects",
         description = "List KafkaConnect clusters with status,"
@@ -78,6 +80,7 @@ public class KafkaConnectTools {
      * @param namespace   optional namespace
      * @return the KafkaConnect response
      */
+    @WithSpan("tool.get_kafka_connect")
     @Tool(
         name = "get_kafka_connect",
         description = "Get detailed information about a specific"
@@ -109,6 +112,7 @@ public class KafkaConnectTools {
      * @param namespace   optional namespace
      * @return the Connect pods response
      */
+    @WithSpan("tool.get_kafka_connect_pods")
     @Tool(
         name = "get_kafka_connect_pods",
         description = "Get pod summaries for a KafkaConnect cluster"
@@ -149,6 +153,7 @@ public class KafkaConnectTools {
      * @param cancellation MCP cancellation checking
      * @return the Connect logs response with error analysis
      */
+    @WithSpan("tool.get_kafka_connect_logs")
     @Tool(
         name = "get_kafka_connect_logs",
         description = "Get logs from KafkaConnect pods with error analysis."

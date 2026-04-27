@@ -5,6 +5,7 @@
 package io.streamshub.mcp.strimzi.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpLog;
@@ -243,11 +244,12 @@ public class KafkaClusterDiagnosticService {
 
     // ---- Phase 1: Initial data gathering ----
 
-    private KafkaClusterResponse gatherClusterStatus(final String namespace,
-                                                     final String clusterName,
-                                                     final Elicitation elicitation,
-                                                     final List<String> completed,
-                                                     final McpLog mcpLog) {
+    @WithSpan("diagnose.cluster.status")
+    KafkaClusterResponse gatherClusterStatus(final String namespace,
+                                             final String clusterName,
+                                             final Elicitation elicitation,
+                                             final List<String> completed,
+                                             final McpLog mcpLog) {
         try {
             KafkaClusterResponse result = kafkaService.getCluster(namespace, clusterName);
             completed.add(STEP_CLUSTER_STATUS);
@@ -264,11 +266,12 @@ public class KafkaClusterDiagnosticService {
         }
     }
 
-    private List<KafkaNodePoolResponse> gatherNodePools(final String namespace,
-                                                        final String clusterName,
-                                                        final List<String> completed,
-                                                        final List<String> failed,
-                                                        final McpLog mcpLog) {
+    @WithSpan("diagnose.cluster.node_pools")
+    List<KafkaNodePoolResponse> gatherNodePools(final String namespace,
+                                                final String clusterName,
+                                                final List<String> completed,
+                                                final List<String> failed,
+                                                final McpLog mcpLog) {
         try {
             List<KafkaNodePoolResponse> result = nodePoolService.listNodePools(namespace, clusterName);
             completed.add(STEP_NODE_POOLS);
@@ -281,11 +284,12 @@ public class KafkaClusterDiagnosticService {
         }
     }
 
-    private KafkaClusterPodsResponse gatherClusterPods(final String namespace,
-                                                       final String clusterName,
-                                                       final List<String> completed,
-                                                       final List<String> failed,
-                                                       final McpLog mcpLog) {
+    @WithSpan("diagnose.cluster.pods")
+    KafkaClusterPodsResponse gatherClusterPods(final String namespace,
+                                               final String clusterName,
+                                               final List<String> completed,
+                                               final List<String> failed,
+                                               final McpLog mcpLog) {
         try {
             KafkaClusterPodsResponse result = kafkaService.getClusterPods(namespace, clusterName);
             completed.add(STEP_POD_HEALTH);
@@ -317,10 +321,11 @@ public class KafkaClusterDiagnosticService {
 
     // ---- Phase 2: Deep investigation ----
 
-    private StrimziOperatorResponse gatherOperatorStatus(final String namespace,
-                                                         final List<String> completed,
-                                                         final List<String> failed,
-                                                         final McpLog mcpLog) {
+    @WithSpan("diagnose.cluster.operator_status")
+    StrimziOperatorResponse gatherOperatorStatus(final String namespace,
+                                                 final List<String> completed,
+                                                 final List<String> failed,
+                                                 final McpLog mcpLog) {
         try {
             List<StrimziOperatorResponse> operators = operatorService.listOperators(namespace);
             if (!operators.isEmpty()) {
@@ -338,11 +343,12 @@ public class KafkaClusterDiagnosticService {
         }
     }
 
-    private StrimziOperatorLogsResponse gatherOperatorLogs(final String namespace,
-                                                           final Integer sinceMinutes,
-                                                           final List<String> completed,
-                                                           final List<String> failed,
-                                                           final McpLog mcpLog) {
+    @WithSpan("diagnose.cluster.operator_logs")
+    StrimziOperatorLogsResponse gatherOperatorLogs(final String namespace,
+                                                   final Integer sinceMinutes,
+                                                   final List<String> completed,
+                                                   final List<String> failed,
+                                                   final McpLog mcpLog) {
         try {
             StrimziOperatorLogsResponse result = operatorService.getOperatorLogs(
                 namespace, null, buildErrorLogParams(sinceMinutes));
@@ -356,12 +362,13 @@ public class KafkaClusterDiagnosticService {
         }
     }
 
-    private KafkaClusterLogsResponse gatherClusterLogs(final String namespace,
-                                                       final String clusterName,
-                                                       final Integer sinceMinutes,
-                                                       final List<String> completed,
-                                                       final List<String> failed,
-                                                       final McpLog mcpLog) {
+    @WithSpan("diagnose.cluster.logs")
+    KafkaClusterLogsResponse gatherClusterLogs(final String namespace,
+                                               final String clusterName,
+                                               final Integer sinceMinutes,
+                                               final List<String> completed,
+                                               final List<String> failed,
+                                               final McpLog mcpLog) {
         try {
             KafkaClusterLogsResponse result = kafkaService.getClusterLogs(
                 namespace, clusterName, buildErrorLogParams(sinceMinutes));
@@ -375,12 +382,13 @@ public class KafkaClusterDiagnosticService {
         }
     }
 
-    private StrimziEventsResponse gatherEvents(final String namespace,
-                                               final String clusterName,
-                                               final Integer sinceMinutes,
-                                               final List<String> completed,
-                                               final List<String> failed,
-                                               final McpLog mcpLog) {
+    @WithSpan("diagnose.cluster.events")
+    StrimziEventsResponse gatherEvents(final String namespace,
+                                       final String clusterName,
+                                       final Integer sinceMinutes,
+                                       final List<String> completed,
+                                       final List<String> failed,
+                                       final McpLog mcpLog) {
         try {
             StrimziEventsResponse result = eventsService.getClusterEvents(
                 namespace, clusterName, sinceMinutes);
@@ -394,11 +402,12 @@ public class KafkaClusterDiagnosticService {
         }
     }
 
-    private KafkaMetricsResponse gatherMetrics(final String namespace,
-                                               final String clusterName,
-                                               final List<String> completed,
-                                               final List<String> failed,
-                                               final McpLog mcpLog) {
+    @WithSpan("diagnose.cluster.metrics")
+    KafkaMetricsResponse gatherMetrics(final String namespace,
+                                       final String clusterName,
+                                       final List<String> completed,
+                                       final List<String> failed,
+                                       final McpLog mcpLog) {
         try {
             KafkaMetricsResponse result = kafkaMetricsService.getKafkaMetrics(
                 namespace, clusterName, "replication", null, null, null, null, null);
@@ -449,11 +458,12 @@ public class KafkaClusterDiagnosticService {
 
     // ---- Sampling: triage and analysis ----
 
-    private InvestigationAreas decideInvestigationAreas(final Sampling sampling,
-                                                        final KafkaClusterResponse cluster,
-                                                        final List<KafkaNodePoolResponse> nodePools,
-                                                        final KafkaClusterPodsResponse pods,
-                                                        final DrainCleanerReadinessResponse drainCleaner,
+    @WithSpan("diagnose.cluster.triage")
+    InvestigationAreas decideInvestigationAreas(final Sampling sampling,
+                                                final KafkaClusterResponse cluster,
+                                                final List<KafkaNodePoolResponse> nodePools,
+                                                final KafkaClusterPodsResponse pods,
+                                                final DrainCleanerReadinessResponse drainCleaner,
                                                         final String symptom) {
         if (sampling == null || !sampling.isSupported()) {
             return InvestigationAreas.all();
@@ -478,8 +488,9 @@ public class KafkaClusterDiagnosticService {
         }
     }
 
+    @WithSpan("diagnose.cluster.analysis")
     @SuppressWarnings("checkstyle:ParameterNumber")
-    private String produceAnalysis(final Sampling sampling,
+    String produceAnalysis(final Sampling sampling,
                                    final KafkaClusterResponse cluster,
                                    final List<KafkaNodePoolResponse> nodePools,
                                    final KafkaClusterPodsResponse pods,

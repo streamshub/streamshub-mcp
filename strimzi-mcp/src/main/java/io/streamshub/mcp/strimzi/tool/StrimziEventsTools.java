@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.tool;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
@@ -36,6 +37,7 @@ public class StrimziEventsTools {
      * @param sinceMinutes optional time window in minutes
      * @return events grouped by resource
      */
+    @WithSpan("tool.get_strimzi_events")
     @Tool(
         name = "get_strimzi_events",
         description = "Get Kubernetes events for a Kafka cluster and all related resources"

@@ -1,0 +1,42 @@
+---
+# OpenShift Route to expose the Jaeger UI externally.
+# Edge termination — OCP handles TLS with the cluster wildcard cert.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: jaeger-ui
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: jaeger
+spec:
+  port:
+    targetPort: ui
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  to:
+    kind: Service
+    name: jaeger-ui
+    weight: 100
+---
+# OpenShift Route to expose the OTLP HTTP collector externally.
+# Allows the MCP server running outside the cluster (e.g., quarkus:dev)
+# to export traces without port-forwarding.
+# Uses OTLP HTTP (4318) — gRPC does not work over edge-terminated Routes.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: jaeger-collector
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: jaeger
+spec:
+  port:
+    targetPort: otlp-http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  to:
+    kind: Service
+    name: jaeger-collector
+    weight: 100

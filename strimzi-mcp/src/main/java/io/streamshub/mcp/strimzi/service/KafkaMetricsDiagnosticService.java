@@ -5,6 +5,7 @@
 package io.streamshub.mcp.strimzi.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpLog;
@@ -175,11 +176,12 @@ public class KafkaMetricsDiagnosticService {
 
     // ---- Phase 1: Initial data gathering ----
 
-    private KafkaClusterResponse gatherClusterStatus(final String namespace,
-                                                     final String clusterName,
-                                                     final Elicitation elicitation,
-                                                     final List<String> completed,
-                                                     final McpLog mcpLog) {
+    @WithSpan("diagnose.metrics.cluster_status")
+    KafkaClusterResponse gatherClusterStatus(final String namespace,
+                                             final String clusterName,
+                                             final Elicitation elicitation,
+                                             final List<String> completed,
+                                             final McpLog mcpLog) {
         try {
             KafkaClusterResponse result = kafkaService.getCluster(namespace, clusterName);
             completed.add(STEP_CLUSTER_STATUS);
@@ -196,11 +198,12 @@ public class KafkaMetricsDiagnosticService {
         }
     }
 
-    private KafkaClusterPodsResponse gatherClusterPods(final String namespace,
-                                                       final String clusterName,
-                                                       final List<String> completed,
-                                                       final List<String> failed,
-                                                       final McpLog mcpLog) {
+    @WithSpan("diagnose.metrics.pods")
+    KafkaClusterPodsResponse gatherClusterPods(final String namespace,
+                                               final String clusterName,
+                                               final List<String> completed,
+                                               final List<String> failed,
+                                               final McpLog mcpLog) {
         try {
             KafkaClusterPodsResponse result = kafkaService.getClusterPods(namespace, clusterName);
             completed.add(STEP_POD_HEALTH);
@@ -215,8 +218,9 @@ public class KafkaMetricsDiagnosticService {
 
     // ---- Phase 2: Metrics investigation (single scrape) ----
 
+    @WithSpan("diagnose.metrics.gather")
     @SuppressWarnings("checkstyle:ParameterNumber")
-    private Map<String, KafkaMetricsResponse> gatherAllMetrics(final String namespace,
+    Map<String, KafkaMetricsResponse> gatherAllMetrics(final String namespace,
                                                                 final String clusterName,
                                                                 final InvestigationAreas areas,
                                                                 final Integer rangeMinutes,
@@ -300,10 +304,11 @@ public class KafkaMetricsDiagnosticService {
 
     // ---- Sampling: triage and analysis ----
 
-    private InvestigationAreas decideInvestigationAreas(final Sampling sampling,
-                                                        final KafkaClusterResponse cluster,
-                                                        final KafkaClusterPodsResponse pods,
-                                                        final String concern) {
+    @WithSpan("diagnose.metrics.triage")
+    InvestigationAreas decideInvestigationAreas(final Sampling sampling,
+                                                final KafkaClusterResponse cluster,
+                                                final KafkaClusterPodsResponse pods,
+                                                final String concern) {
         if (sampling == null || !sampling.isSupported()) {
             return InvestigationAreas.all();
         }
@@ -327,15 +332,16 @@ public class KafkaMetricsDiagnosticService {
         }
     }
 
+    @WithSpan("diagnose.metrics.analysis")
     @SuppressWarnings("checkstyle:ParameterNumber")
-    private String produceAnalysis(final Sampling sampling,
-                                   final KafkaClusterResponse cluster,
-                                   final KafkaClusterPodsResponse pods,
-                                   final KafkaMetricsResponse replicationMetrics,
-                                   final KafkaMetricsResponse performanceMetrics,
-                                   final KafkaMetricsResponse resourceMetrics,
-                                   final KafkaMetricsResponse throughputMetrics,
-                                   final String concern) {
+    String produceAnalysis(final Sampling sampling,
+                           final KafkaClusterResponse cluster,
+                           final KafkaClusterPodsResponse pods,
+                           final KafkaMetricsResponse replicationMetrics,
+                           final KafkaMetricsResponse performanceMetrics,
+                           final KafkaMetricsResponse resourceMetrics,
+                           final KafkaMetricsResponse throughputMetrics,
+                           final String concern) {
         if (sampling == null || !sampling.isSupported()) {
             return null;
         }

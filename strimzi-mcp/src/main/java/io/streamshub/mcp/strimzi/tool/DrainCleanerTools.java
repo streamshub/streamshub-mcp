@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.tool;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
@@ -50,6 +51,7 @@ public class DrainCleanerTools {
      * @param namespace optional namespace filter
      * @return list of drain cleaner responses
      */
+    @WithSpan("tool.list_drain_cleaners")
     @Tool(
         name = "list_drain_cleaners",
         description = "List Strimzi Drain Cleaner deployments with status and webhook configuration."
@@ -77,6 +79,7 @@ public class DrainCleanerTools {
      * @param namespace        optional namespace
      * @return the drain cleaner response
      */
+    @WithSpan("tool.get_drain_cleaner")
     @Tool(
         name = "get_drain_cleaner",
         description = "Get detailed information about a Strimzi Drain Cleaner deployment"
@@ -116,6 +119,7 @@ public class DrainCleanerTools {
      * @param cancellation MCP cancellation checking
      * @return the drain cleaner logs response
      */
+    @WithSpan("tool.get_drain_cleaner_logs")
     @Tool(
         name = "get_drain_cleaner_logs",
         description = "Get logs from Strimzi Drain Cleaner pods."
@@ -178,9 +182,9 @@ public class DrainCleanerTools {
             .cancelCheck(cancellation::skipProcessingIfCancelled)
             .progressCallback(progress.token().isPresent()
                 ? (completed, total) -> progress.notificationBuilder()
-                    .setProgress(completed).setTotal(total)
-                    .setMessage(String.format("Collected logs from %d/%d pods", completed, total))
-                    .build().sendAndForget()
+                                        .setProgress(completed).setTotal(total)
+                                        .setMessage(String.format("Collected logs from %d/%d pods", completed, total))
+                                        .build().sendAndForget()
                 : null)
             .build();
         return drainCleanerService.getDrainCleanerLogs(namespace, null, options);
@@ -192,6 +196,7 @@ public class DrainCleanerTools {
      * @param namespace optional namespace
      * @return the readiness response
      */
+    @WithSpan("tool.check_drain_cleaner_readiness")
     @Tool(
         name = "check_drain_cleaner_readiness",
         description = "Check readiness of Strimzi Drain Cleaner."

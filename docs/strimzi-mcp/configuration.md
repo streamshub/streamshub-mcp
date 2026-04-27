@@ -228,6 +228,96 @@ MCP_SAMPLING_ANALYSIS_MAX_TOKENS=2000
 
 See [Diagnostic tools](tools/diagnostics.md) for more information.
 
+### OpenTelemetry tracing
+
+Enable distributed tracing to observe MCP tool performance and debug slow responses.
+When enabled, the server exports traces via OTLP to a collector (e.g., Jaeger, Grafana Tempo).
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `quarkus.otel.enabled` | `false` | Enable OpenTelemetry tracing |
+| `quarkus.otel.exporter.otlp.endpoint` | `http://localhost:4317` | OTLP collector endpoint (gRPC) |
+| `quarkus.otel.exporter.otlp.protocol` | `grpc` | OTLP protocol: `grpc` (port 4317) or `http/protobuf` (port 4318) |
+| `quarkus.otel.exporter.otlp.headers` | - | Auth headers (e.g., `Authorization=Bearer <token>`) |
+| `quarkus.otel.service.name` | `strimzi-mcp` | Service name in traces |
+| `quarkus.otel.propagators` | `tracecontext,baggage` | Context propagation formats |
+
+#### Trace structure
+
+Every MCP tool call creates a named parent span (e.g., `tool.list_kafka_clusters`,
+`tool.diagnose_kafka_cluster`) with child spans for:
+
+- **Kubernetes API calls** — auto-instrumented HTTP client spans
+- **REST client calls** — Prometheus and Loki queries
+- **Diagnostic steps** — `diagnose.cluster.status`, `diagnose.cluster.pods`,
+  `diagnose.cluster.triage`, `diagnose.cluster.analysis`, etc.
+
+#### Setup Jaeger
+
+Deploy Jaeger all-in-one for dev/test tracing:
+
+```bash
+./dev/scripts/setup-jaeger.sh deploy
+```
+
+The script deploys Jaeger to the `observability` namespace.
+On OpenShift, it also creates Routes for the UI and OTLP collector.
+
+#### Configure MCP server
+
+**In-cluster (gRPC):**
+
+```bash
+QUARKUS_OTEL_ENABLED=true
+QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger-collector.observability.svc.cluster.local:4317
+```
+
+**Local dev mode via OpenShift Route (HTTP):**
+
+```bash
+QUARKUS_OTEL_ENABLED=true
+QUARKUS_OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT=https://<collector-route-host>
+QUARKUS_OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer $(oc whoami -t)
+QUARKUS_TLS_TRUST_ALL=true
+```
+
+**In Kubernetes via ConfigMap:**
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: strimzi-mcp-config
+data:
+  QUARKUS_OTEL_ENABLED: "true"
+  QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger-collector.observability.svc.cluster.local:4317"
+```
+
+#### OTLP TLS configuration
+
+When the collector requires TLS:
+
+```bash
+QUARKUS_OTEL_EXPORTER_OTLP_TLS_CONFIGURATION_NAME=otlp
+QUARKUS_TLS_OTLP_TRUST_STORE_PEM_CERTS=/etc/otel-tls/ca.crt
+```
+
+For mutual TLS (client certificate):
+
+```bash
+QUARKUS_TLS_OTLP_KEY_STORE_PEM_0_CERT=/etc/otel-tls/tls.crt
+QUARKUS_TLS_OTLP_KEY_STORE_PEM_0_KEY=/etc/otel-tls/tls.key
+```
+
+#### Teardown
+
+```bash
+./dev/scripts/setup-jaeger.sh teardown
+```
+
+Tracing is disabled by default and enabled automatically in the `prod` profile.
+
 ### Resource watch configuration
 
 Control Kubernetes resource watches that send MCP notifications when resources change.
