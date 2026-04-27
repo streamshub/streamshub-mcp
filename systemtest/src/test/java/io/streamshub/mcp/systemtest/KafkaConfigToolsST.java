@@ -301,25 +301,13 @@ class KafkaConfigToolsST extends AbstractST {
             "namespace2", Environment.KAFKA_NAMESPACE);
         mcpClient.when()
             .toolsCall("compare_kafka_clusters", args, response -> {
-                String json = response.content().getFirst().asText().text();
-                LOGGER.info("compare_kafka_clusters with non-existent cluster response: {}", json);
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("compare_kafka_clusters with non-existent cluster response: {}", text);
 
-                JsonNode report = parseJson(json);
-
-                // The comparison tool gathers data with step failure resilience,
-                // so it may return a report with failed steps rather than an error
-                if (response.isError()) {
-                    assertTrue(json.toLowerCase(Locale.ROOT).contains("not found"),
-                        "Error should mention 'not found'");
-                } else {
-                    // cluster2_config should be null/missing since the cluster doesn't exist
-                    assertTrue(report.path("cluster2_config").isNull()
-                            || report.path("cluster2_config").isMissingNode(),
-                        "Cluster 2 config should be null for non-existent cluster");
-                    JsonNode stepsFailed = report.path("steps_failed");
-                    assertTrue(stepsFailed.isArray() && !stepsFailed.isEmpty(),
-                        "Should have at least one failed step for non-existent cluster");
-                }
+                assertTrue(response.isError(),
+                    "Should return error for non-existent cluster");
+                assertTrue(text.toLowerCase(Locale.ROOT).contains("not found"),
+                    "Error should mention 'not found'");
             })
             .thenAssertResults();
     }
