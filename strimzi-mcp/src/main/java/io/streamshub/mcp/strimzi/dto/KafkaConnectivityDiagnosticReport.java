@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
 import java.util.List;
 
+
 /**
  * Consolidated connectivity diagnostic report from a multi-step investigation.
  * Composes existing DTOs covering listeners, TLS certificates, authentication,
@@ -24,6 +25,7 @@ import java.util.List;
  * @param certificates     TLS certificate metadata and listener authentication
  * @param pods             pod health summaries (phase, restarts, termination reasons)
  * @param clusterLogs      Kafka pod logs filtered for connectivity errors
+ * @param users            KafkaUser summaries with authentication types and ACL counts
  * @param analysis         LLM-generated connectivity analysis via Sampling, or null
  * @param stepsCompleted   diagnostic steps that completed successfully
  * @param stepsFailed      diagnostic steps that failed with error descriptions
@@ -37,6 +39,7 @@ public record KafkaConnectivityDiagnosticReport(
     @JsonProperty("certificates") KafkaCertificateResponse certificates,
     @JsonProperty("pods") KafkaClusterPodsResponse pods,
     @JsonProperty("cluster_logs") KafkaClusterLogsResponse clusterLogs,
+    @JsonProperty("users") List<KafkaUserResponse> users,
     @JsonProperty("analysis") String analysis,
     @JsonProperty("steps_completed") List<String> stepsCompleted,
     @JsonProperty("steps_failed") List<String> stepsFailed,
@@ -52,6 +55,7 @@ public record KafkaConnectivityDiagnosticReport(
      * @param certificates     certificate and authentication response
      * @param pods             pod health response
      * @param clusterLogs      cluster logs response
+     * @param users            KafkaUser summaries
      * @param analysis         LLM analysis text or null
      * @param stepsCompleted   steps that succeeded
      * @param stepsFailed      steps that failed with reasons
@@ -63,6 +67,7 @@ public record KafkaConnectivityDiagnosticReport(
                                                        KafkaCertificateResponse certificates,
                                                        KafkaClusterPodsResponse pods,
                                                        KafkaClusterLogsResponse clusterLogs,
+                                                       List<KafkaUserResponse> users,
                                                        String analysis,
                                                        List<String> stepsCompleted,
                                                        List<String> stepsFailed) {
@@ -81,6 +86,6 @@ public record KafkaConnectivityDiagnosticReport(
         }
 
         return new KafkaConnectivityDiagnosticReport(cluster, bootstrapServers, certificates,
-            pods, clusterLogs, analysis, stepsCompleted, stepsFailed, Instant.now(), msg);
+            pods, clusterLogs, users, analysis, stepsCompleted, stepsFailed, Instant.now(), msg);
     }
 }

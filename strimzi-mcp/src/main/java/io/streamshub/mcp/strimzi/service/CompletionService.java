@@ -14,6 +14,7 @@ import io.strimzi.api.kafka.model.connector.KafkaConnector;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
+import io.strimzi.api.kafka.model.user.KafkaUser;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -35,6 +36,7 @@ public class CompletionService {
     private static final String ARG_CLUSTER_NAME = "cluster_name";
     private static final String ARG_CONNECTOR_NAME = "connector_name";
     private static final String ARG_CONNECT_CLUSTER = "connect_cluster";
+    private static final String ARG_USER_NAME = "user_name";
 
     // Resource template variables match URI template placeholders (e.g., {name})
     private static final String ARG_NAME = "name";
@@ -75,6 +77,9 @@ public class CompletionService {
         }
         if (args.containsKey(ARG_CONNECT_CLUSTER)) {
             return completeConnectClusterName(partial);
+        }
+        if (args.containsKey(ARG_USER_NAME)) {
+            return completeUserName(partial);
         }
         return List.of();
     }
@@ -219,6 +224,39 @@ public class CompletionService {
                 .getItems()
                 .stream()
                 .map(c -> c.getMetadata().getName())
+                .distinct()
+                .toList()
+        );
+        return completionHelper.filterByPrefix(names, partial);
+    }
+
+    /**
+     * Complete resource template arguments for KafkaUser resources.
+     * Supports {@code namespace} and {@code name} (user name) variables.
+     *
+     * @param partial the partial input value
+     * @param context the completion context identifying which variable is being completed
+     * @return matching values for the requested variable
+     */
+    public List<String> completeUserArgs(final String partial, final CompleteContext context) {
+        Map<String, String> args = context.arguments();
+        if (args.containsKey(ARG_NAMESPACE)) {
+            return completionHelper.completeNamespace(partial);
+        }
+        if (args.containsKey(ARG_NAME)) {
+            return completeUserName(partial);
+        }
+        return List.of();
+    }
+
+    private List<String> completeUserName(final String partial) {
+        List<String> names = completionCache.getOrFetch("kafkauser", () ->
+            kubernetesClient.resources(KafkaUser.class)
+                .inAnyNamespace()
+                .list()
+                .getItems()
+                .stream()
+                .map(u -> u.getMetadata().getName())
                 .distinct()
                 .toList()
         );

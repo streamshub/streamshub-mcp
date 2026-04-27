@@ -76,6 +76,18 @@ public class ResourceTemplateCompletions {
     }
 
     /**
+     * Complete variables for the kafka-user-status resource template.
+     *
+     * @param partial the partial input value
+     * @param context the completion context with argument metadata
+     * @return matching values for the requested variable
+     */
+    @CompleteResourceTemplate("kafka-user-status")
+    public List<String> completeUserStatus(final String partial, final CompleteContext context) {
+        return completionService.completeUserArgs(partial, context);
+    }
+
+    /**
      * Complete variables for the strimzi-operator-status resource template.
      *
      * @param partial the partial input value

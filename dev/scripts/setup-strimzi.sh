@@ -92,6 +92,13 @@ deploy() {
         --timeout=600s
     log_success "Kafka cluster '$CLUSTER_NAME' is ready"
 
+    log_info "Waiting for KafkaUsers to be ready..."
+    kubectl wait kafkauser -l strimzi.io/cluster="$CLUSTER_NAME" \
+        --for=condition=Ready \
+        -n "$KAFKA_NS" \
+        --timeout=120s
+    log_success "KafkaUsers are ready"
+
     echo ""
     log_success "Deployment complete"
     echo ""
@@ -115,6 +122,7 @@ deploy() {
     echo "  kubectl get pods -n $OPERATOR_NS"
     echo "  kubectl get pods -n $KAFKA_NS"
     echo "  kubectl get kafka -n $KAFKA_NS"
+    echo "  kubectl get kafkauser -n $KAFKA_NS"
 }
 
 teardown() {

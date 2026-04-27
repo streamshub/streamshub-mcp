@@ -77,26 +77,12 @@ public final class KafkaTemplates {
                     .addToConfig("default.replication.factor", Math.min(replicas, MAX_REPLICATION_FACTOR))
                     .addToConfig("min.insync.replicas", Math.min(Math.max(replicas - 1, 1), MAX_MIN_ISR))
                 .endKafka()
-            .endSpec();
-    }
-
-    /**
-     * Create a minimal Kafka builder for CI environments (single replica, relaxed replication).
-     *
-     * @param namespace the namespace
-     * @param name      the cluster name
-     * @return a pre-configured KafkaBuilder for minimal deployments
-     */
-    public static KafkaBuilder kafkaMinimal(final String namespace, final String name) {
-        return kafka(namespace, name, 1)
-            .editSpec()
-                .editKafka()
-                    .addToConfig("offsets.topic.replication.factor", 1)
-                    .addToConfig("transaction.state.log.replication.factor", 1)
-                    .addToConfig("transaction.state.log.min.isr", 1)
-                    .addToConfig("default.replication.factor", 1)
-                    .addToConfig("min.insync.replicas", 1)
-                .endKafka()
+                .editEntityOperator()
+                    .editOrNewUserOperator()
+                    .endUserOperator()
+                    .editOrNewTopicOperator()
+                    .endTopicOperator()
+                .endEntityOperator()
             .endSpec();
     }
 

@@ -81,12 +81,12 @@ class KafkaConnectToolsST extends AbstractST {
 
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
-                    Constants.KAFKA_CLUSTER_NAME, 1).build(),
+                    Constants.KAFKA_CLUSTER_NAME, 3).build(),
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
-                    Constants.KAFKA_CLUSTER_NAME, 1).build());
+                    Constants.KAFKA_CLUSTER_NAME, 3).build());
 
             krm.createOrUpdateResourceWithWait(
-                KafkaTemplates.kafkaMinimal(kafkaNs, Constants.KAFKA_CLUSTER_NAME).build());
+                KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
                 KafkaConnectTemplates.kafkaConnect(

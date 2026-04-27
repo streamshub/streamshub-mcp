@@ -26,6 +26,7 @@ import java.util.List;
  * @param operatorLogs   operator pod logs filtered for errors
  * @param clusterLogs    Kafka broker pod logs filtered for errors
  * @param events         Kubernetes events for the cluster and related resources
+ * @param users          KafkaUser summaries with authentication types and readiness
  * @param metrics        replication metrics from Kafka broker pods
  * @param analysis       LLM-generated root cause analysis via Sampling, or null
  * @param stepsCompleted diagnostic steps that completed successfully
@@ -42,6 +43,7 @@ public record KafkaClusterDiagnosticReport(
     @JsonProperty("operator_logs") StrimziOperatorLogsResponse operatorLogs,
     @JsonProperty("cluster_logs") KafkaClusterLogsResponse clusterLogs,
     @JsonProperty("events") StrimziEventsResponse events,
+    @JsonProperty("users") List<KafkaUserResponse> users,
     @JsonProperty("metrics") KafkaMetricsResponse metrics,
     @JsonProperty("analysis") String analysis,
     @JsonProperty("steps_completed") List<String> stepsCompleted,
@@ -60,6 +62,7 @@ public record KafkaClusterDiagnosticReport(
      * @param operatorLogs   operator logs response
      * @param clusterLogs    cluster logs response
      * @param events         events response
+     * @param users          KafkaUser summaries
      * @param metrics        metrics response
      * @param analysis       LLM analysis text or null
      * @param stepsCompleted steps that succeeded
@@ -74,6 +77,7 @@ public record KafkaClusterDiagnosticReport(
                                                   StrimziOperatorLogsResponse operatorLogs,
                                                   KafkaClusterLogsResponse clusterLogs,
                                                   StrimziEventsResponse events,
+                                                  List<KafkaUserResponse> users,
                                                   KafkaMetricsResponse metrics,
                                                   String analysis,
                                                   List<String> stepsCompleted,
@@ -92,7 +96,7 @@ public record KafkaClusterDiagnosticReport(
         }
 
         return new KafkaClusterDiagnosticReport(cluster, nodePools, pods, operator, operatorLogs,
-            clusterLogs, events, metrics, analysis, stepsCompleted, stepsFailed,
+            clusterLogs, events, users, metrics, analysis, stepsCompleted, stepsFailed,
             Instant.now(), msg);
     }
 }

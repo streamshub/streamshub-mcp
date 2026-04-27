@@ -221,6 +221,19 @@ public final class StrimziToolsPrompts {
         "KafkaConnect cluster name to filter connectors."
             + " Omit to list connectors across all Connect clusters.";
 
+    /**
+     * KafkaUser name parameter description.
+     */
+    public static final String USER_NAME_DESC =
+        "KafkaUser name (e.g., 'my-user').";
+
+    /**
+     * Optional cluster filter for user listing.
+     */
+    public static final String CLUSTER_FILTER_DESC =
+        "Kafka cluster name to filter users."
+            + " Omit to list users across all clusters.";
+
     private StrimziToolsPrompts() {
     }
 }

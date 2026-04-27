@@ -99,6 +99,21 @@ Structured workflow for comparing two Kafka cluster configurations.
 7. Compare metrics and logging
 8. Summarize differences by impact (CRITICAL/HIGH/MEDIUM/LOW)
 
+### audit-security
+
+Security audit of Kafka cluster users, ACLs, authentication, quotas, and certificates.
+
+**Parameters**:
+- `cluster_name` (required) -- Name of the Kafka cluster to audit
+- `namespace` (optional) -- Kubernetes namespace
+
+**Workflow**:
+1. Check listener authentication configuration and certificate expiry
+2. Enumerate all users and summarize authentication types
+3. Audit each user's ACL rules for security concerns (wildcard ACLs, cluster-level access, missing auth/authz)
+4. Assess overall security posture with high/medium/informational findings
+5. Provide prioritized remediation recommendations
+
 ## Resource templates
 
 Resource templates expose Strimzi data as structured JSON that clients can attach to conversations.
@@ -145,6 +160,17 @@ Resource templates expose Strimzi data as structured JSON that clients can attac
 - Replication factor
 - Configuration
 
+### KafkaUser status
+
+**URI**: `strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkausers/{name}/status`
+
+**Content**:
+- Authentication type
+- ACL rules and quotas
+- Kafka principal name
+- Readiness and conditions
+- Credential secret name (never the secret data)
+
 ### Strimzi operator status
 
 **URI**: `strimzi://operator.strimzi.io/namespaces/{namespace}/clusteroperator/{name}/status`
@@ -163,6 +189,7 @@ The server watches Kubernetes resources and sends notifications when they change
 
 - **Kafka clusters** -- Notifies when cluster status changes
 - **KafkaNodePools** -- Notifies when node pool status changes
+- **KafkaUsers** -- Notifies when user ACLs, quotas, or status changes
 - **Strimzi operator Deployments** -- Notifies when operator status changes
 
 ### Use cases

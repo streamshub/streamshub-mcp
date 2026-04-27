@@ -1,0 +1,96 @@
+---
+# SCRAM-SHA-512 user with topic and group ACLs plus quotas.
+# Connects via the 'console' listener (port 9777).
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: mcp-scram-user
+  namespace: strimzi-kafka
+  labels:
+    strimzi.io/cluster: mcp-cluster
+    mcp: strimzi
+    system: strimzi
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: topic
+          name: orders-
+          patternType: prefix
+        operations:
+          - Read
+          - Write
+          - Describe
+      - resource:
+          type: group
+          name: order-consumers
+        operations:
+          - Read
+  quotas:
+    producerByteRate: 1048576
+    consumerByteRate: 2097152
+    requestPercentage: 55
+---
+# TLS user with broad read access.
+# Connects via the 'tls' listener (port 9093).
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: mcp-tls-user
+  namespace: strimzi-kafka
+  labels:
+    strimzi.io/cluster: mcp-cluster
+    mcp: strimzi
+    system: strimzi
+spec:
+  authentication:
+    type: tls
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: topic
+          name: "*"
+        operations:
+          - Read
+          - Describe
+      - resource:
+          type: group
+          name: "*"
+        operations:
+          - Read
+---
+# Admin-style SCRAM user with cluster-level access (for audit-security prompt testing).
+# Deliberately overly permissive to validate security audit findings.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: mcp-admin-user
+  namespace: strimzi-kafka
+  labels:
+    strimzi.io/cluster: mcp-cluster
+    mcp: strimzi
+    system: strimzi
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: topic
+          name: "*"
+        operations:
+          - All
+      - resource:
+          type: group
+          name: "*"
+        operations:
+          - All
+      - resource:
+          type: cluster
+        operations:
+          - All
