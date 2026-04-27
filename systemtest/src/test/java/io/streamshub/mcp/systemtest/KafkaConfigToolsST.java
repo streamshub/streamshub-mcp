@@ -5,7 +5,6 @@
 package io.streamshub.mcp.systemtest;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
@@ -52,7 +51,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class KafkaConfigToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaConfigToolsST.class);
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private static final String SECOND_CLUSTER_NAME = "mcp-cluster-2";
     private static final int SECOND_CLUSTER_RETENTION_HOURS = 24;
@@ -83,15 +81,11 @@ class KafkaConfigToolsST extends AbstractST {
 
             KafkaTemplates.deployMetricsConfigMap(kafkaNs);
 
-            // First cluster: plain + tls listeners, default broker config
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build(),
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
-                    Constants.KAFKA_CLUSTER_NAME, 1).build());
-
-            // Second cluster: plain listener only, custom broker config
-            krm.createOrUpdateResourceWithoutWait(
+                    Constants.KAFKA_CLUSTER_NAME, 1).build(),
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np-2",
                     SECOND_CLUSTER_NAME, 1).build(),
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np-2",
