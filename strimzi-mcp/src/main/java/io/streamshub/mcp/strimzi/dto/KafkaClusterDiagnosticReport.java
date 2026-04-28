@@ -28,6 +28,8 @@ import java.util.List;
  * @param events         Kubernetes events for the cluster and related resources
  * @param users          KafkaUser summaries with authentication types and readiness
  * @param metrics        replication metrics from Kafka broker pods
+ * @param drainCleaner   Drain Cleaner production readiness assessment
+ * @param drainCleanerLogs Drain Cleaner pod logs filtered for errors
  * @param analysis       LLM-generated root cause analysis via Sampling, or null
  * @param stepsCompleted diagnostic steps that completed successfully
  * @param stepsFailed    diagnostic steps that failed with error descriptions
@@ -45,6 +47,8 @@ public record KafkaClusterDiagnosticReport(
     @JsonProperty("events") StrimziEventsResponse events,
     @JsonProperty("users") List<KafkaUserResponse> users,
     @JsonProperty("metrics") KafkaMetricsResponse metrics,
+    @JsonProperty("drain_cleaner") DrainCleanerReadinessResponse drainCleaner,
+    @JsonProperty("drain_cleaner_logs") DrainCleanerLogsResponse drainCleanerLogs,
     @JsonProperty("analysis") String analysis,
     @JsonProperty("steps_completed") List<String> stepsCompleted,
     @JsonProperty("steps_failed") List<String> stepsFailed,
@@ -64,6 +68,8 @@ public record KafkaClusterDiagnosticReport(
      * @param events         events response
      * @param users          KafkaUser summaries
      * @param metrics        metrics response
+     * @param drainCleaner   drain cleaner readiness response
+     * @param drainCleanerLogs drain cleaner logs response
      * @param analysis       LLM analysis text or null
      * @param stepsCompleted steps that succeeded
      * @param stepsFailed    steps that failed with reasons
@@ -79,6 +85,8 @@ public record KafkaClusterDiagnosticReport(
                                                   StrimziEventsResponse events,
                                                   List<KafkaUserResponse> users,
                                                   KafkaMetricsResponse metrics,
+                                                  DrainCleanerReadinessResponse drainCleaner,
+                                                  DrainCleanerLogsResponse drainCleanerLogs,
                                                   String analysis,
                                                   List<String> stepsCompleted,
                                                   List<String> stepsFailed) {
@@ -96,7 +104,7 @@ public record KafkaClusterDiagnosticReport(
         }
 
         return new KafkaClusterDiagnosticReport(cluster, nodePools, pods, operator, operatorLogs,
-            clusterLogs, events, users, metrics, analysis, stepsCompleted, stepsFailed,
-            Instant.now(), msg);
+            clusterLogs, events, users, metrics, drainCleaner, drainCleanerLogs,
+            analysis, stepsCompleted, stepsFailed, Instant.now(), msg);
     }
 }

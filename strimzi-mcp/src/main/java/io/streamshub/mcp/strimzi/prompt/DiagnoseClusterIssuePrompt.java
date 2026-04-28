@@ -101,7 +101,27 @@ public class DiagnoseClusterIssuePrompt {
             - Brief NotReady during rolling updates (2-3 min per broker)
             - Certificate renewal reconciliations (every 30 days)
 
-            ## Step 2: Check KafkaNodePool statuses [HIGH - broker availability]
+            ## Step 2: Check Strimzi Drain Cleaner [HIGH - graceful eviction handling]
+            Use `check_drain_cleaner_readiness` to assess drain cleaner production readiness.
+
+            If drain cleaner is NOT deployed:
+            - Node drains will cause abrupt pod terminations instead of graceful rolling updates
+            - This is a critical production concern for any cluster running on Kubernetes
+
+            Check for:
+            - Drain Cleaner deployed and all replicas ready
+            - Webhook configured and active
+            - Operating mode is "standard" (not "legacy")
+            - TLS certificate valid and not expiring soon
+
+            **If symptom involves node drain, rolling update, unexpected pod restarts, \
+            or replicas out of sync, drain cleaner status is likely the root cause.**
+
+            If drain cleaner IS deployed and the symptom involves evictions:
+            Use `get_drain_cleaner_logs` to check for eviction interception activity, \
+            pod annotation events, and errors during node drains.
+
+            ## Step 3: Check KafkaNodePool statuses [HIGH - broker availability]
             Use `list_kafka_node_pools` to list all node pools for this cluster.
             For any pool that looks unhealthy, use `get_kafka_node_pool` for details.
             
@@ -114,7 +134,7 @@ public class DiagnoseClusterIssuePrompt {
             **If multiple pools are unhealthy, this indicates a cluster-wide issue \
             (infrastructure, operator, or configuration problem).**
 
-            ## Step 3: Check Strimzi operator [MEDIUM - reconciliation health]
+            ## Step 4: Check Strimzi operator [MEDIUM - reconciliation health]
             Use `list_strimzi_operators` to find the operator managing this cluster.
             Use `get_strimzi_operator_logs` to read operator logs.
             
@@ -136,11 +156,11 @@ public class DiagnoseClusterIssuePrompt {
             - All users Ready → User Operator is healthy
             - Users with error conditions → check entity operator pod logs for user-operator errors
 
-            ## Step 4: Check pod health [HIGH - broker availability]
+            ## Step 5: Check pod health [HIGH - broker availability]
             Use `get_kafka_cluster_pods` to check all pods for the cluster.
             
             **CRITICAL POD STATES:**
-            - CrashLoopBackOff → pod failing to start (check logs in Step 5)
+            - CrashLoopBackOff → pod failing to start (check logs in Step 7)
             - Pending → resource constraints or scheduling issues
             - High restart counts (>3 in last hour) → unstable broker
             - Containers not ready → health checks failing
@@ -152,9 +172,9 @@ public class DiagnoseClusterIssuePrompt {
             - Pods stuck in Pending → resource exhaustion (CPU, memory, PVCs)
             
             **If pods are healthy but cluster is NotReady, issue is likely at \
-            the Kafka application level (check metrics in Step 6).**
+            the Kafka application level (check metrics in Step 8).**
 
-            ## Step 5: Check Kubernetes events [HIGH - recent cluster activity]
+            ## Step 6: Check Kubernetes events [HIGH - recent cluster activity]
             Use `get_strimzi_events` to retrieve events for the cluster and all \
             related resources (pods, PVCs, node pools).
 
@@ -163,17 +183,17 @@ public class DiagnoseClusterIssuePrompt {
             - "FailedMount" or "FailedAttachVolume" → storage issues (PVC, CSI driver)
             - "Killing" → pod termination (operator rolling update, OOM, eviction)
             - "Evicted" → node pressure (disk, memory)
-            - "BackOff" → container crash loop (check logs in Step 6)
+            - "BackOff" → container crash loop (check logs in Step 7)
             - "ReconciliationException" → Strimzi operator issues
 
-            **Correlation with Step 4:**
+            **Correlation with Step 5:**
             - Pod in Pending + FailedScheduling event → resource exhaustion
             - Pod restarted + Killing event → check reason (OOM, liveness probe, operator)
             - Pod restarted + no Killing event → JVM crash or container runtime issue
             - PVC events → storage provisioning or mount failures
 
-            ## Step 6: Read pod logs from unhealthy pods [HIGH - root cause identification]
-            For any unhealthy pods found in Step 4, use `get_kafka_cluster_logs` \
+            ## Step 7: Read pod logs from unhealthy pods [HIGH - root cause identification]
+            For any unhealthy pods found in Step 5, use `get_kafka_cluster_logs` \
             with filter 'errors' to get error logs from broker pods.
             
             **CRITICAL ERROR PATTERNS:**
@@ -189,7 +209,7 @@ public class DiagnoseClusterIssuePrompt {
             - Network: Firewall rules, DNS issues, or pod network problems
             - Corruption: Disk failures, need to replace broker and rebuild replicas
 
-            ## Step 7: Check cluster metrics [CRITICAL - data availability]
+            ## Step 8: Check cluster metrics [CRITICAL - data availability]
             Use `get_kafka_metrics` with category 'replication' to check replication health.
 
             **STOP AND ESCALATE IF:**
@@ -207,8 +227,9 @@ public class DiagnoseClusterIssuePrompt {
             - Offline partitions + pod crashes → broker failures causing partition unavailability
             - Offline partitions + healthy pods → controller issues (check operator logs)
 
-            ## Step 8: Correlate and summarize [ROOT CAUSE ANALYSIS]
-            Correlate the findings from all steps, including events and metrics data.
+            ## Step 9: Correlate and summarize [ROOT CAUSE ANALYSIS]
+            Correlate the findings from all steps, including events, metrics, \
+            and drain cleaner data.
             
             **Distinguish between issue types:**
             
@@ -243,12 +264,19 @@ public class DiagnoseClusterIssuePrompt {
                - Controller failure → offline partitions → cluster unavailability
                **Action**: Address root cause first, then allow system to recover
 
+            6. **Drain cleaner issues (HIGH):**
+               - Not deployed → abrupt pod evictions during node drains
+               - Webhook unconfigured → eviction interception disabled
+               - Legacy mode → less reliable eviction handling via PDB
+               - TLS certificate expiring → webhook will stop working
+               **Action**: Deploy drain cleaner, verify webhook, switch to standard mode
+
             ## Final Summary
             Provide a clear summary with:
             1. **Root cause** (single most likely cause, not a list of symptoms)
             2. **Severity** (CRITICAL/HIGH/MEDIUM/LOW based on data availability impact)
             3. **Impact** (what is affected: data availability, performance, stability)
-            4. **Evidence** (specific findings from steps 1-7 that support the diagnosis)
+            4. **Evidence** (specific findings from steps 1-9 that support the diagnosis)
             5. **Actionable recommendations** (prioritized, specific steps to resolve)
             6. **Expected recovery time** (how long until cluster is healthy after fix)
             7. **Prevention** (how to avoid this issue in the future)

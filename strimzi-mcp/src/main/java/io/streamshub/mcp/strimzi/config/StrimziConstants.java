@@ -94,6 +94,51 @@ public final class StrimziConstants {
     }
 
     /**
+     * Strimzi Drain Cleaner constants for deployment and webhook discovery.
+     */
+    public static final class DrainCleaner {
+        /**
+         * Value of the app label on drain cleaner deployments.
+         */
+        public static final String APP_LABEL_VALUE = "strimzi-drain-cleaner";
+
+        /**
+         * Well-known name of the ValidatingWebhookConfiguration.
+         */
+        public static final String WEBHOOK_CONFIG_NAME = "strimzi-drain-cleaner";
+
+        /**
+         * Environment variable controlling eviction denial mode.
+         * When true (default), evictions are denied (standard mode).
+         * When false, evictions are allowed (legacy mode).
+         */
+        public static final String ENV_DENY_EVICTION = "STRIMZI_DENY_EVICTION";
+
+        /**
+         * Environment variable controlling Kafka pod draining.
+         */
+        public static final String ENV_DRAIN_KAFKA = "STRIMZI_DRAIN_KAFKA";
+
+        /**
+         * Environment variable restricting monitored namespaces.
+         */
+        public static final String ENV_DRAIN_NAMESPACES = "STRIMZI_DRAIN_NAMESPACES";
+
+        /**
+         * Mode value for standard eviction denial mode.
+         */
+        public static final String MODE_STANDARD = "standard";
+
+        /**
+         * Mode value for legacy mode (evictions allowed, relies on PDB).
+         */
+        public static final String MODE_LEGACY = "legacy";
+
+        private DrainCleaner() {
+        }
+    }
+
+    /**
      * Strimzi operator label values for discovery.
      */
     public static final class Operator {

@@ -36,19 +36,21 @@ Get detailed information about a specific Strimzi operator including status, ver
 Get details for strimzi-cluster-operator
 ```
 
-### get_strimzi_operator_pods
+### get_strimzi_operator_pod
 
-Get pod information for a Strimzi operator.
+Get detailed description of a Strimzi operator pod including environment, resources, volumes, and conditions.
+Use `list_strimzi_operators` or `get_strimzi_operator` first to discover the pod name.
 
 **Parameters**:
-- `operatorName` (optional) -- Name of the operator deployment
-- `namespace` (optional) -- Kubernetes namespace
+- `namespace` (required) -- Kubernetes namespace where the operator pod is deployed
+- `podName` (required) -- Name of the pod (e.g., 'strimzi-cluster-operator-557fd4bbc-666r6')
+- `sections` (optional) -- Detail sections to include
 
-**Returns**: List of operator pods with status, readiness, and resource usage
+**Returns**: Detailed pod description with environment variables, resource limits, volumes, and conditions
 
 **Example**:
 ```
-Show me the operator pods
+Describe the operator pod strimzi-cluster-operator-557fd4bbc-666r6 in namespace strimzi
 ```
 
 ### get_strimzi_operator_logs

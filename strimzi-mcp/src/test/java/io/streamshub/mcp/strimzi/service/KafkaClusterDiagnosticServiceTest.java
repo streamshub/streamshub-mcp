@@ -107,6 +107,8 @@ class KafkaClusterDiagnosticServiceTest {
         assertTrue(report.stepsCompleted().contains("cluster_status"));
         assertTrue(report.stepsCompleted().contains("node_pools"));
         assertTrue(report.stepsCompleted().contains("pod_health"));
+        assertTrue(report.stepsCompleted().contains("drain_cleaner"));
+        assertNotNull(report.drainCleaner());
         assertNotNull(report.timestamp());
         assertNotNull(report.message());
         // No sampling → analysis should be null

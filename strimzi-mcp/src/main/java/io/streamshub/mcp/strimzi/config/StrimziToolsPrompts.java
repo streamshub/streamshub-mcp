@@ -222,6 +222,13 @@ public final class StrimziToolsPrompts {
             + " Omit to list connectors across all Connect clusters.";
 
     /**
+     * Drain cleaner name parameter description.
+     */
+    public static final String DRAIN_CLEANER_NAME_DESC =
+        "Drain cleaner deployment name"
+            + " (e.g., 'strimzi-drain-cleaner').";
+
+    /**
      * KafkaUser name parameter description.
      */
     public static final String USER_NAME_DESC =

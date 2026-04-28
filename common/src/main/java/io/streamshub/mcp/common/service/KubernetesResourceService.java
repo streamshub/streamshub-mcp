@@ -188,6 +188,57 @@ public class KubernetesResourceService {
     }
 
     /**
+     * Query cluster-scoped resources by label.
+     *
+     * @param <T>           the resource type
+     * @param resourceClass the resource class
+     * @param labelKey      the label key
+     * @param labelValue    the label value
+     * @return list of resources found
+     */
+    public <T extends HasMetadata> List<T> queryClusterScopedResourcesByLabel(final Class<T> resourceClass,
+                                                                              final String labelKey,
+                                                                              final String labelValue) {
+        try {
+            return kubernetesClient
+                .resources(resourceClass)
+                .withLabel(labelKey, labelValue)
+                .list()
+                .getItems();
+        } catch (Exception e) {
+            LOG.warnf(
+                "Error querying cluster-scoped %s by %s=%s: %s",
+                resourceClass.getSimpleName(),
+                labelKey, labelValue,
+                e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Get a cluster-scoped resource by name (no namespace).
+     *
+     * @param <T>           the resource type
+     * @param resourceClass the resource class
+     * @param name          the resource name
+     * @return the resource, or null if not found
+     */
+    public <T extends HasMetadata> T getClusterScopedResource(final Class<T> resourceClass, final String name) {
+        try {
+            return kubernetesClient
+                .resources(resourceClass)
+                .withName(name)
+                .get();
+        } catch (Exception e) {
+            LOG.warnf(
+                "Error getting cluster-scoped %s %s: %s",
+                resourceClass.getSimpleName(),
+                name, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Get a resource by name in a namespace.
      *
      * @param <T>           the resource type

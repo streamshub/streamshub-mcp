@@ -20,12 +20,14 @@ Structured workflow for diagnosing Kafka cluster issues.
 
 **Workflow**:
 1. Check cluster status and conditions
-2. Verify node pools are ready
-3. Check pod health
-4. Collect recent logs
-5. Check for Kubernetes events
-6. Analyze metrics
-7. Correlate findings and identify root cause
+2. Check Strimzi Drain Cleaner readiness
+3. Check node pool statuses
+4. Check Strimzi operator and User Operator health
+5. Check pod health
+6. Check Kubernetes events
+7. Read pod logs from unhealthy pods
+8. Check cluster metrics
+9. Correlate and summarize
 
 **Usage**: Select this prompt in your AI assistant, provide the cluster name, and the AI will follow the structured diagnostic workflow.
 
@@ -113,6 +115,24 @@ Security audit of Kafka cluster users, ACLs, authentication, quotas, and certifi
 3. Audit each user's ACL rules for security concerns (wildcard ACLs, cluster-level access, missing auth/authz)
 4. Assess overall security posture with high/medium/informational findings
 5. Provide prioritized remediation recommendations
+
+### troubleshoot-connector
+
+Step-by-step troubleshooting of a KafkaConnector issue.
+
+**Parameters**:
+- `connector_name` (required) -- Name of the KafkaConnector to troubleshoot
+- `namespace` (optional) -- Kubernetes namespace
+- `connect_cluster` (optional) -- Parent KafkaConnect cluster name (auto-discovered if omitted)
+- `symptom` (optional) -- Observed symptom (e.g., "connector FAILED", "tasks restarting")
+
+**Workflow**:
+1. Check connector status and conditions
+2. Check parent KafkaConnect cluster health
+3. Check Connect worker pods
+4. Check Connect logs for connector-related errors
+5. Check Kubernetes events
+6. Correlate and diagnose (connector config vs platform vs external issues)
 
 ## Resource templates
 

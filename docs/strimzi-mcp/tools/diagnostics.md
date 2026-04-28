@@ -8,7 +8,7 @@ Composite diagnostic tools run multi-step workflows in a single tool call, using
 ## diagnose_kafka_cluster
 
 Runs a multi-step diagnostic workflow for a Kafka cluster.
-Gathers cluster status, node pools, pods, operator logs, cluster logs, events, and metrics in a single call.
+Gathers cluster status, node pools, pods, Drain Cleaner readiness, operator logs, cluster logs, events, metrics, and Drain Cleaner logs in a single call.
 
 **3-Phase workflow**:
 1. **Phase 1 -- Initial data gathering**: Always runs.
@@ -86,6 +86,25 @@ Analyzes reconciliation, resource, and JVM metrics, correlating with operator lo
 **Example**:
 ```
 Analyze Strimzi operator metrics
+```
+
+## diagnose_kafka_connector
+
+Runs a multi-step diagnostic workflow for a KafkaConnector.
+Gathers connector status, parent KafkaConnect cluster health, Connect pod status, logs, and events in a single call.
+
+**Parameters**:
+- `connectorName` (required) -- Name of the KafkaConnector
+- `namespace` (optional) -- Kubernetes namespace
+- `symptom` (optional) -- Observed symptom or issue description
+- `sinceMinutes` (optional) -- Time window for logs/events (default: 30)
+
+**Uses Sampling**: Yes -- LLM-guided triage and analysis
+**Uses Elicitation**: Yes -- Namespace disambiguation
+
+**Example**:
+```
+Diagnose issues with my-debezium-connector
 ```
 
 ## compare_kafka_clusters

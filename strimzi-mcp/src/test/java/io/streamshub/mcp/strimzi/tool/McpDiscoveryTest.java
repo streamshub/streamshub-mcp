@@ -84,7 +84,14 @@ class McpDiscoveryTest {
                     "diagnose_kafka_connectivity",
                     "diagnose_kafka_metrics",
                     "diagnose_operator_metrics",
-                    "compare_kafka_clusters"
+                    "compare_kafka_clusters",
+                    "list_drain_cleaners",
+                    "get_drain_cleaner",
+                    "get_drain_cleaner_logs",
+                    "check_drain_cleaner_readiness",
+                    "get_kafka_metrics",
+                    "get_kafka_exporter_metrics",
+                    "get_strimzi_operator_metrics"
                 );
 
                 for (String toolName : expectedTools) {
@@ -122,7 +129,7 @@ class McpDiscoveryTest {
     }
 
     /**
-     * Verify all 5 resource templates are registered.
+     * Verify all 6 resource templates are registered.
      */
     @Test
     void testResourceTemplateDiscovery() {

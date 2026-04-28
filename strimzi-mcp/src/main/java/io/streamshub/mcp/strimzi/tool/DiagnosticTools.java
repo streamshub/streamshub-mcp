@@ -81,7 +81,13 @@ public class DiagnosticTools {
             + " Gathers connector status, parent KafkaConnect cluster health,"
             + " Connect pod status, logs, and events in a single call."
             + " Uses Sampling for LLM analysis and Elicitation for disambiguation."
-            + " Falls back to gathering all data when Sampling is not supported."
+            + " Falls back to gathering all data when Sampling is not supported.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public KafkaConnectorDiagnosticReport diagnoseKafkaConnector(
         @ToolArg(

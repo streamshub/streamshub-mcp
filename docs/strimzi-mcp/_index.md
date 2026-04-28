@@ -22,6 +22,8 @@ With the Strimzi MCP Server, AI assistants can:
 - Query metrics from Kafka brokers and the Strimzi operator
 - Troubleshoot connectivity and performance issues
 - Monitor Strimzi operator health and reconciliation activity
+- Manage and troubleshoot KafkaConnect clusters and KafkaConnectors
+- Check Strimzi Drain Cleaner readiness and webhook configuration
 - Track Kubernetes events for cluster resources
 
 ## Key features
@@ -49,6 +51,7 @@ Available diagnostic tools:
 - [`diagnose_kafka_connectivity`](tools/diagnostics.md#diagnose_kafka_connectivity) -- Connectivity troubleshooting
 - [`diagnose_kafka_metrics`](tools/diagnostics.md#diagnose_kafka_metrics) -- Metrics analysis and anomaly detection
 - [`diagnose_operator_metrics`](tools/diagnostics.md#diagnose_operator_metrics) -- Operator performance analysis
+- [`diagnose_kafka_connector`](tools/diagnostics.md#diagnose_kafka_connector) -- Connector troubleshooting
 
 ### Log collection
 
