@@ -15,6 +15,7 @@ import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.service.DeploymentService;
+import io.streamshub.mcp.common.service.KubernetesQueryException;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.log.LogCollectionService;
 import io.streamshub.mcp.common.util.CertificateUtils;
@@ -162,14 +163,19 @@ public class DrainCleanerService {
         LOG.infof("Checking Drain Cleaner readiness (namespace=%s)", ns != null ? ns : "all");
 
         List<Deployment> deployments;
-        if (ns != null) {
-            deployments = k8sService.queryResourcesByLabel(
-                Deployment.class, ns,
-                KubernetesConstants.Labels.APP, StrimziConstants.DrainCleaner.APP_LABEL_VALUE);
-        } else {
-            deployments = k8sService.queryResourcesByLabelInAnyNamespace(
-                Deployment.class,
-                KubernetesConstants.Labels.APP, StrimziConstants.DrainCleaner.APP_LABEL_VALUE);
+        try {
+            if (ns != null) {
+                deployments = k8sService.queryResourcesByLabel(
+                    Deployment.class, ns,
+                    KubernetesConstants.Labels.APP, StrimziConstants.DrainCleaner.APP_LABEL_VALUE);
+            } else {
+                deployments = k8sService.queryResourcesByLabelInAnyNamespace(
+                    Deployment.class,
+                    KubernetesConstants.Labels.APP, StrimziConstants.DrainCleaner.APP_LABEL_VALUE);
+            }
+        } catch (KubernetesQueryException e) {
+            throw new ToolCallException(
+                "Unable to check Drain Cleaner readiness: " + e.getMessage());
         }
 
         if (deployments.isEmpty()) {

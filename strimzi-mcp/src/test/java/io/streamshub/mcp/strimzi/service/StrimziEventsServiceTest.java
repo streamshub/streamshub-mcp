@@ -8,6 +8,7 @@ import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.EventBuilder;
 import io.fabric8.kubernetes.api.model.EventList;
 import io.fabric8.kubernetes.api.model.ObjectReferenceBuilder;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -23,6 +24,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.StrimziEventsResponse;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
+import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,6 +64,10 @@ class StrimziEventsServiceTest {
 
         // Mock events API (empty by default)
         setupEmptyEvents();
+
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Pod.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, PersistentVolumeClaim.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaNodePool.class);
     }
 
     @Test

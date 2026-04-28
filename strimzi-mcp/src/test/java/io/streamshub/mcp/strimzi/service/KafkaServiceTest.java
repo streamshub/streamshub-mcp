@@ -17,6 +17,7 @@ import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
+import io.strimzi.api.kafka.model.kafka.Kafka;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,6 +55,9 @@ class KafkaServiceTest {
         AppsAPIGroupDSL appsApi = Mockito.mock(AppsAPIGroupDSL.class);
         Mockito.lenient().when(kubernetesClient.apps()).thenReturn(appsApi);
         Mockito.lenient().when(appsApi.deployments()).thenReturn(deploymentOp);
+
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Kafka.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Pod.class);
     }
 
     @Test

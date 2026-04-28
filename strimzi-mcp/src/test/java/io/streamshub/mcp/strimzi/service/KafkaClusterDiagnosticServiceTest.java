@@ -75,6 +75,11 @@ class KafkaClusterDiagnosticServiceTest {
 
         // Mock events (empty by default)
         setupEmptyEvents();
+
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Kafka.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaNodePool.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Pod.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Deployment.class);
     }
 
     @Test
