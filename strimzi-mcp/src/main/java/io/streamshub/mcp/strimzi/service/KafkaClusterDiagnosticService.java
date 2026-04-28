@@ -17,6 +17,8 @@ import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
+import io.streamshub.mcp.strimzi.dto.DrainCleanerLogsResponse;
+import io.streamshub.mcp.strimzi.dto.DrainCleanerReadinessResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
@@ -53,8 +55,8 @@ public class KafkaClusterDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(KafkaClusterDiagnosticService.class);
     private static final int SECONDS_PER_MINUTE = 60;
-    private static final int PHASE1_STEPS = 3;
-    private static final int MAX_PHASE2_STEPS = 5;
+    private static final int PHASE1_STEPS = 4;
+    private static final int MAX_PHASE2_STEPS = 6;
     private static final String DIAGNOSTIC_LABEL = "Kafka cluster diagnostic";
 
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
@@ -66,6 +68,8 @@ public class KafkaClusterDiagnosticService {
     private static final String STEP_EVENTS = "events";
     private static final String STEP_USERS = "users";
     private static final String STEP_METRICS = "metrics";
+    private static final String STEP_DRAIN_CLEANER = "drain_cleaner";
+    private static final String STEP_DRAIN_CLEANER_LOGS = "drain_cleaner_logs";
 
     @Inject
     KafkaService kafkaService;
@@ -84,6 +88,9 @@ public class KafkaClusterDiagnosticService {
 
     @Inject
     KafkaMetricsService kafkaMetricsService;
+
+    @Inject
+    DrainCleanerService drainCleanerService;
 
     @Inject
     ObjectMapper objectMapper;
@@ -164,9 +171,14 @@ public class KafkaClusterDiagnosticService {
         DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 
+        DrainCleanerReadinessResponse drainCleaner = gatherDrainCleanerStatus(
+            completed, failed, mcpLog);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+        DiagnosticHelper.checkCancellation(cancellation);
+
         // === Phase 2: Deep investigation ===
         InvestigationAreas areas = decideInvestigationAreas(
-            sampling, cluster, nodePools, pods, symptom);
+            sampling, cluster, nodePools, pods, drainCleaner, symptom);
 
         int totalSteps = PHASE1_STEPS + areas.enabledCount();
 
@@ -211,13 +223,22 @@ public class KafkaClusterDiagnosticService {
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
+        DrainCleanerLogsResponse drainCleanerLogs = null;
+        if (areas.drainCleanerLogs) {
+            drainCleanerLogs = gatherDrainCleanerLogs(
+                sinceMinutes, completed, failed, mcpLog);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+            DiagnosticHelper.checkCancellation(cancellation);
+        }
+
         // === Phase 3: Final analysis ===
         String analysis = produceAnalysis(sampling, cluster, nodePools, pods,
-            operator, operatorLogs, clusterLogs, events, users, metrics, symptom);
+            operator, operatorLogs, clusterLogs, events, users, metrics,
+            drainCleaner, drainCleanerLogs, symptom);
 
         return KafkaClusterDiagnosticReport.of(cluster, nodePools, pods, operator,
-            operatorLogs, clusterLogs, events, users, metrics, analysis,
-            completed, failed.isEmpty() ? null : failed);
+            operatorLogs, clusterLogs, events, users, metrics, drainCleaner, drainCleanerLogs,
+            analysis, completed, failed.isEmpty() ? null : failed);
     }
 
     // ---- Phase 1: Initial data gathering ----
@@ -274,6 +295,23 @@ public class KafkaClusterDiagnosticService {
             LOG.warnf("Failed to gather Kafka pod health: %s", e.getMessage());
             failed.add(STEP_POD_HEALTH + ": " + e.getMessage());
             return null;
+        }
+    }
+
+    private DrainCleanerReadinessResponse gatherDrainCleanerStatus(final List<String> completed,
+                                                                    final List<String> failed,
+                                                                    final McpLog mcpLog) {
+        try {
+            DrainCleanerReadinessResponse result = drainCleanerService.checkReadiness(null);
+            completed.add(STEP_DRAIN_CLEANER);
+            DiagnosticHelper.sendClientNotification(mcpLog,
+                "Checked Strimzi Drain Cleaner readiness: "
+                    + (result.deployed() ? (result.overallReady() ? "ready" : "not ready") : "not deployed"));
+            return result;
+        } catch (Exception e) {
+            LOG.warnf("Failed to gather Drain Cleaner status: %s", e.getMessage());
+            failed.add(STEP_DRAIN_CLEANER + ": " + e.getMessage());
+            return DrainCleanerReadinessResponse.notDeployed();
         }
     }
 
@@ -392,19 +430,37 @@ public class KafkaClusterDiagnosticService {
         }
     }
 
+    private DrainCleanerLogsResponse gatherDrainCleanerLogs(final Integer sinceMinutes,
+                                                              final List<String> completed,
+                                                              final List<String> failed,
+                                                              final McpLog mcpLog) {
+        try {
+            DrainCleanerLogsResponse result = drainCleanerService.getDrainCleanerLogs(
+                null, null, buildErrorLogParams(sinceMinutes));
+            completed.add(STEP_DRAIN_CLEANER_LOGS);
+            DiagnosticHelper.sendClientNotification(mcpLog, "Collected Strimzi Drain Cleaner logs");
+            return result;
+        } catch (Exception e) {
+            LOG.warnf("Failed to gather Drain Cleaner logs: %s", e.getMessage());
+            failed.add(STEP_DRAIN_CLEANER_LOGS + ": " + e.getMessage());
+            return null;
+        }
+    }
+
     // ---- Sampling: triage and analysis ----
 
     private InvestigationAreas decideInvestigationAreas(final Sampling sampling,
                                                         final KafkaClusterResponse cluster,
                                                         final List<KafkaNodePoolResponse> nodePools,
                                                         final KafkaClusterPodsResponse pods,
+                                                        final DrainCleanerReadinessResponse drainCleaner,
                                                         final String symptom) {
         if (sampling == null || !sampling.isSupported()) {
             return InvestigationAreas.all();
         }
 
         try {
-            Map<String, Object> summary = buildPhase1Summary(cluster, nodePools, pods, symptom);
+            Map<String, Object> summary = buildPhase1Summary(cluster, nodePools, pods, drainCleaner, symptom);
             String summaryJson = objectMapper.writeValueAsString(summary);
 
             SamplingResponse response = sampling.requestBuilder()
@@ -433,6 +489,8 @@ public class KafkaClusterDiagnosticService {
                                    final StrimziEventsResponse events,
                                    final List<KafkaUserResponse> users,
                                    final KafkaMetricsResponse metrics,
+                                   final DrainCleanerReadinessResponse drainCleaner,
+                                   final DrainCleanerLogsResponse drainCleanerLogs,
                                    final String symptom) {
         if (sampling == null || !sampling.isSupported()) {
             return null;
@@ -441,7 +499,7 @@ public class KafkaClusterDiagnosticService {
         try {
             Map<String, Object> fullData = buildFullSummary(
                 cluster, nodePools, pods, operator, operatorLogs,
-                clusterLogs, events, users, metrics, symptom);
+                clusterLogs, events, users, metrics, drainCleaner, drainCleanerLogs, symptom);
             String dataJson = objectMapper.writeValueAsString(fullData);
 
             SamplingResponse response = sampling.requestBuilder()
@@ -470,6 +528,7 @@ public class KafkaClusterDiagnosticService {
     private Map<String, Object> buildPhase1Summary(final KafkaClusterResponse cluster,
                                                    final List<KafkaNodePoolResponse> nodePools,
                                                    final KafkaClusterPodsResponse pods,
+                                                   final DrainCleanerReadinessResponse drainCleaner,
                                                    final String symptom) {
         Map<String, Object> summary = new LinkedHashMap<>();
         if (symptom != null) {
@@ -484,6 +543,10 @@ public class KafkaClusterDiagnosticService {
         if (pods != null) {
             summary.put("pods", pods);
         }
+        if (drainCleaner != null) {
+            summary.put("drain_cleaner_deployed", drainCleaner.deployed());
+            summary.put("drain_cleaner_ready", drainCleaner.overallReady());
+        }
         return summary;
     }
 
@@ -497,6 +560,8 @@ public class KafkaClusterDiagnosticService {
                                                  final StrimziEventsResponse events,
                                                  final List<KafkaUserResponse> users,
                                                  final KafkaMetricsResponse metrics,
+                                                 final DrainCleanerReadinessResponse drainCleaner,
+                                                 final DrainCleanerLogsResponse drainCleanerLogs,
                                                  final String symptom) {
         Map<String, Object> data = new LinkedHashMap<>();
         if (symptom != null) {
@@ -511,6 +576,8 @@ public class KafkaClusterDiagnosticService {
         DiagnosticHelper.putIfNotNull(data, STEP_EVENTS, events);
         DiagnosticHelper.putIfNotNull(data, STEP_USERS, users);
         DiagnosticHelper.putIfNotNull(data, STEP_METRICS, metrics);
+        DiagnosticHelper.putIfNotNull(data, STEP_DRAIN_CLEANER, drainCleaner);
+        DiagnosticHelper.putIfNotNull(data, STEP_DRAIN_CLEANER_LOGS, drainCleanerLogs);
         return data;
     }
 
@@ -523,7 +590,8 @@ public class KafkaClusterDiagnosticService {
                 Boolean.TRUE.equals(parsed.get(STEP_CLUSTER_LOGS)),
                 Boolean.TRUE.equals(parsed.get(STEP_EVENTS)),
                 Boolean.TRUE.equals(parsed.getOrDefault(STEP_USERS, Boolean.TRUE)),
-                Boolean.TRUE.equals(parsed.get(STEP_METRICS))
+                Boolean.TRUE.equals(parsed.get(STEP_METRICS)),
+                Boolean.TRUE.equals(parsed.get(STEP_DRAIN_CLEANER_LOGS))
             );
         } catch (Exception e) {
             LOG.debugf("Could not parse triage response, investigating all: %s", e.getMessage());
@@ -534,14 +602,16 @@ public class KafkaClusterDiagnosticService {
     /**
      * Flags indicating which investigation areas the LLM recommended.
      *
-     * @param operatorLogs whether to gather operator logs
-     * @param clusterLogs  whether to gather cluster logs
-     * @param events       whether to gather Kubernetes events
+     * @param operatorLogs     whether to gather operator logs
+     * @param clusterLogs      whether to gather cluster logs
+     * @param events           whether to gather Kubernetes events
      * @param users        whether to gather KafkaUser status
-     * @param metrics      whether to gather replication metrics
+     * @param metrics          whether to gather replication metrics
+     * @param drainCleanerLogs whether to gather drain cleaner logs
      */
     record InvestigationAreas(boolean operatorLogs, boolean clusterLogs,
-                              boolean events, boolean users, boolean metrics) {
+                              boolean events, boolean users, boolean metrics,
+                              boolean drainCleanerLogs) {
 
         /**
          * Returns areas with all flags set to true (fallback when Sampling is unavailable).
@@ -549,7 +619,7 @@ public class KafkaClusterDiagnosticService {
          * @return investigation areas with all flags enabled
          */
         static InvestigationAreas all() {
-            return new InvestigationAreas(true, true, true, true, true);
+            return new InvestigationAreas(true, true, true, true, true, true);
         }
 
         /**
@@ -565,6 +635,7 @@ public class KafkaClusterDiagnosticService {
             if (events) c++;
             if (users) c++;
             if (metrics) c++;
+            if (drainCleanerLogs) c++;
             return c;
         }
     }
@@ -575,11 +646,13 @@ public class KafkaClusterDiagnosticService {
         You are a Kafka infrastructure diagnostics assistant. \
         Analyze the initial cluster findings and decide which areas need deeper investigation. \
         Return ONLY a JSON object with these boolean fields: \
-        operator_logs, cluster_logs, events, metrics. \
+        operator_logs, cluster_logs, events, metrics, drain_cleaner_logs. \
         Set true only for areas likely to reveal the root cause. \
         For example, if all pods are healthy and the cluster is Ready, set all to false. \
         If pods are crashing, set cluster_logs and events to true. \
-        If the cluster is NotReady but pods look fine, set operator_logs and metrics to true.\
+        If the cluster is NotReady but pods look fine, set operator_logs and metrics to true. \
+        If symptom mentions node drain, rolling update, or pod eviction, \
+        or if drain_cleaner_deployed is false, set drain_cleaner_logs to true.\
         """;
 
     static final String ANALYSIS_SYSTEM_PROMPT = """
@@ -592,6 +665,9 @@ public class KafkaClusterDiagnosticService {
         3. Configuration errors (HIGH): invalid specs, missing secrets, RBAC issues
         4. Performance degradation (MEDIUM): overloaded brokers, replication lag
         5. Cascading failures (CRITICAL): broker overload -> replication lag -> offline partitions
+        6. Drain cleaner issues (HIGH): missing deployment, webhook unconfigured, \
+        legacy mode, TLS certificate expiring \
+        Action: deploy drain cleaner, verify webhook, switch to standard mode
         
         Structure your response as:
         - Root cause (single most likely cause)

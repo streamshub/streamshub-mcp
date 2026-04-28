@@ -45,6 +45,9 @@ You can pass additional flags to deploy observability infrastructure alongside S
 
 # Deploy Strimzi with both
 ./dev/scripts/setup-strimzi.sh deploy --prometheus --loki
+
+# Deploy Strimzi with Drain Cleaner for graceful node drains
+./dev/scripts/setup-strimzi.sh deploy --drain-cleaner
 ```
 
 On OpenShift, add the `--ocp` flag to use Route listeners instead of NodePort:
@@ -205,6 +208,7 @@ The ClusterRole grants read-only access to:
 - Services and ConfigMaps -- `get`, `list`
 - Routes and Ingresses -- `get`, `list`
 - Leases -- `get`, `list`
+- ValidatingWebhookConfigurations -- `get`, `list`
 
 **Role (opt-in per namespace, sensitive resources):**
 

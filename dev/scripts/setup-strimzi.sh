@@ -13,6 +13,7 @@ CLUSTER_NAME="mcp-cluster"
 
 INSTALL_PROMETHEUS=false
 INSTALL_LOKI=false
+INSTALL_DRAIN_CLEANER=false
 OCP=false
 
 # Colors
@@ -55,6 +56,56 @@ teardown_loki() {
     "$SCRIPT_DIR/setup-loki.sh" teardown
 }
 
+deploy_cert_manager() {
+    if [ "$OCP" = true ]; then
+        "$SCRIPT_DIR/setup-cert-manager.sh" deploy --ocp
+    else
+        "$SCRIPT_DIR/setup-cert-manager.sh" deploy
+    fi
+}
+
+teardown_cert_manager() {
+    if [ "$OCP" = true ]; then
+        "$SCRIPT_DIR/setup-cert-manager.sh" teardown --ocp
+    else
+        "$SCRIPT_DIR/setup-cert-manager.sh" teardown
+    fi
+}
+
+deploy_drain_cleaner() {
+    local drain_cleaner_dir="$STRIMZI_DIR/drain-cleaner"
+    local drain_cleaner_ns="strimzi-drain-cleaner"
+
+    deploy_cert_manager
+
+    if [ "$OCP" = true ]; then
+        log_info "Deploying Strimzi Drain Cleaner (OpenShift)..."
+        kubectl apply -k "$drain_cleaner_dir/openshift/"
+    else
+        log_info "Deploying Strimzi Drain Cleaner (cert-manager)..."
+        kubectl apply -k "$drain_cleaner_dir/certmanager/"
+    fi
+
+    log_info "Waiting for Drain Cleaner to be ready..."
+    kubectl wait --for=condition=Available \
+        deployment/strimzi-drain-cleaner \
+        -n "$drain_cleaner_ns" \
+        --timeout=120s
+    log_success "Strimzi Drain Cleaner is ready"
+}
+
+teardown_drain_cleaner() {
+    local drain_cleaner_dir="$STRIMZI_DIR/drain-cleaner"
+
+    log_info "Removing Strimzi Drain Cleaner..."
+    if [ "$OCP" = true ]; then
+        kubectl delete -k "$drain_cleaner_dir/openshift/" --ignore-not-found
+    else
+        kubectl delete -k "$drain_cleaner_dir/certmanager/" --ignore-not-found
+    fi
+    log_success "Drain Cleaner removed"
+}
+
 deploy() {
     check_kubectl
 
@@ -64,6 +115,10 @@ deploy() {
 
     if [ "$INSTALL_LOKI" = true ]; then
         deploy_loki
+    fi
+
+    if [ "$INSTALL_DRAIN_CLEANER" = true ]; then
+        deploy_drain_cleaner
     fi
 
     log_info "Deploying Strimzi operator..."
@@ -108,6 +163,9 @@ deploy() {
     if [ "$INSTALL_LOKI" = true ]; then
         echo "Logging namespace:   openshift-logging"
     fi
+    if [ "$INSTALL_DRAIN_CLEANER" = true ]; then
+        echo "Drain Cleaner ns:    strimzi-drain-cleaner"
+    fi
     echo "Operator namespace:  $OPERATOR_NS"
     echo "Kafka namespace:     $KAFKA_NS"
     echo "Cluster name:        $CLUSTER_NAME"
@@ -118,6 +176,9 @@ deploy() {
     fi
     if [ "$INSTALL_LOKI" = true ]; then
         echo "  kubectl get pods -n openshift-logging"
+    fi
+    if [ "$INSTALL_DRAIN_CLEANER" = true ]; then
+        echo "  kubectl get pods -n strimzi-drain-cleaner"
     fi
     echo "  kubectl get pods -n $OPERATOR_NS"
     echo "  kubectl get pods -n $KAFKA_NS"
@@ -133,6 +194,10 @@ teardown() {
         kubectl delete -k "$STRIMZI_DIR/kafka/" --ignore-not-found
     else
         kubectl delete -k "$STRIMZI_DIR/kafka-kubernetes/" --ignore-not-found
+    fi
+
+    if [ "$INSTALL_DRAIN_CLEANER" = true ]; then
+        teardown_drain_cleaner
     fi
 
     log_info "Removing Strimzi operator..."
@@ -160,6 +225,9 @@ for arg in "$@"; do
         "--loki")
             INSTALL_LOKI=true
             ;;
+        "--drain-cleaner")
+            INSTALL_DRAIN_CLEANER=true
+            ;;
         "--ocp")
             OCP=true
             ;;
@@ -186,9 +254,10 @@ case "$COMMAND" in
         echo "  help     - Show this help"
         echo ""
         echo "Options:"
-        echo "  --ocp         Use OpenShift route listener (default: NodePort)"
-        echo "  --prometheus  Also deploy/remove Prometheus for metrics collection"
-        echo "  --loki        Also deploy/remove Loki for log collection (OpenShift only)"
+        echo "  --ocp            Use OpenShift route listener (default: NodePort)"
+        echo "  --prometheus     Also deploy/remove Prometheus for metrics collection"
+        echo "  --loki           Also deploy/remove Loki for log collection (OpenShift only)"
+        echo "  --drain-cleaner  Also deploy/remove Strimzi Drain Cleaner"
         ;;
     *)
         log_error "Unknown command: $COMMAND"

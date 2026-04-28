@@ -2,7 +2,7 @@
  * Copyright StreamsHub authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package io.streamshub.mcp.strimzi.tool.kafkaconnect;
+package io.streamshub.mcp.strimzi.tool;
 
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.McpLog;
@@ -15,10 +15,10 @@ import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectLogsResponse;
-import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectPodsResponse;
-import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectResponse;
-import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectService;
+import io.streamshub.mcp.strimzi.dto.DrainCleanerLogsResponse;
+import io.streamshub.mcp.strimzi.dto.DrainCleanerReadinessResponse;
+import io.streamshub.mcp.strimzi.dto.DrainCleanerResponse;
+import io.streamshub.mcp.strimzi.service.DrainCleanerService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -26,35 +26,34 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import java.util.List;
 
 /**
- * MCP tools for KafkaConnect cluster operations.
+ * MCP tools for Strimzi Drain Cleaner operations.
  */
 @Singleton
 @Guarded
 @WrapBusinessError(Exception.class)
-public class KafkaConnectTools {
+public class DrainCleanerTools {
 
     private static final int SECONDS_PER_MINUTE = 60;
 
     @Inject
-    KafkaConnectService connectService;
+    DrainCleanerService drainCleanerService;
 
     @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
     int defaultTailLines;
 
-    KafkaConnectTools() {
+    DrainCleanerTools() {
     }
 
     /**
-     * List KafkaConnect clusters.
+     * List Strimzi Drain Cleaner deployments.
      *
      * @param namespace optional namespace filter
-     * @return list of KafkaConnect responses
+     * @return list of drain cleaner responses
      */
     @Tool(
-        name = "list_kafka_connects",
-        description = "List KafkaConnect clusters with status,"
-            + " replicas, and connector plugin counts."
-            + " Optionally filter by namespace.",
+        name = "list_drain_cleaners",
+        description = "List Strimzi Drain Cleaner deployments with status and webhook configuration."
+            + " Drain Cleaner handles graceful pod evictions during node drains.",
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -62,27 +61,26 @@ public class KafkaConnectTools {
             openWorldHint = false
         )
     )
-    public List<KafkaConnectResponse> listKafkaConnects(
+    public List<DrainCleanerResponse> listDrainCleaners(
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
         ) final String namespace
     ) {
-        return connectService.listConnects(namespace);
+        return drainCleanerService.listDrainCleaners(namespace);
     }
 
     /**
-     * Get a specific KafkaConnect cluster.
+     * Get a specific Strimzi Drain Cleaner.
      *
-     * @param connectName the KafkaConnect cluster name
-     * @param namespace   optional namespace
-     * @return the KafkaConnect response
+     * @param drainCleanerName the drain cleaner deployment name
+     * @param namespace        optional namespace
+     * @return the drain cleaner response
      */
     @Tool(
-        name = "get_kafka_connect",
-        description = "Get detailed information about a specific"
-            + " KafkaConnect cluster including status, bootstrap"
-            + " servers, REST API URL, and available connector plugins.",
+        name = "get_drain_cleaner",
+        description = "Get detailed information about a Strimzi Drain Cleaner deployment"
+            + " including webhook configuration, failure policy, operating mode, and TLS certificate status.",
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -90,52 +88,21 @@ public class KafkaConnectTools {
             openWorldHint = false
         )
     )
-    public KafkaConnectResponse getKafkaConnect(
+    public DrainCleanerResponse getDrainCleaner(
         @ToolArg(
-            description = StrimziToolsPrompts.CONNECT_CLUSTER_DESC
-        ) final String connectName,
-        @ToolArg(
-            description = StrimziToolsPrompts.NS_DESC,
-            required = false
-        ) final String namespace
-    ) {
-        return connectService.getConnect(namespace, connectName);
-    }
-
-    /**
-     * Get pods for a KafkaConnect cluster.
-     *
-     * @param connectName the KafkaConnect cluster name
-     * @param namespace   optional namespace
-     * @return the Connect pods response
-     */
-    @Tool(
-        name = "get_kafka_connect_pods",
-        description = "Get pod summaries for a KafkaConnect cluster"
-            + " with phase, readiness, restarts, and age.",
-        annotations = @Tool.Annotations(
-            readOnlyHint = true,
-            destructiveHint = false,
-            idempotentHint = true,
-            openWorldHint = false
-        )
-    )
-    public KafkaConnectPodsResponse getKafkaConnectPods(
-        @ToolArg(
-            description = StrimziToolsPrompts.CONNECT_CLUSTER_DESC
-        ) final String connectName,
+            description = StrimziToolsPrompts.DRAIN_CLEANER_NAME_DESC
+        ) final String drainCleanerName,
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
         ) final String namespace
     ) {
-        return connectService.getConnectPods(namespace, connectName);
+        return drainCleanerService.getDrainCleaner(namespace, drainCleanerName);
     }
 
     /**
-     * Get logs from KafkaConnect cluster pods.
+     * Get Strimzi Drain Cleaner logs.
      *
-     * @param connectName  the KafkaConnect cluster name
      * @param namespace    optional namespace
      * @param filter       optional log filter
      * @param keywords     optional keyword list for filtering
@@ -147,12 +114,12 @@ public class KafkaConnectTools {
      * @param mcpLog       MCP log for client notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
-     * @return the Connect logs response with error analysis
+     * @return the drain cleaner logs response
      */
     @Tool(
-        name = "get_kafka_connect_logs",
-        description = "Get logs from KafkaConnect pods with error analysis."
-            + " Returns logs from all pods belonging to the Connect cluster.",
+        name = "get_drain_cleaner_logs",
+        description = "Get logs from Strimzi Drain Cleaner pods."
+            + " Useful for checking behavior during node drains and rolling updates.",
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -161,10 +128,7 @@ public class KafkaConnectTools {
         )
     )
     @RateCategory("log")
-    public KafkaConnectLogsResponse getKafkaConnectLogs(
-        @ToolArg(
-            description = StrimziToolsPrompts.CONNECT_CLUSTER_DESC
-        ) final String connectName,
+    public DrainCleanerLogsResponse getDrainCleanerLogs(
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
@@ -219,6 +183,33 @@ public class KafkaConnectTools {
                     .build().sendAndForget()
                 : null)
             .build();
-        return connectService.getConnectLogs(namespace, connectName, options);
+        return drainCleanerService.getDrainCleanerLogs(namespace, null, options);
+    }
+
+    /**
+     * Check production readiness of Strimzi Drain Cleaner.
+     *
+     * @param namespace optional namespace
+     * @return the readiness response
+     */
+    @Tool(
+        name = "check_drain_cleaner_readiness",
+        description = "Check readiness of Strimzi Drain Cleaner."
+            + " Assesses deployment health, webhook configuration, TLS certificates,"
+            + " operating mode, and failure policy.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    public DrainCleanerReadinessResponse checkDrainCleanerReadiness(
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace
+    ) {
+        return drainCleanerService.checkReadiness(namespace);
     }
 }

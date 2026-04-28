@@ -87,16 +87,28 @@ io.streamshub.mcp.loki.
 io.streamshub.mcp.strimzi.
 ├── tool/              → MCP tool definitions (thin wrappers, no logic)
 │                        KafkaTools, KafkaTopicTools, KafkaNodePoolTools,
-│                        StrimziOperatorTools, StrimziEventsTools, MetricsTools,
-│                        DiagnosticTools (composite diagnostic tools)
+│                        StrimziOperatorTools, StrimziEventsTools, ConfigurationTools,
+│                        DrainCleanerTools, DiagnosticTools (composite diagnostic tools)
+│   ├── kafkaconnect/  → KafkaConnectTools, KafkaConnectorTools
+│   └── metrics/       → MetricsTools
 ├── service/           → Business logic (KafkaService, KafkaTopicService, KafkaNodePoolService,
-│                        StrimziOperatorService, StrimziEventsService, CompletionService)
+│                        KafkaCertificateService, KafkaConfigService, KafkaConfigComparisonService,
+│                        StrimziOperatorService, StrimziEventsService, DrainCleanerService,
+│                        CompletionService)
 │                        Diagnostic orchestrators: KafkaClusterDiagnosticService,
 │                        KafkaConnectivityDiagnosticService, KafkaMetricsDiagnosticService,
 │                        OperatorMetricsDiagnosticService
+│   ├── kafkaconnect/  → KafkaConnectService, KafkaConnectorService,
+│   │                    KafkaConnectorDiagnosticService
+│   └── metrics/       → KafkaMetricsService, KafkaExporterMetricsService,
+│                        StrimziOperatorMetricsService
 ├── dto/               → Strimzi response records and diagnostic reports
+│   ├── kafkaconnect/  → KafkaConnectResponse, KafkaConnectorResponse, etc.
+│   └── metrics/       → KafkaMetricsResponse, KafkaExporterMetricsResponse,
+│                        StrimziOperatorMetricsResponse
 ├── prompt/            → MCP prompt templates (DiagnoseClusterIssuePrompt, TroubleshootConnectivityPrompt,
-│                        AnalyzeKafkaMetricsPrompt, AnalyzeStrimziOperatorMetricsPrompt)
+│                        AnalyzeKafkaMetricsPrompt, AnalyzeStrimziOperatorMetricsPrompt,
+│                        TroubleshootConnectorPrompt, CompareClusterConfigsPrompt, PromptCompletions)
 ├── resource/          → ResourceSubscriptionManager (Kubernetes watches → MCP notifications)
 ├── resource/template/ → MCP resource templates and completions (5 templates)
 ├── config/            → StrimziConstants (labels, resource URIs), StrimziToolsPrompts
@@ -270,6 +282,7 @@ Compose existing DTOs into a single report. Follow the naming pattern `Kafka*Dia
 - `KafkaConnectivityDiagnosticReport` — cluster, bootstrap servers, certificates, pods, logs
 - `KafkaMetricsDiagnosticReport` — cluster, pods, replication/performance/resource/throughput metrics
 - `OperatorMetricsDiagnosticReport` — operator, reconciliation/resource/JVM metrics, logs
+- `KafkaConnectorDiagnosticReport` — connector, parent Connect cluster, pods, logs
 
 ### Adding a new composite diagnostic tool
 

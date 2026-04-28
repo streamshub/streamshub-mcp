@@ -41,7 +41,13 @@ public class KafkaConnectorTools {
         name = "list_kafka_connectors",
         description = "List KafkaConnectors with class, state,"
             + " and task configuration. Optionally filter by"
-            + " namespace or parent KafkaConnect cluster."
+            + " namespace or parent KafkaConnect cluster.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public List<KafkaConnectorResponse> listKafkaConnectors(
         @ToolArg(
@@ -67,7 +73,13 @@ public class KafkaConnectorTools {
         name = "get_kafka_connector",
         description = "Get detailed information about a specific"
             + " KafkaConnector including class, state, tasks,"
-            + " auto-restart status, topics, and configuration."
+            + " auto-restart status, topics, and configuration.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public KafkaConnectorResponse getKafkaConnector(
         @ToolArg(

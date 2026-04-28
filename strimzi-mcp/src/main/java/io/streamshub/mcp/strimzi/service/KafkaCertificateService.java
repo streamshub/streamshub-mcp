@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.service;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
+import io.streamshub.mcp.common.util.CertificateUtils;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.KafkaCertificateResponse;
@@ -17,15 +18,10 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
-import java.io.ByteArrayInputStream;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -154,26 +150,19 @@ public class KafkaCertificateService {
     }
 
     private List<X509Certificate> parseCertificates(final String base64Encoded, final String secretName) {
-        try {
-            byte[] decoded = Base64.getDecoder().decode(base64Encoded);
-            CertificateFactory factory = CertificateFactory.getInstance("X.509");
-            @SuppressWarnings("unchecked")
-            Collection<X509Certificate> certs = (Collection<X509Certificate>)
-                factory.generateCertificates(new ByteArrayInputStream(decoded));
-            return new ArrayList<>(certs);
-        } catch (CertificateException | IllegalArgumentException e) {
-            LOG.debugf("Failed to parse certificate from secret %s: %s", secretName, e.getMessage());
-            return List.of();
+        List<X509Certificate> certs = CertificateUtils.parseCertificates(base64Encoded);
+        if (certs.isEmpty()) {
+            LOG.debugf("No certificates parsed from secret %s", secretName);
         }
+        return certs;
     }
 
     private KafkaCertificateResponse.CertificateInfo buildCertificateInfo(
             final String secretName, final String certType, final X509Certificate cert) {
         Instant notBefore = cert.getNotBefore().toInstant();
         Instant notAfter = cert.getNotAfter().toInstant();
-        Instant now = Instant.now();
-        long daysUntilExpiry = Duration.between(now, notAfter).toDays();
-        boolean expired = now.isAfter(notAfter);
+        long daysUntilExpiry = CertificateUtils.calculateDaysUntilExpiry(cert);
+        boolean expired = CertificateUtils.isExpired(cert);
 
         List<String> sans = extractSans(cert);
 
