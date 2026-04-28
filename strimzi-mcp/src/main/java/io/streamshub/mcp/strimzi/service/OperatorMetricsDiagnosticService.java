@@ -5,6 +5,7 @@
 package io.streamshub.mcp.strimzi.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
@@ -189,10 +190,11 @@ public class OperatorMetricsDiagnosticService {
 
     // ---- Phase 1: Initial data gathering ----
 
-    private StrimziOperatorResponse gatherOperatorStatus(final String namespace,
-                                                         final String operatorName,
-                                                         final List<String> completed,
-                                                         final McpLog mcpLog) {
+    @WithSpan("diagnose.operator.status")
+    StrimziOperatorResponse gatherOperatorStatus(final String namespace,
+                                                 final String operatorName,
+                                                 final List<String> completed,
+                                                 final McpLog mcpLog) {
         if (operatorName != null) {
             StrimziOperatorResponse result = operatorService.getOperator(namespace, operatorName);
             completed.add(STEP_OPERATOR_STATUS);
@@ -217,8 +219,9 @@ public class OperatorMetricsDiagnosticService {
 
     // ---- Phase 2: Metrics investigation ----
 
+    @WithSpan("diagnose.operator.metrics")
     @SuppressWarnings("checkstyle:ParameterNumber")
-    private StrimziOperatorMetricsResponse gatherMetrics(final String namespace,
+    StrimziOperatorMetricsResponse gatherMetrics(final String namespace,
                                                          final String operatorName,
                                                          final String clusterName,
                                                          final String category,
@@ -245,11 +248,12 @@ public class OperatorMetricsDiagnosticService {
         }
     }
 
-    private StrimziOperatorLogsResponse gatherOperatorLogs(final String namespace,
-                                                           final String operatorName,
-                                                           final List<String> completed,
-                                                           final List<String> failed,
-                                                           final McpLog mcpLog) {
+    @WithSpan("diagnose.operator.logs")
+    StrimziOperatorLogsResponse gatherOperatorLogs(final String namespace,
+                                                   final String operatorName,
+                                                   final List<String> completed,
+                                                   final List<String> failed,
+                                                   final McpLog mcpLog) {
         try {
             LogCollectionParams params = LogCollectionParams.builder(defaultTailLines)
                 .filter("errors")
@@ -268,9 +272,10 @@ public class OperatorMetricsDiagnosticService {
 
     // ---- Sampling: triage and analysis ----
 
-    private InvestigationAreas decideInvestigationAreas(final Sampling sampling,
-                                                        final StrimziOperatorResponse operator,
-                                                        final String concern) {
+    @WithSpan("diagnose.operator.triage")
+    InvestigationAreas decideInvestigationAreas(final Sampling sampling,
+                                                final StrimziOperatorResponse operator,
+                                                final String concern) {
         if (sampling == null || !sampling.isSupported()) {
             return InvestigationAreas.all();
         }
@@ -294,14 +299,15 @@ public class OperatorMetricsDiagnosticService {
         }
     }
 
+    @WithSpan("diagnose.operator.analysis")
     @SuppressWarnings("checkstyle:ParameterNumber")
-    private String produceAnalysis(final Sampling sampling,
-                                   final StrimziOperatorResponse operator,
-                                   final StrimziOperatorMetricsResponse reconciliationMetrics,
-                                   final StrimziOperatorMetricsResponse resourceMetrics,
-                                   final StrimziOperatorMetricsResponse jvmMetrics,
-                                   final StrimziOperatorLogsResponse operatorLogs,
-                                   final String concern) {
+    String produceAnalysis(final Sampling sampling,
+                           final StrimziOperatorResponse operator,
+                           final StrimziOperatorMetricsResponse reconciliationMetrics,
+                           final StrimziOperatorMetricsResponse resourceMetrics,
+                           final StrimziOperatorMetricsResponse jvmMetrics,
+                           final StrimziOperatorLogsResponse operatorLogs,
+                           final String concern) {
         if (sampling == null || !sampling.isSupported()) {
             return null;
         }

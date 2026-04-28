@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.tool;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
@@ -37,6 +38,7 @@ public class KafkaUserTools {
      * @param namespace   optional namespace filter
      * @return list of user summary responses
      */
+    @WithSpan("tool.list_kafka_users")
     @Tool(
         name = "list_kafka_users",
         description = "List KafkaUsers with authentication type,"
@@ -69,6 +71,7 @@ public class KafkaUserTools {
      * @param namespace optional namespace
      * @return the detailed user response
      */
+    @WithSpan("tool.get_kafka_user")
     @Tool(
         name = "get_kafka_user",
         description = "Get detailed KafkaUser information including"

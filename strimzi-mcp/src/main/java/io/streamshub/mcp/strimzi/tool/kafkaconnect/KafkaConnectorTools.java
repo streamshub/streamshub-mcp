@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.tool.kafkaconnect;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
@@ -37,6 +38,7 @@ public class KafkaConnectorTools {
      * @param connectCluster optional parent KafkaConnect cluster filter
      * @return list of connector responses
      */
+    @WithSpan("tool.list_kafka_connectors")
     @Tool(
         name = "list_kafka_connectors",
         description = "List KafkaConnectors with class, state,"
@@ -69,6 +71,7 @@ public class KafkaConnectorTools {
      * @param namespace     optional namespace
      * @return the connector response
      */
+    @WithSpan("tool.get_kafka_connector")
     @Tool(
         name = "get_kafka_connector",
         description = "Get detailed information about a specific"

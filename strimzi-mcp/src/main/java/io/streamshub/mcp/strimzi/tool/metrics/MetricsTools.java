@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.tool.metrics;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
@@ -53,6 +54,7 @@ public class MetricsTools {
      * @param stepSeconds  optional range query step in seconds
      * @return the metrics response
      */
+    @WithSpan("tool.get_kafka_metrics")
     @Tool(
         name = "get_kafka_metrics",
         description = "Retrieves Prometheus metrics from Kafka cluster pods by category or explicit metric names."
@@ -115,6 +117,7 @@ public class MetricsTools {
      * @param stepSeconds  optional range query step in seconds
      * @return the Kafka Exporter metrics response
      */
+    @WithSpan("tool.get_kafka_exporter_metrics")
     @Tool(
         name = "get_kafka_exporter_metrics",
         description = "Retrieves Prometheus metrics from Kafka Exporter pods by category or explicit metric names."
@@ -180,6 +183,7 @@ public class MetricsTools {
      * @param stepSeconds  optional range query step in seconds
      * @return the operator metrics response
      */
+    @WithSpan("tool.get_strimzi_operator_metrics")
     @Tool(
         name = "get_strimzi_operator_metrics",
         description = "Retrieves Prometheus metrics from Strimzi operator pods by category or explicit metric names."

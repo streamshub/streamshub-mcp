@@ -5,6 +5,7 @@
 package io.streamshub.mcp.strimzi.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpLog;
@@ -74,6 +75,7 @@ public class KafkaConfigComparisonService {
      * @param cancellation MCP cancellation checking
      * @return a configuration comparison report
      */
+    @WithSpan("compare.orchestrate")
     @SuppressWarnings("checkstyle:ParameterNumber")
     public KafkaConfigComparisonReport compare(final String namespace1,
                                                final String clusterName1,
@@ -121,7 +123,8 @@ public class KafkaConfigComparisonService {
             completed, failed.isEmpty() ? null : failed);
     }
 
-    private KafkaEffectiveConfigResponse gatherConfig(final String namespace,
+    @WithSpan("compare.gather_config")
+    KafkaEffectiveConfigResponse gatherConfig(final String namespace,
                                                       final String clusterName,
                                                       final String elicitationContext,
                                                       final Elicitation elicitation,
@@ -166,7 +169,8 @@ public class KafkaConfigComparisonService {
         }
     }
 
-    private String produceAnalysis(final Sampling sampling,
+    @WithSpan("compare.analysis")
+    String produceAnalysis(final Sampling sampling,
                                    final KafkaEffectiveConfigResponse config1,
                                    final KafkaEffectiveConfigResponse config2) {
         if (sampling == null || !sampling.isSupported()) {

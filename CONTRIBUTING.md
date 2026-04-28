@@ -44,8 +44,12 @@ Set up a local Strimzi environment for testing:
 # With both, on OpenShift
 ./dev/scripts/setup-strimzi.sh deploy --prometheus --loki --ocp
 
+# With Jaeger for distributed tracing
+./dev/scripts/setup-jaeger.sh deploy
+
 # Teardown when done
 ./dev/scripts/setup-strimzi.sh teardown
+./dev/scripts/setup-jaeger.sh teardown
 ```
 
 Build the container image and deploy to a local cluster:

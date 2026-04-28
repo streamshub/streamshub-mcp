@@ -5,6 +5,7 @@
 package io.streamshub.mcp.strimzi.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpLog;
@@ -192,11 +193,12 @@ public class KafkaConnectivityDiagnosticService {
 
     // ---- Phase 1: Initial data gathering ----
 
-    private KafkaClusterResponse gatherClusterStatus(final String namespace,
-                                                     final String clusterName,
-                                                     final Elicitation elicitation,
-                                                     final List<String> completed,
-                                                     final McpLog mcpLog) {
+    @WithSpan("diagnose.connectivity.status")
+    KafkaClusterResponse gatherClusterStatus(final String namespace,
+                                             final String clusterName,
+                                             final Elicitation elicitation,
+                                             final List<String> completed,
+                                             final McpLog mcpLog) {
         try {
             KafkaClusterResponse result = kafkaService.getCluster(namespace, clusterName);
             completed.add(STEP_CLUSTER_STATUS);
@@ -213,11 +215,12 @@ public class KafkaConnectivityDiagnosticService {
         }
     }
 
-    private KafkaBootstrapResponse gatherBootstrapServers(final String namespace,
-                                                          final String clusterName,
-                                                          final List<String> completed,
-                                                          final List<String> failed,
-                                                          final McpLog mcpLog) {
+    @WithSpan("diagnose.connectivity.bootstrap")
+    KafkaBootstrapResponse gatherBootstrapServers(final String namespace,
+                                                  final String clusterName,
+                                                  final List<String> completed,
+                                                  final List<String> failed,
+                                                  final McpLog mcpLog) {
         try {
             KafkaBootstrapResponse result = kafkaService.getBootstrapServers(namespace, clusterName);
             completed.add(STEP_BOOTSTRAP_SERVERS);
@@ -233,12 +236,13 @@ public class KafkaConnectivityDiagnosticService {
 
     // ---- Phase 2: Deep investigation ----
 
-    private KafkaCertificateResponse gatherCertificates(final String namespace,
-                                                        final String clusterName,
-                                                        final String listenerName,
-                                                        final List<String> completed,
-                                                        final List<String> failed,
-                                                        final McpLog mcpLog) {
+    @WithSpan("diagnose.connectivity.certificates")
+    KafkaCertificateResponse gatherCertificates(final String namespace,
+                                                final String clusterName,
+                                                final String listenerName,
+                                                final List<String> completed,
+                                                final List<String> failed,
+                                                final McpLog mcpLog) {
         try {
             KafkaCertificateResponse result = kafkaCertificateService.getCertificates(
                 namespace, clusterName, listenerName);
@@ -252,11 +256,12 @@ public class KafkaConnectivityDiagnosticService {
         }
     }
 
-    private KafkaClusterPodsResponse gatherClusterPods(final String namespace,
-                                                       final String clusterName,
-                                                       final List<String> completed,
-                                                       final List<String> failed,
-                                                       final McpLog mcpLog) {
+    @WithSpan("diagnose.connectivity.pods")
+    KafkaClusterPodsResponse gatherClusterPods(final String namespace,
+                                               final String clusterName,
+                                               final List<String> completed,
+                                               final List<String> failed,
+                                               final McpLog mcpLog) {
         try {
             KafkaClusterPodsResponse result = kafkaService.getClusterPods(namespace, clusterName);
             completed.add(STEP_POD_HEALTH);
@@ -269,11 +274,12 @@ public class KafkaConnectivityDiagnosticService {
         }
     }
 
-    private KafkaClusterLogsResponse gatherConnectivityLogs(final String namespace,
-                                                            final String clusterName,
-                                                            final List<String> completed,
-                                                            final List<String> failed,
-                                                            final McpLog mcpLog) {
+    @WithSpan("diagnose.connectivity.logs")
+    KafkaClusterLogsResponse gatherConnectivityLogs(final String namespace,
+                                                    final String clusterName,
+                                                    final List<String> completed,
+                                                    final List<String> failed,
+                                                    final McpLog mcpLog) {
         try {
             LogCollectionParams params = LogCollectionParams.builder(defaultTailLines)
                 .keywords(CONNECTIVITY_KEYWORDS)
@@ -310,9 +316,10 @@ public class KafkaConnectivityDiagnosticService {
 
     // ---- Sampling: triage and analysis ----
 
-    private InvestigationAreas decideInvestigationAreas(final Sampling sampling,
-                                                        final KafkaClusterResponse cluster,
-                                                        final KafkaBootstrapResponse bootstrapServers) {
+    @WithSpan("diagnose.connectivity.triage")
+    InvestigationAreas decideInvestigationAreas(final Sampling sampling,
+                                                final KafkaClusterResponse cluster,
+                                                final KafkaBootstrapResponse bootstrapServers) {
         if (sampling == null || !sampling.isSupported()) {
             return InvestigationAreas.all();
         }
@@ -336,8 +343,9 @@ public class KafkaConnectivityDiagnosticService {
         }
     }
 
+    @WithSpan("diagnose.connectivity.analysis")
     @SuppressWarnings("checkstyle:ParameterNumber")
-    private String produceAnalysis(final Sampling sampling,
+    String produceAnalysis(final Sampling sampling,
                                    final KafkaClusterResponse cluster,
                                    final KafkaBootstrapResponse bootstrapServers,
                                    final KafkaCertificateResponse certificates,

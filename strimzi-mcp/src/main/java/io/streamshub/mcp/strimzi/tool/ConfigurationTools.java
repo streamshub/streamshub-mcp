@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.tool;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
@@ -35,6 +36,7 @@ public class ConfigurationTools {
      * @param namespace   optional namespace
      * @return the effective configuration response
      */
+    @WithSpan("tool.get_kafka_cluster_config")
     @Tool(
         name = "get_kafka_cluster_config",
         description = "Returns the effective configuration of a Kafka cluster"

@@ -104,7 +104,7 @@ For detailed instructions on Kubernetes deployments, RBAC configuration, and ext
 ## Next steps
 
 - **[Installation](strimzi-mcp/installation.md)** -- Detailed setup including Kubernetes deployment
-- **[Configuration](strimzi-mcp/configuration.md)** -- Configure Loki and Prometheus integration
+- **[Configuration](strimzi-mcp/configuration.md)** -- Configure Loki, Prometheus, and Jaeger integration
 - **[Tools reference](strimzi-mcp/tools/)** -- Available tools and prompts
 - **[Usage examples](strimzi-mcp/usage-examples.md)** -- Practical workflows
 - **[Troubleshooting](strimzi-mcp/troubleshooting.md)** -- Resolve common issues

@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.tool;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
@@ -38,6 +39,7 @@ public class KafkaTopicTools {
      * @param offset      optional zero-based offset
      * @return paginated topic list response
      */
+    @WithSpan("tool.list_kafka_topics")
     @Tool(
         name = "list_kafka_topics",
         description = "List Kafka topics for a cluster with partitions, replicas, and status."
@@ -77,6 +79,7 @@ public class KafkaTopicTools {
      * @param namespace   optional namespace
      * @return the topic response
      */
+    @WithSpan("tool.get_kafka_topic")
     @Tool(
         name = "get_kafka_topic",
         description = "Get detailed information for a specific Kafka topic including"
