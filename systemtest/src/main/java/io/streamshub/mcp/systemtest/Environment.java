@@ -14,8 +14,7 @@ public final class Environment {
     private static final TestEnvironmentVariables ENV_VARIABLES = new TestEnvironmentVariables();
 
     /** MCP server container image. */
-    // TODO - revert!
-    public static final String MCP_IMAGE = ENV_VARIABLES.getOrDefault("MCP_IMAGE", "quay.io/jstejska/strimzi-mcp:dev");
+    public static final String MCP_IMAGE = ENV_VARIABLES.getOrDefault("MCP_IMAGE", "quay.io/streamshub/strimzi-mcp:latest");
 
     /** Direct MCP URL override. When set, skips all connectivity setup (e.g. for manual port-forward). */
     public static final String MCP_URL = ENV_VARIABLES.getOrDefault("MCP_URL", null);
