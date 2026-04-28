@@ -62,6 +62,9 @@ public final class Constants {
     /** Timeout for KafkaConnector CR readiness. */
     public static final long KAFKA_CONNECTOR_READY_TIMEOUT_MS = 180_000L;
 
+    /** Timeout for KafkaUser CR readiness. */
+    public static final long KAFKA_USER_READY_TIMEOUT_MS = 120_000L;
+
     /** Poll interval for Kafka CR readiness checks. */
     public static final long KAFKA_READY_POLL_MS = 10_000L;
 

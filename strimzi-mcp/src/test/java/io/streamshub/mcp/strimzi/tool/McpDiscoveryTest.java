@@ -78,6 +78,8 @@ class McpDiscoveryTest {
                     "list_kafka_connectors",
                     "get_kafka_connector",
                     "diagnose_kafka_connector",
+                    "list_kafka_users",
+                    "get_kafka_user",
                     "diagnose_kafka_cluster",
                     "diagnose_kafka_connectivity",
                     "diagnose_kafka_metrics",
@@ -112,6 +114,8 @@ class McpDiscoveryTest {
                     "Prompt 'troubleshoot-connector' should be registered");
                 assertNotNull(page.findByName("compare-cluster-configs"),
                     "Prompt 'compare-cluster-configs' should be registered");
+                assertNotNull(page.findByName("audit-security"),
+                    "Prompt 'audit-security' should be registered");
             })
             .send()
             .thenAssertResults();
@@ -130,6 +134,7 @@ class McpDiscoveryTest {
                     "strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkas/{name}/topology",
                     "strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkanodepools/{name}/status",
                     "strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkatopics/{name}/status",
+                    "strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkausers/{name}/status",
                     "strimzi://operator.strimzi.io/namespaces/{namespace}/clusteroperator/{name}/status"
                 );
 
@@ -220,6 +225,28 @@ class McpDiscoveryTest {
                 assertTrue(content.contains("get_kafka_connector"));
                 assertTrue(content.contains("get_kafka_connect"));
                 assertTrue(content.contains("get_kafka_connect_logs"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify audit-security prompt generates correct instructions.
+     */
+    @Test
+    void testPromptGetAuditSecurity() {
+        client.when()
+            .promptsGet("audit-security")
+            .withArguments(Map.of("cluster_name", "my-cluster", "namespace", "kafka-prod"))
+            .withAssert(response -> {
+                assertFalse(response.messages().isEmpty());
+                String content = response.messages().getFirst().content().asText().text();
+                assertTrue(content.contains("my-cluster"));
+                assertTrue(content.contains("kafka-prod"));
+                assertTrue(content.contains("list_kafka_users"));
+                assertTrue(content.contains("get_kafka_user"));
+                assertTrue(content.contains("get_kafka_cluster"));
+                assertTrue(content.contains("get_kafka_cluster_certificates"));
             })
             .send()
             .thenAssertResults();

@@ -23,6 +23,7 @@ import io.streamshub.mcp.strimzi.dto.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaConnectivityDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.KafkaUserResponse;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -48,7 +49,7 @@ public class KafkaConnectivityDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(KafkaConnectivityDiagnosticService.class);
     private static final int PHASE1_STEPS = 2;
-    private static final int MAX_PHASE2_STEPS = 3;
+    private static final int MAX_PHASE2_STEPS = 4;
     private static final String DIAGNOSTIC_LABEL = "Kafka connectivity diagnostic";
     private static final List<String> CONNECTIVITY_KEYWORDS = List.of(
         "TLS", "SSL", "handshake", "authentication", "SASL",
@@ -60,12 +61,16 @@ public class KafkaConnectivityDiagnosticService {
     private static final String STEP_CERTIFICATES = "certificates";
     private static final String STEP_POD_HEALTH = "pod_health";
     private static final String STEP_CLUSTER_LOGS = "cluster_logs";
+    private static final String STEP_USERS = "users";
 
     @Inject
     KafkaService kafkaService;
 
     @Inject
     KafkaCertificateService kafkaCertificateService;
+
+    @Inject
+    KafkaUserService kafkaUserService;
 
     @Inject
     ObjectMapper objectMapper;
@@ -169,12 +174,19 @@ public class KafkaConnectivityDiagnosticService {
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
+        List<KafkaUserResponse> users = null;
+        if (areas.users) {
+            users = gatherUsers(resolvedNs, name, completed, failed, mcpLog);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+            DiagnosticHelper.checkCancellation(cancellation);
+        }
+
         // === Phase 3: Final analysis ===
         String analysis = produceAnalysis(sampling, cluster, bootstrapServers,
-            certificates, pods, clusterLogs, listener);
+            certificates, pods, clusterLogs, users, listener);
 
         return KafkaConnectivityDiagnosticReport.of(cluster, bootstrapServers,
-            certificates, pods, clusterLogs, analysis,
+            certificates, pods, clusterLogs, users, analysis,
             completed, failed.isEmpty() ? null : failed);
     }
 
@@ -278,6 +290,24 @@ public class KafkaConnectivityDiagnosticService {
         }
     }
 
+    private List<KafkaUserResponse> gatherUsers(final String namespace,
+                                                    final String clusterName,
+                                                    final List<String> completed,
+                                                    final List<String> failed,
+                                                    final McpLog mcpLog) {
+        try {
+            List<KafkaUserResponse> result = kafkaUserService.listUsers(namespace, clusterName);
+            completed.add(STEP_USERS);
+            DiagnosticHelper.sendClientNotification(mcpLog,
+                String.format("Found %d KafkaUsers for cluster", result.size()));
+            return result;
+        } catch (Exception e) {
+            LOG.warnf("Failed to gather KafkaUsers: %s", e.getMessage());
+            failed.add(STEP_USERS + ": " + e.getMessage());
+            return null;
+        }
+    }
+
     // ---- Sampling: triage and analysis ----
 
     private InvestigationAreas decideInvestigationAreas(final Sampling sampling,
@@ -313,6 +343,7 @@ public class KafkaConnectivityDiagnosticService {
                                    final KafkaCertificateResponse certificates,
                                    final KafkaClusterPodsResponse pods,
                                    final KafkaClusterLogsResponse clusterLogs,
+                                   final List<KafkaUserResponse> users,
                                    final String listenerName) {
         if (sampling == null || !sampling.isSupported()) {
             return null;
@@ -320,7 +351,7 @@ public class KafkaConnectivityDiagnosticService {
 
         try {
             Map<String, Object> fullData = buildFullSummary(
-                cluster, bootstrapServers, certificates, pods, clusterLogs, listenerName);
+                cluster, bootstrapServers, certificates, pods, clusterLogs, users, listenerName);
             String dataJson = objectMapper.writeValueAsString(fullData);
 
             SamplingResponse response = sampling.requestBuilder()
@@ -355,6 +386,7 @@ public class KafkaConnectivityDiagnosticService {
                                                  final KafkaCertificateResponse certificates,
                                                  final KafkaClusterPodsResponse pods,
                                                  final KafkaClusterLogsResponse clusterLogs,
+                                                 final List<KafkaUserResponse> users,
                                                  final String listenerName) {
         Map<String, Object> data = new LinkedHashMap<>();
         if (listenerName != null) {
@@ -365,6 +397,7 @@ public class KafkaConnectivityDiagnosticService {
         DiagnosticHelper.putIfNotNull(data, STEP_CERTIFICATES, certificates);
         DiagnosticHelper.putIfNotNull(data, STEP_POD_HEALTH, pods);
         DiagnosticHelper.putIfNotNull(data, STEP_CLUSTER_LOGS, clusterLogs);
+        DiagnosticHelper.putIfNotNull(data, STEP_USERS, users);
         return data;
     }
 
@@ -375,7 +408,8 @@ public class KafkaConnectivityDiagnosticService {
             return new InvestigationAreas(
                 Boolean.TRUE.equals(parsed.get(STEP_CERTIFICATES)),
                 Boolean.TRUE.equals(parsed.get(STEP_POD_HEALTH)),
-                Boolean.TRUE.equals(parsed.get(STEP_CLUSTER_LOGS))
+                Boolean.TRUE.equals(parsed.get(STEP_CLUSTER_LOGS)),
+                Boolean.TRUE.equals(parsed.getOrDefault(STEP_USERS, Boolean.TRUE))
             );
         } catch (Exception e) {
             LOG.debugf("Could not parse triage response, investigating all: %s", e.getMessage());
@@ -389,8 +423,9 @@ public class KafkaConnectivityDiagnosticService {
      * @param certificates whether to gather TLS certificates and authentication
      * @param pods         whether to gather pod health
      * @param clusterLogs  whether to gather connection-related logs
+     * @param users        whether to gather KafkaUser authentication and ACLs
      */
-    record InvestigationAreas(boolean certificates, boolean pods, boolean clusterLogs) {
+    record InvestigationAreas(boolean certificates, boolean pods, boolean clusterLogs, boolean users) {
 
         /**
          * Returns areas with all flags set to true (fallback when Sampling is unavailable).
@@ -398,7 +433,7 @@ public class KafkaConnectivityDiagnosticService {
          * @return investigation areas with all flags enabled
          */
         static InvestigationAreas all() {
-            return new InvestigationAreas(true, true, true);
+            return new InvestigationAreas(true, true, true, true);
         }
 
         /**
@@ -412,6 +447,7 @@ public class KafkaConnectivityDiagnosticService {
             if (certificates) c++;
             if (pods) c++;
             if (clusterLogs) c++;
+            if (users) c++;
             return c;
         }
     }
@@ -423,11 +459,13 @@ public class KafkaConnectivityDiagnosticService {
         Analyze the cluster status and listener configuration to decide which areas \
         need deeper investigation. \
         Return ONLY a JSON object with these boolean fields: \
-        certificates, pod_health, cluster_logs. \
+        certificates, pod_health, cluster_logs, users. \
         Set true only for areas likely to reveal connectivity issues. \
         For example, if listeners use TLS, set certificates to true. \
         If the cluster is NotReady, set pod_health to true. \
-        If listeners look correct but connectivity fails, set cluster_logs to true.\
+        If listeners look correct but connectivity fails, set cluster_logs to true. \
+        If listeners have authentication configured, set users to true \
+        to check KafkaUser ACLs and auth type matching.\
         """;
 
     static final String ANALYSIS_SYSTEM_PROMPT = """

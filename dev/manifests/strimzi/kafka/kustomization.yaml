@@ -4,3 +4,4 @@ resources:
   - 000-Namespace.yaml
   - 010-Kafka.yaml
   - 020-PodMonitor.yaml
+  - 030-KafkaUsers.yaml

@@ -21,15 +21,18 @@ import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
+import io.streamshub.mcp.strimzi.dto.KafkaUserResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
 import io.streamshub.mcp.strimzi.service.KafkaNodePoolService;
 import io.streamshub.mcp.strimzi.service.KafkaService;
 import io.streamshub.mcp.strimzi.service.KafkaTopicService;
+import io.streamshub.mcp.strimzi.service.KafkaUserService;
 import io.streamshub.mcp.strimzi.service.StrimziOperatorService;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
+import io.strimzi.api.kafka.model.user.KafkaUser;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
@@ -46,7 +49,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * Manages Kubernetes watches on Strimzi resources and sends MCP resource
  * update notifications to subscribed clients when resource status changes.
  *
- * <p>Watches Kafka CRs, KafkaNodePool CRs, KafkaTopic CRs, and Strimzi operator Deployments.
+ * <p>Watches Kafka CRs, KafkaNodePool CRs, KafkaTopic CRs, KafkaUser CRs, and Strimzi operator Deployments.
  * On each change, dynamically registers or updates the corresponding MCP resource
  * and notifies clients via {@link ResourceManager.ResourceInfo#sendUpdateAndForget()}.</p>
  */
@@ -69,6 +72,9 @@ public class ResourceSubscriptionManager implements Closeable {
 
     @Inject
     KafkaTopicService topicService;
+
+    @Inject
+    KafkaUserService userService;
 
     @Inject
     StrimziOperatorService operatorService;
@@ -99,6 +105,7 @@ public class ResourceSubscriptionManager implements Closeable {
         startKafkaWatch();
         startKafkaNodePoolWatch();
         startKafkaTopicWatch();
+        startKafkaUserWatch();
         startOperatorWatch();
     }
 
@@ -193,6 +200,30 @@ public class ResourceSubscriptionManager implements Closeable {
         }
     }
 
+    private void startKafkaUserWatch() {
+        try {
+            Watch watch = kubernetesClient.resources(KafkaUser.class)
+                .inAnyNamespace()
+                .watch(new Watcher<KafkaUser>() {
+                    @Override
+                    public void eventReceived(final Action action, final KafkaUser user) {
+                        handleUserEvent(action, user);
+                    }
+
+                    @Override
+                    public void onClose(final WatcherException cause) {
+                        if (cause != null) {
+                            LOG.warnf("KafkaUser watch closed unexpectedly: %s", cause.getMessage());
+                        }
+                    }
+                });
+            activeWatches.add(watch);
+            LOG.info("Started watch on KafkaUser resources");
+        } catch (Exception e) {
+            LOG.warnf("Could not start KafkaUser watch: %s", e.getMessage());
+        }
+    }
+
     private void startOperatorWatch() {
         try {
             Watch watch = kubernetesClient.apps().deployments()
@@ -279,6 +310,22 @@ public class ResourceSubscriptionManager implements Closeable {
         notifyTopicStatus(topicUri, namespace, name);
     }
 
+    private void handleUserEvent(final Watcher.Action action, final KafkaUser user) {
+        String name = user.getMetadata().getName();
+        String namespace = user.getMetadata().getNamespace();
+        String userUri = StrimziConstants.ResourceUris.userStatus(namespace, name);
+
+        LOG.debugf("KafkaUser %s event: %s/%s", action, namespace, name);
+
+        if (action == Watcher.Action.DELETED) {
+            resourceManager.removeResource(userUri);
+            lastKnownState.remove(userUri);
+            return;
+        }
+
+        notifyUserStatus(userUri, namespace, name);
+    }
+
     private void handleOperatorEvent(final Watcher.Action action, final Deployment deployment) {
         String name = deployment.getMetadata().getName();
         String namespace = deployment.getMetadata().getNamespace();
@@ -340,6 +387,18 @@ public class ResourceSubscriptionManager implements Closeable {
             LOG.warnf("Failed to serialize topic status for %s/%s: %s", namespace, name, e.getMessage());
         } catch (Exception e) {
             LOG.debugf("Could not update topic status resource %s: %s", uri, e.getMessage());
+        }
+    }
+
+    private void notifyUserStatus(final String uri, final String namespace, final String name) {
+        try {
+            KafkaUserResponse user = userService.getUser(namespace, name);
+            String json = objectMapper.writeValueAsString(user);
+            registerAndNotify(uri, "KafkaUser " + namespace + "/" + name + " status", json);
+        } catch (JsonProcessingException e) {
+            LOG.warnf("Failed to serialize KafkaUser status for %s/%s: %s", namespace, name, e.getMessage());
+        } catch (Exception e) {
+            LOG.debugf("Could not update KafkaUser status resource %s: %s", uri, e.getMessage());
         }
     }
 

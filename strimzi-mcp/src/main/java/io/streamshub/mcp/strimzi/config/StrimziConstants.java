@@ -153,6 +153,10 @@ public final class StrimziConstants {
         public static final String TOPIC_STATUS =
             "strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkatopics/{name}/status";
 
+        /** URI template for KafkaUser status resources. */
+        public static final String USER_STATUS =
+            "strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkausers/{name}/status";
+
         /** URI template for Strimzi operator status resources. */
         public static final String OPERATOR_STATUS =
             "strimzi://operator.strimzi.io/namespaces/{namespace}/clusteroperator/{name}/status";
@@ -202,6 +206,17 @@ public final class StrimziConstants {
          */
         public static String topicStatus(final String namespace, final String name) {
             return resolve(TOPIC_STATUS, namespace, name);
+        }
+
+        /**
+         * Build a resolved KafkaUser status URI.
+         *
+         * @param namespace the Kubernetes namespace
+         * @param name      the KafkaUser name
+         * @return the resolved URI string
+         */
+        public static String userStatus(final String namespace, final String name) {
+            return resolve(USER_STATUS, namespace, name);
         }
 
         /**

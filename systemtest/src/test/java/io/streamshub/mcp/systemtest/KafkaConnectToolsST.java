@@ -86,7 +86,7 @@ class KafkaConnectToolsST extends AbstractST {
                     Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
-                KafkaTemplates.kafkaMinimal(kafkaNs, Constants.KAFKA_CLUSTER_NAME).build());
+                KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
                 KafkaConnectTemplates.kafkaConnect(

@@ -100,12 +100,29 @@ public class TroubleshootConnectivityPrompt {
             (scram-sha-512, tls, oauth, or none)
             - Whether TLS is enabled on the listener the client is trying to use
 
-            ## Step 5: Check pod health
+            ## Step 5: Check KafkaUser authentication and ACLs
+            Use `list_kafka_users` with the cluster name to enumerate all configured users.
+            For each user, check:
+            - Authentication type matches the listener being investigated \
+            (SCRAM-SHA-512 user needs a SCRAM listener, TLS user needs a TLS listener)
+            - User is in Ready state (not-ready means User Operator has not provisioned credentials)
+            - User has ACLs covering the topics and groups the client needs
+
+            Use `get_kafka_user` for any suspicious user to inspect full ACL rules and quotas.
+
+            **Common authentication mismatches:**
+            - Client uses SCRAM credentials but connects to a TLS-only listener
+            - Client uses a TLS certificate but connects to a SCRAM listener
+            - User exists but is NotReady (credentials not provisioned yet)
+            - User has no ACLs but cluster uses simple authorization (all access denied)
+            - User has ACLs but they do not cover the required topics or consumer groups
+
+            ## Step 6: Check pod health
             Use `get_kafka_cluster_pods` to verify broker pods are running and ready.
             If broker pods are not ready, clients cannot connect even if the \
             listener is configured correctly.
 
-            ## Step 6: Check broker logs for connection errors
+            ## Step 7: Check broker logs for connection errors
             If pods are running but connectivity issues persist, use \
             `get_kafka_cluster_logs` to check for errors related to listeners \
             or networking.
@@ -113,10 +130,11 @@ public class TroubleshootConnectivityPrompt {
             listener binding failures, port conflicts, certificate issues, \
             `SocketException`, `SSLHandshakeException`, or `SaslAuthenticationException`.
 
-            ## Step 7: Summarize connectivity information
+            ## Step 8: Summarize connectivity information
             Provide a summary with:
             - Available listeners and their bootstrap addresses
             - Connection protocol for each listener (PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL)
+            - KafkaUser authentication and ACL status for the relevant listener
             - Any issues found that could prevent connectivity
             - Example client configuration properties for the relevant listener(s)\
             """.formatted(clusterName, nsClause, listenerClause,

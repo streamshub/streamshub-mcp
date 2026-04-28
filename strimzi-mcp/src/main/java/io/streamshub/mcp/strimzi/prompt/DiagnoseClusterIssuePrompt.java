@@ -130,6 +130,12 @@ public class DiagnoseClusterIssuePrompt {
             - Resource conflicts → check for competing operators or manual changes
             - Kubernetes API throttling → check operator resource limits
 
+            **User Operator health:** Use `list_kafka_users` for the cluster to check \
+            if the User Operator (part of entity operator) is functioning:
+            - Users stuck in NotReady → User Operator may be failing to reconcile
+            - All users Ready → User Operator is healthy
+            - Users with error conditions → check entity operator pod logs for user-operator errors
+
             ## Step 4: Check pod health [HIGH - broker availability]
             Use `get_kafka_cluster_pods` to check all pods for the cluster.
             

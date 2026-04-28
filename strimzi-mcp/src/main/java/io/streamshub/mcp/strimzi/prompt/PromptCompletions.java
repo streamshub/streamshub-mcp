@@ -88,6 +88,21 @@ public class PromptCompletions {
     }
 
     /**
+     * Complete arguments for the audit-security prompt.
+     *
+     * <p>Supports completions for {@code namespace} and {@code cluster_name} arguments.
+     * The argument being completed is identified via the MCP completion request context.</p>
+     *
+     * @param partial the partial input value
+     * @param context the completion context with argument metadata
+     * @return matching values for the requested argument
+     */
+    @CompletePrompt("audit-security")
+    public List<String> completeAuditSecurityArgs(final String partial, final CompleteContext context) {
+        return completionService.completeByArgumentName(partial, context);
+    }
+
+    /**
      * Complete arguments for the compare-cluster-configs prompt.
      *
      * <p>Supports completions for {@code namespace_1}, {@code namespace_2},

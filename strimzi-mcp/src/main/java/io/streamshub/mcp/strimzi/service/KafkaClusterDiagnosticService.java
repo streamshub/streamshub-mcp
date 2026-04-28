@@ -22,6 +22,7 @@ import io.streamshub.mcp.strimzi.dto.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
+import io.streamshub.mcp.strimzi.dto.KafkaUserResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziEventsResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
@@ -53,7 +54,7 @@ public class KafkaClusterDiagnosticService {
     private static final Logger LOG = Logger.getLogger(KafkaClusterDiagnosticService.class);
     private static final int SECONDS_PER_MINUTE = 60;
     private static final int PHASE1_STEPS = 3;
-    private static final int MAX_PHASE2_STEPS = 4;
+    private static final int MAX_PHASE2_STEPS = 5;
     private static final String DIAGNOSTIC_LABEL = "Kafka cluster diagnostic";
 
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
@@ -63,6 +64,7 @@ public class KafkaClusterDiagnosticService {
     private static final String STEP_OPERATOR_LOGS = "operator_logs";
     private static final String STEP_CLUSTER_LOGS = "cluster_logs";
     private static final String STEP_EVENTS = "events";
+    private static final String STEP_USERS = "users";
     private static final String STEP_METRICS = "metrics";
 
     @Inject
@@ -76,6 +78,9 @@ public class KafkaClusterDiagnosticService {
 
     @Inject
     StrimziEventsService eventsService;
+
+    @Inject
+    KafkaUserService kafkaUserService;
 
     @Inject
     KafkaMetricsService kafkaMetricsService;
@@ -191,6 +196,13 @@ public class KafkaClusterDiagnosticService {
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
+        List<KafkaUserResponse> users = null;
+        if (areas.users) {
+            users = gatherUsers(resolvedNs, name, completed, failed, mcpLog);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+            DiagnosticHelper.checkCancellation(cancellation);
+        }
+
         KafkaMetricsResponse metrics = null;
         if (areas.metrics) {
             metrics = gatherMetrics(
@@ -201,10 +213,10 @@ public class KafkaClusterDiagnosticService {
 
         // === Phase 3: Final analysis ===
         String analysis = produceAnalysis(sampling, cluster, nodePools, pods,
-            operator, operatorLogs, clusterLogs, events, metrics, symptom);
+            operator, operatorLogs, clusterLogs, events, users, metrics, symptom);
 
         return KafkaClusterDiagnosticReport.of(cluster, nodePools, pods, operator,
-            operatorLogs, clusterLogs, events, metrics, analysis,
+            operatorLogs, clusterLogs, events, users, metrics, analysis,
             completed, failed.isEmpty() ? null : failed);
     }
 
@@ -362,6 +374,24 @@ public class KafkaClusterDiagnosticService {
         }
     }
 
+    private List<KafkaUserResponse> gatherUsers(final String namespace,
+                                                    final String clusterName,
+                                                    final List<String> completed,
+                                                    final List<String> failed,
+                                                    final McpLog mcpLog) {
+        try {
+            List<KafkaUserResponse> result = kafkaUserService.listUsers(namespace, clusterName);
+            completed.add(STEP_USERS);
+            DiagnosticHelper.sendClientNotification(mcpLog,
+                String.format("Found %d KafkaUsers for cluster", result.size()));
+            return result;
+        } catch (Exception e) {
+            LOG.warnf("Failed to gather KafkaUsers: %s", e.getMessage());
+            failed.add(STEP_USERS + ": " + e.getMessage());
+            return null;
+        }
+    }
+
     // ---- Sampling: triage and analysis ----
 
     private InvestigationAreas decideInvestigationAreas(final Sampling sampling,
@@ -401,6 +431,7 @@ public class KafkaClusterDiagnosticService {
                                    final StrimziOperatorLogsResponse operatorLogs,
                                    final KafkaClusterLogsResponse clusterLogs,
                                    final StrimziEventsResponse events,
+                                   final List<KafkaUserResponse> users,
                                    final KafkaMetricsResponse metrics,
                                    final String symptom) {
         if (sampling == null || !sampling.isSupported()) {
@@ -410,7 +441,7 @@ public class KafkaClusterDiagnosticService {
         try {
             Map<String, Object> fullData = buildFullSummary(
                 cluster, nodePools, pods, operator, operatorLogs,
-                clusterLogs, events, metrics, symptom);
+                clusterLogs, events, users, metrics, symptom);
             String dataJson = objectMapper.writeValueAsString(fullData);
 
             SamplingResponse response = sampling.requestBuilder()
@@ -464,6 +495,7 @@ public class KafkaClusterDiagnosticService {
                                                  final StrimziOperatorLogsResponse operatorLogs,
                                                  final KafkaClusterLogsResponse clusterLogs,
                                                  final StrimziEventsResponse events,
+                                                 final List<KafkaUserResponse> users,
                                                  final KafkaMetricsResponse metrics,
                                                  final String symptom) {
         Map<String, Object> data = new LinkedHashMap<>();
@@ -477,6 +509,7 @@ public class KafkaClusterDiagnosticService {
         DiagnosticHelper.putIfNotNull(data, STEP_OPERATOR_LOGS, operatorLogs);
         DiagnosticHelper.putIfNotNull(data, STEP_CLUSTER_LOGS, clusterLogs);
         DiagnosticHelper.putIfNotNull(data, STEP_EVENTS, events);
+        DiagnosticHelper.putIfNotNull(data, STEP_USERS, users);
         DiagnosticHelper.putIfNotNull(data, STEP_METRICS, metrics);
         return data;
     }
@@ -489,6 +522,7 @@ public class KafkaClusterDiagnosticService {
                 Boolean.TRUE.equals(parsed.get(STEP_OPERATOR_LOGS)),
                 Boolean.TRUE.equals(parsed.get(STEP_CLUSTER_LOGS)),
                 Boolean.TRUE.equals(parsed.get(STEP_EVENTS)),
+                Boolean.TRUE.equals(parsed.getOrDefault(STEP_USERS, Boolean.TRUE)),
                 Boolean.TRUE.equals(parsed.get(STEP_METRICS))
             );
         } catch (Exception e) {
@@ -503,10 +537,11 @@ public class KafkaClusterDiagnosticService {
      * @param operatorLogs whether to gather operator logs
      * @param clusterLogs  whether to gather cluster logs
      * @param events       whether to gather Kubernetes events
+     * @param users        whether to gather KafkaUser status
      * @param metrics      whether to gather replication metrics
      */
     record InvestigationAreas(boolean operatorLogs, boolean clusterLogs,
-                              boolean events, boolean metrics) {
+                              boolean events, boolean users, boolean metrics) {
 
         /**
          * Returns areas with all flags set to true (fallback when Sampling is unavailable).
@@ -514,7 +549,7 @@ public class KafkaClusterDiagnosticService {
          * @return investigation areas with all flags enabled
          */
         static InvestigationAreas all() {
-            return new InvestigationAreas(true, true, true, true);
+            return new InvestigationAreas(true, true, true, true, true);
         }
 
         /**
@@ -528,6 +563,7 @@ public class KafkaClusterDiagnosticService {
             if (operatorLogs) c++;
             if (clusterLogs) c++;
             if (events) c++;
+            if (users) c++;
             if (metrics) c++;
             return c;
         }

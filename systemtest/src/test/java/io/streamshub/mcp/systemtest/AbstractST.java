@@ -24,6 +24,7 @@ import io.streamshub.mcp.systemtest.resources.strimzi.KafkaConnectorType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaNodePoolType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaTopicType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaType;
+import io.streamshub.mcp.systemtest.resources.strimzi.KafkaUserType;
 import org.junit.jupiter.api.TestInstance;
 
 /**
@@ -53,7 +54,8 @@ public abstract class AbstractST {
             new KafkaNodePoolType(),
             new KafkaTopicType(),
             new KafkaConnectType(),
-            new KafkaConnectorType()
+            new KafkaConnectorType(),
+            new KafkaUserType()
         );
     }
 

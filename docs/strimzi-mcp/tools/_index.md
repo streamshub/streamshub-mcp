@@ -9,6 +9,7 @@ Complete reference for all tools, prompts, and resources provided by the Strimzi
 
 - **[Kafka cluster tools](kafka-clusters.md)** -- Manage and inspect Kafka clusters, pods, bootstrap servers, certificates, and logs
 - **[Kafka topic and node pool tools](kafka-topics.md)** -- List and inspect Kafka topics and KafkaNodePool resources
+- **[Kafka user tools](kafka-users.md)** -- List and inspect KafkaUser resources, ACL rules, quotas, and authentication
 - **[Strimzi operator tools](strimzi-operators.md)** -- Manage Strimzi operators and view Kubernetes events for Kafka resources
 - **[Diagnostic tools](diagnostics.md)** -- Run multi-step diagnostic workflows with LLM-guided triage
 - **[Metrics tools](metrics.md)** -- Retrieve and analyze Prometheus metrics from Kafka and Strimzi components
