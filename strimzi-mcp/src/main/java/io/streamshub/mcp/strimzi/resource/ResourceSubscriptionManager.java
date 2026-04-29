@@ -103,12 +103,28 @@ public class ResourceSubscriptionManager implements Closeable {
     private final Map<String, String> lastKnownState = new ConcurrentHashMap<>();
     private volatile boolean shuttingDown;
 
-    List<Watch> getActiveWatches() {
-        return activeWatches;
+    void addWatch(final Watch watch) {
+        activeWatches.add(watch);
     }
 
-    Map<String, String> getLastKnownState() {
-        return lastKnownState;
+    void clearWatches() {
+        activeWatches.clear();
+    }
+
+    int watchCount() {
+        return activeWatches.size();
+    }
+
+    void putState(final String uri, final String json) {
+        lastKnownState.put(uri, json);
+    }
+
+    boolean containsState(final String uri) {
+        return lastKnownState.containsKey(uri);
+    }
+
+    void clearState() {
+        lastKnownState.clear();
     }
 
     boolean isShuttingDown() {

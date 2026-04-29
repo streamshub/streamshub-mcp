@@ -50,8 +50,8 @@ class ResourceSubscriptionManagerTest {
     void setUp() {
         manager.setShuttingDown(false);
         manager.setWatchesEnabled(true);
-        manager.getActiveWatches().clear();
-        manager.getLastKnownState().clear();
+        manager.clearWatches();
+        manager.clearState();
     }
 
     @AfterEach
@@ -69,17 +69,16 @@ class ResourceSubscriptionManagerTest {
         Watch watch3 = mock(Watch.class);
         Mockito.doThrow(new RuntimeException("close failed")).when(watch2).close();
 
-        manager.getActiveWatches().add(watch1);
-        manager.getActiveWatches().add(watch2);
-        manager.getActiveWatches().add(watch3);
+        manager.addWatch(watch1);
+        manager.addWatch(watch2);
+        manager.addWatch(watch3);
 
         manager.close();
 
         verify(watch1).close();
         verify(watch2).close();
         verify(watch3).close();
-        assertTrue(manager.getActiveWatches().isEmpty());
-        assertTrue(manager.getLastKnownState().isEmpty());
+        assertEquals(0, manager.watchCount());
     }
 
     @Test
@@ -89,14 +88,14 @@ class ResourceSubscriptionManagerTest {
         Mockito.doThrow(new RuntimeException("fail1")).when(watch1).close();
         Mockito.doThrow(new RuntimeException("fail2")).when(watch2).close();
 
-        manager.getActiveWatches().add(watch1);
-        manager.getActiveWatches().add(watch2);
+        manager.addWatch(watch1);
+        manager.addWatch(watch2);
 
         manager.close();
 
         verify(watch1).close();
         verify(watch2).close();
-        assertTrue(manager.getActiveWatches().isEmpty());
+        assertEquals(0, manager.watchCount());
     }
 
     @Test
@@ -107,9 +106,9 @@ class ResourceSubscriptionManagerTest {
 
     @Test
     void testCloseClearsLastKnownState() {
-        manager.getLastKnownState().put("strimzi://test/uri", "{}");
+        manager.putState("strimzi://test/uri", "{}");
         manager.close();
-        assertTrue(manager.getLastKnownState().isEmpty());
+        assertFalse(manager.containsState("strimzi://test/uri"));
     }
 
     // ---- 2b: Watch reconnection ----
@@ -187,7 +186,7 @@ class ResourceSubscriptionManagerTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     void testReconcileRemovesOrphanedKafkaEntry() {
         String uri = "strimzi://kafka.strimzi.io/namespaces/kafka/kafkas/my-cluster/status";
-        manager.getLastKnownState().put(uri, "{}");
+        manager.putState(uri, "{}");
 
         MixedOperation kafkaOp = mock(MixedOperation.class);
         Mockito.doReturn(kafkaOp).when(kubernetesClient).resources(Kafka.class);
@@ -199,14 +198,14 @@ class ResourceSubscriptionManagerTest {
 
         manager.reconcileState();
 
-        assertFalse(manager.getLastKnownState().containsKey(uri));
+        assertFalse(manager.containsState(uri));
     }
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
     void testReconcileKeepsExistingResource() {
         String uri = "strimzi://kafka.strimzi.io/namespaces/kafka/kafkas/my-cluster/status";
-        manager.getLastKnownState().put(uri, "{}");
+        manager.putState(uri, "{}");
 
         MixedOperation kafkaOp = mock(MixedOperation.class);
         Mockito.doReturn(kafkaOp).when(kubernetesClient).resources(Kafka.class);
@@ -218,41 +217,41 @@ class ResourceSubscriptionManagerTest {
 
         manager.reconcileState();
 
-        assertTrue(manager.getLastKnownState().containsKey(uri));
+        assertTrue(manager.containsState(uri));
     }
 
     @Test
     void testReconcileSkipsWhenShuttingDown() {
         manager.setShuttingDown(true);
         String uri = "strimzi://kafka.strimzi.io/namespaces/kafka/kafkas/my-cluster/status";
-        manager.getLastKnownState().put(uri, "{}");
+        manager.putState(uri, "{}");
 
         manager.reconcileState();
 
-        assertTrue(manager.getLastKnownState().containsKey(uri));
+        assertTrue(manager.containsState(uri));
     }
 
     @Test
     void testReconcileHandlesUnparsableUri() {
-        manager.getLastKnownState().put("invalid-uri", "{}");
+        manager.putState("invalid-uri", "{}");
 
         manager.reconcileState();
 
-        assertTrue(manager.getLastKnownState().containsKey("invalid-uri"));
+        assertTrue(manager.containsState("invalid-uri"));
     }
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
     void testReconcileHandlesKubernetesApiFailure() {
         String uri = "strimzi://kafka.strimzi.io/namespaces/kafka/kafkas/my-cluster/status";
-        manager.getLastKnownState().put(uri, "{}");
+        manager.putState(uri, "{}");
 
         when(kubernetesClient.resources(Kafka.class))
             .thenThrow(new RuntimeException("API unavailable"));
 
         manager.reconcileState();
 
-        assertTrue(manager.getLastKnownState().containsKey(uri));
+        assertTrue(manager.containsState(uri));
     }
 
     @Test
@@ -270,7 +269,7 @@ class ResourceSubscriptionManagerTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     void testReconcileRemovesOrphanedTopicEntry() {
         String uri = "strimzi://kafka.strimzi.io/namespaces/prod/kafkatopics/my-topic/status";
-        manager.getLastKnownState().put(uri, "{}");
+        manager.putState(uri, "{}");
 
         MixedOperation topicOp = mock(MixedOperation.class);
         Mockito.doReturn(topicOp).when(kubernetesClient).resources(KafkaTopic.class);
@@ -282,14 +281,14 @@ class ResourceSubscriptionManagerTest {
 
         manager.reconcileState();
 
-        assertFalse(manager.getLastKnownState().containsKey(uri));
+        assertFalse(manager.containsState(uri));
     }
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
     void testReconcileChecksOperatorDeployment() {
         String uri = "strimzi://operator.strimzi.io/namespaces/kafka/clusteroperator/strimzi-co/status";
-        manager.getLastKnownState().put(uri, "{}");
+        manager.putState(uri, "{}");
 
         AppsAPIGroupDSL appsApi = mock(AppsAPIGroupDSL.class);
         when(kubernetesClient.apps()).thenReturn(appsApi);
@@ -303,6 +302,6 @@ class ResourceSubscriptionManagerTest {
 
         manager.reconcileState();
 
-        assertTrue(manager.getLastKnownState().containsKey(uri));
+        assertTrue(manager.containsState(uri));
     }
 }
