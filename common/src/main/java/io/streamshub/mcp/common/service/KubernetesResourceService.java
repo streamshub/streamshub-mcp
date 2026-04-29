@@ -47,7 +47,9 @@ public class KubernetesResourceService {
                 "Error querying %s in ns %s: %s",
                 resourceClass.getSimpleName(),
                 namespace, e.getMessage());
-            return List.of();
+            throw new KubernetesQueryException(
+                String.format("Failed to query %s in namespace '%s'",
+                    resourceClass.getSimpleName(), namespace), e);
         }
     }
 
@@ -70,7 +72,9 @@ public class KubernetesResourceService {
                 "Error querying %s in any ns: %s",
                 resourceClass.getSimpleName(),
                 e.getMessage());
-            return List.of();
+            throw new KubernetesQueryException(
+                String.format("Failed to query %s across all namespaces",
+                    resourceClass.getSimpleName()), e);
         }
     }
 
@@ -100,7 +104,9 @@ public class KubernetesResourceService {
                 resourceClass.getSimpleName(),
                 labelKey, labelValue,
                 namespace, e.getMessage());
-            return List.of();
+            throw new KubernetesQueryException(
+                String.format("Failed to query %s by %s=%s in namespace '%s'",
+                    resourceClass.getSimpleName(), labelKey, labelValue, namespace), e);
         }
     }
 
@@ -129,7 +135,9 @@ public class KubernetesResourceService {
                 resourceClass.getSimpleName(),
                 labelKey, labelValue,
                 e.getMessage());
-            return List.of();
+            throw new KubernetesQueryException(
+                String.format("Failed to query %s by %s=%s across all namespaces",
+                    resourceClass.getSimpleName(), labelKey, labelValue), e);
         }
     }
 
@@ -157,7 +165,9 @@ public class KubernetesResourceService {
                 "Error querying %s by labels %s in ns %s: %s",
                 resourceClass.getSimpleName(),
                 labels, namespace, e.getMessage());
-            return List.of();
+            throw new KubernetesQueryException(
+                String.format("Failed to query %s by labels %s in namespace '%s'",
+                    resourceClass.getSimpleName(), labels, namespace), e);
         }
     }
 
@@ -183,7 +193,9 @@ public class KubernetesResourceService {
                 "Error querying %s by labels %s: %s",
                 resourceClass.getSimpleName(),
                 labels, e.getMessage());
-            return List.of();
+            throw new KubernetesQueryException(
+                String.format("Failed to query %s by labels %s across all namespaces",
+                    resourceClass.getSimpleName(), labels), e);
         }
     }
 
@@ -211,7 +223,9 @@ public class KubernetesResourceService {
                 resourceClass.getSimpleName(),
                 labelKey, labelValue,
                 e.getMessage());
-            return List.of();
+            throw new KubernetesQueryException(
+                String.format("Failed to query cluster-scoped %s by %s=%s",
+                    resourceClass.getSimpleName(), labelKey, labelValue), e);
         }
     }
 
@@ -234,7 +248,9 @@ public class KubernetesResourceService {
                 "Error getting cluster-scoped %s %s: %s",
                 resourceClass.getSimpleName(),
                 name, e.getMessage());
-            return null;
+            throw new KubernetesQueryException(
+                String.format("Failed to get cluster-scoped %s '%s'",
+                    resourceClass.getSimpleName(), name), e);
         }
     }
 
@@ -259,7 +275,9 @@ public class KubernetesResourceService {
                 "Error getting %s %s in ns %s: %s",
                 resourceClass.getSimpleName(),
                 name, namespace, e.getMessage());
-            return null;
+            throw new KubernetesQueryException(
+                String.format("Failed to get %s '%s' in namespace '%s'",
+                    resourceClass.getSimpleName(), name, namespace), e);
         }
     }
 }

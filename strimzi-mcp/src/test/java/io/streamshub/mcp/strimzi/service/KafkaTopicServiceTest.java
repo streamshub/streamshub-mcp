@@ -16,6 +16,7 @@ import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.KafkaTopicListResponse;
+import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,8 @@ class KafkaTopicServiceTest {
         AppsAPIGroupDSL appsApi = Mockito.mock(AppsAPIGroupDSL.class);
         Mockito.lenient().when(kubernetesClient.apps()).thenReturn(appsApi);
         Mockito.lenient().when(appsApi.deployments()).thenReturn(deploymentOp);
+
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaTopic.class);
     }
 
     @Test

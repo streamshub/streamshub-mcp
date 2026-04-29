@@ -10,7 +10,9 @@ import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorResponse;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectorService;
+import io.strimzi.api.kafka.model.connector.KafkaConnector;
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -32,6 +34,11 @@ class KafkaConnectorServiceTest {
     KafkaConnectorService connectorService;
 
     KafkaConnectorServiceTest() {
+    }
+
+    @BeforeEach
+    void setUp() {
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaConnector.class);
     }
 
     /**

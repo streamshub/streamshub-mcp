@@ -9,7 +9,9 @@ import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.KafkaUserResponse;
+import io.strimzi.api.kafka.model.user.KafkaUser;
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -31,6 +33,11 @@ class KafkaUserServiceTest {
     KafkaUserService userService;
 
     KafkaUserServiceTest() {
+    }
+
+    @BeforeEach
+    void setUp() {
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaUser.class);
     }
 
     /**

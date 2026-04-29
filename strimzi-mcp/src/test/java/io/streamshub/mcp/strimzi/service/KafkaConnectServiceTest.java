@@ -16,6 +16,7 @@ import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectResponse;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectService;
+import io.strimzi.api.kafka.model.connect.KafkaConnect;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,9 @@ class KafkaConnectServiceTest {
     void setUp() {
         MixedOperation<Pod, PodList, PodResource> podOp = Mockito.mock(MixedOperation.class);
         Mockito.lenient().when(kubernetesClient.pods()).thenReturn(podOp);
+
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaConnect.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Pod.class);
     }
 
     /**

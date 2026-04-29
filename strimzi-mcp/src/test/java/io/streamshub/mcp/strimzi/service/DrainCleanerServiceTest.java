@@ -61,6 +61,9 @@ class DrainCleanerServiceTest {
         AppsAPIGroupDSL appsApi = Mockito.mock(AppsAPIGroupDSL.class);
         Mockito.lenient().when(kubernetesClient.apps()).thenReturn(appsApi);
         Mockito.lenient().when(appsApi.deployments()).thenReturn(deploymentOp);
+
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Deployment.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Pod.class);
     }
 
     @Test

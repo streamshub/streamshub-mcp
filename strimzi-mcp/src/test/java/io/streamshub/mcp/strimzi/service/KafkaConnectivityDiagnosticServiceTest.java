@@ -63,6 +63,9 @@ class KafkaConnectivityDiagnosticServiceTest {
         AppsAPIGroupDSL appsApi = Mockito.mock(AppsAPIGroupDSL.class);
         Mockito.lenient().when(kubernetesClient.apps()).thenReturn(appsApi);
         Mockito.lenient().when(appsApi.deployments()).thenReturn(deploymentOp);
+
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Kafka.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Pod.class);
     }
 
     @Test

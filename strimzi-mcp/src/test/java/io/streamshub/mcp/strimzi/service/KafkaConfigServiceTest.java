@@ -69,6 +69,7 @@ class KafkaConfigServiceTest {
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Kafka.class);
         setupEmptyNodePools("kafka");
     }
 

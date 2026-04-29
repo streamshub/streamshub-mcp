@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.ResourceEventsResult;
 import io.streamshub.mcp.common.service.KubernetesEventsService;
+import io.streamshub.mcp.common.service.KubernetesQueryException;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.strimzi.dto.StrimziEventsResponse;
@@ -88,37 +89,49 @@ public class StrimziEventsService {
         resourceEvents.add(eventsService.getEventsForResource(resolvedNs, name, "Kafka", sinceTime));
 
         // Events for related pods (limited to avoid excessive API calls on large clusters)
-        List<Pod> pods = k8sService.queryResourcesByLabel(
-            Pod.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, name);
-        if (pods.size() > maxRelatedResources) {
-            LOG.warnf("Cluster %s has %d pods, limiting event queries to first %d",
-                name, pods.size(), maxRelatedResources);
-            pods = pods.subList(0, maxRelatedResources);
-        }
-        for (Pod pod : pods) {
-            resourceEvents.add(eventsService.getEventsForResource(
-                resolvedNs, pod.getMetadata().getName(), "Pod", sinceTime));
+        try {
+            List<Pod> pods = k8sService.queryResourcesByLabel(
+                Pod.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, name);
+            if (pods.size() > maxRelatedResources) {
+                LOG.warnf("Cluster %s has %d pods, limiting event queries to first %d",
+                    name, pods.size(), maxRelatedResources);
+                pods = pods.subList(0, maxRelatedResources);
+            }
+            for (Pod pod : pods) {
+                resourceEvents.add(eventsService.getEventsForResource(
+                    resolvedNs, pod.getMetadata().getName(), "Pod", sinceTime));
+            }
+        } catch (KubernetesQueryException e) {
+            LOG.warnf("Failed to query pods for event collection: %s", e.getMessage());
         }
 
         // Events for related PVCs
-        List<PersistentVolumeClaim> pvcs = k8sService.queryResourcesByLabel(
-            PersistentVolumeClaim.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, name);
-        if (pvcs.size() > maxRelatedResources) {
-            LOG.warnf("Cluster %s has %d PVCs, limiting event queries to first %d",
-                name, pvcs.size(), maxRelatedResources);
-            pvcs = pvcs.subList(0, maxRelatedResources);
-        }
-        for (PersistentVolumeClaim pvc : pvcs) {
-            resourceEvents.add(eventsService.getEventsForResource(
-                resolvedNs, pvc.getMetadata().getName(), "PersistentVolumeClaim", sinceTime));
+        try {
+            List<PersistentVolumeClaim> pvcs = k8sService.queryResourcesByLabel(
+                PersistentVolumeClaim.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, name);
+            if (pvcs.size() > maxRelatedResources) {
+                LOG.warnf("Cluster %s has %d PVCs, limiting event queries to first %d",
+                    name, pvcs.size(), maxRelatedResources);
+                pvcs = pvcs.subList(0, maxRelatedResources);
+            }
+            for (PersistentVolumeClaim pvc : pvcs) {
+                resourceEvents.add(eventsService.getEventsForResource(
+                    resolvedNs, pvc.getMetadata().getName(), "PersistentVolumeClaim", sinceTime));
+            }
+        } catch (KubernetesQueryException e) {
+            LOG.warnf("Failed to query PVCs for event collection: %s", e.getMessage());
         }
 
         // Events for related KafkaNodePools
-        List<KafkaNodePool> nodePools = k8sService.queryResourcesByLabel(
-            KafkaNodePool.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, name);
-        for (KafkaNodePool nodePool : nodePools) {
-            resourceEvents.add(eventsService.getEventsForResource(
-                resolvedNs, nodePool.getMetadata().getName(), "KafkaNodePool", sinceTime));
+        try {
+            List<KafkaNodePool> nodePools = k8sService.queryResourcesByLabel(
+                KafkaNodePool.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, name);
+            for (KafkaNodePool nodePool : nodePools) {
+                resourceEvents.add(eventsService.getEventsForResource(
+                    resolvedNs, nodePool.getMetadata().getName(), "KafkaNodePool", sinceTime));
+            }
+        } catch (KubernetesQueryException e) {
+            LOG.warnf("Failed to query KafkaNodePools for event collection: %s", e.getMessage());
         }
 
         // Remove resources with no events
