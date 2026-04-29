@@ -83,6 +83,8 @@ public class StrimziOperatorService {
         if (operatorName == null) {
             throw new ToolCallException("Operator name is required");
         }
+        InputUtils.validateK8sName(operatorName, "operator name");
+        InputUtils.validateK8sName(ns, "namespace");
 
         LOG.infof("Getting Strimzi operator name=%s in namespace=%s", operatorName, ns != null ? ns : "auto");
 

@@ -89,6 +89,8 @@ public class KafkaNodePoolService {
         if (nodePoolName == null) {
             throw new ToolCallException("NodePool name is required");
         }
+        InputUtils.validateK8sName(nodePoolName, "node pool name");
+        InputUtils.validateK8sName(ns, "namespace");
 
         LOG.infof("Getting node pool=%s for cluster=%s in namespace=%s",
             nodePoolName, clusterName, ns != null ? ns : "auto");

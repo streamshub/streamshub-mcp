@@ -164,6 +164,14 @@ public class PodsService {
         PodSpec spec = pod.getSpec();
         PodStatus podStatus = pod.getStatus();
 
+        if (spec == null) {
+            String name = metadata.getName();
+            String phase = podStatus != null ? podStatus.getPhase() : KubernetesConstants.PodPhases.UNKNOWN;
+            return PodSummaryResponse.PodInfo.summary(name, phase, false,
+                determineComponentFromPodInfo(name, metadata.getLabels() != null ? metadata.getLabels() : Map.of()),
+                0, 0);
+        }
+
         String podName = metadata.getName();
         String phase = podStatus != null ? podStatus.getPhase() : KubernetesConstants.PodPhases.UNKNOWN;
         Map<String, String> podLabels = metadata.getLabels() != null ? metadata.getLabels() : Map.of();

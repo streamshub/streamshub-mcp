@@ -90,6 +90,8 @@ public class KafkaConnectService {
         if (normalizedName == null) {
             throw new ToolCallException("KafkaConnect cluster name is required");
         }
+        InputUtils.validateK8sName(normalizedName, "connect cluster name");
+        InputUtils.validateK8sName(ns, "namespace");
 
         LOG.infof("Getting KafkaConnect cluster name=%s (namespace=%s)", normalizedName, ns != null ? ns : "auto");
 

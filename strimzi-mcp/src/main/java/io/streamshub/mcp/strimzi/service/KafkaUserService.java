@@ -94,6 +94,8 @@ public class KafkaUserService {
         if (normalizedName == null) {
             throw new ToolCallException("User name is required");
         }
+        InputUtils.validateK8sName(normalizedName, "user name");
+        InputUtils.validateK8sName(ns, "namespace");
 
         LOG.infof("Getting KafkaUser name=%s (namespace=%s)", normalizedName, ns != null ? ns : "auto");
 

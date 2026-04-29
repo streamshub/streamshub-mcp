@@ -15,10 +15,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 /**
  * Orchestrator for collecting logs from multiple Kubernetes pods.
@@ -71,6 +69,10 @@ public class LogCollectionService {
     @SuppressWarnings("checkstyle:CyclomaticComplexity")
     public PodLogsResult collectLogs(final String namespace, final List<Pod> pods,
                                      final LogCollectionParams options) {
+        if (options.tailLines() <= 0) {
+            throw new IllegalArgumentException("tailLines must be positive, got: " + options.tailLines());
+        }
+
         List<String> podNames = pods.stream()
             .map(pod -> pod.getMetadata().getName())
             .toList();
@@ -98,14 +100,9 @@ public class LogCollectionService {
                     options.startTime(), options.endTime());
 
                 if (podLog != null && !podLog.isEmpty()) {
-                    String[] lines = podLog.split("\n");
-
-                    if (lines.length > options.tailLines()) {
-                        hasMore = true;
-                        String[] trimmed = new String[options.tailLines()];
-                        System.arraycopy(lines, lines.length - options.tailLines(), trimmed, 0, options.tailLines());
-                        lines = trimmed;
-                    }
+                    String trimmedLog = tailLines(podLog, options.tailLines());
+                    hasMore = hasMore || trimmedLog.length() < podLog.length();
+                    String[] lines = trimmedLog.split("\n");
 
                     totalLines += lines.length;
 
@@ -137,27 +134,66 @@ public class LogCollectionService {
     }
 
     /**
-     * Deduplicate log lines by grouping identical consecutive or repeated lines.
-     * When the same line appears multiple times, it is shown once with a
-     * {@code [repeated N times]} suffix.
+     * Extract the last {@code count} lines from a log string by scanning
+     * backward for newline characters. Avoids splitting the entire string
+     * into an array when only the tail is needed.
+     *
+     * @param log   the full log string
+     * @param count the maximum number of lines to keep
+     * @return the tail portion of the log, or the full log if it has fewer lines
+     */
+    static String tailLines(final String log, final int count) {
+        int end = log.length();
+        if (end > 0 && log.charAt(end - 1) == '\n') {
+            end--;
+        }
+        int newlinesSeen = 0;
+        for (int i = end - 1; i >= 0; i--) {
+            if (log.charAt(i) == '\n') {
+                newlinesSeen++;
+                if (newlinesSeen == count) {
+                    return log.substring(i + 1);
+                }
+            }
+        }
+        return log;
+    }
+
+    /**
+     * Deduplicate consecutive identical log lines. When the same line appears
+     * multiple times in a row, it is shown once with a {@code [repeated N times]}
+     * suffix. Non-consecutive duplicates are preserved to maintain chronological order.
      *
      * @param lines the list of log lines to deduplicate
      * @return the deduplicated log output as a string
      */
-    private String deduplicateLines(final List<String> lines) {
-        Map<String, Integer> lineCounts = new LinkedHashMap<>();
-        for (String line : lines) {
-            lineCounts.merge(line, 1, Integer::sum);
-        }
-
+    String deduplicateLines(final List<String> lines) {
         StringBuilder output = new StringBuilder();
-        for (Map.Entry<String, Integer> entry : lineCounts.entrySet()) {
-            output.append(entry.getKey());
-            if (entry.getValue() > 1) {
-                output.append(" [repeated ").append(entry.getValue()).append(" times]");
+        String previous = null;
+        int count = 0;
+
+        for (String line : lines) {
+            if (line.equals(previous)) {
+                count++;
+            } else {
+                if (previous != null) {
+                    appendLine(output, previous, count);
+                }
+                previous = line;
+                count = 1;
             }
-            output.append("\n");
+        }
+        if (previous != null) {
+            appendLine(output, previous, count);
         }
         return output.toString();
+    }
+
+    private static void appendLine(final StringBuilder output, final String line, final int count) {
+        output.append(line);
+        if (count > 1) {
+            output.append(" [repeated ").append(count).append(" times]");
+        }
+        output.append("\n");
     }
 }

@@ -96,6 +96,8 @@ public class DrainCleanerService {
         if (name == null) {
             throw new ToolCallException("Drain cleaner name is required");
         }
+        InputUtils.validateK8sName(name, "drain cleaner name");
+        InputUtils.validateK8sName(ns, "namespace");
 
         LOG.infof("Getting Strimzi Drain Cleaner name=%s in namespace=%s", name, ns != null ? ns : "auto");
 

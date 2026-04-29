@@ -34,6 +34,9 @@ public class KafkaTopicService {
     @ConfigProperty(name = "mcp.topics.default-page-size", defaultValue = "100")
     int defaultPageSize;
 
+    @ConfigProperty(name = "mcp.topics.max-list-size", defaultValue = "5000")
+    int maxTopicListSize;
+
     KafkaTopicService() {
     }
 
@@ -70,6 +73,12 @@ public class KafkaTopicService {
                 KafkaTopic.class, ResourceLabels.STRIMZI_CLUSTER_LABEL, normalizedClusterName);
         }
 
+        if (topics.size() > maxTopicListSize) {
+            LOG.warnf("Topic list for cluster %s truncated from %d to %d",
+                normalizedClusterName, topics.size(), maxTopicListSize);
+            topics = topics.subList(0, maxTopicListSize);
+        }
+
         int total = topics.size();
         int fromIndex = Math.min(effectiveOffset, total);
         int toIndex = Math.min(effectiveOffset + effectiveLimit, total);
@@ -96,6 +105,8 @@ public class KafkaTopicService {
         if (topicName == null) {
             throw new ToolCallException("Topic name is required");
         }
+        InputUtils.validateK8sName(topicName, "topic name");
+        InputUtils.validateK8sName(ns, "namespace");
 
         LOG.infof("Getting topic=%s for cluster=%s in namespace=%s", topicName, clusterName, ns != null ? ns : "auto");
 

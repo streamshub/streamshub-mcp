@@ -75,6 +75,8 @@ Use Grafana Loki for centralized log collection and historical log queries.
 | Property | Default | Description |
 |----------|---------|-------------|
 | `quarkus.rest-client.loki.url` | `http://localhost:3100` | Loki endpoint URL |
+| `quarkus.rest-client.loki.connect-timeout` | `5000` | Connection timeout in milliseconds |
+| `quarkus.rest-client.loki.read-timeout` | `30000` | Read timeout in milliseconds |
 | `mcp.log.loki.auth-mode` | `none` | Authentication mode: `none`, `basic`, or `serviceaccount` |
 | `mcp.log.loki.sa-token-path` | `/var/run/secrets/kubernetes.io/serviceaccount/token` | Path to ServiceAccount token |
 
@@ -159,6 +161,8 @@ Use Prometheus for centralized metrics with long-term retention.
 | Property | Default | Description |
 |----------|---------|-------------|
 | `quarkus.rest-client.prometheus.url` | `http://localhost:9090` | Prometheus endpoint URL |
+| `quarkus.rest-client.prometheus.connect-timeout` | `5000` | Connection timeout in milliseconds |
+| `quarkus.rest-client.prometheus.read-timeout` | `30000` | Read timeout in milliseconds |
 | `mcp.metrics.prometheus.auth-mode` | `none` | Authentication mode: `none`, `basic`, or `serviceaccount` |
 | `mcp.metrics.prometheus.sa-token-path` | `/var/run/secrets/kubernetes.io/serviceaccount/token` | Path to ServiceAccount token |
 
