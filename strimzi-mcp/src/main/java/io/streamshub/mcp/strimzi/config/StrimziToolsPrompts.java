@@ -229,6 +229,14 @@ public final class StrimziToolsPrompts {
             + " (e.g., 'my-bridge').";
 
     /**
+     * KafkaBridge metrics category parameter description.
+     */
+    public static final String BRIDGE_METRICS_CATEGORY_DESC =
+        "Metric category: 'http', 'producer',"
+            + " 'consumer', or 'resources'."
+            + " Defaults to 'http' if omitted.";
+
+    /**
      * Drain cleaner name parameter description.
      */
     public static final String DRAIN_CLEANER_NAME_DESC =

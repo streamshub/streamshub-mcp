@@ -11,9 +11,11 @@ import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.dto.metrics.KafkaBridgeMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaExporterMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.StrimziOperatorMetricsResponse;
+import io.streamshub.mcp.strimzi.service.metrics.KafkaBridgeMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaExporterMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.StrimziOperatorMetricsService;
@@ -33,6 +35,9 @@ public class MetricsTools {
 
     @Inject
     KafkaExporterMetricsService kafkaExporterMetricsService;
+
+    @Inject
+    KafkaBridgeMetricsService kafkaBridgeMetricsService;
 
     @Inject
     StrimziOperatorMetricsService strimziOperatorMetricsService;
@@ -181,6 +186,73 @@ public class MetricsTools {
     ) {
         return kafkaExporterMetricsService.getKafkaExporterMetrics(
             namespace, clusterName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds, aggregation);
+    }
+
+    /**
+     * Retrieves metrics from KafkaBridge pods.
+     *
+     * @param bridgeName   the KafkaBridge name
+     * @param namespace    optional namespace
+     * @param category     optional metric category
+     * @param metricNames  optional explicit metric names
+     * @param rangeMinutes optional range duration in minutes
+     * @param startTime    optional absolute start time in ISO 8601 format
+     * @param endTime      optional absolute end time in ISO 8601 format
+     * @param stepSeconds  optional range query step in seconds
+     * @param aggregation  optional aggregation level
+     * @return the KafkaBridge metrics response
+     */
+    @Tool(
+        name = "get_kafka_bridge_metrics",
+        description = "Retrieves Prometheus metrics from KafkaBridge pods by category or explicit metric names."
+            + " Returns HTTP request, producer, consumer, and JVM metrics with interpretation guide.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    @RateCategory("metrics")
+    public KafkaBridgeMetricsResponse getKafkaBridgeMetrics(
+        @ToolArg(
+            description = StrimziToolsPrompts.BRIDGE_NAME_DESC
+        ) final String bridgeName,
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace,
+        @ToolArg(
+            description = StrimziToolsPrompts.BRIDGE_METRICS_CATEGORY_DESC,
+            required = false
+        ) final String category,
+        @ToolArg(
+            description = StrimziToolsPrompts.METRICS_NAMES_DESC,
+            required = false
+        ) final String metricNames,
+        @ToolArg(
+            description = StrimziToolsPrompts.RANGE_MINUTES_DESC,
+            required = false
+        ) final Integer rangeMinutes,
+        @ToolArg(
+            description = StrimziToolsPrompts.START_TIME_DESC,
+            required = false
+        ) final String startTime,
+        @ToolArg(
+            description = StrimziToolsPrompts.END_TIME_DESC,
+            required = false
+        ) final String endTime,
+        @ToolArg(
+            description = StrimziToolsPrompts.STEP_SECONDS_DESC,
+            required = false
+        ) final Integer stepSeconds,
+        @ToolArg(
+            description = StrimziToolsPrompts.AGGREGATION_DESC,
+            required = false
+        ) final String aggregation
+    ) {
+        return kafkaBridgeMetricsService.getKafkaBridgeMetrics(
+            namespace, bridgeName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds, aggregation);
     }
 
     /**

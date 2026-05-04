@@ -95,6 +95,7 @@ class McpDiscoveryTest {
                     "check_drain_cleaner_readiness",
                     "get_kafka_metrics",
                     "get_kafka_exporter_metrics",
+                    "get_kafka_bridge_metrics",
                     "get_strimzi_operator_metrics"
                 );
 
