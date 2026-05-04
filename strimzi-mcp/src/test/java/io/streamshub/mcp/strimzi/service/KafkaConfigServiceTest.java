@@ -20,7 +20,7 @@ import io.streamshub.mcp.strimzi.dto.KafkaEffectiveConfigResponse;
 import io.strimzi.api.kafka.model.common.ExternalConfigurationReferenceBuilder;
 import io.strimzi.api.kafka.model.common.InlineLoggingBuilder;
 import io.strimzi.api.kafka.model.common.JvmOptionsBuilder;
-import io.strimzi.api.kafka.model.common.RackBuilder;
+import io.strimzi.api.kafka.model.common.TopologyLabelRackBuilder;
 import io.strimzi.api.kafka.model.common.metrics.JmxPrometheusExporterMetricsBuilder;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaAuthorizationSimple;
@@ -227,7 +227,7 @@ class KafkaConfigServiceTest {
             .withMetadata(new ObjectMetaBuilder().withName("my-cluster").withNamespace("kafka").build())
             .withNewSpec()
                 .withNewKafka()
-                    .withRack(new RackBuilder().withTopologyKey("topology.kubernetes.io/zone").build())
+                    .withRack(new TopologyLabelRackBuilder().withTopologyKey("topology.kubernetes.io/zone").build())
                 .endKafka()
             .endSpec()
             .build();
@@ -327,7 +327,7 @@ class KafkaConfigServiceTest {
                 .withEntityOperator(new EntityOperatorSpecBuilder()
                     .withTopicOperator(new EntityTopicOperatorSpecBuilder()
                         .withWatchedNamespace("kafka")
-                        .withReconciliationIntervalSeconds(90)
+                        .withReconciliationIntervalMs(90_000L)
                         .build())
                     .withUserOperator(new EntityUserOperatorSpecBuilder()
                         .withWatchedNamespace("kafka")

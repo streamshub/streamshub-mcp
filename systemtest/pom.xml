@@ -15,7 +15,7 @@
     <properties>
         <kubetest4j.version>1.1.0</kubetest4j.version>
         <quarkus.mcp.server.test.version>1.12.0</quarkus.mcp.server.test.version>
-        <strimzi.test-clients.version>0.13.0</strimzi.test-clients.version>
+        <strimzi.test-clients.version>0.14.0</strimzi.test-clients.version>
         <allure.junit.version>2.34.0</allure.junit.version>
         <allure.report.version>2.39.0</allure.report.version>
         <allure.maven.version>2.17.0</allure.maven.version>
