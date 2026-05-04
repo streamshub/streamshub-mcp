@@ -125,12 +125,8 @@ public final class KafkaConnectTemplates {
         DockerOutputBuilder dockerOutputBuilder = new DockerOutputBuilder().withImage(imageName);
 
         if (!isOpenShift()) {
-            // for Buildah on minikube or Kind, we need to add `--tls-verify=false` in order to push via HTTP
             dockerOutputBuilder.withAdditionalBuildOptions("--tls-verify=false");
             dockerOutputBuilder.withAdditionalPushOptions("--tls-verify=false");
-            dockerOutputBuilder.withAdditionalBuildOptions(
-                // --insecure for PUSH via HTTP instead of HTTPS
-                "--insecure");
         }
 
         return dockerOutputBuilder.build();

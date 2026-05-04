@@ -29,6 +29,7 @@ import io.strimzi.api.kafka.model.common.InlineLogging;
 import io.strimzi.api.kafka.model.common.JvmOptions;
 import io.strimzi.api.kafka.model.common.Logging;
 import io.strimzi.api.kafka.model.common.Rack;
+import io.strimzi.api.kafka.model.common.TopologyLabelRack;
 import io.strimzi.api.kafka.model.common.metrics.JmxPrometheusExporterMetrics;
 import io.strimzi.api.kafka.model.common.metrics.MetricsConfig;
 import io.strimzi.api.kafka.model.kafka.JbodStorage;
@@ -62,6 +63,7 @@ import java.util.Objects;
 public class KafkaConfigService {
 
     private static final Logger LOG = Logger.getLogger(KafkaConfigService.class);
+    private static final long MILLISECONDS_PER_SECOND = 1000;
 
     @Inject
     KafkaService kafkaService;
@@ -171,7 +173,10 @@ public class KafkaConfigService {
         if (rack == null) {
             return null;
         }
-        return new RackInfo(rack.getTopologyKey());
+        if (rack instanceof TopologyLabelRack topologyRack) {
+            return new RackInfo(topologyRack.getTopologyKey());
+        }
+        return new RackInfo(rack.getType());
     }
 
     private List<ListenerConfigInfo> extractListenerConfigs(final Kafka kafka) {
@@ -263,15 +268,14 @@ public class KafkaConfigService {
         if (entityOp.getTopicOperator() != null) {
             var to = entityOp.getTopicOperator();
             topicOp = new SubOperatorInfo(
-                to.getWatchedNamespace(), to.getReconciliationIntervalSeconds(),
+                to.getWatchedNamespace(), msToSeconds(to.getReconciliationIntervalMs()),
                 extractResources(to.getResources()), extractJvmOptions(to.getJvmOptions()));
         }
         SubOperatorInfo userOp = null;
         if (entityOp.getUserOperator() != null) {
             var uo = entityOp.getUserOperator();
-            Long reconciliation = uo.getReconciliationIntervalSeconds();
             userOp = new SubOperatorInfo(
-                uo.getWatchedNamespace(), reconciliation != null ? reconciliation.intValue() : null,
+                uo.getWatchedNamespace(), msToSeconds(uo.getReconciliationIntervalMs()),
                 extractResources(uo.getResources()), extractJvmOptions(uo.getJvmOptions()));
         }
         return new EntityOperatorInfo(topicOp, userOp);
@@ -302,12 +306,14 @@ public class KafkaConfigService {
             return null;
         }
         return new BrokerCapacityInfo(
-            capacity.getDisk(),
-            capacity.getCpuUtilization(),
             capacity.getCpu(),
             capacity.getInboundNetwork(),
             capacity.getOutboundNetwork()
         );
+    }
+
+    private static Integer msToSeconds(final Long ms) {
+        return ms != null ? (int) (ms / MILLISECONDS_PER_SECOND) : null;
     }
 
     private KafkaExporterInfo extractKafkaExporter(final KafkaExporterSpec exporter) {

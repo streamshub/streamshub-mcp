@@ -220,16 +220,12 @@ public record KafkaEffectiveConfigResponse(
     /**
      * Cruise Control broker capacity settings.
      *
-     * @param disk            disk capacity
-     * @param cpuUtilization  CPU utilization percentage
      * @param cpu             CPU capacity
      * @param inboundNetwork  inbound network capacity
      * @param outboundNetwork outbound network capacity
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record BrokerCapacityInfo(
-        @JsonProperty("disk") String disk,
-        @JsonProperty("cpu_utilization") Integer cpuUtilization,
         @JsonProperty("cpu") String cpu,
         @JsonProperty("inbound_network") String inboundNetwork,
         @JsonProperty("outbound_network") String outboundNetwork

@@ -75,7 +75,7 @@ public final class KafkaTemplates {
                     .addToConfig("transaction.state.log.replication.factor", Math.min(replicas, MAX_REPLICATION_FACTOR))
                     .addToConfig("transaction.state.log.min.isr", Math.min(replicas, MAX_MIN_ISR))
                     .addToConfig("default.replication.factor", Math.min(replicas, MAX_REPLICATION_FACTOR))
-                    .addToConfig("min.insync.replicas", Math.min(Math.max(replicas - 1, 1), MAX_MIN_ISR))
+                    .addToConfig("min.insync.replicas", Math.clamp(replicas - 1, 1, MAX_MIN_ISR))
                 .endKafka()
                 .editEntityOperator()
                     .editOrNewUserOperator()

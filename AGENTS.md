@@ -1,7 +1,7 @@
 # Project: StreamsHub MCP (Multi-Module)
 
 Multi-module Quarkus mono-repo providing MCP (Model Context Protocol) servers for Kubernetes-based
-streaming platforms. Java 21, Quarkus 3.x, Strimzi API 0.51.x, Fabric8 Kubernetes client.
+streaming platforms. Java 21, Quarkus 3.x, Strimzi API 1.0.x, Fabric8 Kubernetes client.
 
 ## Documentation Structure
 

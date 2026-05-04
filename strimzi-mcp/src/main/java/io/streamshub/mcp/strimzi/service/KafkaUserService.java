@@ -256,17 +256,12 @@ public class KafkaUserService {
         return pt != null ? pt.toValue() : null;
     }
 
-    @SuppressWarnings("deprecation")
     private List<String> extractOperations(final AclRule rule) {
         List<AclOperation> ops = rule.getOperations();
         if (ops != null && !ops.isEmpty()) {
             return ops.stream()
                 .map(AclOperation::toValue)
                 .toList();
-        }
-        AclOperation singleOp = rule.getOperation();
-        if (singleOp != null) {
-            return List.of(singleOp.toValue());
         }
         return List.of();
     }
