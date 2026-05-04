@@ -48,6 +48,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 /**
@@ -68,9 +69,14 @@ public class ResourceSubscriptionManager implements Closeable {
     private static final int URI_PART_NAME = 4;
     private static final int URI_MIN_PARTS = 5;
 
-    static final long RECONNECT_INITIAL_DELAY_MS = 1000;
-    static final long RECONNECT_MAX_DELAY_MS = 60_000;
-    static final int RECONNECT_MAX_ATTEMPTS = 10;
+    @ConfigProperty(name = "mcp.watch.reconnect-initial-delay-ms", defaultValue = "1000")
+    long reconnectInitialDelayMs;
+
+    @ConfigProperty(name = "mcp.watch.reconnect-max-delay-ms", defaultValue = "60000")
+    long reconnectMaxDelayMs;
+
+    @ConfigProperty(name = "mcp.watch.reconnect-max-attempts", defaultValue = "10")
+    int reconnectMaxAttempts;
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -196,8 +202,8 @@ public class ResourceSubscriptionManager implements Closeable {
 
     private boolean startKafkaWatch() {
         try {
-            final Watch[] holder = new Watch[1];
-            holder[0] = kubernetesClient.resources(Kafka.class)
+            final AtomicReference<Watch> watchRef = new AtomicReference<>();
+            watchRef.set(kubernetesClient.resources(Kafka.class)
                 .inAnyNamespace()
                 .watch(new Watcher<>() {
                     @Override
@@ -209,13 +215,13 @@ public class ResourceSubscriptionManager implements Closeable {
                     public void onClose(final WatcherException cause) {
                         if (cause != null) {
                             LOG.warnf("Kafka watch closed unexpectedly: %s", cause.getMessage());
-                            activeWatches.remove(holder[0]);
+                            activeWatches.remove(watchRef.get());
                             scheduleReconnect("Kafka",
                                 () -> startKafkaWatch(), 1);
                         }
                     }
-                });
-            activeWatches.add(holder[0]);
+                }));
+            activeWatches.add(watchRef.get());
             LOG.info("Started watch on Kafka resources");
             return true;
         } catch (Exception e) {
@@ -226,8 +232,8 @@ public class ResourceSubscriptionManager implements Closeable {
 
     private boolean startKafkaNodePoolWatch() {
         try {
-            final Watch[] holder = new Watch[1];
-            holder[0] = kubernetesClient.resources(KafkaNodePool.class)
+            final AtomicReference<Watch> watchRef = new AtomicReference<>();
+            watchRef.set(kubernetesClient.resources(KafkaNodePool.class)
                 .inAnyNamespace()
                 .watch(new Watcher<>() {
                     @Override
@@ -239,13 +245,13 @@ public class ResourceSubscriptionManager implements Closeable {
                     public void onClose(final WatcherException cause) {
                         if (cause != null) {
                             LOG.warnf("KafkaNodePool watch closed unexpectedly: %s", cause.getMessage());
-                            activeWatches.remove(holder[0]);
+                            activeWatches.remove(watchRef.get());
                             scheduleReconnect("KafkaNodePool",
                                 () -> startKafkaNodePoolWatch(), 1);
                         }
                     }
-                });
-            activeWatches.add(holder[0]);
+                }));
+            activeWatches.add(watchRef.get());
             LOG.info("Started watch on KafkaNodePool resources");
             return true;
         } catch (Exception e) {
@@ -256,8 +262,8 @@ public class ResourceSubscriptionManager implements Closeable {
 
     private boolean startKafkaTopicWatch() {
         try {
-            final Watch[] holder = new Watch[1];
-            holder[0] = kubernetesClient.resources(KafkaTopic.class)
+            final AtomicReference<Watch> watchRef = new AtomicReference<>();
+            watchRef.set(kubernetesClient.resources(KafkaTopic.class)
                 .inAnyNamespace()
                 .watch(new Watcher<>() {
                     @Override
@@ -269,13 +275,13 @@ public class ResourceSubscriptionManager implements Closeable {
                     public void onClose(final WatcherException cause) {
                         if (cause != null) {
                             LOG.warnf("KafkaTopic watch closed unexpectedly: %s", cause.getMessage());
-                            activeWatches.remove(holder[0]);
+                            activeWatches.remove(watchRef.get());
                             scheduleReconnect("KafkaTopic",
                                 () -> startKafkaTopicWatch(), 1);
                         }
                     }
-                });
-            activeWatches.add(holder[0]);
+                }));
+            activeWatches.add(watchRef.get());
             LOG.info("Started watch on KafkaTopic resources");
             return true;
         } catch (Exception e) {
@@ -286,8 +292,8 @@ public class ResourceSubscriptionManager implements Closeable {
 
     private boolean startKafkaUserWatch() {
         try {
-            final Watch[] holder = new Watch[1];
-            holder[0] = kubernetesClient.resources(KafkaUser.class)
+            final AtomicReference<Watch> watchRef = new AtomicReference<>();
+            watchRef.set(kubernetesClient.resources(KafkaUser.class)
                 .inAnyNamespace()
                 .watch(new Watcher<>() {
                     @Override
@@ -299,13 +305,13 @@ public class ResourceSubscriptionManager implements Closeable {
                     public void onClose(final WatcherException cause) {
                         if (cause != null) {
                             LOG.warnf("KafkaUser watch closed unexpectedly: %s", cause.getMessage());
-                            activeWatches.remove(holder[0]);
+                            activeWatches.remove(watchRef.get());
                             scheduleReconnect("KafkaUser",
                                 () -> startKafkaUserWatch(), 1);
                         }
                     }
-                });
-            activeWatches.add(holder[0]);
+                }));
+            activeWatches.add(watchRef.get());
             LOG.info("Started watch on KafkaUser resources");
             return true;
         } catch (Exception e) {
@@ -316,8 +322,8 @@ public class ResourceSubscriptionManager implements Closeable {
 
     private boolean startOperatorWatch() {
         try {
-            final Watch[] holder = new Watch[1];
-            holder[0] = kubernetesClient.apps().deployments()
+            final AtomicReference<Watch> watchRef = new AtomicReference<>();
+            watchRef.set(kubernetesClient.apps().deployments()
                 .inAnyNamespace()
                 .withLabel(KubernetesConstants.Labels.APP, StrimziConstants.Operator.APP_LABEL_VALUE)
                 .watch(new Watcher<>() {
@@ -330,13 +336,13 @@ public class ResourceSubscriptionManager implements Closeable {
                     public void onClose(final WatcherException cause) {
                         if (cause != null) {
                             LOG.warnf("Operator watch closed unexpectedly: %s", cause.getMessage());
-                            activeWatches.remove(holder[0]);
+                            activeWatches.remove(watchRef.get());
                             scheduleReconnect("Operator",
                                 () -> startOperatorWatch(), 1);
                         }
                     }
-                });
-            activeWatches.add(holder[0]);
+                }));
+            activeWatches.add(watchRef.get());
             LOG.info("Started watch on Strimzi operator Deployments");
             return true;
         } catch (Exception e) {
@@ -351,16 +357,16 @@ public class ResourceSubscriptionManager implements Closeable {
         if (shuttingDown) {
             return;
         }
-        if (attempt > RECONNECT_MAX_ATTEMPTS) {
+        if (attempt > reconnectMaxAttempts) {
             LOG.errorf("%s watch reconnection failed after %d attempts",
-                watchName, RECONNECT_MAX_ATTEMPTS);
+                watchName, reconnectMaxAttempts);
             return;
         }
         long delay = Math.min(
-            RECONNECT_INITIAL_DELAY_MS << (attempt - 1),
-            RECONNECT_MAX_DELAY_MS);
+            reconnectInitialDelayMs << (attempt - 1),
+            reconnectMaxDelayMs);
         LOG.infof("Scheduling %s watch reconnect (attempt %d/%d, delay %dms)",
-            watchName, attempt, RECONNECT_MAX_ATTEMPTS, delay);
+            watchName, attempt, reconnectMaxAttempts, delay);
         reconnectExecutor.schedule(() -> {
             if (shuttingDown) {
                 return;
@@ -375,7 +381,7 @@ public class ResourceSubscriptionManager implements Closeable {
 
     // ---- Reconciliation ----
 
-    @Scheduled(every = "5m", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    @Scheduled(every = "${mcp.watch.reconcile-interval:5m}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void reconcileState() {
         if (!watchesEnabled || shuttingDown) {
             return;

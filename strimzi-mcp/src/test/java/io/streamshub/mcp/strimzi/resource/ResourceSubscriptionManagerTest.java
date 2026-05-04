@@ -37,6 +37,10 @@ import static org.mockito.Mockito.when;
 @QuarkusTest
 class ResourceSubscriptionManagerTest {
 
+    private static final long DEFAULT_INITIAL_DELAY_MS = 1000;
+    private static final long DEFAULT_MAX_DELAY_MS = 60_000;
+    private static final int DEFAULT_MAX_ATTEMPTS = 10;
+
     @InjectMock
     KubernetesClient kubernetesClient;
 
@@ -133,25 +137,17 @@ class ResourceSubscriptionManagerTest {
         manager.scheduleReconnect("Test", () -> {
             callCount.incrementAndGet();
             return false;
-        }, ResourceSubscriptionManager.RECONNECT_MAX_ATTEMPTS + 1);
+        }, DEFAULT_MAX_ATTEMPTS + 1);
 
         assertEquals(0, callCount.get());
     }
 
     @Test
     void testReconnectBackoffDelayCalculation() {
-        assertEquals(1000L,
-            Math.min(ResourceSubscriptionManager.RECONNECT_INITIAL_DELAY_MS << 0,
-                ResourceSubscriptionManager.RECONNECT_MAX_DELAY_MS));
-        assertEquals(2000L,
-            Math.min(ResourceSubscriptionManager.RECONNECT_INITIAL_DELAY_MS << 1,
-                ResourceSubscriptionManager.RECONNECT_MAX_DELAY_MS));
-        assertEquals(4000L,
-            Math.min(ResourceSubscriptionManager.RECONNECT_INITIAL_DELAY_MS << 2,
-                ResourceSubscriptionManager.RECONNECT_MAX_DELAY_MS));
-        assertEquals(60_000L,
-            Math.min(ResourceSubscriptionManager.RECONNECT_INITIAL_DELAY_MS << 6,
-                ResourceSubscriptionManager.RECONNECT_MAX_DELAY_MS));
+        assertEquals(1000L, Math.min(DEFAULT_INITIAL_DELAY_MS << 0, DEFAULT_MAX_DELAY_MS));
+        assertEquals(2000L, Math.min(DEFAULT_INITIAL_DELAY_MS << 1, DEFAULT_MAX_DELAY_MS));
+        assertEquals(4000L, Math.min(DEFAULT_INITIAL_DELAY_MS << 2, DEFAULT_MAX_DELAY_MS));
+        assertEquals(60_000L, Math.min(DEFAULT_INITIAL_DELAY_MS << 6, DEFAULT_MAX_DELAY_MS));
     }
 
     @Test

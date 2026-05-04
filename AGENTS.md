@@ -396,10 +396,17 @@ public class XxxCompletions {
 `ResourceSubscriptionManager` establishes Kubernetes watches on startup and sends
 `notifications/resources/updated` to subscribed MCP clients when resource state changes.
 
-- Watches Kafka CRs, KafkaNodePool CRs, KafkaTopic CRs, and operator Deployments
+- Watches Kafka CRs, KafkaNodePool CRs, KafkaTopic CRs, KafkaUser CRs, and operator Deployments
 - De-duplicates by comparing serialized JSON against last known state
 - Started/stopped via `@Observes StartupEvent` / `@Observes ShutdownEvent`
+- Auto-reconnects with exponential backoff when watches close unexpectedly
+- Periodic reconciliation removes orphaned state for deleted resources
 - Can be disabled via `mcp.resource-watches.enabled=false` (used in tests)
+- Configuration:
+  - `mcp.watch.reconnect-initial-delay-ms` (default: 1000) — initial reconnect delay
+  - `mcp.watch.reconnect-max-delay-ms` (default: 60000) — maximum reconnect delay
+  - `mcp.watch.reconnect-max-attempts` (default: 10) — maximum reconnect attempts before giving up
+  - `mcp.watch.reconcile-interval` (default: 5m) — interval for orphaned state cleanup
 
 ## Domain Service Pattern
 

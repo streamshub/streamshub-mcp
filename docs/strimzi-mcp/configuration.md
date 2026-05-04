@@ -325,15 +325,21 @@ Control Kubernetes resource watches that send MCP notifications when resources c
 | Property | Default | Description |
 |----------|---------|-------------|
 | `mcp.resource-watches.enabled` | `true` | Enable resource subscriptions |
+| `mcp.watch.reconnect-initial-delay-ms` | `1000` | Initial delay (ms) before first reconnect attempt |
+| `mcp.watch.reconnect-max-delay-ms` | `60000` | Maximum delay (ms) between reconnect attempts |
+| `mcp.watch.reconnect-max-attempts` | `10` | Maximum reconnect attempts before giving up |
+| `mcp.watch.reconcile-interval` | `5m` | Interval for cleaning up orphaned state entries |
 
 When enabled, the server watches:
 
 - Kafka custom resources
 - KafkaNodePool custom resources
 - KafkaTopic custom resources
+- KafkaUser custom resources
 - Strimzi operator Deployments
 
 Changes trigger `notifications/resources/updated` messages to subscribed MCP clients.
+If a watch closes unexpectedly, it reconnects automatically with exponential backoff.
 
 To disable (useful for testing):
 
