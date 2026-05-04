@@ -236,7 +236,7 @@ public class OperatorMetricsDiagnosticService {
         try {
             StrimziOperatorMetricsResponse result = operatorMetricsService.getOperatorMetrics(
                 namespace, operatorName, clusterName, category,
-                null, rangeMinutes, startTime, endTime, stepSeconds);
+                null, rangeMinutes, startTime, endTime, stepSeconds, null);
             completed.add(stepName);
             DiagnosticHelper.sendClientNotification(mcpLog,
                 String.format("Retrieved Strimzi operator %s metrics", category));

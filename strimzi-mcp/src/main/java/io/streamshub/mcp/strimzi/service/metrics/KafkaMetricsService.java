@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.service.metrics;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.quarkiverse.mcp.server.ToolCallException;
+import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.dto.metrics.PodTarget;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
@@ -24,9 +25,11 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Service for retrieving Kafka cluster metrics via pluggable providers.
@@ -61,6 +64,8 @@ public class KafkaMetricsService {
      * @param startTime    absolute start time in ISO 8601 format (optional, use with endTime)
      * @param endTime      absolute end time in ISO 8601 format (optional, use with startTime)
      * @param stepSeconds  range query step interval (optional, uses default)
+     * @param aggregation  aggregation level (optional, defaults to "broker")
+     * @param requestTypes comma-separated request types to filter (optional)
      * @return the metrics response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -71,7 +76,9 @@ public class KafkaMetricsService {
                                                  final Integer rangeMinutes,
                                                  final String startTime,
                                                  final String endTime,
-                                                 final Integer stepSeconds) {
+                                                 final Integer stepSeconds,
+                                                 final String aggregation,
+                                                 final String requestTypes) {
         String ns = InputUtils.normalizeInput(namespace);
         String name = InputUtils.normalizeInput(clusterName);
         String cat = InputUtils.normalizeInput(category);
@@ -139,6 +146,8 @@ public class KafkaMetricsService {
         List<MetricSample> samples = metricsQueryService.queryMetrics(
             podTargets, labelMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
 
+        samples = filterByRequestTypes(samples, requestTypes);
+
         // Build interpretation from effective categories
         List<String> effectiveCategories = new ArrayList<>(categories);
         if (effectiveCategories.isEmpty() && (metricNames == null || metricNames.isBlank())) {
@@ -146,7 +155,35 @@ public class KafkaMetricsService {
         }
         String interpretation = KafkaMetricCategories.interpretation(effectiveCategories);
 
+        AggregationLevel level = AggregationLevel.fromString(aggregation);
+        if (cat != null || metricNames == null || metricNames.isBlank()) {
+            String effectiveCat = cat != null ? cat : DEFAULT_CATEGORY;
+            level = level.clampTo(KafkaMetricCategories.maxGranularity(effectiveCat));
+        }
         return KafkaMetricsResponse.of(name, resolvedNs,
-            metricsQueryService.providerName(), categories, samples, interpretation);
+            metricsQueryService.providerName(), categories, samples, interpretation, level);
+    }
+
+    private static List<MetricSample> filterByRequestTypes(final List<MetricSample> samples,
+                                                            final String requestTypes) {
+        if (requestTypes == null || requestTypes.isBlank()) {
+            return samples;
+        }
+        Set<String> types = new HashSet<>();
+        for (String t : requestTypes.split(",")) {
+            String trimmed = t.trim();
+            if (!trimmed.isEmpty()) {
+                types.add(trimmed);
+            }
+        }
+        if (types.isEmpty()) {
+            return samples;
+        }
+        return samples.stream()
+            .filter(s -> {
+                String req = s.labels() != null ? s.labels().get("request") : null;
+                return req == null || types.contains(req);
+            })
+            .toList();
     }
 }

@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.dto.metrics;
 
+import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import org.junit.jupiter.api.Test;
 
@@ -25,24 +26,24 @@ class KafkaMetricsResponseTest {
     }
 
     @Test
-    void ofWithInstantDataPopulatesMetricsNotTimeSeries() {
+    void ofAlwaysPopulatesTimeSeries() {
         List<MetricSample> samples = List.of(
             MetricSample.of("metric_a", Map.of("pod", "pod-0"), 1.0),
             MetricSample.of("metric_a", Map.of("pod", "pod-1"), 2.0)
         );
 
         KafkaMetricsResponse response = KafkaMetricsResponse.of(
-            "my-cluster", "kafka", "pod-scraping", List.of("replication"), samples, null);
+            "my-cluster", "kafka", "pod-scraping", List.of("replication"),
+            samples, null, AggregationLevel.BROKER);
 
-        assertNotNull(response.metrics());
-        assertEquals(2, response.metrics().size());
-        assertNull(response.timeSeries());
+        assertNotNull(response.timeSeries());
         assertEquals(2, response.sampleCount());
         assertEquals(1, response.metricCount());
+        assertEquals("broker", response.aggregation());
     }
 
     @Test
-    void ofWithRangeDataPopulatesTimeSeriesNotMetrics() {
+    void ofWithRangeDataPopulatesTimeSeries() {
         Instant now = Instant.now();
         List<MetricSample> samples = List.of(
             MetricSample.of("metric_a", Map.of("pod", "pod-0"), 1.0, now),
@@ -50,22 +51,22 @@ class KafkaMetricsResponseTest {
         );
 
         KafkaMetricsResponse response = KafkaMetricsResponse.of(
-            "my-cluster", "kafka", "prometheus", List.of("throughput"), samples, null);
+            "my-cluster", "kafka", "prometheus", List.of("throughput"),
+            samples, null, AggregationLevel.BROKER);
 
-        assertNull(response.metrics());
         assertNotNull(response.timeSeries());
         assertEquals(1, response.timeSeries().size());
         assertEquals(2, response.sampleCount());
     }
 
     @Test
-    void ofWithEmptySamplesReturnsEmptyMetrics() {
+    void ofWithEmptySamplesReturnsEmptyTimeSeries() {
         KafkaMetricsResponse response = KafkaMetricsResponse.of(
-            "my-cluster", "kafka", "pod-scraping", List.of(), List.of(), null);
+            "my-cluster", "kafka", "pod-scraping", List.of(),
+            List.of(), null, AggregationLevel.BROKER);
 
-        assertNotNull(response.metrics());
-        assertTrue(response.metrics().isEmpty());
-        assertNull(response.timeSeries());
+        assertNotNull(response.timeSeries());
+        assertTrue(response.timeSeries().isEmpty());
         assertEquals(0, response.sampleCount());
         assertEquals(0, response.metricCount());
     }
@@ -79,7 +80,8 @@ class KafkaMetricsResponseTest {
         );
 
         KafkaMetricsResponse response = KafkaMetricsResponse.of(
-            "my-cluster", "kafka", "pod-scraping", List.of(), samples, null);
+            "my-cluster", "kafka", "pod-scraping", List.of(),
+            samples, null, AggregationLevel.BROKER);
 
         assertEquals(2, response.metricCount());
         assertEquals(3, response.sampleCount());
@@ -88,7 +90,8 @@ class KafkaMetricsResponseTest {
     @Test
     void ofPassesThroughInterpretation() {
         KafkaMetricsResponse response = KafkaMetricsResponse.of(
-            "my-cluster", "kafka", "pod-scraping", List.of(), List.of(), "test interpretation");
+            "my-cluster", "kafka", "pod-scraping", List.of(),
+            List.of(), "test interpretation", AggregationLevel.BROKER);
 
         assertEquals("test interpretation", response.interpretation());
     }
@@ -105,5 +108,24 @@ class KafkaMetricsResponseTest {
         assertEquals(0, response.metricCount());
         assertNull(response.interpretation());
         assertNotNull(response.timestamp());
+    }
+
+    @Test
+    void ofTimeSeriesCreatesResponseFromPreGroupedSeries() {
+        List<MetricSample> samples = List.of(
+            MetricSample.of("metric_a", Map.of("pod", "pod-0"), 10.0),
+            MetricSample.of("metric_a", Map.of("pod", "pod-1"), 20.0)
+        );
+        var series = io.streamshub.mcp.common.dto.metrics.AggregatedTimeSeries
+            .fromSamples(samples, AggregationLevel.CLUSTER);
+
+        KafkaMetricsResponse response = KafkaMetricsResponse.ofTimeSeries(
+            "my-cluster", "kafka", "prometheus", List.of("replication"),
+            series, "guide");
+
+        assertNotNull(response.timeSeries());
+        assertEquals(1, response.timeSeries().size());
+        assertEquals(1, response.metricCount());
+        assertEquals("guide", response.interpretation());
     }
 }

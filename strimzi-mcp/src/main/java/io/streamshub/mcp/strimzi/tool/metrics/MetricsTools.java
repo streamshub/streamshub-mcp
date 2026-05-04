@@ -52,6 +52,8 @@ public class MetricsTools {
      * @param startTime    optional absolute start time in ISO 8601 format
      * @param endTime      optional absolute end time in ISO 8601 format
      * @param stepSeconds  optional range query step in seconds
+     * @param aggregation   optional aggregation level
+     * @param requestTypes  optional comma-separated request types to filter
      * @return the metrics response
      */
     @WithSpan("tool.get_kafka_metrics")
@@ -98,10 +100,19 @@ public class MetricsTools {
         @ToolArg(
             description = StrimziToolsPrompts.STEP_SECONDS_DESC,
             required = false
-        ) final Integer stepSeconds
+        ) final Integer stepSeconds,
+        @ToolArg(
+            description = StrimziToolsPrompts.AGGREGATION_DESC,
+            required = false
+        ) final String aggregation,
+        @ToolArg(
+            description = StrimziToolsPrompts.REQUEST_TYPES_DESC,
+            required = false
+        ) final String requestTypes
     ) {
         return kafkaMetricsService.getKafkaMetrics(
-            namespace, clusterName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds);
+            namespace, clusterName, category, metricNames, rangeMinutes, startTime, endTime,
+            stepSeconds, aggregation, requestTypes);
     }
 
     /**
@@ -115,6 +126,7 @@ public class MetricsTools {
      * @param startTime    optional absolute start time in ISO 8601 format
      * @param endTime      optional absolute end time in ISO 8601 format
      * @param stepSeconds  optional range query step in seconds
+     * @param aggregation  optional aggregation level
      * @return the Kafka Exporter metrics response
      */
     @WithSpan("tool.get_kafka_exporter_metrics")
@@ -161,10 +173,14 @@ public class MetricsTools {
         @ToolArg(
             description = StrimziToolsPrompts.STEP_SECONDS_DESC,
             required = false
-        ) final Integer stepSeconds
+        ) final Integer stepSeconds,
+        @ToolArg(
+            description = StrimziToolsPrompts.AGGREGATION_DESC,
+            required = false
+        ) final String aggregation
     ) {
         return kafkaExporterMetricsService.getKafkaExporterMetrics(
-            namespace, clusterName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds);
+            namespace, clusterName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds, aggregation);
     }
 
     /**
@@ -181,6 +197,7 @@ public class MetricsTools {
      * @param startTime    optional absolute start time in ISO 8601 format
      * @param endTime      optional absolute end time in ISO 8601 format
      * @param stepSeconds  optional range query step in seconds
+     * @param aggregation  optional aggregation level
      * @return the operator metrics response
      */
     @WithSpan("tool.get_strimzi_operator_metrics")
@@ -233,9 +250,13 @@ public class MetricsTools {
         @ToolArg(
             description = StrimziToolsPrompts.STEP_SECONDS_DESC,
             required = false
-        ) final Integer stepSeconds
+        ) final Integer stepSeconds,
+        @ToolArg(
+            description = StrimziToolsPrompts.AGGREGATION_DESC,
+            required = false
+        ) final String aggregation
     ) {
         return strimziOperatorMetricsService.getOperatorMetrics(
-            namespace, operatorName, clusterName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds);
+            namespace, operatorName, clusterName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds, aggregation);
     }
 }

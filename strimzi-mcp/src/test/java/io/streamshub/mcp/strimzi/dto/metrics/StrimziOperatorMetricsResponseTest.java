@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.dto.metrics;
 
+import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import org.junit.jupiter.api.Test;
 
@@ -25,24 +26,24 @@ class StrimziOperatorMetricsResponseTest {
     }
 
     @Test
-    void ofWithInstantDataPopulatesMetricsNotTimeSeries() {
+    void ofAlwaysPopulatesTimeSeries() {
         List<MetricSample> samples = List.of(
             MetricSample.of("strimzi_reconciliations_total", Map.of(), 100.0)
         );
 
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
             "cluster-operator", null, "strimzi", "pod-scraping",
-            List.of("reconciliation"), samples, null);
+            List.of("reconciliation"), samples, null, AggregationLevel.BROKER);
 
-        assertNotNull(response.metrics());
-        assertEquals(1, response.metrics().size());
-        assertNull(response.timeSeries());
+        assertNotNull(response.timeSeries());
+        assertEquals(1, response.timeSeries().size());
         assertEquals(1, response.sampleCount());
         assertEquals(1, response.metricCount());
+        assertEquals("broker", response.aggregation());
     }
 
     @Test
-    void ofWithRangeDataPopulatesTimeSeriesNotMetrics() {
+    void ofWithRangeDataPopulatesTimeSeries() {
         Instant now = Instant.now();
         List<MetricSample> samples = List.of(
             MetricSample.of("strimzi_reconciliations_total", Map.of(), 100.0, now),
@@ -51,23 +52,21 @@ class StrimziOperatorMetricsResponseTest {
 
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
             "cluster-operator", null, "strimzi", "prometheus",
-            List.of("reconciliation"), samples, null);
+            List.of("reconciliation"), samples, null, AggregationLevel.BROKER);
 
-        assertNull(response.metrics());
         assertNotNull(response.timeSeries());
         assertEquals(1, response.timeSeries().size());
         assertEquals(2, response.sampleCount());
     }
 
     @Test
-    void ofWithEmptySamplesReturnsEmptyMetrics() {
+    void ofWithEmptySamplesReturnsEmptyTimeSeries() {
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
             "cluster-operator", null, "strimzi", "pod-scraping",
-            List.of(), List.of(), null);
+            List.of(), List.of(), null, AggregationLevel.BROKER);
 
-        assertNotNull(response.metrics());
-        assertTrue(response.metrics().isEmpty());
-        assertNull(response.timeSeries());
+        assertNotNull(response.timeSeries());
+        assertTrue(response.timeSeries().isEmpty());
         assertEquals(0, response.sampleCount());
     }
 
@@ -75,7 +74,7 @@ class StrimziOperatorMetricsResponseTest {
     void ofPassesThroughInterpretation() {
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
             "cluster-operator", null, "strimzi", "pod-scraping",
-            List.of(), List.of(), "test interpretation");
+            List.of(), List.of(), "test interpretation", AggregationLevel.BROKER);
 
         assertEquals("test interpretation", response.interpretation());
     }
@@ -84,7 +83,7 @@ class StrimziOperatorMetricsResponseTest {
     void ofWithClusterNameIncludesClusterInResponse() {
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
             "cluster-operator", "my-cluster", "strimzi", "pod-scraping",
-            List.of(), List.of(), null);
+            List.of(), List.of(), null, AggregationLevel.BROKER);
 
         assertEquals("my-cluster", response.clusterName());
         assertTrue(response.message().contains("my-cluster"));
@@ -94,7 +93,7 @@ class StrimziOperatorMetricsResponseTest {
     void ofWithoutClusterNameExcludesClusterFromMessage() {
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
             "cluster-operator", null, "strimzi", "pod-scraping",
-            List.of(), List.of(), null);
+            List.of(), List.of(), null, AggregationLevel.BROKER);
 
         assertNull(response.clusterName());
         assertTrue(response.message().contains("operator 'cluster-operator'"));
