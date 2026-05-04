@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Service for retrieving Strimzi operator metrics via pluggable providers.
@@ -165,7 +166,7 @@ public class StrimziOperatorMetricsService {
             ? eoPods.getFirst().getMetadata().getNamespace() : null;
 
         boolean sameNamespace = eoPods.isEmpty() || coPods.isEmpty()
-            || coNamespace.equals(eoNamespace);
+            || Objects.equals(coNamespace, eoNamespace);
 
         if (sameNamespace) {
             List<PodTarget> targets = buildPodTargets(coPods, eoPods);
