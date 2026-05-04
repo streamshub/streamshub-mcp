@@ -16,6 +16,7 @@ import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgePodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeResponse;
 import io.streamshub.mcp.strimzi.service.kafkabridge.KafkaBridgeService;
+import io.strimzi.api.kafka.model.bridge.KafkaBridge;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,9 @@ class KafkaBridgeServiceTest {
     void setUp() {
         MixedOperation<Pod, PodList, PodResource> podOp = Mockito.mock(MixedOperation.class);
         Mockito.lenient().when(kubernetesClient.pods()).thenReturn(podOp);
+
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaBridge.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Pod.class);
     }
 
     /**
