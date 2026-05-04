@@ -1,0 +1,49 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-consumer
+  namespace: strimzi-kafka
+  labels:
+    app: kafka-consumer
+    mcp: strimzi
+    system: strimzi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-consumer
+  template:
+    metadata:
+      labels:
+        app: kafka-consumer
+    spec:
+      containers:
+        - name: kafka-consumer
+          image: quay.io/strimzi-test-clients/test-clients:latest-kafka-4.2.0
+          env:
+            - name: CLIENT_TYPE
+              value: KafkaConsumer
+            - name: BOOTSTRAP_SERVERS
+              value: mcp-cluster-kafka-bootstrap:9093
+            - name: TOPIC
+              value: mcp-test-topic
+            - name: GROUP_ID
+              value: mcp-test-group
+            - name: MESSAGE_COUNT
+              value: "999999999"
+            - name: CA_CRT
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-cluster-cluster-ca-cert
+                  key: ca.crt
+            - name: USER_CRT
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-test-client
+                  key: user.crt
+            - name: USER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-test-client
+                  key: user.key

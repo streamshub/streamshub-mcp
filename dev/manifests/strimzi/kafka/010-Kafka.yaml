@@ -82,6 +82,13 @@ spec:
   kafka:
     version: 4.2.0
     metadataVersion: 4.2-IV1
+    authorization:
+      type: simple
+      superUsers:
+        - CN=super-karel
+        - super-karel
+        - CN=console-user
+        - console-user
     listeners:
       - name: plain
         port: 9092

@@ -1,0 +1,30 @@
+---
+# TLS user for Kafka producer/consumer test clients.
+# Read/write access to the test topic and consumer group.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: mcp-test-client
+  namespace: strimzi-kafka
+  labels:
+    strimzi.io/cluster: mcp-cluster
+    mcp: strimzi
+    system: strimzi
+spec:
+  authentication:
+    type: tls
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: topic
+          name: mcp-test-topic
+        operations:
+          - Read
+          - Write
+          - Describe
+      - resource:
+          type: group
+          name: mcp-test-group
+        operations:
+          - Read
