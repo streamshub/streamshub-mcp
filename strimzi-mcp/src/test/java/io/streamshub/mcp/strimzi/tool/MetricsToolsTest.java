@@ -21,12 +21,14 @@ import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.dto.ListenerInfo;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
+import io.streamshub.mcp.strimzi.dto.metrics.KafkaBridgeMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.StrimziOperatorMetricsResponse;
 import io.streamshub.mcp.strimzi.service.KafkaNodePoolService;
 import io.streamshub.mcp.strimzi.service.KafkaService;
 import io.streamshub.mcp.strimzi.service.KafkaTopicService;
 import io.streamshub.mcp.strimzi.service.StrimziOperatorService;
+import io.streamshub.mcp.strimzi.service.metrics.KafkaBridgeMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.StrimziOperatorMetricsService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -73,6 +75,9 @@ class MetricsToolsTest {
 
     @InjectMock
     KafkaMetricsService kafkaMetricsService;
+
+    @InjectMock
+    KafkaBridgeMetricsService kafkaBridgeMetricsService;
 
     @InjectMock
     StrimziOperatorMetricsService strimziOperatorMetricsService;
@@ -427,6 +432,26 @@ class MetricsToolsTest {
                 assertFalse(response.isError());
                 String json = response.content().getFirst().asText().text();
                 assertTrue(json.contains("my-cluster"));
+                assertTrue(json.contains("pod-scraping"));
+            })
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify get_kafka_bridge_metrics returns bridge metrics.
+     */
+    @Test
+    void testGetKafkaBridgeMetrics() {
+        when(kafkaBridgeMetricsService.getKafkaBridgeMetrics(null, "my-bridge", null, null, null, null, null, null, null))
+            .thenReturn(KafkaBridgeMetricsResponse.of("my-bridge", "kafka", "pod-scraping",
+                List.of("http"), List.of(), null,
+                io.streamshub.mcp.common.dto.metrics.AggregationLevel.BROKER));
+
+        client.when()
+            .toolsCall("get_kafka_bridge_metrics", Map.of("bridgeName", "my-bridge"), response -> {
+                assertFalse(response.isError());
+                String json = response.content().getFirst().asText().text();
+                assertTrue(json.contains("my-bridge"));
                 assertTrue(json.contains("pod-scraping"));
             })
             .thenAssertResults();

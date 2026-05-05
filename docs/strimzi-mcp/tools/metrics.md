@@ -3,7 +3,7 @@ title = 'Metrics tools'
 weight = 5
 +++
 
-Tools for retrieving and analyzing Prometheus metrics from Kafka brokers, Kafka Exporter, and Strimzi operator components.
+Tools for retrieving and analyzing Prometheus metrics from Kafka brokers, Kafka Exporter, KafkaBridge, and Strimzi operator components.
 
 ## get_kafka_metrics
 
@@ -50,6 +50,28 @@ Returns consumer group lag, topic partition offsets, and JVM metrics with interp
 **Example**:
 ```
 Get consumer lag metrics for mcp-cluster at topic level
+```
+
+## get_kafka_bridge_metrics
+
+Retrieves Prometheus metrics from KafkaBridge pods by category or explicit metric names.
+Returns HTTP request, producer, consumer, and JVM metrics with interpretation guide.
+
+**Parameters**:
+- `bridgeName` (required) -- Name of the KafkaBridge
+- `namespace` (optional) -- Kubernetes namespace
+- `category` (optional) -- Metric category: "http", "producer", "consumer", "resources"
+- `metricNames` (optional) -- Comma-separated list of explicit metric names
+- `rangeMinutes` (optional) -- Range duration in minutes
+- `startTime` (optional) -- Absolute start time (ISO 8601 format)
+- `endTime` (optional) -- Absolute end time (ISO 8601 format)
+- `stepSeconds` (optional) -- Range query step in seconds
+
+**Returns**: KafkaBridge metrics with samples and interpretation guide
+
+**Example**:
+```
+Get HTTP metrics for my-bridge
 ```
 
 ## get_strimzi_operator_metrics
