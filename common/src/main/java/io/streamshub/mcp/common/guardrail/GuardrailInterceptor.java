@@ -40,7 +40,7 @@ public class GuardrailInterceptor {
     @Inject
     Instance<GuardrailFilter> filterInstances;
 
-    private volatile List<GuardrailFilter> sortedFilters;
+    private List<GuardrailFilter> sortedFilters;
     private volatile boolean initialized;
 
     GuardrailInterceptor() {
@@ -56,25 +56,36 @@ public class GuardrailInterceptor {
     @AroundInvoke
     Object intercept(final InvocationContext ctx) throws Exception {
         ensureInitialized();
+        final List<GuardrailFilter> filters = sortedFilters;
         Method method = ctx.getMethod();
         String toolName = method.getName();
 
         // Apply input filters
         Object[] params = ctx.getParameters();
-        for (GuardrailFilter filter : sortedFilters) {
+        for (GuardrailFilter filter : filters) {
             params = filter.filterInput(toolName, params, method);
         }
         ctx.setParameters(params);
 
-        // Execute the tool
-        Object result = ctx.proceed();
+        // Execute the tool and apply output filters
+        Throwable caught = null;
+        try {
+            Object result = ctx.proceed();
 
-        // Apply output filters
-        for (GuardrailFilter filter : sortedFilters) {
-            result = filter.filterOutput(toolName, result);
+            // Apply output filters
+            for (GuardrailFilter filter : filters) {
+                result = filter.filterOutput(toolName, result);
+            }
+
+            return result;
+        } catch (Exception | Error e) {
+            caught = e;
+            throw e;
+        } finally {
+            if (caught != null) {
+                notifyFiltersOfError(toolName, caught, filters);
+            }
         }
-
-        return result;
     }
 
     private void ensureInitialized() {
@@ -94,6 +105,20 @@ public class GuardrailInterceptor {
                     sortedFilters = List.copyOf(filters);
                     initialized = true;
                 }
+            }
+        }
+    }
+
+    private void notifyFiltersOfError(final String toolName, final Throwable error,
+                                      final List<GuardrailFilter> filters) {
+        Exception wrapped = error instanceof Exception ex
+            ? ex : new RuntimeException(error);
+        for (GuardrailFilter filter : filters) {
+            try {
+                filter.filterError(toolName, wrapped);
+            } catch (Exception suppressed) {
+                LOG.debugf("Filter %s threw during error handling: %s",
+                    filter.getClass().getSimpleName(), suppressed.getMessage());
             }
         }
     }

@@ -19,12 +19,14 @@ Returns samples with an interpretation guide for thresholds and diagnostics.
 - `startTime` (optional) -- Absolute start time (ISO 8601 format)
 - `endTime` (optional) -- Absolute end time (ISO 8601 format)
 - `stepSeconds` (optional) -- Range query step in seconds
+- `aggregation` (optional) -- Aggregation level: "partition" (full detail), "topic" (avg across partitions), "broker" (avg across topics+partitions, default), or "cluster" (single avg across all dimensions). Automatically clamped to the finest level supported by the requested category.
+- `requestTypes` (optional) -- Comma-separated list of Kafka request types to include (e.g., "Produce,Fetch,FindCoordinator"). Filters performance metrics that have a "request" label. Omit to include all request types.
 
-**Returns**: Metrics with samples, interpretation guide, and diagnostic thresholds
+**Returns**: Aggregated metrics with summary statistics (min, max, avg, latest), interpretation guide, and diagnostic thresholds
 
 **Example**:
 ```
-Get replication metrics for mcp-cluster
+Get replication metrics for mcp-cluster at cluster aggregation level
 ```
 
 ## get_kafka_exporter_metrics
@@ -41,12 +43,13 @@ Returns consumer group lag, topic partition offsets, and JVM metrics with interp
 - `startTime` (optional) -- Absolute start time (ISO 8601 format)
 - `endTime` (optional) -- Absolute end time (ISO 8601 format)
 - `stepSeconds` (optional) -- Range query step in seconds
+- `aggregation` (optional) -- Aggregation level: "partition" (full detail), "topic" (avg across partitions), "broker" (avg across topics+partitions, default), or "cluster" (single avg across all dimensions). Automatically clamped to the finest level supported by the requested category.
 
-**Returns**: Kafka Exporter metrics with samples and interpretation guide
+**Returns**: Aggregated Kafka Exporter metrics with summary statistics and interpretation guide
 
 **Example**:
 ```
-Get consumer lag metrics for mcp-cluster
+Get consumer lag metrics for mcp-cluster at topic level
 ```
 
 ## get_strimzi_operator_metrics
@@ -64,12 +67,13 @@ When clusterName is provided, also includes entity operator (user-operator and t
 - `startTime` (optional) -- Absolute start time (ISO 8601 format)
 - `endTime` (optional) -- Absolute end time (ISO 8601 format)
 - `stepSeconds` (optional) -- Range query step in seconds
+- `aggregation` (optional) -- Aggregation level: "partition" (full detail), "topic" (avg across partitions), "broker" (avg across topics+partitions, default), or "cluster" (single avg across all dimensions). Automatically clamped to the finest level supported by the requested category.
 
-**Returns**: Operator metrics with samples and interpretation guide
+**Returns**: Aggregated operator metrics with summary statistics and interpretation guide
 
 **Example**:
 ```
-Get reconciliation metrics for the Strimzi operator
+Get reconciliation metrics for the Strimzi operator at cluster level
 ```
 
 ## Next steps
