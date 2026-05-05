@@ -126,6 +126,7 @@ The deployment manifests use [Kustomize](https://kustomize.io/) with a base and 
 |---------|---------|----------|
 | `base` | `kubectl apply -k install/strimzi-mcp/base/` | Minimal deployment with defaults |
 | `overlays/dev` | `kubectl apply -k install/strimzi-mcp/overlays/dev/` | Local development (Kind, minikube) |
+| `overlays/dev-openshift` | `kubectl apply -k install/strimzi-mcp/overlays/dev-openshift/` | Local development (OpenShift) |
 | `overlays/prod` | `kubectl apply -k install/strimzi-mcp/overlays/prod/` | Production Kubernetes |
 | `overlays/prod-openshift` | `kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/` | Production OpenShift |
 
@@ -136,6 +137,8 @@ The **prod** overlay adds:
 - Optional ConfigMap and Secret references for configuration via `envFrom`
 
 The **prod-openshift** overlay extends prod with an edge-terminated TLS Route for external access.
+
+The **dev-openshift** overlay extends dev with the same Route configuration, for local development on OpenShift (CRC, Red Hat OpenShift Local). It is deployed automatically by `dev-deploy.sh --ocp`.
 
 ### Deploy a released version
 
@@ -259,7 +262,7 @@ Configure your MCP client to use `http://localhost:8080/mcp`.
 
 ### OpenShift route
 
-The `prod-openshift` overlay includes an edge-terminated Route automatically:
+The `prod-openshift` and `dev-openshift` overlays include an edge-terminated Route automatically:
 
 ```bash
 kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/
