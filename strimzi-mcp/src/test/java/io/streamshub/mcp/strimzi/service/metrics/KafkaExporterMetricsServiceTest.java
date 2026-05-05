@@ -76,7 +76,7 @@ class KafkaExporterMetricsServiceTest {
     void missingClusterNameThrows() {
         ToolCallException ex = assertThrows(ToolCallException.class,
             () -> kafkaExporterMetricsService.getKafkaExporterMetrics(
-                "kafka", null, null, null, null, null, null, null));
+                "kafka", null, null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Cluster name is required"));
     }
 
@@ -87,7 +87,7 @@ class KafkaExporterMetricsServiceTest {
 
         ToolCallException ex = assertThrows(ToolCallException.class,
             () -> kafkaExporterMetricsService.getKafkaExporterMetrics(
-                "kafka", "missing", null, null, null, null, null, null));
+                "kafka", "missing", null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("not found in namespace"));
     }
 
@@ -101,7 +101,7 @@ class KafkaExporterMetricsServiceTest {
             .thenReturn(List.of());
 
         KafkaExporterMetricsResponse response = kafkaExporterMetricsService.getKafkaExporterMetrics(
-            "kafka", "my-cluster", null, null, null, null, null, null);
+            "kafka", "my-cluster", null, null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals(0, response.sampleCount());
@@ -126,7 +126,7 @@ class KafkaExporterMetricsServiceTest {
             .thenReturn(samples);
 
         KafkaExporterMetricsResponse response = kafkaExporterMetricsService.getKafkaExporterMetrics(
-            "kafka", "my-cluster", "consumer_lag", null, null, null, null, null);
+            "kafka", "my-cluster", "consumer_lag", null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals("my-cluster", response.clusterName());
@@ -147,7 +147,7 @@ class KafkaExporterMetricsServiceTest {
             .thenReturn(List.of(exporterPod));
 
         KafkaExporterMetricsResponse response = kafkaExporterMetricsService.getKafkaExporterMetrics(
-            "kafka", "my-cluster", null, null, null, null, null, null);
+            "kafka", "my-cluster", null, null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals("my-cluster", response.clusterName());
@@ -161,7 +161,7 @@ class KafkaExporterMetricsServiceTest {
 
         ToolCallException ex = assertThrows(ToolCallException.class,
             () -> kafkaExporterMetricsService.getKafkaExporterMetrics(
-                "kafka", "my-cluster", "invalid", null, null, null, null, null));
+                "kafka", "my-cluster", "invalid", null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Unknown metric category"));
     }
 
@@ -177,7 +177,7 @@ class KafkaExporterMetricsServiceTest {
             .thenReturn(List.of(exporterPod));
 
         KafkaExporterMetricsResponse response = kafkaExporterMetricsService.getKafkaExporterMetrics(
-            "kafka", "my-cluster", null, "kafka_consumergroup_lag,custom_metric", null, null, null, null);
+            "kafka", "my-cluster", null, "kafka_consumergroup_lag,custom_metric", null, null, null, null, null);
 
         assertNotNull(response);
     }
@@ -196,7 +196,7 @@ class KafkaExporterMetricsServiceTest {
             .thenReturn(List.of());
 
         KafkaExporterMetricsResponse response = kafkaExporterMetricsService.getKafkaExporterMetrics(
-            "kafka", "my-cluster", "consumer_lag", null, 60, null, null, 15);
+            "kafka", "my-cluster", "consumer_lag", null, 60, null, null, 15, null);
 
         assertNotNull(response);
     }
@@ -220,10 +220,44 @@ class KafkaExporterMetricsServiceTest {
             .thenReturn(samples);
 
         KafkaExporterMetricsResponse response = kafkaExporterMetricsService.getKafkaExporterMetrics(
-            "kafka", "my-cluster", "consumer_lag", null, null, null, null, null);
+            "kafka", "my-cluster", "consumer_lag", null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals(1, response.sampleCount());
+    }
+
+    @Test
+    void aggregationNotClampedForConsumerLagAtPartitionLevel() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createExporterPod("my-cluster-kafka-exporter-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        KafkaExporterMetricsResponse response = kafkaExporterMetricsService.getKafkaExporterMetrics(
+            "kafka", "my-cluster", "consumer_lag", null, null, null, null, null, "partition");
+
+        assertEquals("partition", response.aggregation());
+    }
+
+    @Test
+    void aggregationClampedToBrokerForResourcesCategory() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createExporterPod("my-cluster-kafka-exporter-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        KafkaExporterMetricsResponse response = kafkaExporterMetricsService.getKafkaExporterMetrics(
+            "kafka", "my-cluster", "resources", null, null, null, null, null, "partition");
+
+        assertEquals("broker", response.aggregation());
     }
 
     private Kafka createKafka(final String name, final String namespace) {

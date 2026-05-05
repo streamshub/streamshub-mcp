@@ -6,16 +6,18 @@ package io.streamshub.mcp.strimzi.dto.metrics;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.streamshub.mcp.common.dto.metrics.AggregatedTimeSeries;
+import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
-import io.streamshub.mcp.common.dto.metrics.MetricTimeSeries;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Response containing metrics data from Strimzi operators.
- * For instant queries, metrics are returned as a flat list in {@code metrics}.
- * For range queries, metrics are grouped into compact time series in {@code timeSeries}.
+ * Metrics are always grouped and aggregated into time series based on the
+ * configured {@link AggregationLevel}.
  *
  * @param operatorName  the operator deployment name
  * @param clusterName   the Kafka cluster name (present when entity operator metrics are included)
@@ -23,9 +25,9 @@ import java.util.List;
  * @param provider      the metrics provider used
  * @param categories    the metric categories requested
  * @param metricCount   the number of distinct metric names in the response
- * @param sampleCount   the total number of metric samples
- * @param metrics       the flat list of metric samples (instant queries)
- * @param timeSeries    the grouped time series (range queries)
+ * @param sampleCount   the total number of metric samples before aggregation
+ * @param aggregation   the aggregation level used
+ * @param timeSeries    the aggregated time series
  * @param interpretation brief guide for interpreting the returned metrics
  * @param timestamp     the time this result was generated
  * @param message       a human-readable summary of the result
@@ -39,16 +41,15 @@ public record StrimziOperatorMetricsResponse(
     @JsonProperty("categories") List<String> categories,
     @JsonProperty("metric_count") long metricCount,
     @JsonProperty("sample_count") int sampleCount,
-    @JsonProperty("metrics") List<MetricSample> metrics,
-    @JsonProperty("time_series") List<MetricTimeSeries> timeSeries,
+    @JsonProperty("aggregation") String aggregation,
+    @JsonProperty("time_series") List<AggregatedTimeSeries> timeSeries,
     @JsonProperty("interpretation") String interpretation,
     @JsonProperty("timestamp") Instant timestamp,
     @JsonProperty("message") String message
 ) {
 
     /**
-     * Creates a response with metric data. If samples have timestamps (range query),
-     * groups them into compact time series. Otherwise returns a flat metrics list.
+     * Creates a response with aggregated metric data.
      *
      * @param operatorName   the operator deployment name
      * @param clusterName    the Kafka cluster name (null if no entity operator metrics)
@@ -57,13 +58,15 @@ public record StrimziOperatorMetricsResponse(
      * @param categories     the requested categories
      * @param samples        the metric samples
      * @param interpretation brief guide for interpreting the returned metrics
-     * @return a response with the metric data
+     * @param level          the aggregation level
+     * @return a response with the aggregated metric data
      */
     public static StrimziOperatorMetricsResponse of(final String operatorName, final String clusterName,
                                                      final String namespace,
                                                      final String provider, final List<String> categories,
                                                      final List<MetricSample> samples,
-                                                     final String interpretation) {
+                                                     final String interpretation,
+                                                     final AggregationLevel level) {
         long metricCount = samples.stream()
             .map(MetricSample::name)
             .distinct()
@@ -75,16 +78,12 @@ public record StrimziOperatorMetricsResponse(
             : String.format("Retrieved %d samples across %d metrics from operator '%s'",
                 samples.size(), metricCount, operatorName);
 
-        boolean isRangeData = !samples.isEmpty() && samples.getFirst().timestamp() != null;
-
-        if (isRangeData) {
-            List<MetricTimeSeries> series = MetricTimeSeries.fromSamples(samples);
-            return new StrimziOperatorMetricsResponse(operatorName, clusterName, namespace, provider, categories,
-                metricCount, samples.size(), null, series, interpretation, Instant.now(), msg);
-        }
+        List<AggregatedTimeSeries> series = samples.isEmpty()
+            ? List.of() : AggregatedTimeSeries.fromSamples(samples, level);
 
         return new StrimziOperatorMetricsResponse(operatorName, clusterName, namespace, provider, categories,
-            metricCount, samples.size(), samples, null, interpretation, Instant.now(), msg);
+            metricCount, samples.size(), level.name().toLowerCase(Locale.ROOT),
+            series, interpretation, Instant.now(), msg);
     }
 
     /**
@@ -98,6 +97,6 @@ public record StrimziOperatorMetricsResponse(
     public static StrimziOperatorMetricsResponse empty(final String operatorName, final String namespace,
                                                         final String message) {
         return new StrimziOperatorMetricsResponse(operatorName, null, namespace, null, List.of(),
-            0, 0, List.of(), null, null, Instant.now(), message);
+            0, 0, null, List.of(), null, Instant.now(), message);
     }
 }

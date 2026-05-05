@@ -410,7 +410,7 @@ public class KafkaClusterDiagnosticService {
                                        final McpLog mcpLog) {
         try {
             KafkaMetricsResponse result = kafkaMetricsService.getKafkaMetrics(
-                namespace, clusterName, "replication", null, null, null, null, null);
+                namespace, clusterName, "replication", null, null, null, null, null, null, null);
             completed.add(STEP_METRICS);
             DiagnosticHelper.sendClientNotification(mcpLog, "Retrieved Kafka replication metrics");
             return result;

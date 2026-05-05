@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.service.metrics;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.quarkiverse.mcp.server.ToolCallException;
+import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.dto.metrics.PodTarget;
 import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Service for retrieving Strimzi operator metrics via pluggable providers.
@@ -60,6 +62,7 @@ public class StrimziOperatorMetricsService {
      * @param startTime    absolute start time in ISO 8601 format (optional, use with endTime)
      * @param endTime      absolute end time in ISO 8601 format (optional, use with startTime)
      * @param stepSeconds  range query step interval (optional, uses default)
+     * @param aggregation  aggregation level (optional, defaults to "broker")
      * @return the operator metrics response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -71,7 +74,8 @@ public class StrimziOperatorMetricsService {
                                                        final Integer rangeMinutes,
                                                        final String startTime,
                                                        final String endTime,
-                                                       final Integer stepSeconds) {
+                                                       final Integer stepSeconds,
+                                                       final String aggregation) {
         String ns = InputUtils.normalizeInput(namespace);
         String name = InputUtils.normalizeInput(operatorName);
         String cluster = InputUtils.normalizeInput(clusterName);
@@ -100,19 +104,21 @@ public class StrimziOperatorMetricsService {
             cluster != null ? " with entity operator for Kafka cluster '" + cluster + "'" : "",
             metricsQueryService.providerName());
 
-        List<PodTarget> podTargets = buildPodTargets(coPods, eoPods);
-        Map<String, String> labelMatchers = buildLabelMatchers(coPods, eoPods, cluster);
-
-        List<MetricSample> samples = metricsQueryService.queryMetrics(
-            podTargets, labelMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
+        List<MetricSample> samples = queryByNamespace(
+            coPods, eoPods, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
 
         String interpretation = buildInterpretation(categories, metricNames);
         String resolvedNs = !coPods.isEmpty()
             ? coPods.getFirst().getMetadata().getNamespace()
             : eoPods.getFirst().getMetadata().getNamespace();
 
+        AggregationLevel level = AggregationLevel.fromString(aggregation);
+        if (cat != null || metricNames == null || metricNames.isBlank()) {
+            String effectiveCat = cat != null ? cat : DEFAULT_CATEGORY;
+            level = level.clampTo(StrimziOperatorMetricCategories.maxGranularity(effectiveCat));
+        }
         return StrimziOperatorMetricsResponse.of(resolvedName, cluster, resolvedNs,
-            metricsQueryService.providerName(), categories, samples, interpretation);
+            metricsQueryService.providerName(), categories, samples, interpretation, level);
     }
 
     private void validatePodsFound(final List<Pod> coPods, final List<Pod> eoPods, final String namespace) {
@@ -146,17 +152,46 @@ public class StrimziOperatorMetricsService {
         return targets;
     }
 
-    private Map<String, String> buildLabelMatchers(final List<Pod> coPods, final List<Pod> eoPods,
-                                                    final String cluster) {
-        Map<String, String> matchers = new LinkedHashMap<>();
-        String ns = !coPods.isEmpty()
-            ? coPods.getFirst().getMetadata().getNamespace()
-            : eoPods.getFirst().getMetadata().getNamespace();
-        matchers.put("namespace", ns);
-        if (cluster != null) {
-            matchers.put("strimzi_io_cluster", cluster);
+    /**
+     * Queries CO and EO metrics separately to handle different namespaces and
+     * avoid label mismatches (operator metrics don't carry strimzi_io_cluster).
+     */
+    private List<MetricSample> queryByNamespace(final List<Pod> coPods, final List<Pod> eoPods,
+                                                 final List<String> metricNames,
+                                                 final Integer rangeMinutes, final String startTime,
+                                                 final String endTime, final Integer stepSeconds) {
+        String coNamespace = !coPods.isEmpty()
+            ? coPods.getFirst().getMetadata().getNamespace() : null;
+        String eoNamespace = !eoPods.isEmpty()
+            ? eoPods.getFirst().getMetadata().getNamespace() : null;
+
+        boolean sameNamespace = eoPods.isEmpty() || coPods.isEmpty()
+            || Objects.equals(coNamespace, eoNamespace);
+
+        if (sameNamespace) {
+            List<PodTarget> targets = buildPodTargets(coPods, eoPods);
+            Map<String, String> matchers = new LinkedHashMap<>();
+            matchers.put("namespace", coNamespace != null ? coNamespace : eoNamespace);
+            return metricsQueryService.queryMetrics(
+                targets, matchers, metricNames, rangeMinutes, startTime, endTime, stepSeconds);
         }
-        return matchers;
+
+        List<MetricSample> allSamples = new ArrayList<>();
+
+        List<PodTarget> coTargets = buildPodTargets(coPods, List.of());
+        Map<String, String> coMatchers = new LinkedHashMap<>();
+        coMatchers.put("namespace", coNamespace);
+        allSamples.addAll(metricsQueryService.queryMetrics(
+            coTargets, coMatchers, metricNames, rangeMinutes, startTime, endTime, stepSeconds));
+
+        List<PodTarget> eoTargets = buildPodTargets(List.of(), eoPods);
+        Map<String, String> eoMatchers = new LinkedHashMap<>();
+        eoMatchers.put("namespace", eoNamespace);
+        eoMatchers.put("pod", eoPods.getFirst().getMetadata().getName());
+        allSamples.addAll(metricsQueryService.queryMetrics(
+            eoTargets, eoMatchers, metricNames, rangeMinutes, startTime, endTime, stepSeconds));
+
+        return allSamples;
     }
 
     private String buildInterpretation(final List<String> categories, final String metricNames) {

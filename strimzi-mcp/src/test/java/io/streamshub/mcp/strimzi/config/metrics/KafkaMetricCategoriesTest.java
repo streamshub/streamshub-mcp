@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.config.metrics;
 
+import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -90,5 +91,28 @@ class KafkaMetricCategoriesTest {
     @Test
     void interpretationWithUnknownCategoryReturnsNull() {
         assertNull(KafkaMetricCategories.interpretation(List.of("nonexistent")));
+    }
+
+    @Test
+    void maxGranularityThroughputReturnsTopic() {
+        assertEquals(AggregationLevel.TOPIC, KafkaMetricCategories.maxGranularity("throughput"));
+        assertEquals(AggregationLevel.TOPIC, KafkaMetricCategories.maxGranularity("THROUGHPUT"));
+    }
+
+    @Test
+    void maxGranularityOtherCategoriesReturnsBroker() {
+        assertEquals(AggregationLevel.BROKER, KafkaMetricCategories.maxGranularity("replication"));
+        assertEquals(AggregationLevel.BROKER, KafkaMetricCategories.maxGranularity("performance"));
+        assertEquals(AggregationLevel.BROKER, KafkaMetricCategories.maxGranularity("resources"));
+    }
+
+    @Test
+    void maxGranularityNullReturnsBroker() {
+        assertEquals(AggregationLevel.BROKER, KafkaMetricCategories.maxGranularity(null));
+    }
+
+    @Test
+    void maxGranularityUnknownReturnsBroker() {
+        assertEquals(AggregationLevel.BROKER, KafkaMetricCategories.maxGranularity("nonexistent"));
     }
 }
