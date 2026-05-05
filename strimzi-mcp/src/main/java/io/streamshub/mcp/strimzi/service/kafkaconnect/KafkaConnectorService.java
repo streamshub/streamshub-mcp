@@ -87,6 +87,8 @@ public class KafkaConnectorService {
         if (normalizedName == null) {
             throw new ToolCallException("Connector name is required");
         }
+        InputUtils.validateK8sName(normalizedName, "connector name");
+        InputUtils.validateK8sName(ns, "namespace");
 
         LOG.infof("Getting KafkaConnector name=%s (namespace=%s)", normalizedName, ns != null ? ns : "auto");
 

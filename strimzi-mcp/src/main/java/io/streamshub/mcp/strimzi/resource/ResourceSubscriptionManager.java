@@ -48,6 +48,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -615,9 +616,13 @@ public class ResourceSubscriptionManager implements Closeable {
         final String description,
         final String json
     ) {
-        String previous = lastKnownState.put(uri, json);
+        AtomicBoolean changed = new AtomicBoolean();
+        lastKnownState.compute(uri, (key, previous) -> {
+            changed.set(!json.equals(previous));
+            return json;
+        });
 
-        if (json.equals(previous)) {
+        if (!changed.get()) {
             LOG.debugf(
                 "No change detected for resource: %s", uri);
             return;

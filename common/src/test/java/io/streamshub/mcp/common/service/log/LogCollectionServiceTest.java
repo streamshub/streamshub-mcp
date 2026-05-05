@@ -92,6 +92,20 @@ class LogCollectionServiceTest {
     }
 
     @Test
+    void testCollectLogsRejectsZeroTailLines() {
+        LogCollectionParams options = LogCollectionParams.of(null, null, 0, null);
+        assertThrows(IllegalArgumentException.class, () ->
+            logCollectionService.collectLogs("kafka", List.of(createSimplePod("pod-1")), options));
+    }
+
+    @Test
+    void testCollectLogsRejectsNegativeTailLines() {
+        LogCollectionParams options = LogCollectionParams.of(null, null, -5, null);
+        assertThrows(IllegalArgumentException.class, () ->
+            logCollectionService.collectLogs("kafka", List.of(createSimplePod("pod-1")), options));
+    }
+
+    @Test
     void testCollectLogsEmptyPodList() {
         LogCollectionParams options = LogCollectionParams.of(null, null, 100, null);
         PodLogsResult result = logCollectionService.collectLogs("kafka", List.of(), options);
@@ -99,6 +113,61 @@ class LogCollectionServiceTest {
         assertNotNull(result);
         assertTrue(result.podNames().isEmpty());
         assertEquals(0, result.totalLines());
+    }
+
+    // ---- 4a: tailLines tests ----
+
+    @Test
+    void testTailLinesReturnsLastNLines() {
+        String log = "line1\nline2\nline3\nline4\nline5\n";
+        String result = LogCollectionService.tailLines(log, 2);
+        assertEquals("line4\nline5\n", result);
+    }
+
+    @Test
+    void testTailLinesReturnsFullLogWhenFewerLines() {
+        String log = "line1\nline2\n";
+        String result = LogCollectionService.tailLines(log, 10);
+        assertEquals(log, result);
+    }
+
+    @Test
+    void testTailLinesHandlesSingleLine() {
+        String log = "only-line";
+        String result = LogCollectionService.tailLines(log, 5);
+        assertEquals("only-line", result);
+    }
+
+    // ---- 4c: deduplication tests ----
+
+    @Test
+    void testDeduplicateConsecutiveDuplicates() {
+        String result = logCollectionService.deduplicateLines(List.of("A", "A", "B"));
+        assertEquals("A [repeated 2 times]\nB\n", result);
+    }
+
+    @Test
+    void testDeduplicatePreservesNonConsecutive() {
+        String result = logCollectionService.deduplicateLines(List.of("A", "B", "A"));
+        assertEquals("A\nB\nA\n", result);
+    }
+
+    @Test
+    void testDeduplicateSingleLines() {
+        String result = logCollectionService.deduplicateLines(List.of("A", "B", "C"));
+        assertEquals("A\nB\nC\n", result);
+    }
+
+    @Test
+    void testDeduplicateAllIdentical() {
+        String result = logCollectionService.deduplicateLines(List.of("A", "A", "A"));
+        assertEquals("A [repeated 3 times]\n", result);
+    }
+
+    @Test
+    void testDeduplicateEmptyList() {
+        String result = logCollectionService.deduplicateLines(List.of());
+        assertEquals("", result);
     }
 
     private Pod createSimplePod(final String name) {

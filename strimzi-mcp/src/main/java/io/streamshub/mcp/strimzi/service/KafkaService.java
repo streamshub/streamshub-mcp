@@ -102,6 +102,8 @@ public class KafkaService {
         if (normalizedName == null) {
             throw new ToolCallException("Cluster name is required");
         }
+        InputUtils.validateK8sName(normalizedName, "cluster name");
+        InputUtils.validateK8sName(ns, "namespace");
 
         LOG.infof("Getting Kafka cluster name=%s (namespace=%s)", normalizedName, ns != null ? ns : "auto");
 
@@ -240,7 +242,7 @@ public class KafkaService {
                     addr.getPort(),
                     listener.getName(),
                     listenerTypesByName.getOrDefault(listener.getName(), KubernetesConstants.UNKNOWN),
-                    String.format("%s:%d", addr.getHost(), addr.getPort())
+                    formatHostPort(addr.getHost(), addr.getPort())
                 )))
             .toList();
     }
@@ -451,7 +453,7 @@ public class KafkaService {
                 if (listener.getAddresses() != null && !listener.getAddresses().isEmpty()) {
                     ListenerAddress addr = listener.getAddresses().getFirst();
                     if (addr.getHost() != null && addr.getPort() != null) {
-                        bootstrapAddress = String.format("%s:%d", addr.getHost(), addr.getPort());
+                        bootstrapAddress = formatHostPort(addr.getHost(), addr.getPort());
                     }
                 }
                 return ListenerInfo.of(
@@ -460,6 +462,13 @@ public class KafkaService {
                     bootstrapAddress);
             })
             .toList();
+    }
+
+    private static String formatHostPort(final String host, final int port) {
+        if (host.contains(":")) {
+            return String.format("[%s]:%d", host, port);
+        }
+        return String.format("%s:%d", host, port);
     }
 
     private boolean extractExternalAccess(final Kafka kafka) {

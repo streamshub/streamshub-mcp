@@ -93,6 +93,22 @@ class PodsServiceTest {
     }
 
     @Test
+    void testExtractPodSummaryNullSpec() {
+        Pod pod = new Pod();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName("no-spec-pod");
+        metadata.setNamespace("kafka");
+        metadata.setLabels(Map.of());
+        pod.setMetadata(metadata);
+
+        PodSummaryResponse.PodInfo info = podsService.extractPodSummary("kafka", pod);
+
+        assertNotNull(info);
+        assertEquals("no-spec-pod", info.name());
+        assertFalse(info.ready());
+    }
+
+    @Test
     void testDescribePodNullNamespaceThrows() {
         assertThrows(IllegalArgumentException.class, () ->
             podsService.describePod(null, "my-pod"));
