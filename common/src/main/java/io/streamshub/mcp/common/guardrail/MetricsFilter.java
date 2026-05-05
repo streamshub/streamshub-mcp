@@ -11,6 +11,7 @@ import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
@@ -21,9 +22,13 @@ import org.jboss.logging.Logger;
  *
  * <p>Records two metrics:</p>
  * <ul>
- *   <li>{@code mcp.tool.calls} (counter) &mdash; total tool invocations by tool name and status</li>
- *   <li>{@code mcp.tool.call.duration} (timer) &mdash; tool execution duration by tool name and status</li>
+ *   <li>{@code mcp.tool.calls} (counter) &mdash; total tool invocations by server, tool name, and status</li>
+ *   <li>{@code mcp.tool.call.duration} (timer) &mdash; tool execution duration by server, tool name, and status</li>
  * </ul>
+ *
+ * <p>The {@code server} tag is read from the {@code quarkus.mcp.server.server-info.name}
+ * config property, allowing metrics from different MCP servers to be distinguished
+ * in a shared Prometheus instance.</p>
  *
  * <p>Activates only when a {@link MeterRegistry} CDI bean is available
  * (e.g., when {@code quarkus-micrometer-registry-prometheus} is on the classpath).
@@ -36,6 +41,7 @@ public class MetricsFilter implements GuardrailFilter {
     private static final Logger LOG = Logger.getLogger(MetricsFilter.class);
     private static final String METRIC_TOOL_CALLS = "mcp.tool.calls";
     private static final String METRIC_TOOL_DURATION = "mcp.tool.call.duration";
+    private static final String TAG_SERVER = "server";
     private static final String TAG_TOOL = "tool";
     private static final String TAG_STATUS = "status";
     private static final String STATUS_SUCCESS = "success";
@@ -45,6 +51,9 @@ public class MetricsFilter implements GuardrailFilter {
 
     @Inject
     Instance<MeterRegistry> registryInstance;
+
+    @ConfigProperty(name = "quarkus.mcp.server.server-info.name", defaultValue = "mcp")
+    String serverName;
 
     private MeterRegistry registry;
 
@@ -108,10 +117,12 @@ public class MetricsFilter implements GuardrailFilter {
         }
         timerSample.remove();
         sample.stop(Timer.builder(METRIC_TOOL_DURATION)
+            .tag(TAG_SERVER, serverName)
             .tag(TAG_TOOL, toolName)
             .tag(TAG_STATUS, status)
             .register(registry));
-        registry.counter(METRIC_TOOL_CALLS, TAG_TOOL, toolName, TAG_STATUS, status).increment();
+        registry.counter(METRIC_TOOL_CALLS, TAG_SERVER, serverName, TAG_TOOL, toolName, TAG_STATUS, status)
+            .increment();
     }
 
     /**

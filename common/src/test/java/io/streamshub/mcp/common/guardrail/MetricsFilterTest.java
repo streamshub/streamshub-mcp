@@ -29,6 +29,7 @@ class MetricsFilterTest {
     @BeforeEach
     void setUp() {
         filter = new MetricsFilter();
+        filter.serverName = "test-mcp";
         registry = new SimpleMeterRegistry();
         filter.setRegistry(registry);
     }
@@ -41,6 +42,7 @@ class MetricsFilterTest {
         filter.filterOutput("listKafkaClusters", "result");
 
         Timer timer = registry.find("mcp.tool.call.duration")
+            .tag("server", "test-mcp")
             .tag("tool", "listKafkaClusters")
             .tag("status", "success")
             .timer();
@@ -48,6 +50,7 @@ class MetricsFilterTest {
         assertEquals(1, timer.count());
 
         Counter counter = registry.find("mcp.tool.calls")
+            .tag("server", "test-mcp")
             .tag("tool", "listKafkaClusters")
             .tag("status", "success")
             .counter();
@@ -63,6 +66,7 @@ class MetricsFilterTest {
         filter.filterError("getKafkaCluster", new RuntimeException("K8s API error"));
 
         Timer timer = registry.find("mcp.tool.call.duration")
+            .tag("server", "test-mcp")
             .tag("tool", "getKafkaCluster")
             .tag("status", "error")
             .timer();
@@ -70,6 +74,7 @@ class MetricsFilterTest {
         assertEquals(1, timer.count());
 
         Counter counter = registry.find("mcp.tool.calls")
+            .tag("server", "test-mcp")
             .tag("tool", "getKafkaCluster")
             .tag("status", "error")
             .counter();
@@ -86,6 +91,7 @@ class MetricsFilterTest {
         filter.filterError("listKafkaClusters", new RuntimeException("output filter failed"));
 
         Counter successCounter = registry.find("mcp.tool.calls")
+            .tag("server", "test-mcp")
             .tag("tool", "listKafkaClusters")
             .tag("status", "success")
             .counter();
@@ -93,6 +99,7 @@ class MetricsFilterTest {
         assertEquals(1.0, successCounter.count());
 
         Counter errorCounter = registry.find("mcp.tool.calls")
+            .tag("server", "test-mcp")
             .tag("tool", "listKafkaClusters")
             .tag("status", "error")
             .counter();
@@ -111,6 +118,7 @@ class MetricsFilterTest {
         filter.filterOutput("listKafkaClusters", "result3");
 
         Counter listCounter = registry.find("mcp.tool.calls")
+            .tag("server", "test-mcp")
             .tag("tool", "listKafkaClusters")
             .tag("status", "success")
             .counter();
@@ -118,6 +126,7 @@ class MetricsFilterTest {
         assertEquals(2.0, listCounter.count());
 
         Counter getCounter = registry.find("mcp.tool.calls")
+            .tag("server", "test-mcp")
             .tag("tool", "getKafkaCluster")
             .tag("status", "success")
             .counter();
@@ -166,6 +175,7 @@ class MetricsFilterTest {
         filter.filterOutput("getKafkaCluster", "ok");
 
         Counter successCounter = registry.find("mcp.tool.calls")
+            .tag("server", "test-mcp")
             .tag("tool", "getKafkaCluster")
             .tag("status", "success")
             .counter();
@@ -173,6 +183,7 @@ class MetricsFilterTest {
         assertEquals(2.0, successCounter.count());
 
         Counter errorCounter = registry.find("mcp.tool.calls")
+            .tag("server", "test-mcp")
             .tag("tool", "getKafkaCluster")
             .tag("status", "error")
             .counter();

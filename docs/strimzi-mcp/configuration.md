@@ -241,10 +241,10 @@ This is enabled automatically by the `quarkus-micrometer-registry-prometheus` de
 
 | Metric | Type | Tags | Description |
 |--------|------|------|-------------|
-| `mcp.tool.calls` | counter | `tool`, `status` | Total tool invocations |
-| `mcp.tool.call.duration` | timer | `tool`, `status` | Tool execution duration |
+| `mcp.tool.calls` | counter | `server`, `tool`, `status` | Total tool invocations |
+| `mcp.tool.call.duration` | timer | `server`, `tool`, `status` | Tool execution duration |
 
-The `status` tag is `success` or `error`. The `tool` tag is the tool method name (e.g., `listKafkaClusters`).
+The `server` tag is the MCP server name from `quarkus.mcp.server.server-info.name` (e.g., `strimzi-mcp`), allowing metrics from different MCP servers to be distinguished in a shared Prometheus instance. The `status` tag is `success` or `error`. The `tool` tag is the tool method name (e.g., `listKafkaClusters`).
 
 **Disable server metrics:**
 
