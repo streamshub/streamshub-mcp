@@ -52,14 +52,18 @@ Checkstyle runs during compile phase. Fix all violations before committing.
 io.streamshub.mcp.common.
 ├── config/         → KubernetesConstants (labels, conditions, phases, health status)
 ├── dto/            → PodSummaryResponse, PodLogsResult, LogCollectionParams (generic pod DTOs)
-│   └── metrics/    → MetricSample, PodTarget, MetricsQueryParams
+│   └── metrics/    → MetricSample, PodTarget, MetricsQueryParams, AggregatedTimeSeries,
+│                     AggregationLevel (PARTITION→TOPIC→BROKER→CLUSTER hierarchy)
+├── guardrail/      → Guarded, GuardrailFilter, GuardrailInterceptor, InputValidationFilter,
+│                     LogRedactionFilter, RateLimitFilter, ResponseSizeLimitFilter,
+│                     MetricsFilter (Micrometer tool call metrics), RateCategory
 ├── readiness/      → KubernetesConnectionReadinessCheck (health check for kube API)
 ├── service/        → KubernetesResourceService, PodsService, DeploymentService, CompletionHelper,
 │   │                 DiagnosticHelper (shared MCP framework utilities for diagnostic tools)
 │   ├── log/        → LogCollectionService, LogCollectorProvider, KubernetesLogProvider
 │   └── metrics/    → MetricsProvider (interface), PodScrapingMetricsProvider, MetricsQueryService
 └── util/           → InputUtils
-    └── metrics/    → PrometheusTextParser
+    └── metrics/    → PrometheusTextParser, MetricLabelFilter
 ```
 
 ### Prometheus metrics module (`metrics-prometheus/`)
@@ -130,6 +134,11 @@ io.streamshub.mcp.strimzi.
 - **Metrics providers** implement `MetricsProvider` interface. Selected via `@LookupIfProperty` on `mcp.metrics.provider`.
   Domain services use `MetricsQueryService` (in common/) to query metrics — it handles provider lookup,
   query param construction, and delegation. Do not inject `Instance<MetricsProvider>` directly in domain services.
+- **Metrics aggregation** uses `AggregatedTimeSeries.fromSamples(samples, level)` to group and average
+  metric samples by `AggregationLevel` (PARTITION → TOPIC → BROKER → CLUSTER). `MetricLabelFilter.labelsForAggregation()`
+  strips labels at each level. Each `*MetricCategories` class defines `finestLevel()` per category so the
+  requested level is clamped to what the category supports. Results include summary statistics (min, max, avg, latest)
+  and time-series compression for constant-value runs.
 - **Diagnostic services** orchestrate multi-step workflows by calling existing domain services.
   They use `DiagnosticHelper` (common/) for MCP framework interactions and `NamespaceElicitationHelper`
   (strimzi-mcp) for Strimzi-specific namespace disambiguation. Individual step failures do not abort the workflow.

@@ -64,4 +64,19 @@ public interface GuardrailFilter {
     default Object filterOutput(final String toolName, final Object result) {
         return result;
     }
+
+    /**
+     * Called when tool execution or output filtering fails with an exception.
+     * Allows filters to perform cleanup or record error metrics.
+     * Default implementation does nothing.
+     *
+     * <p>This method is called on <em>all</em> filters when an exception
+     * occurs after input filters have passed. Implementations must not
+     * throw — any exception is logged and suppressed by the interceptor.</p>
+     *
+     * @param toolName the tool method name
+     * @param error    the exception thrown during tool execution or output filtering
+     */
+    default void filterError(final String toolName, final Exception error) {
+    }
 }

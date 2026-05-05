@@ -232,6 +232,35 @@ MCP_SAMPLING_ANALYSIS_MAX_TOKENS=2000
 
 See [Diagnostic tools](tools/diagnostics.md) for more information.
 
+### Server metrics (Micrometer / Prometheus)
+
+The MCP server exposes its own operational metrics via Micrometer in Prometheus scrape format at `/q/metrics`.
+This is enabled automatically by the `quarkus-micrometer-registry-prometheus` dependency.
+
+**Exposed metrics:**
+
+| Metric | Type | Tags | Description |
+|--------|------|------|-------------|
+| `mcp.tool.calls` | counter | `server`, `tool`, `status` | Total tool invocations |
+| `mcp.tool.call.duration` | timer | `server`, `tool`, `status` | Tool execution duration |
+
+The `server` tag is the MCP server name from `quarkus.mcp.server.server-info.name` (e.g., `strimzi-mcp`), allowing metrics from different MCP servers to be distinguished in a shared Prometheus instance. The `status` tag is `success` or `error`. The `tool` tag is the tool method name (e.g., `listKafkaClusters`).
+
+**Disable server metrics:**
+
+```bash
+QUARKUS_MICROMETER_EXPORT_PROMETHEUS_ENABLED=false
+```
+
+**Prometheus scrape config example:**
+
+```yaml
+- job_name: strimzi-mcp
+  metrics_path: /q/metrics
+  static_configs:
+    - targets: ['strimzi-mcp.streamshub-mcp.svc:8080']
+```
+
 ### OpenTelemetry tracing
 
 Enable distributed tracing to observe MCP tool performance and debug slow responses.

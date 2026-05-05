@@ -14,9 +14,10 @@ install/strimzi-mcp/
 │   ├── clusterrolebinding.yaml
 │   ├── deployment.yaml
 │   └── service.yaml
-├── optional/                    # Per-namespace sensitive RBAC
+├── optional/                    # Optional resources (applied manually)
 │   ├── role-sensitive.yaml
-│   └── rolebinding-sensitive.yaml
+│   ├── rolebinding-sensitive.yaml
+│   └── podmonitor.yaml
 └── overlays/
     ├── dev/                     # Local development
     │   ├── kustomization.yaml
@@ -122,6 +123,17 @@ To grant sensitive permissions in the namespaces where you need them:
 kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n <kafka-namespace>
 kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n <kafka-namespace>
 ```
+
+## Metrics monitoring
+
+The MCP server exposes Prometheus metrics at `/q/metrics`. To enable scraping, apply the optional PodMonitor
+(requires the Prometheus Operator CRD to be installed):
+
+```bash
+kubectl apply -f install/strimzi-mcp/optional/podmonitor.yaml -n streamshub-mcp
+```
+
+This creates a PodMonitor that scrapes `mcp.tool.calls` and `mcp.tool.call.duration` metrics from the MCP server pods.
 
 ## Verification
 
