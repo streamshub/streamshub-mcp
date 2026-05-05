@@ -127,6 +127,8 @@ class McpDiscoveryTest {
                     "Prompt 'compare-cluster-configs' should be registered");
                 assertNotNull(page.findByName("audit-security"),
                     "Prompt 'audit-security' should be registered");
+                assertNotNull(page.findByName("troubleshoot-bridge"),
+                    "Prompt 'troubleshoot-bridge' should be registered");
             })
             .send()
             .thenAssertResults();
@@ -258,6 +260,27 @@ class McpDiscoveryTest {
                 assertTrue(content.contains("get_kafka_user"));
                 assertTrue(content.contains("get_kafka_cluster"));
                 assertTrue(content.contains("get_kafka_cluster_certificates"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify troubleshoot-bridge prompt generates correct instructions.
+     */
+    @Test
+    void testPromptGetTroubleshootBridge() {
+        client.when()
+            .promptsGet("troubleshoot-bridge")
+            .withArguments(Map.of("bridge_name", "my-bridge", "namespace", "kafka-prod"))
+            .withAssert(response -> {
+                assertFalse(response.messages().isEmpty());
+                String content = response.messages().getFirst().content().asText().text();
+                assertTrue(content.contains("my-bridge"));
+                assertTrue(content.contains("kafka-prod"));
+                assertTrue(content.contains("get_kafka_bridge"));
+                assertTrue(content.contains("get_kafka_bridge_pods"));
+                assertTrue(content.contains("get_kafka_bridge_logs"));
             })
             .send()
             .thenAssertResults();
