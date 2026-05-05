@@ -21,6 +21,9 @@ install/strimzi-mcp/
     ├── dev/                     # Local development
     │   ├── kustomization.yaml
     │   └── deployment-patch.yaml
+    ├── dev-openshift/           # Local development (OpenShift)
+    │   ├── kustomization.yaml
+    │   └── route.yaml
     ├── prod/                    # Production (Kubernetes)
     │   ├── kustomization.yaml
     │   └── deployment-patch.yaml
@@ -39,10 +42,21 @@ Contains the core resources shared by all environments: namespace, service accou
 
 For local development with images built and loaded into a local cluster (Kind, minikube).
 
-- `imagePullPolicy: IfNotPresent`
+- `imagePullPolicy: Always`
 
 ```bash
 kubectl apply -k install/strimzi-mcp/overlays/dev/
+```
+
+### Dev-OpenShift
+
+Extends the dev overlay with an OpenShift Route for external access (used by `dev-deploy.sh --ocp`).
+
+- Edge-terminated TLS Route
+- `imagePullPolicy: Always` (inherited from dev)
+
+```bash
+kubectl apply -k install/strimzi-mcp/overlays/dev-openshift/
 ```
 
 ### Prod

@@ -1,0 +1,53 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-producer
+  namespace: strimzi-kafka
+  labels:
+    app: kafka-producer
+    mcp: strimzi
+    system: strimzi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka-producer
+  template:
+    metadata:
+      labels:
+        app: kafka-producer
+    spec:
+      containers:
+        - name: kafka-producer
+          image: quay.io/strimzi-test-clients/test-clients:latest-kafka-4.2.0
+          env:
+            - name: MESSAGE_TEMPLATE
+              value: payment_fiat
+            - name: CLIENT_TYPE
+              value: KafkaProducer
+            - name: BOOTSTRAP_SERVERS
+              value: mcp-cluster-kafka-bootstrap:9093
+            - name: TOPIC
+              value: mcp-test-topic
+            - name: MESSAGE_COUNT
+              value: "999999999"
+            - name: DELAY_MS
+              value: "500"
+            - name: PRODUCER_ACKS
+              value: all
+            - name: CA_CRT
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-cluster-cluster-ca-cert
+                  key: ca.crt
+            - name: USER_CRT
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-test-client
+                  key: user.crt
+            - name: USER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-test-client
+                  key: user.key

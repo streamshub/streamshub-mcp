@@ -40,6 +40,11 @@ public final class StrimziConstants {
          */
         public static final String KAFKA_CONNECT = "KafkaConnect";
 
+        /**
+         * Kind label value for KafkaBridge pods.
+         */
+        public static final String KAFKA_BRIDGE = "KafkaBridge";
+
         private KindValues() {
         }
     }
@@ -82,6 +87,11 @@ public final class StrimziConstants {
          * Component type value for Kafka Exporter components.
          */
         public static final String KAFKA_EXPORTER = "kafka-exporter";
+
+        /**
+         * Component type value for Kafka Bridge components.
+         */
+        public static final String KAFKA_BRIDGE = "kafka-bridge";
 
         /**
          * Component types representing Kafka broker pods.

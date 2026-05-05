@@ -222,6 +222,13 @@ public final class StrimziToolsPrompts {
             + " Omit to list connectors across all Connect clusters.";
 
     /**
+     * KafkaBridge name parameter description.
+     */
+    public static final String BRIDGE_NAME_DESC =
+        "KafkaBridge name"
+            + " (e.g., 'my-bridge').";
+
+    /**
      * Drain cleaner name parameter description.
      */
     public static final String DRAIN_CLEANER_NAME_DESC =

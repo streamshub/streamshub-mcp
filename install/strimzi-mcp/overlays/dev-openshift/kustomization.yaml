@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: streamshub-mcp
+
+labels:
+- pairs:
+    app.kubernetes.io/name: strimzi-mcp
+  includeSelectors: true
+  includeTemplates: true
+- pairs:
+    app.kubernetes.io/part-of: streamshub
+    app.kubernetes.io/managed-by: kustomize
+  includeTemplates: true
+
+resources:
+- ../dev
+- route.yaml

@@ -60,10 +60,12 @@ Build the container image and deploy to a local cluster:
   -Dquarkus.container-image.build=true \
   -Dquarkus.container-image.tag=dev
 
-# Deploy (with Kind, Minikube, or k3d image loading)
+# Deploy (with Kind, Minikube, k3d image loading, or OpenShift)
 ./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:dev --kind
 ./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:dev --minikube
 ./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:dev --k3d
+./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:dev --ocp
+./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:dev --ocp --loki --prometheus
 
 # Or build and push to a custom registry, then deploy
 ./mvnw package -pl strimzi-mcp -am -DskipTests \
