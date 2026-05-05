@@ -14,7 +14,7 @@ import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.SamplingMessage;
 import io.quarkiverse.mcp.server.SamplingResponse;
 import io.quarkiverse.mcp.server.ToolCallException;
-import io.streamshub.mcp.common.dto.metrics.MetricSample;
+import io.streamshub.mcp.common.dto.metrics.AggregatedTimeSeries;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
@@ -258,7 +258,7 @@ public class KafkaMetricsDiagnosticService {
         KafkaMetricsResponse allMetrics;
         try {
             allMetrics = kafkaMetricsService.getKafkaMetrics(
-                namespace, clusterName, null, allNames, rangeMinutes, startTime, endTime, stepSeconds);
+                namespace, clusterName, null, allNames, rangeMinutes, startTime, endTime, stepSeconds, null, null);
         } catch (Exception e) {
             LOG.warnf("Failed to gather Kafka metrics: %s", e.getMessage());
             for (String cat : categoryMetricNames.keySet()) {
@@ -272,17 +272,17 @@ public class KafkaMetricsDiagnosticService {
         for (Map.Entry<String, List<String>> entry : categoryMetricNames.entrySet()) {
             String category = entry.getKey();
             Set<String> names = new HashSet<>(entry.getValue());
-            List<MetricSample> categorySamples = allMetrics.metrics() != null
-                ? allMetrics.metrics().stream()
-                    .filter(s -> names.contains(s.name()))
+            List<AggregatedTimeSeries> categorySeries = allMetrics.timeSeries() != null
+                ? allMetrics.timeSeries().stream()
+                    .filter(ts -> names.contains(ts.name()))
                     .toList()
                 : List.of();
 
             String interpretation = KafkaMetricCategories.interpretation(List.of(category));
-            KafkaMetricsResponse categoryResponse = KafkaMetricsResponse.of(
+            KafkaMetricsResponse categoryResponse = KafkaMetricsResponse.ofTimeSeries(
                 allMetrics.clusterName(), allMetrics.namespace(),
                 allMetrics.provider(), List.of(category),
-                categorySamples, interpretation);
+                categorySeries, interpretation);
             results.put(category, categoryResponse);
             completed.add(categoryStepName(category));
         }

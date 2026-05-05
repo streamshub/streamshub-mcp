@@ -241,6 +241,31 @@ public final class StrimziToolsPrompts {
         "Kafka cluster name to filter users."
             + " Omit to list users across all clusters.";
 
+    /**
+     * Aggregation level parameter description for metrics tools.
+     */
+    public static final String AGGREGATION_DESC =
+        "Aggregation level: 'partition' (full per-pod/topic/partition detail),"
+            + " 'topic' (per-pod/topic, avg across partitions),"
+            + " 'broker' (per-pod, avg across topics+partitions, default),"
+            + " or 'cluster' (single avg across all dimensions)."
+            + " Aggregation works on topic/partition dimensions."
+            + " The server automatically adjusts to the finest level supported by the"
+            + " requested category (e.g., 'partition' on a broker-only category becomes 'broker')."
+            + " For performance metrics (which have request type, not topic/partition),"
+            + " use requestTypes to control cardinality instead.";
+
+    /**
+     * Request types filter parameter description for Kafka metrics.
+     */
+    public static final String REQUEST_TYPES_DESC =
+        "Comma-separated list of Kafka request types to include"
+            + " (e.g., 'Produce,Fetch,FindCoordinator')."
+            + " Filters performance metrics that have a 'request' label."
+            + " Omit to include all request types."
+            + " Common types: Produce, Fetch, FetchConsumer, FetchFollower,"
+            + " FindCoordinator, Metadata, JoinGroup, SyncGroup, Heartbeat.";
+
     private StrimziToolsPrompts() {
     }
 }
