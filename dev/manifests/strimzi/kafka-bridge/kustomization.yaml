@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - 010-KafkaUser.yaml
+  - 020-KafkaBridge.yaml
+  - 030-KafkaTopic.yaml
+  - 040-PodMonitor.yaml
+  - 050-HttpProducer.yaml
+  - 060-HttpConsumer.yaml

@@ -88,6 +88,21 @@ public class PromptCompletions {
     }
 
     /**
+     * Complete arguments for the troubleshoot-bridge prompt.
+     *
+     * <p>Supports completions for {@code namespace} and {@code bridge_name}
+     * arguments.</p>
+     *
+     * @param partial the partial input value
+     * @param context the completion context with argument metadata
+     * @return matching values for the requested argument
+     */
+    @CompletePrompt("troubleshoot-bridge")
+    public List<String> completeTroubleshootBridgeArgs(final String partial, final CompleteContext context) {
+        return completionService.completeByArgumentName(partial, context);
+    }
+
+    /**
      * Complete arguments for the audit-security prompt.
      *
      * <p>Supports completions for {@code namespace} and {@code cluster_name} arguments.

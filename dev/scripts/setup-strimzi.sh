@@ -14,6 +14,8 @@ CLUSTER_NAME="mcp-cluster"
 INSTALL_PROMETHEUS=false
 INSTALL_LOKI=false
 INSTALL_DRAIN_CLEANER=false
+INSTALL_BRIDGE=false
+INSTALL_TEST_CLIENTS=false
 OCP=false
 
 # Colors
@@ -38,6 +40,26 @@ check_kubectl() {
         exit 1
     fi
     log_success "kubectl connected to cluster"
+}
+
+enable_user_workload_monitoring() {
+    log_info "Enabling OpenShift user-workload monitoring..."
+    kubectl apply -f - <<'UWMEOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+data:
+  config.yaml: |
+    enableUserWorkload: true
+UWMEOF
+    log_info "Waiting for user-workload monitoring pods..."
+    kubectl wait --for=condition=Available \
+        deployment/prometheus-operator \
+        -n openshift-user-workload-monitoring \
+        --timeout=300s 2>/dev/null || true
+    log_success "User-workload monitoring enabled"
 }
 
 deploy_prometheus() {
@@ -106,8 +128,60 @@ teardown_drain_cleaner() {
     log_success "Drain Cleaner removed"
 }
 
+deploy_bridge() {
+    log_info "Deploying KafkaBridge..."
+    kubectl apply -k "$STRIMZI_DIR/kafka-bridge/"
+
+    log_info "Waiting for KafkaBridge user to be ready..."
+    kubectl wait kafkauser/mcp-bridge-user \
+        --for=condition=Ready \
+        -n "$KAFKA_NS" \
+        --timeout=120s
+
+    log_info "Waiting for KafkaBridge to be ready..."
+    kubectl wait kafkabridge/mcp-bridge \
+        --for=condition=Ready \
+        -n "$KAFKA_NS" \
+        --timeout=300s
+    log_success "KafkaBridge is ready"
+}
+
+teardown_bridge() {
+    log_info "Removing KafkaBridge..."
+    kubectl delete -k "$STRIMZI_DIR/kafka-bridge/" --ignore-not-found
+    log_success "KafkaBridge removed"
+}
+
+deploy_test_clients() {
+    log_info "Deploying test clients..."
+    kubectl apply -k "$STRIMZI_DIR/test-clients/"
+
+    log_info "Waiting for test client user to be ready..."
+    kubectl wait kafkauser/mcp-test-client \
+        --for=condition=Ready \
+        -n "$KAFKA_NS" \
+        --timeout=120s
+
+    log_info "Waiting for test topic to be ready..."
+    kubectl wait kafkatopic/mcp-test-topic \
+        --for=condition=Ready \
+        -n "$KAFKA_NS" \
+        --timeout=120s
+    log_success "Test clients deployed"
+}
+
+teardown_test_clients() {
+    log_info "Removing test clients..."
+    kubectl delete -k "$STRIMZI_DIR/test-clients/" --ignore-not-found
+    log_success "Test clients removed"
+}
+
 deploy() {
     check_kubectl
+
+    if [ "$OCP" = true ]; then
+        enable_user_workload_monitoring
+    fi
 
     if [ "$INSTALL_PROMETHEUS" = true ]; then
         deploy_prometheus
@@ -154,6 +228,14 @@ deploy() {
         --timeout=120s
     log_success "KafkaUsers are ready"
 
+    if [ "$INSTALL_BRIDGE" = true ]; then
+        deploy_bridge
+    fi
+
+    if [ "$INSTALL_TEST_CLIENTS" = true ]; then
+        deploy_test_clients
+    fi
+
     echo ""
     log_success "Deployment complete"
     echo ""
@@ -169,6 +251,12 @@ deploy() {
     echo "Operator namespace:  $OPERATOR_NS"
     echo "Kafka namespace:     $KAFKA_NS"
     echo "Cluster name:        $CLUSTER_NAME"
+    if [ "$INSTALL_BRIDGE" = true ]; then
+        echo "KafkaBridge:         mcp-bridge"
+    fi
+    if [ "$INSTALL_TEST_CLIENTS" = true ]; then
+        echo "Test clients:        kafka-producer, kafka-consumer, http-producer, http-consumer"
+    fi
     echo ""
     echo "Verify with:"
     if [ "$INSTALL_PROMETHEUS" = true ]; then
@@ -184,10 +272,21 @@ deploy() {
     echo "  kubectl get pods -n $KAFKA_NS"
     echo "  kubectl get kafka -n $KAFKA_NS"
     echo "  kubectl get kafkauser -n $KAFKA_NS"
+    if [ "$INSTALL_BRIDGE" = true ]; then
+        echo "  kubectl get kafkabridge -n $KAFKA_NS"
+    fi
 }
 
 teardown() {
     check_kubectl
+
+    if [ "$INSTALL_TEST_CLIENTS" = true ]; then
+        teardown_test_clients
+    fi
+
+    if [ "$INSTALL_BRIDGE" = true ]; then
+        teardown_bridge
+    fi
 
     log_info "Removing Kafka cluster..."
     if [ "$OCP" = true ]; then
@@ -214,11 +313,13 @@ teardown() {
     log_success "Teardown complete"
 }
 
-COMMAND="${1:-deploy}"
-shift || true
+COMMAND="deploy"
 
 for arg in "$@"; do
     case "$arg" in
+        "deploy"|"up"|"teardown"|"down"|"delete"|"help"|"-h"|"--help")
+            COMMAND="$arg"
+            ;;
         "--prometheus")
             INSTALL_PROMETHEUS=true
             ;;
@@ -227,6 +328,12 @@ for arg in "$@"; do
             ;;
         "--drain-cleaner")
             INSTALL_DRAIN_CLEANER=true
+            ;;
+        "--bridge")
+            INSTALL_BRIDGE=true
+            ;;
+        "--test-clients")
+            INSTALL_TEST_CLIENTS=true
             ;;
         "--ocp")
             OCP=true
@@ -258,6 +365,8 @@ case "$COMMAND" in
         echo "  --prometheus     Also deploy/remove Prometheus for metrics collection"
         echo "  --loki           Also deploy/remove Loki for log collection (OpenShift only)"
         echo "  --drain-cleaner  Also deploy/remove Strimzi Drain Cleaner"
+        echo "  --bridge         Also deploy/remove KafkaBridge (HTTP REST API to Kafka)"
+        echo "  --test-clients   Also deploy/remove test clients (Kafka + HTTP producers/consumers)"
         ;;
     *)
         log_error "Unknown command: $COMMAND"

@@ -12,6 +12,7 @@ Complete reference for all tools, prompts, and resources provided by the Strimzi
 - **[Kafka user tools](kafka-users.md)** -- List and inspect KafkaUser resources, ACL rules, quotas, and authentication
 - **[Strimzi operator tools](strimzi-operators.md)** -- Manage Strimzi operators and view Kubernetes events for Kafka resources
 - **[KafkaConnect tools](kafka-connect.md)** -- Manage KafkaConnect clusters and KafkaConnectors
+- **[KafkaBridge tools](kafka-bridge.md)** -- Manage KafkaBridge HTTP REST API bridges
 - **[Drain Cleaner tools](drain-cleaner.md)** -- Monitor Strimzi Drain Cleaner deployment, webhook configuration, and readiness
 - **[Diagnostic tools](diagnostics.md)** -- Run multi-step diagnostic workflows with LLM-guided triage
 - **[Metrics tools](metrics.md)** -- Retrieve and analyze Prometheus metrics from Kafka and Strimzi components

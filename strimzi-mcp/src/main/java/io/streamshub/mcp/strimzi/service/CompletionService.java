@@ -9,6 +9,7 @@ import io.quarkiverse.mcp.server.CompleteContext;
 import io.streamshub.mcp.common.service.CompletionCache;
 import io.streamshub.mcp.common.service.CompletionHelper;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
+import io.strimzi.api.kafka.model.bridge.KafkaBridge;
 import io.strimzi.api.kafka.model.connect.KafkaConnect;
 import io.strimzi.api.kafka.model.connector.KafkaConnector;
 import io.strimzi.api.kafka.model.kafka.Kafka;
@@ -36,6 +37,7 @@ public class CompletionService {
     private static final String ARG_CLUSTER_NAME = "cluster_name";
     private static final String ARG_CONNECTOR_NAME = "connector_name";
     private static final String ARG_CONNECT_CLUSTER = "connect_cluster";
+    private static final String ARG_BRIDGE_NAME = "bridge_name";
     private static final String ARG_USER_NAME = "user_name";
 
     // Resource template variables match URI template placeholders (e.g., {name})
@@ -77,6 +79,9 @@ public class CompletionService {
         }
         if (args.containsKey(ARG_CONNECT_CLUSTER)) {
             return completeConnectClusterName(partial);
+        }
+        if (args.containsKey(ARG_BRIDGE_NAME)) {
+            return completeBridgeName(partial);
         }
         if (args.containsKey(ARG_USER_NAME)) {
             return completeUserName(partial);
@@ -210,6 +215,20 @@ public class CompletionService {
                 .getItems()
                 .stream()
                 .map(c -> c.getMetadata().getName())
+                .distinct()
+                .toList()
+        );
+        return completionHelper.filterByPrefix(names, partial);
+    }
+
+    private List<String> completeBridgeName(final String partial) {
+        List<String> names = completionCache.getOrFetch("kafkabridge", () ->
+            kubernetesClient.resources(KafkaBridge.class)
+                .inAnyNamespace()
+                .list()
+                .getItems()
+                .stream()
+                .map(b -> b.getMetadata().getName())
                 .distinct()
                 .toList()
         );

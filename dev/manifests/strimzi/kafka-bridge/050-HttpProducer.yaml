@@ -1,0 +1,40 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: http-producer
+  namespace: strimzi-kafka
+  labels:
+    app: http-producer
+    mcp: strimzi
+    system: strimzi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: http-producer
+  template:
+    metadata:
+      labels:
+        app: http-producer
+    spec:
+      containers:
+        - name: http-producer
+          image: quay.io/strimzi-test-clients/test-clients:latest-kafka-4.2.0
+          env:
+            - name: MESSAGE_TEMPLATE
+              value: payment_fiat
+            - name: MESSAGE_TYPE
+              value: json
+            - name: CLIENT_TYPE
+              value: HttpProducer
+            - name: HOSTNAME
+              value: mcp-bridge-bridge-service
+            - name: PORT
+              value: "8080"
+            - name: TOPIC
+              value: mcp-bridge-topic
+            - name: MESSAGE_COUNT
+              value: "999999999"
+            - name: DELAY_MS
+              value: "500"

@@ -19,6 +19,7 @@ import io.skodjob.kubetest4j.resources.RoleType;
 import io.skodjob.kubetest4j.resources.SecretType;
 import io.skodjob.kubetest4j.resources.ServiceAccountType;
 import io.skodjob.kubetest4j.resources.ServiceType;
+import io.streamshub.mcp.systemtest.resources.strimzi.KafkaBridgeType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaConnectType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaConnectorType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaNodePoolType;
@@ -53,6 +54,7 @@ public abstract class AbstractST {
             new KafkaType(),
             new KafkaNodePoolType(),
             new KafkaTopicType(),
+            new KafkaBridgeType(),
             new KafkaConnectType(),
             new KafkaConnectorType(),
             new KafkaUserType()
