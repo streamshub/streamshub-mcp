@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.service.metrics;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.quarkiverse.mcp.server.ToolCallException;
+import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.dto.metrics.PodTarget;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
@@ -63,6 +64,7 @@ public class KafkaExporterMetricsService {
      * @param startTime    absolute start time in ISO 8601 format (optional, use with endTime)
      * @param endTime      absolute end time in ISO 8601 format (optional, use with startTime)
      * @param stepSeconds  range query step interval (optional, uses default)
+     * @param aggregation  aggregation level (optional, defaults to "broker")
      * @return the Kafka Exporter metrics response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -73,7 +75,8 @@ public class KafkaExporterMetricsService {
                                                                   final Integer rangeMinutes,
                                                                   final String startTime,
                                                                   final String endTime,
-                                                                  final Integer stepSeconds) {
+                                                                  final Integer stepSeconds,
+                                                                  final String aggregation) {
         String ns = InputUtils.normalizeInput(namespace);
         String name = InputUtils.normalizeInput(clusterName);
         String cat = InputUtils.normalizeInput(category);
@@ -147,7 +150,12 @@ public class KafkaExporterMetricsService {
         }
         String interpretation = KafkaExporterMetricCategories.interpretation(effectiveCategories);
 
+        AggregationLevel level = AggregationLevel.fromString(aggregation);
+        if (cat != null || metricNames == null || metricNames.isBlank()) {
+            String effectiveCat = cat != null ? cat : DEFAULT_CATEGORY;
+            level = level.clampTo(KafkaExporterMetricCategories.maxGranularity(effectiveCat));
+        }
         return KafkaExporterMetricsResponse.of(name, resolvedNs,
-            metricsQueryService.providerName(), categories, samples, interpretation);
+            metricsQueryService.providerName(), categories, samples, interpretation, level);
     }
 }

@@ -4,6 +4,8 @@
  */
 package io.streamshub.mcp.strimzi.config.metrics;
 
+import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -86,6 +88,17 @@ public final class StrimziOperatorMetricCategories {
 
     private StrimziOperatorMetricCategories() {
         // Utility class — no instantiation
+    }
+
+    /**
+     * Returns the finest meaningful aggregation level for the given category.
+     * All operator categories aggregate at cluster level.
+     *
+     * @param category the category name (ignored — always returns CLUSTER)
+     * @return CLUSTER for all categories
+     */
+    public static AggregationLevel maxGranularity(final String category) {
+        return AggregationLevel.CLUSTER;
     }
 
     /**

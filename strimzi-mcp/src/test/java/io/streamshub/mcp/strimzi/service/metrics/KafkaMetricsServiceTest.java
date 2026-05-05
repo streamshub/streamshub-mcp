@@ -75,7 +75,7 @@ class KafkaMetricsServiceTest {
     @Test
     void missingClusterNameThrows() {
         ToolCallException ex = assertThrows(ToolCallException.class,
-            () -> kafkaMetricsService.getKafkaMetrics("kafka", null, null, null, null, null, null, null));
+            () -> kafkaMetricsService.getKafkaMetrics("kafka", null, null, null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Cluster name is required"));
     }
 
@@ -85,7 +85,7 @@ class KafkaMetricsServiceTest {
             .thenThrow(new ToolCallException("Kafka cluster 'missing' not found in namespace kafka"));
 
         ToolCallException ex = assertThrows(ToolCallException.class,
-            () -> kafkaMetricsService.getKafkaMetrics("kafka", "missing", null, null, null, null, null, null));
+            () -> kafkaMetricsService.getKafkaMetrics("kafka", "missing", null, null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("not found in namespace"));
     }
 
@@ -95,7 +95,7 @@ class KafkaMetricsServiceTest {
             .thenThrow(new ToolCallException("Kafka cluster 'missing' not found in any namespace"));
 
         ToolCallException ex = assertThrows(ToolCallException.class,
-            () -> kafkaMetricsService.getKafkaMetrics(null, "missing", null, null, null, null, null, null));
+            () -> kafkaMetricsService.getKafkaMetrics(null, "missing", null, null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("not found in any namespace"));
     }
 
@@ -106,7 +106,7 @@ class KafkaMetricsServiceTest {
             .thenReturn(kafka);
 
         ToolCallException ex = assertThrows(ToolCallException.class,
-            () -> kafkaMetricsService.getKafkaMetrics("kafka", "my-cluster", "invalid", null, null, null, null, null));
+            () -> kafkaMetricsService.getKafkaMetrics("kafka", "my-cluster", "invalid", null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Unknown metric category"));
     }
 
@@ -120,7 +120,7 @@ class KafkaMetricsServiceTest {
             .thenReturn(List.of());
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
-            "kafka", "my-cluster", null, null, null, null, null, null);
+            "kafka", "my-cluster", null, null, null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals(0, response.sampleCount());
@@ -145,7 +145,7 @@ class KafkaMetricsServiceTest {
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
-            "kafka", "my-cluster", "replication", null, null, null, null, null);
+            "kafka", "my-cluster", "replication", null, null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals("my-cluster", response.clusterName());
@@ -166,7 +166,7 @@ class KafkaMetricsServiceTest {
             .thenReturn(List.of(pod));
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
-            "kafka", "my-cluster", null, null, null, null, null, null);
+            "kafka", "my-cluster", null, null, null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals("my-cluster", response.clusterName());
@@ -184,7 +184,7 @@ class KafkaMetricsServiceTest {
             .thenReturn(List.of(pod));
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
-            "kafka", "my-cluster", null, "custom_metric_a,custom_metric_b", null, null, null, null);
+            "kafka", "my-cluster", null, "custom_metric_a,custom_metric_b", null, null, null, null, null, null);
 
         assertNotNull(response);
     }
@@ -196,7 +196,7 @@ class KafkaMetricsServiceTest {
                 "Multiple clusters named 'my-cluster' found in namespaces: kafka-a, kafka-b. Please specify namespace."));
 
         ToolCallException ex = assertThrows(ToolCallException.class,
-            () -> kafkaMetricsService.getKafkaMetrics(null, "my-cluster", null, null, null, null, null, null));
+            () -> kafkaMetricsService.getKafkaMetrics(null, "my-cluster", null, null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Multiple clusters"));
     }
 
@@ -214,7 +214,7 @@ class KafkaMetricsServiceTest {
             .thenReturn(List.of());
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
-            "kafka", "my-cluster", "replication", null, 60, null, null, 15);
+            "kafka", "my-cluster", "replication", null, 60, null, null, 15, null, null);
 
         assertNotNull(response);
     }
@@ -233,7 +233,7 @@ class KafkaMetricsServiceTest {
         // Provide a metric name that's already in the replication category
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
             "kafka", "my-cluster", "replication",
-            "kafka_server_replicamanager_underreplicatedpartitions,custom_metric", null, null, null, null);
+            "kafka_server_replicamanager_underreplicatedpartitions,custom_metric", null, null, null, null, null, null);
 
         assertNotNull(response);
     }
@@ -258,10 +258,151 @@ class KafkaMetricsServiceTest {
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
-            "kafka", "my-cluster", "replication", null, null, null, null, null);
+            "kafka", "my-cluster", "replication", null, null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals(1, response.sampleCount());
+    }
+
+    @Test
+    void requestTypesFilterKeepsMatchingAndNonRequestSamples() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_network_requestmetrics_totaltimems",
+                Map.of("request", "Produce", "quantile", "0.99"), 5.0),
+            MetricSample.of("kafka_network_requestmetrics_totaltimems",
+                Map.of("request", "Fetch", "quantile", "0.99"), 3.0),
+            MetricSample.of("kafka_network_requestmetrics_totaltimems",
+                Map.of("request", "Metadata", "quantile", "0.99"), 1.0),
+            MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
+                Map.of("namespace", "kafka"), 0.0));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(samples);
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "performance", null, null, null, null, null, null, "Produce,Fetch");
+
+        assertNotNull(response);
+        assertEquals(3, response.sampleCount());
+    }
+
+    @Test
+    void requestTypesFilterNullPassesAllThrough() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_network_requestmetrics_totaltimems",
+                Map.of("request", "Produce"), 5.0),
+            MetricSample.of("kafka_network_requestmetrics_totaltimems",
+                Map.of("request", "Metadata"), 1.0));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(samples);
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "performance", null, null, null, null, null, null, null);
+
+        assertNotNull(response);
+        assertEquals(2, response.sampleCount());
+    }
+
+    @Test
+    void aggregationClampedToBrokerForReplicationCategory() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "replication", null, null, null, null, null, "partition", null);
+
+        assertEquals("broker", response.aggregation());
+    }
+
+    @Test
+    void aggregationNotClampedForThroughputAtTopicLevel() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "throughput", null, null, null, null, null, "topic", null);
+
+        assertEquals("topic", response.aggregation());
+    }
+
+    @Test
+    void aggregationClampedToTopicForThroughputAtPartitionLevel() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "throughput", null, null, null, null, null, "partition", null);
+
+        assertEquals("topic", response.aggregation());
+    }
+
+    @Test
+    void aggregationNotClampedWhenExplicitMetricNamesOnly() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", null, "custom_metric", null, null, null, null, "partition", null);
+
+        assertEquals("partition", response.aggregation());
+    }
+
+    @Test
+    void aggregationClusterAlwaysPassesThrough() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "replication", null, null, null, null, null, "cluster", null);
+
+        assertEquals("cluster", response.aggregation());
     }
 
     private Kafka createKafka(final String name, final String namespace) {

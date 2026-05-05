@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.config.metrics;
 
+import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -79,5 +80,22 @@ class StrimziOperatorMetricCategoriesTest {
     @Test
     void interpretationWithUnknownCategoryReturnsNull() {
         assertNull(StrimziOperatorMetricCategories.interpretation(List.of("nonexistent")));
+    }
+
+    @Test
+    void maxGranularityAlwaysReturnsCluster() {
+        assertEquals(AggregationLevel.CLUSTER, StrimziOperatorMetricCategories.maxGranularity("reconciliation"));
+        assertEquals(AggregationLevel.CLUSTER, StrimziOperatorMetricCategories.maxGranularity("resources"));
+        assertEquals(AggregationLevel.CLUSTER, StrimziOperatorMetricCategories.maxGranularity("jvm"));
+    }
+
+    @Test
+    void maxGranularityNullReturnsCluster() {
+        assertEquals(AggregationLevel.CLUSTER, StrimziOperatorMetricCategories.maxGranularity(null));
+    }
+
+    @Test
+    void maxGranularityUnknownReturnsCluster() {
+        assertEquals(AggregationLevel.CLUSTER, StrimziOperatorMetricCategories.maxGranularity("nonexistent"));
     }
 }

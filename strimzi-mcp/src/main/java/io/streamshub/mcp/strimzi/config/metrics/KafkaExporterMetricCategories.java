@@ -4,7 +4,10 @@
  */
 package io.streamshub.mcp.strimzi.config.metrics;
 
+import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
+
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -92,6 +95,23 @@ public final class KafkaExporterMetricCategories {
     }
 
     /**
+     * Returns the finest meaningful aggregation level for the given category.
+     *
+     * @param category the category name (case-insensitive)
+     * @return the max granularity, defaults to BROKER for null/unknown
+     */
+    public static AggregationLevel maxGranularity(final String category) {
+        if (category == null) {
+            return AggregationLevel.BROKER;
+        }
+        String lower = category.toLowerCase(Locale.ROOT);
+        if (CONSUMER_LAG.equals(lower) || PARTITIONS.equals(lower)) {
+            return AggregationLevel.PARTITION;
+        }
+        return AggregationLevel.BROKER;
+    }
+
+    /**
      * Resolves a category name to its list of metric names.
      *
      * @param category the category name (case-insensitive)
@@ -101,7 +121,7 @@ public final class KafkaExporterMetricCategories {
         if (category == null) {
             return List.of();
         }
-        return CATEGORIES.getOrDefault(category.toLowerCase(java.util.Locale.ROOT), List.of());
+        return CATEGORIES.getOrDefault(category.toLowerCase(Locale.ROOT), List.of());
     }
 
     /**
@@ -124,7 +144,7 @@ public final class KafkaExporterMetricCategories {
             return null;
         }
         String result = categories.stream()
-            .map(c -> c.toLowerCase(java.util.Locale.ROOT))
+            .map(c -> c.toLowerCase(Locale.ROOT))
             .filter(DESCRIPTIONS::containsKey)
             .map(DESCRIPTIONS::get)
             .collect(Collectors.joining("\n\n"));

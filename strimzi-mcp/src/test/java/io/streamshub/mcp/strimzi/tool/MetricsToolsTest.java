@@ -417,9 +417,10 @@ class MetricsToolsTest {
 
     @Test
     void testGetKafkaMetrics() {
-        when(kafkaMetricsService.getKafkaMetrics(null, "my-cluster", null, null, null, null, null, null))
+        when(kafkaMetricsService.getKafkaMetrics(null, "my-cluster", null, null, null, null, null, null, null, null))
             .thenReturn(KafkaMetricsResponse.of("my-cluster", "kafka", "pod-scraping",
-                List.of("replication"), List.of(), null));
+                List.of("replication"), List.of(), null,
+                io.streamshub.mcp.common.dto.metrics.AggregationLevel.BROKER));
 
         client.when()
             .toolsCall("get_kafka_metrics", Map.of("clusterName", "my-cluster"), response -> {
@@ -433,9 +434,10 @@ class MetricsToolsTest {
 
     @Test
     void testGetStrimziOperatorMetrics() {
-        when(strimziOperatorMetricsService.getOperatorMetrics(null, null, null, null, null, null, null, null, null))
+        when(strimziOperatorMetricsService.getOperatorMetrics(null, null, null, null, null, null, null, null, null, null))
             .thenReturn(StrimziOperatorMetricsResponse.of("cluster-operator", null, "kafka-system",
-                "pod-scraping", List.of("reconciliation"), List.of(), null));
+                "pod-scraping", List.of("reconciliation"), List.of(), null,
+                io.streamshub.mcp.common.dto.metrics.AggregationLevel.BROKER));
 
         client.when()
             .toolsCall("get_strimzi_operator_metrics", Map.of(), response -> {

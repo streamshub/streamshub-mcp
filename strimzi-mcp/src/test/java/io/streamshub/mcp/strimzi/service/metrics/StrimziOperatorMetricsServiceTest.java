@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -76,7 +77,7 @@ class StrimziOperatorMetricsServiceTest {
 
         ToolCallException ex = assertThrows(ToolCallException.class,
             () -> strimziOperatorMetricsService.getOperatorMetrics(
-                "kafka-system", null, null, null, null, null, null, null, null));
+                "kafka-system", null, null, null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("No Strimzi operator pods found"));
     }
 
@@ -87,7 +88,7 @@ class StrimziOperatorMetricsServiceTest {
 
         ToolCallException ex = assertThrows(ToolCallException.class,
             () -> strimziOperatorMetricsService.getOperatorMetrics(
-                null, null, null, null, null, null, null, null, null));
+                null, null, null, null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("No Strimzi operator pods found"));
     }
 
@@ -98,7 +99,7 @@ class StrimziOperatorMetricsServiceTest {
 
         ToolCallException ex = assertThrows(ToolCallException.class,
             () -> strimziOperatorMetricsService.getOperatorMetrics(
-                "kafka-system", "strimzi-cluster-operator", null, null, null, null, null, null, null));
+                "kafka-system", "strimzi-cluster-operator", null, null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("No Strimzi operator pods found"));
     }
 
@@ -110,7 +111,7 @@ class StrimziOperatorMetricsServiceTest {
 
         ToolCallException ex = assertThrows(ToolCallException.class,
             () -> strimziOperatorMetricsService.getOperatorMetrics(
-                "kafka-system", null, null, "invalid", null, null, null, null, null));
+                "kafka-system", null, null, "invalid", null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Unknown metric category"));
     }
 
@@ -127,7 +128,7 @@ class StrimziOperatorMetricsServiceTest {
             .thenReturn(samples);
 
         StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
-            "kafka-system", null, null, "reconciliation", null, null, null, null, null);
+            "kafka-system", null, null, "reconciliation", null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals("cluster-operator", response.operatorName());
@@ -144,7 +145,7 @@ class StrimziOperatorMetricsServiceTest {
             .thenReturn(List.of(pod));
 
         StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
-            "kafka-system", null, null, null, null, null, null, null, null);
+            "kafka-system", null, null, null, null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals("kafka-system", response.namespace());
@@ -157,7 +158,7 @@ class StrimziOperatorMetricsServiceTest {
             .thenReturn(List.of(pod));
 
         StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
-            "kafka-system", null, null, null, "strimzi_resources,strimzi_resource_state", null, null, null, null);
+            "kafka-system", null, null, null, "strimzi_resources,strimzi_resource_state", null, null, null, null, null);
 
         assertNotNull(response);
     }
@@ -170,7 +171,7 @@ class StrimziOperatorMetricsServiceTest {
             .thenReturn(List.of(pod1, pod2));
 
         StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
-            null, null, null, null, null, null, null, null, null);
+            null, null, null, null, null, null, null, null, null, null);
 
         assertNotNull(response);
     }
@@ -182,7 +183,7 @@ class StrimziOperatorMetricsServiceTest {
             .thenReturn(List.of(matchingPod));
 
         StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
-            "kafka-system", "my-operator", null, null, null, null, null, null, null);
+            "kafka-system", "my-operator", null, null, null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals("my-operator", response.operatorName());
@@ -197,7 +198,7 @@ class StrimziOperatorMetricsServiceTest {
             .thenReturn(List.of());
 
         StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
-            "kafka-system", null, null, "reconciliation", null, 30, null, null, 10);
+            "kafka-system", null, null, "reconciliation", null, 30, null, null, 10, null);
 
         assertNotNull(response);
     }
@@ -216,26 +217,31 @@ class StrimziOperatorMetricsServiceTest {
             .thenReturn(List.of(eoPod));
 
         StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
-            null, null, "my-cluster", null, null, null, null, null, null);
+            null, null, "my-cluster", null, null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals("my-cluster", response.clusterName());
 
-        // Verify pod targets include CO (1 target) + EO (2 targets: UO port + TO port)
+        // Different namespaces → 2 separate queries (CO + EO)
         ArgumentCaptor<List<PodTarget>> targetsCaptor = ArgumentCaptor.forClass(List.class);
-        verify(metricsQueryService).queryMetrics(targetsCaptor.capture(), anyMap(), anyList(),
-            any(), any(), any(), any());
-        List<PodTarget> targets = targetsCaptor.getValue();
-        assertEquals(3, targets.size());
+        ArgumentCaptor<Map<String, String>> matchersCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(metricsQueryService, times(2)).queryMetrics(targetsCaptor.capture(),
+            matchersCaptor.capture(), anyList(), any(), any(), any(), any());
 
-        // CO target has no explicit port
-        assertNull(targets.get(0).port());
-        assertEquals("strimzi-system", targets.get(0).namespace());
+        // First call: CO targets with CO namespace
+        List<PodTarget> coTargets = targetsCaptor.getAllValues().get(0);
+        assertEquals(1, coTargets.size());
+        assertNull(coTargets.get(0).port());
+        assertEquals("strimzi-system", coTargets.get(0).namespace());
+        assertEquals("strimzi-system", matchersCaptor.getAllValues().get(0).get("namespace"));
 
-        // EO targets have explicit ports
-        assertEquals(StrimziConstants.EntityOperator.USER_OPERATOR_PORT, targets.get(1).port());
-        assertEquals(StrimziConstants.EntityOperator.TOPIC_OPERATOR_PORT, targets.get(2).port());
-        assertEquals("kafka-prod", targets.get(1).namespace());
+        // Second call: EO targets with EO namespace + pod filter
+        List<PodTarget> eoTargets = targetsCaptor.getAllValues().get(1);
+        assertEquals(2, eoTargets.size());
+        assertEquals(StrimziConstants.EntityOperator.USER_OPERATOR_PORT, eoTargets.get(0).port());
+        assertEquals(StrimziConstants.EntityOperator.TOPIC_OPERATOR_PORT, eoTargets.get(1).port());
+        assertEquals("kafka-prod", matchersCaptor.getAllValues().get(1).get("namespace"));
+        assertEquals("my-cluster-entity-operator-xyz", matchersCaptor.getAllValues().get(1).get("pod"));
     }
 
     @Test
@@ -247,7 +253,7 @@ class StrimziOperatorMetricsServiceTest {
             .thenReturn(List.of());
 
         StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
-            "kafka-system", null, "my-cluster", null, null, null, null, null, null);
+            "kafka-system", null, "my-cluster", null, null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals("my-cluster", response.clusterName());
@@ -255,6 +261,7 @@ class StrimziOperatorMetricsServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void clusterNameWithDifferentNamespacesCOandEO() {
         Pod coPod = createPod("strimzi-cluster-operator-abc", "strimzi-system");
         when(strimziOperatorService.findClusterOperatorPods(null, null))
@@ -265,15 +272,22 @@ class StrimziOperatorMetricsServiceTest {
             .thenReturn(List.of(eoPod));
 
         StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
-            null, null, "my-cluster", null, null, null, null, null, null);
+            null, null, "my-cluster", null, null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals("strimzi-system", response.namespace());
+
+        // Different namespaces → 2 separate queries
+        ArgumentCaptor<Map<String, String>> matchersCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(metricsQueryService, times(2)).queryMetrics(anyList(),
+            matchersCaptor.capture(), anyList(), any(), any(), any(), any());
+        assertEquals("strimzi-system", matchersCaptor.getAllValues().get(0).get("namespace"));
+        assertEquals("kafka-prod", matchersCaptor.getAllValues().get(1).get("namespace"));
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    void clusterNameAddsLabelMatcherForPrometheus() {
+    void clusterNameWithNoEOPodsQueriesByNamespaceOnly() {
         Pod coPod = createPod("strimzi-cluster-operator-abc", "kafka-system");
         when(strimziOperatorService.findClusterOperatorPods("kafka-system", null))
             .thenReturn(List.of(coPod));
@@ -281,16 +295,18 @@ class StrimziOperatorMetricsServiceTest {
             .thenReturn(List.of());
 
         strimziOperatorMetricsService.getOperatorMetrics(
-            "kafka-system", null, "my-cluster", null, null, null, null, null, null);
+            "kafka-system", null, "my-cluster", null, null, null, null, null, null, null);
 
         ArgumentCaptor<Map<String, String>> matchersCaptor = ArgumentCaptor.forClass(Map.class);
         verify(metricsQueryService).queryMetrics(anyList(), matchersCaptor.capture(), anyList(),
             any(), any(), any(), any());
         Map<String, String> matchers = matchersCaptor.getValue();
-        assertEquals("my-cluster", matchers.get("strimzi_io_cluster"));
+        assertEquals("kafka-system", matchers.get("namespace"));
+        assertNull(matchers.get("strimzi_io_cluster"));
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void entityOperatorOnlyWhenNoCOPodsFound() {
         when(strimziOperatorService.findClusterOperatorPods(null, null))
             .thenReturn(List.of());
@@ -300,10 +316,41 @@ class StrimziOperatorMetricsServiceTest {
             .thenReturn(List.of(eoPod));
 
         StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
-            null, null, "my-cluster", null, null, null, null, null, null);
+            null, null, "my-cluster", null, null, null, null, null, null, null);
 
         assertNotNull(response);
         assertEquals("kafka-prod", response.namespace());
+
+        ArgumentCaptor<Map<String, String>> matchersCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(metricsQueryService).queryMetrics(anyList(), matchersCaptor.capture(), anyList(),
+            any(), any(), any(), any());
+        Map<String, String> matchers = matchersCaptor.getValue();
+        assertEquals("kafka-prod", matchers.get("namespace"));
+        assertNull(matchers.get("strimzi_io_cluster"));
+    }
+
+    @Test
+    void aggregationClampedToClusterForReconciliationCategory() {
+        Pod pod = createPod("strimzi-cluster-operator-abc123", "kafka-system");
+        when(strimziOperatorService.findClusterOperatorPods("kafka-system", null))
+            .thenReturn(List.of(pod));
+
+        StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
+            "kafka-system", null, null, "reconciliation", null, null, null, null, null, "broker");
+
+        assertEquals("cluster", response.aggregation());
+    }
+
+    @Test
+    void aggregationClampedToClusterForDefaultCategory() {
+        Pod pod = createPod("strimzi-cluster-operator-abc123", "kafka-system");
+        when(strimziOperatorService.findClusterOperatorPods("kafka-system", null))
+            .thenReturn(List.of(pod));
+
+        StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
+            "kafka-system", null, null, null, null, null, null, null, null, null);
+
+        assertEquals("cluster", response.aggregation());
     }
 
     private Pod createPod(final String name, final String namespace) {
