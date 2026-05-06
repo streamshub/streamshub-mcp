@@ -134,6 +134,22 @@ Step-by-step troubleshooting of a KafkaConnector issue.
 5. Check Kubernetes events
 6. Correlate and diagnose (connector config vs platform vs external issues)
 
+### troubleshoot-bridge
+
+Step-by-step troubleshooting of a KafkaBridge issue.
+
+**Parameters**:
+- `bridge_name` (required) -- Name of the KafkaBridge to troubleshoot
+- `namespace` (optional) -- Kubernetes namespace
+- `symptom` (optional) -- Observed symptom (e.g., "bridge not ready", "HTTP 503")
+
+**Workflow**:
+1. Check bridge status and configuration
+2. Check bridge pods
+3. Check bridge logs for errors
+4. Check Kubernetes events
+5. Correlate and diagnose (bridge config, Kafka connectivity, pod/resource, HTTP/CORS, operator issues)
+
 ### troubleshoot-topic
 
 Step-by-step troubleshooting of a KafkaTopic issue. Focuses on topic-specific diagnosis and delegates to `diagnose-cluster-issue` or `analyze-kafka-metrics` for cluster-level problems.

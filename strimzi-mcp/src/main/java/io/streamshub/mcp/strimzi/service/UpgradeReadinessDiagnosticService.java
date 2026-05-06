@@ -386,7 +386,7 @@ public class UpgradeReadinessDiagnosticService {
                                                       final List<String> failed,
                                                       final McpLog mcpLog) {
         try {
-            DrainCleanerReadinessResponse result = drainCleanerService.checkReadiness(namespace);
+            DrainCleanerReadinessResponse result = drainCleanerService.checkReadiness(null);
             completed.add(STEP_DRAIN_CLEANER);
             DiagnosticHelper.sendClientNotification(mcpLog,
                 "Checked Drain Cleaner readiness: "

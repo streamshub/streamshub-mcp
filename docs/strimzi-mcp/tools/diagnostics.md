@@ -107,6 +107,53 @@ Gathers connector status, parent KafkaConnect cluster health, Connect pod status
 Diagnose issues with my-debezium-connector
 ```
 
+## diagnose_kafka_topic
+
+Runs a multi-step diagnostic workflow for a KafkaTopic.
+Gathers topic status, related topics (scope detection), cluster health, operator logs, events, and Kafka Exporter metrics in a single call.
+
+**3-Phase workflow**:
+1. **Phase 1 -- Initial data gathering**: Topic status, related topics for scope detection (isolated vs cluster-wide), parent cluster health gate.
+2. **Phase 2 -- Deep investigation**: Operator logs (filtered for topic name), Kubernetes events, Kafka Exporter partition metrics.
+3. **Phase 3 -- Analysis**: Root cause analysis distinguishing topic config issues, Topic Operator issues, and cluster-wide problems.
+
+**Parameters**:
+- `topicName` (required) -- Name of the KafkaTopic
+- `clusterName` (optional) -- Kafka cluster name (auto-discovered from topic labels)
+- `namespace` (optional) -- Kubernetes namespace
+- `symptom` (optional) -- Observed symptom or issue description
+
+**Uses Sampling**: Yes -- LLM-guided triage and analysis
+**Uses Elicitation**: Yes -- Namespace disambiguation
+
+**Example**:
+```
+Diagnose issues with my-topic on cluster my-cluster
+```
+
+## assess_upgrade_readiness
+
+Assesses whether a Kafka cluster is ready for a Strimzi or Kafka version upgrade.
+Checks cluster health, operator status, pod health, replication, resource headroom, Drain Cleaner, and certificates.
+
+**3-Phase workflow**:
+1. **Phase 1 -- Pre-flight checks**: Cluster health, operator status, node pools and pods, replication metrics.
+2. **Phase 2 -- Safety checks**: Performance metrics (headroom), resource metrics, Drain Cleaner readiness, certificate expiry, events.
+3. **Phase 3 -- Verdict**: GO/NO-GO/CONDITIONAL verdict with pre-flight checklist and maintenance window estimate.
+
+**Parameters**:
+- `clusterName` (required) -- Name of the Kafka cluster
+- `namespace` (optional) -- Kubernetes namespace
+- `targetVersion` (optional) -- Target Kafka or Strimzi version (e.g., "Kafka 4.2.0")
+
+**Uses Sampling**: Yes -- GO/NO-GO verdict generation
+**Uses Elicitation**: Yes -- Namespace disambiguation
+
+**Example**:
+```
+Check if my-cluster is ready for upgrade to Kafka 4.2.0
+```
+
 ## compare_kafka_clusters
 
 Compares the effective configuration of two Kafka clusters.
