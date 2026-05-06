@@ -106,7 +106,6 @@ public class KafkaConfigService {
             kafkaSpec != null ? kafkaSpec.getVersion() : null,
             kafkaSpec != null ? kafkaSpec.getMetadataVersion() : null,
             kafkaSpec != null ? kafkaSpec.getConfig() : null,
-            kafkaSpec != null ? extractResources(kafkaSpec.getResources()) : null,
             kafkaSpec != null ? extractJvmOptions(kafkaSpec.getJvmOptions()) : null,
             kafkaSpec != null ? extractRack(kafkaSpec.getRack()) : null,
             extractListenerConfigs(kafka),

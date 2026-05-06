@@ -147,4 +147,49 @@ public class PromptCompletions {
     public List<String> completeAnalyzeOperatorMetricsArgs(final String partial, final CompleteContext context) {
         return completionService.completeByArgumentName(partial, context);
     }
+
+    /**
+     * Complete arguments for the troubleshoot-topic prompt.
+     *
+     * <p>Supports completions for {@code namespace}, {@code cluster_name},
+     * and {@code topic_name} arguments.</p>
+     *
+     * @param partial the partial input value
+     * @param context the completion context with argument metadata
+     * @return matching values for the requested argument
+     */
+    @CompletePrompt("troubleshoot-topic")
+    public List<String> completeTroubleshootTopicArgs(final String partial, final CompleteContext context) {
+        return completionService.completeByArgumentName(partial, context);
+    }
+
+    /**
+     * Complete arguments for the analyze-capacity prompt.
+     *
+     * <p>Supports completions for {@code namespace} and {@code cluster_name} arguments.
+     * The argument being completed is identified via the MCP completion request context.</p>
+     *
+     * @param partial the partial input value
+     * @param context the completion context with argument metadata
+     * @return matching values for the requested argument
+     */
+    @CompletePrompt("analyze-capacity")
+    public List<String> completeAnalyzeCapacityArgs(final String partial, final CompleteContext context) {
+        return completionService.completeByArgumentName(partial, context);
+    }
+
+    /**
+     * Complete arguments for the assess-upgrade-readiness prompt.
+     *
+     * <p>Supports completions for {@code namespace} and {@code cluster_name} arguments.
+     * The argument being completed is identified via the MCP completion request context.</p>
+     *
+     * @param partial the partial input value
+     * @param context the completion context with argument metadata
+     * @return matching values for the requested argument
+     */
+    @CompletePrompt("assess-upgrade-readiness")
+    public List<String> completeAssessUpgradeArgs(final String partial, final CompleteContext context) {
+        return completionService.completeByArgumentName(partial, context);
+    }
 }

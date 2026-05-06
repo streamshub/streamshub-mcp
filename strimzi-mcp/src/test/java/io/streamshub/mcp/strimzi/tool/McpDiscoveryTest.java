@@ -96,7 +96,9 @@ class McpDiscoveryTest {
                     "get_kafka_metrics",
                     "get_kafka_exporter_metrics",
                     "get_kafka_bridge_metrics",
-                    "get_strimzi_operator_metrics"
+                    "get_strimzi_operator_metrics",
+                    "diagnose_kafka_topic",
+                    "assess_upgrade_readiness"
                 );
 
                 for (String toolName : expectedTools) {
@@ -130,6 +132,12 @@ class McpDiscoveryTest {
                     "Prompt 'audit-security' should be registered");
                 assertNotNull(page.findByName("troubleshoot-bridge"),
                     "Prompt 'troubleshoot-bridge' should be registered");
+                assertNotNull(page.findByName("troubleshoot-topic"),
+                    "Prompt 'troubleshoot-topic' should be registered");
+                assertNotNull(page.findByName("analyze-capacity"),
+                    "Prompt 'analyze-capacity' should be registered");
+                assertNotNull(page.findByName("assess-upgrade-readiness"),
+                    "Prompt 'assess-upgrade-readiness' should be registered");
             })
             .send()
             .thenAssertResults();
@@ -282,6 +290,72 @@ class McpDiscoveryTest {
                 assertTrue(content.contains("get_kafka_bridge"));
                 assertTrue(content.contains("get_kafka_bridge_pods"));
                 assertTrue(content.contains("get_kafka_bridge_logs"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify troubleshoot-topic prompt generates correct instructions.
+     */
+    @Test
+    void testPromptGetTroubleshootTopic() {
+        client.when()
+            .promptsGet("troubleshoot-topic")
+            .withArguments(Map.of("topic_name", "my-topic", "cluster_name", "my-cluster",
+                "namespace", "kafka-prod"))
+            .withAssert(response -> {
+                assertFalse(response.messages().isEmpty());
+                String content = response.messages().getFirst().content().asText().text();
+                assertTrue(content.contains("my-topic"));
+                assertTrue(content.contains("my-cluster"));
+                assertTrue(content.contains("kafka-prod"));
+                assertTrue(content.contains("get_kafka_topic"));
+                assertTrue(content.contains("list_kafka_topics"));
+                assertTrue(content.contains("get_strimzi_operator_logs"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify analyze-capacity prompt generates correct instructions.
+     */
+    @Test
+    void testPromptGetAnalyzeCapacity() {
+        client.when()
+            .promptsGet("analyze-capacity")
+            .withArguments(Map.of("cluster_name", "my-cluster", "namespace", "kafka-prod"))
+            .withAssert(response -> {
+                assertFalse(response.messages().isEmpty());
+                String content = response.messages().getFirst().content().asText().text();
+                assertTrue(content.contains("my-cluster"));
+                assertTrue(content.contains("kafka-prod"));
+                assertTrue(content.contains("get_kafka_cluster"));
+                assertTrue(content.contains("get_kafka_metrics"));
+                assertTrue(content.contains("list_kafka_topics"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify assess-upgrade-readiness prompt generates correct instructions.
+     */
+    @Test
+    void testPromptGetAssessUpgradeReadiness() {
+        client.when()
+            .promptsGet("assess-upgrade-readiness")
+            .withArguments(Map.of("cluster_name", "my-cluster", "namespace", "kafka-prod"))
+            .withAssert(response -> {
+                assertFalse(response.messages().isEmpty());
+                String content = response.messages().getFirst().content().asText().text();
+                assertTrue(content.contains("my-cluster"));
+                assertTrue(content.contains("kafka-prod"));
+                assertTrue(content.contains("get_kafka_cluster"));
+                assertTrue(content.contains("GO/NO-GO"));
+                assertTrue(content.contains("get_kafka_metrics"));
+                assertTrue(content.contains("check_drain_cleaner_readiness"));
             })
             .send()
             .thenAssertResults();

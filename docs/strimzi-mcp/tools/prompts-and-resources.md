@@ -134,6 +134,64 @@ Step-by-step troubleshooting of a KafkaConnector issue.
 5. Check Kubernetes events
 6. Correlate and diagnose (connector config vs platform vs external issues)
 
+### troubleshoot-topic
+
+Step-by-step troubleshooting of a KafkaTopic issue. Focuses on topic-specific diagnosis and delegates to `diagnose-cluster-issue` or `analyze-kafka-metrics` for cluster-level problems.
+
+**Parameters**:
+- `topic_name` (required) -- Name of the KafkaTopic to troubleshoot
+- `cluster_name` (optional) -- Kafka cluster name (auto-discovered from topic labels if omitted)
+- `namespace` (optional) -- Kubernetes namespace
+- `symptom` (optional) -- Observed symptom (e.g., "NotReady", "config mismatch", "reconciliation stalled")
+
+**Workflow**:
+1. Check topic status, conditions, and configuration
+2. Determine scope -- isolated topic issue or cluster-wide problem
+3. Quick cluster health gate (redirects to `diagnose-cluster-issue` if cluster is NotReady)
+4. Check Topic Operator reconciliation logs for this specific topic
+5. Check Kubernetes events
+6. Diagnose and recommend (topic config, operator issues, or redirect to cluster prompts)
+
+### analyze-capacity
+
+Capacity analysis of a Kafka cluster.
+
+**Parameters**:
+- `cluster_name` (required) -- Name of the Kafka cluster
+- `namespace` (optional) -- Kubernetes namespace
+- `concern` (optional) -- Specific concern (e.g., "storage running low", "planning for traffic increase")
+
+**Workflow**:
+1. Inventory cluster topology and resource allocation per node pool
+2. Check pod resource utilization and restart counts
+3. Assess broker performance metrics (request handler idle, network processor idle)
+4. Check JVM and resource metrics (heap usage, GC pressure)
+5. Assess throughput volume and broker balance
+6. Check replication health and partition distribution
+7. Assess topic and partition scale
+8. Check Kafka Exporter consumer lag and partition metrics
+9. Produce capacity report with utilization, bottlenecks, and scaling recommendations
+
+### assess-upgrade-readiness
+
+Pre-upgrade readiness check for a Kafka cluster.
+
+**Parameters**:
+- `cluster_name` (required) -- Name of the Kafka cluster
+- `namespace` (optional) -- Kubernetes namespace
+- `target_version` (optional) -- Target Kafka or Strimzi version (e.g., "Kafka 4.2.0")
+
+**Workflow**:
+1. Check cluster health baseline (GO/NO-GO)
+2. Check operator health (GO/NO-GO)
+3. Check node pool and pod health (GO/NO-GO)
+4. Check replication health -- critical for rolling restart safety (GO/NO-GO)
+5. Check resource headroom for absorbing rolling restart load (GO/NO-GO)
+6. Check Drain Cleaner readiness (GO/NO-GO)
+7. Check certificate health (advisory)
+8. Check Kubernetes events (advisory)
+9. Produce upgrade readiness verdict (GO/NO-GO/CONDITIONAL) with pre-flight checklist
+
 ## Resource templates
 
 Resource templates expose Strimzi data as structured JSON that clients can attach to conversations.

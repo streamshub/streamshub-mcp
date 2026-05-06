@@ -38,6 +38,7 @@ public class CompletionService {
     private static final String ARG_CONNECTOR_NAME = "connector_name";
     private static final String ARG_CONNECT_CLUSTER = "connect_cluster";
     private static final String ARG_BRIDGE_NAME = "bridge_name";
+    private static final String ARG_TOPIC_NAME = "topic_name";
     private static final String ARG_USER_NAME = "user_name";
 
     // Resource template variables match URI template placeholders (e.g., {name})
@@ -73,6 +74,9 @@ public class CompletionService {
             if (key.startsWith(ARG_CLUSTER_NAME)) {
                 return completeClusterName(partial);
             }
+        }
+        if (args.containsKey(ARG_TOPIC_NAME)) {
+            return completeTopicName(partial);
         }
         if (args.containsKey(ARG_CONNECTOR_NAME)) {
             return completeConnectorName(partial);

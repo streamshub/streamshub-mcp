@@ -19,7 +19,6 @@ import java.util.Map;
  * @param kafkaVersion       Kafka version from the CR spec
  * @param metadataVersion    KRaft metadata version
  * @param brokerConfig       raw broker configuration from spec.kafka.config
- * @param resources          CPU and memory requests/limits for Kafka brokers
  * @param jvmOptions         JVM options for Kafka brokers
  * @param rackAwareness      rack awareness topology configuration
  * @param listeners          listener configurations with TLS and auth details
@@ -39,7 +38,6 @@ public record KafkaEffectiveConfigResponse(
     @JsonProperty("kafka_version") String kafkaVersion,
     @JsonProperty("metadata_version") String metadataVersion,
     @JsonProperty("broker_config") Map<String, Object> brokerConfig,
-    @JsonProperty("resources") ResourcesInfo resources,
     @JsonProperty("jvm_options") JvmOptionsInfo jvmOptions,
     @JsonProperty("rack_awareness") RackInfo rackAwareness,
     @JsonProperty("listeners") List<ListenerConfigInfo> listeners,
