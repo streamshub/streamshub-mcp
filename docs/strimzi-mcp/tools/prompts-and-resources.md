@@ -144,9 +144,9 @@ Step-by-step troubleshooting of a KafkaBridge issue.
 - `symptom` (optional) -- Observed symptom (e.g., "bridge not ready", "HTTP 503")
 
 **Workflow**:
-1. Check bridge status and configuration
-2. Check bridge pods
-3. Check bridge logs for errors
+1. Check KafkaBridge status and configuration
+2. Check KafkaBridge pods
+3. Check KafkaBridge logs for errors
 4. Check Kubernetes events
 5. Correlate and diagnose (bridge config, Kafka connectivity, pod/resource, HTTP/CORS, operator issues)
 
@@ -161,8 +161,8 @@ Step-by-step troubleshooting of a KafkaTopic issue. Focuses on topic-specific di
 - `symptom` (optional) -- Observed symptom (e.g., "NotReady", "config mismatch", "reconciliation stalled")
 
 **Workflow**:
-1. Check topic status, conditions, and configuration
-2. Determine scope -- isolated topic issue or cluster-wide problem
+1. Check KafkaTopic status, conditions, and configuration
+2. Determine scope -- topic-wide or cluster-wide problem
 3. Quick cluster health gate (redirects to `diagnose-cluster-issue` if cluster is NotReady)
 4. Check Topic Operator reconciliation logs for this specific topic
 5. Check Kubernetes events

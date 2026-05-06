@@ -109,11 +109,12 @@ Diagnose issues with my-debezium-connector
 
 ## diagnose_kafka_topic
 
+Server-driven companion to the [`troubleshoot-topic`](../tools/prompts-and-resources.md#troubleshoot-topic) prompt template.
 Runs a multi-step diagnostic workflow for a KafkaTopic.
 Gathers topic status, related topics (scope detection), cluster health, operator logs, events, and Kafka Exporter metrics in a single call.
 
 **3-Phase workflow**:
-1. **Phase 1 -- Initial data gathering**: Topic status, related topics for scope detection (isolated vs cluster-wide), parent cluster health gate.
+1. **Phase 1 -- Initial data gathering**: Topic status, related topics for scope detection (topic-wide vs cluster-wide), parent cluster health gate.
 2. **Phase 2 -- Deep investigation**: Operator logs (filtered for topic name), Kubernetes events, Kafka Exporter partition metrics.
 3. **Phase 3 -- Analysis**: Root cause analysis distinguishing topic config issues, Topic Operator issues, and cluster-wide problems.
 
@@ -133,6 +134,7 @@ Diagnose issues with my-topic on cluster my-cluster
 
 ## assess_upgrade_readiness
 
+Server-driven companion to the [`assess-upgrade-readiness`](../tools/prompts-and-resources.md#assess-upgrade-readiness) prompt template.
 Assesses whether a Kafka cluster is ready for a Strimzi or Kafka version upgrade.
 Checks cluster health, operator status, pod health, replication, resource headroom, Drain Cleaner, and certificates.
 

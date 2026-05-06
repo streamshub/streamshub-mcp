@@ -41,7 +41,7 @@ public class TroubleshootTopicPrompt {
         name = "troubleshoot-topic",
         description = "Step-by-step troubleshooting of a KafkaTopic issue."
             + " Checks topic status, configuration, operator reconciliation,"
-            + " and whether the issue is isolated or cluster-wide."
+            + " and whether the issue is topic-wide or cluster-wide."
     )
     public PromptResponse troubleshootTopic(
         @PromptArg(
