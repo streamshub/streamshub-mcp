@@ -194,7 +194,7 @@ public class UpgradeReadinessDiagnosticService {
         DrainCleanerReadinessResponse drainCleaner = null;
         if (areas.drainCleaner) {
             drainCleaner = gatherDrainCleaner(
-                resolvedNs, completed, failed, mcpLog);
+                completed, failed, mcpLog);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
@@ -284,7 +284,10 @@ public class UpgradeReadinessDiagnosticService {
                                                      final String clusterName,
                                                      final McpLog mcpLog) {
         try {
-            return nodePoolService.listNodePools(namespace, clusterName);
+            List<KafkaNodePoolResponse> result = nodePoolService.listNodePools(namespace, clusterName);
+            DiagnosticHelper.sendClientNotification(mcpLog,
+                String.format("Found %d KafkaNodePools", result != null ? result.size() : 0));
+            return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather node pools: %s", e.getMessage());
             return null;
@@ -296,7 +299,9 @@ public class UpgradeReadinessDiagnosticService {
                                              final String clusterName,
                                              final McpLog mcpLog) {
         try {
-            return kafkaService.getClusterPods(namespace, clusterName);
+            KafkaClusterPodsResponse result = kafkaService.getClusterPods(namespace, clusterName);
+            DiagnosticHelper.sendClientNotification(mcpLog, "Checked Kafka cluster pod health");
+            return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather cluster pods: %s", e.getMessage());
             return null;
@@ -381,8 +386,7 @@ public class UpgradeReadinessDiagnosticService {
     }
 
     @WithSpan("diagnose.upgrade.drain_cleaner")
-    DrainCleanerReadinessResponse gatherDrainCleaner(final String namespace,
-                                                      final List<String> completed,
+    DrainCleanerReadinessResponse gatherDrainCleaner(final List<String> completed,
                                                       final List<String> failed,
                                                       final McpLog mcpLog) {
         try {
@@ -539,6 +543,7 @@ public class UpgradeReadinessDiagnosticService {
         if (nodePools != null) {
             summary.put("node_pool_count", nodePools.size());
         }
+        DiagnosticHelper.putIfNotNull(summary, "pods", pods);
         DiagnosticHelper.putIfNotNull(summary, STEP_REPLICATION_METRICS, replicationMetrics);
         return summary;
     }
