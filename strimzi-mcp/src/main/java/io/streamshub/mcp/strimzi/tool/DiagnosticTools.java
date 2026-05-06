@@ -19,13 +19,17 @@ import io.streamshub.mcp.strimzi.dto.KafkaClusterDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.KafkaConfigComparisonReport;
 import io.streamshub.mcp.strimzi.dto.KafkaConnectivityDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.KafkaMetricsDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.KafkaTopicDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.OperatorMetricsDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.UpgradeReadinessReport;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorDiagnosticReport;
 import io.streamshub.mcp.strimzi.service.KafkaClusterDiagnosticService;
 import io.streamshub.mcp.strimzi.service.KafkaConfigComparisonService;
 import io.streamshub.mcp.strimzi.service.KafkaConnectivityDiagnosticService;
 import io.streamshub.mcp.strimzi.service.KafkaMetricsDiagnosticService;
+import io.streamshub.mcp.strimzi.service.KafkaTopicDiagnosticService;
 import io.streamshub.mcp.strimzi.service.OperatorMetricsDiagnosticService;
+import io.streamshub.mcp.strimzi.service.UpgradeReadinessDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectorDiagnosticService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -58,6 +62,12 @@ public class DiagnosticTools {
 
     @Inject
     KafkaConnectorDiagnosticService connectorDiagnosticService;
+
+    @Inject
+    KafkaTopicDiagnosticService topicDiagnosticService;
+
+    @Inject
+    UpgradeReadinessDiagnosticService upgradeReadinessService;
 
     DiagnosticTools() {
     }
@@ -427,5 +437,113 @@ public class DiagnosticTools {
             namespace, operatorName, clusterName, concern,
             rangeMinutes, startTime, endTime, stepSeconds,
             sampling, mcpLog, progress, cancellation);
+    }
+
+    /**
+     * Run a composite diagnostic workflow for a KafkaTopic.
+     *
+     * @param topicName    the KafkaTopic name
+     * @param clusterName  optional Kafka cluster name
+     * @param namespace    optional namespace
+     * @param symptom      optional symptom description
+     * @param sampling     MCP Sampling for LLM analysis
+     * @param elicitation  MCP Elicitation for user input
+     * @param mcpLog       MCP log for progress notifications
+     * @param progress     MCP progress tracking
+     * @param cancellation MCP cancellation checking
+     * @return a consolidated topic diagnostic report
+     */
+    @WithSpan("tool.diagnose_kafka_topic")
+    @Tool(
+        name = "diagnose_kafka_topic",
+        description = "Runs a multi-step diagnostic workflow for a KafkaTopic."
+            + " Gathers topic status, related topics, cluster health,"
+            + " operator logs, events, and Kafka Exporter metrics in a single call."
+            + " Uses Sampling for LLM analysis and Elicitation for disambiguation."
+            + " Falls back to gathering all data when Sampling is not supported.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    public KafkaTopicDiagnosticReport diagnoseKafkaTopic(
+        @ToolArg(
+            description = "KafkaTopic name (e.g., 'my-topic')."
+        ) final String topicName,
+        @ToolArg(
+            description = StrimziToolsPrompts.CLUSTER_DESC,
+            required = false
+        ) final String clusterName,
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace,
+        @ToolArg(
+            description = StrimziToolsPrompts.SYMPTOM_DESC,
+            required = false
+        ) final String symptom,
+        final Sampling sampling,
+        final Elicitation elicitation,
+        final McpLog mcpLog,
+        final Progress progress,
+        final Cancellation cancellation
+    ) {
+        return topicDiagnosticService.diagnose(
+            namespace, topicName, clusterName, symptom,
+            sampling, elicitation, mcpLog, progress, cancellation);
+    }
+
+    /**
+     * Assess whether a Kafka cluster is ready for a version upgrade.
+     *
+     * @param clusterName   the Kafka cluster name
+     * @param namespace     optional namespace
+     * @param targetVersion optional target version
+     * @param sampling      MCP Sampling for LLM analysis
+     * @param elicitation   MCP Elicitation for user input
+     * @param mcpLog        MCP log for progress notifications
+     * @param progress      MCP progress tracking
+     * @param cancellation  MCP cancellation checking
+     * @return an upgrade readiness report with GO/NO-GO verdict
+     */
+    @WithSpan("tool.assess_upgrade_readiness")
+    @Tool(
+        name = "assess_upgrade_readiness",
+        description = "Assesses whether a Kafka cluster is ready for a Strimzi or Kafka upgrade."
+            + " Checks cluster health, operator status, pod health, replication,"
+            + " resource headroom, Drain Cleaner, and certificates."
+            + " Uses Sampling for GO/NO-GO verdict and Elicitation for disambiguation."
+            + " Falls back to gathering all data when Sampling is not supported.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    public UpgradeReadinessReport assessUpgradeReadiness(
+        @ToolArg(
+            description = StrimziToolsPrompts.CLUSTER_DESC
+        ) final String clusterName,
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace,
+        @ToolArg(
+            description = "Target Kafka or Strimzi version for the upgrade,"
+                + " e.g. 'Kafka 4.2.0' or 'Strimzi 0.45.0'.",
+            required = false
+        ) final String targetVersion,
+        final Sampling sampling,
+        final Elicitation elicitation,
+        final McpLog mcpLog,
+        final Progress progress,
+        final Cancellation cancellation
+    ) {
+        return upgradeReadinessService.diagnose(
+            namespace, clusterName, targetVersion,
+            sampling, elicitation, mcpLog, progress, cancellation);
     }
 }

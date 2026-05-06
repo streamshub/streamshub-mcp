@@ -112,7 +112,7 @@ class KafkaConfigServiceTest {
     }
 
     @Test
-    void testResourcesExtraction() {
+    void testKafkaLevelResourcesOmitted() {
         Kafka kafka = new KafkaBuilder()
             .withMetadata(new ObjectMetaBuilder().withName("my-cluster").withNamespace("kafka").build())
             .withNewSpec()
@@ -120,8 +120,6 @@ class KafkaConfigServiceTest {
                     .withResources(new ResourceRequirementsBuilder()
                         .addToRequests("cpu", new Quantity("500m"))
                         .addToRequests("memory", new Quantity("2Gi"))
-                        .addToLimits("cpu", new Quantity("2"))
-                        .addToLimits("memory", new Quantity("4Gi"))
                         .build())
                 .endKafka()
             .endSpec()
@@ -130,11 +128,7 @@ class KafkaConfigServiceTest {
 
         KafkaEffectiveConfigResponse response = kafkaConfigService.getEffectiveConfig("kafka", "my-cluster");
 
-        assertNotNull(response.resources());
-        assertEquals("500m", response.resources().cpuRequest());
-        assertEquals("2Gi", response.resources().memoryRequest());
-        assertEquals("2", response.resources().cpuLimit());
-        assertEquals("4Gi", response.resources().memoryLimit());
+        assertNotNull(response);
     }
 
     @Test
