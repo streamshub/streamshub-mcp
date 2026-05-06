@@ -152,7 +152,7 @@ Step-by-step troubleshooting of a KafkaBridge issue.
 
 ### troubleshoot-topic
 
-Step-by-step troubleshooting of a KafkaTopic issue. Focuses on topic-specific diagnosis and delegates to `diagnose-cluster-issue` or `analyze-kafka-metrics` for cluster-level problems.
+Step-by-step troubleshooting of a KafkaTopic issue. Focuses on topic-specific diagnosis and delegates to `diagnose-cluster-issue` or `analyze-kafka-metrics` for cluster-level problems. Also available as the server-driven [`diagnose_kafka_topic`](diagnostics.md#diagnose_kafka_topic) composite tool.
 
 **Parameters**:
 - `topic_name` (required) -- Name of the KafkaTopic to troubleshoot
@@ -190,7 +190,7 @@ Capacity analysis of a Kafka cluster.
 
 ### assess-upgrade-readiness
 
-Pre-upgrade readiness check for a Kafka cluster.
+Pre-upgrade readiness check for a Kafka cluster. Also available as the server-driven [`assess_upgrade_readiness`](diagnostics.md#assess_upgrade_readiness) composite tool.
 
 **Parameters**:
 - `cluster_name` (required) -- Name of the Kafka cluster
@@ -198,15 +198,9 @@ Pre-upgrade readiness check for a Kafka cluster.
 - `target_version` (optional) -- Target Kafka or Strimzi version (e.g., "Kafka 4.2.0")
 
 **Workflow**:
-1. Check cluster health baseline (GO/NO-GO)
-2. Check operator health (GO/NO-GO)
-3. Check node pool and pod health (GO/NO-GO)
-4. Check replication health -- critical for rolling restart safety (GO/NO-GO)
-5. Check resource headroom for absorbing rolling restart load (GO/NO-GO)
-6. Check Drain Cleaner readiness (GO/NO-GO)
-7. Check certificate health (advisory)
-8. Check Kubernetes events (advisory)
-9. Produce upgrade readiness verdict (GO/NO-GO/CONDITIONAL) with pre-flight checklist
+1. **Pre-flight checks**: Cluster health, operator status, node pools and pods, replication metrics. Each produces a GO/NO-GO verdict.
+2. **Safety checks**: Performance and resource metrics (headroom for rolling restart), Drain Cleaner readiness, certificate expiry, Kubernetes events.
+3. **Verdict**: GO/NO-GO/CONDITIONAL with pre-flight checklist and maintenance window estimate.
 
 ## Resource templates
 
