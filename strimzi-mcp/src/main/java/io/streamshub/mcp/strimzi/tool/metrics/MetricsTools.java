@@ -12,10 +12,12 @@ import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaBridgeMetricsResponse;
+import io.streamshub.mcp.strimzi.dto.metrics.KafkaConnectMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaExporterMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.StrimziOperatorMetricsResponse;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaBridgeMetricsService;
+import io.streamshub.mcp.strimzi.service.metrics.KafkaConnectMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaExporterMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.StrimziOperatorMetricsService;
@@ -38,6 +40,9 @@ public class MetricsTools {
 
     @Inject
     KafkaBridgeMetricsService kafkaBridgeMetricsService;
+
+    @Inject
+    KafkaConnectMetricsService kafkaConnectMetricsService;
 
     @Inject
     StrimziOperatorMetricsService strimziOperatorMetricsService;
@@ -253,6 +258,74 @@ public class MetricsTools {
     ) {
         return kafkaBridgeMetricsService.getKafkaBridgeMetrics(
             namespace, bridgeName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds, aggregation);
+    }
+
+    /**
+     * Retrieves metrics from KafkaConnect pods.
+     *
+     * @param connectName  the KafkaConnect cluster name
+     * @param namespace    optional namespace
+     * @param category     optional metric category
+     * @param metricNames  optional explicit metric names
+     * @param rangeMinutes optional range duration in minutes
+     * @param startTime    optional absolute start time in ISO 8601 format
+     * @param endTime      optional absolute end time in ISO 8601 format
+     * @param stepSeconds  optional range query step in seconds
+     * @param aggregation  optional aggregation level
+     * @return the KafkaConnect metrics response
+     */
+    @WithSpan("tool.get_kafka_connect_metrics")
+    @Tool(
+        name = "get_kafka_connect_metrics",
+        description = "Retrieves Prometheus metrics from KafkaConnect pods by category or explicit metric names."
+            + " Returns worker, connector, source, sink, and JVM metrics with interpretation guide.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    @RateCategory("metrics")
+    public KafkaConnectMetricsResponse getKafkaConnectMetrics(
+        @ToolArg(
+            description = StrimziToolsPrompts.CONNECT_CLUSTER_DESC
+        ) final String connectName,
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace,
+        @ToolArg(
+            description = StrimziToolsPrompts.CONNECT_METRICS_CATEGORY_DESC,
+            required = false
+        ) final String category,
+        @ToolArg(
+            description = StrimziToolsPrompts.METRICS_NAMES_DESC,
+            required = false
+        ) final String metricNames,
+        @ToolArg(
+            description = StrimziToolsPrompts.RANGE_MINUTES_DESC,
+            required = false
+        ) final Integer rangeMinutes,
+        @ToolArg(
+            description = StrimziToolsPrompts.START_TIME_DESC,
+            required = false
+        ) final String startTime,
+        @ToolArg(
+            description = StrimziToolsPrompts.END_TIME_DESC,
+            required = false
+        ) final String endTime,
+        @ToolArg(
+            description = StrimziToolsPrompts.STEP_SECONDS_DESC,
+            required = false
+        ) final Integer stepSeconds,
+        @ToolArg(
+            description = StrimziToolsPrompts.AGGREGATION_DESC,
+            required = false
+        ) final String aggregation
+    ) {
+        return kafkaConnectMetricsService.getKafkaConnectMetrics(
+            namespace, connectName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds, aggregation);
     }
 
     /**

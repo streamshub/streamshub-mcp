@@ -3,7 +3,7 @@ title = 'Metrics tools'
 weight = 5
 +++
 
-Tools for retrieving and analyzing Prometheus metrics from Kafka brokers, Kafka Exporter, KafkaBridge, and Strimzi operator components.
+Tools for retrieving and analyzing Prometheus metrics from Kafka brokers, Kafka Exporter, KafkaConnect, KafkaBridge, and Strimzi operator components.
 
 ## get_kafka_metrics
 
@@ -72,6 +72,29 @@ Returns HTTP request, producer, consumer, and JVM metrics with interpretation gu
 **Example**:
 ```
 Get HTTP metrics for my-bridge
+```
+
+## get_kafka_connect_metrics
+
+Retrieves Prometheus metrics from KafkaConnect pods by category or explicit metric names.
+Returns worker, connector, source, sink, and JVM metrics with interpretation guide.
+
+**Parameters**:
+- `connectName` (required) -- Name of the KafkaConnect cluster
+- `namespace` (optional) -- Kubernetes namespace
+- `category` (optional) -- Metric category: "worker", "connector", "source", "sink", "resources"
+- `metricNames` (optional) -- Comma-separated list of explicit metric names
+- `rangeMinutes` (optional) -- Range duration in minutes
+- `startTime` (optional) -- Absolute start time (ISO 8601 format)
+- `endTime` (optional) -- Absolute end time (ISO 8601 format)
+- `stepSeconds` (optional) -- Range query step in seconds
+- `aggregation` (optional) -- Aggregation level (automatically clamped to "cluster" for all KafkaConnect categories)
+
+**Returns**: KafkaConnect metrics with samples and interpretation guide
+
+**Example**:
+```
+Get worker metrics for my-connect-cluster
 ```
 
 ## get_strimzi_operator_metrics

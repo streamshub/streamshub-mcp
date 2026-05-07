@@ -1,0 +1,7 @@
+- op: replace
+  path: /spec/build/output/image
+  value: image-registry.openshift-image-registry.svc:5000/strimzi-kafka/mcp-connect-build:dev
+- op: remove
+  path: /spec/build/output/additionalBuildOptions
+- op: remove
+  path: /spec/build/output/additionalPushOptions

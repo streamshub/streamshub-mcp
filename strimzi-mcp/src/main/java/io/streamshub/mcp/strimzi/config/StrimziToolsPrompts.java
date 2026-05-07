@@ -237,6 +237,14 @@ public final class StrimziToolsPrompts {
             + " Defaults to 'http' if omitted.";
 
     /**
+     * KafkaConnect metrics category parameter description.
+     */
+    public static final String CONNECT_METRICS_CATEGORY_DESC =
+        "Metric category: 'worker', 'connector',"
+            + " 'source', 'sink', or 'resources'."
+            + " Defaults to 'worker' if omitted.";
+
+    /**
      * Drain cleaner name parameter description.
      */
     public static final String DRAIN_CLEANER_NAME_DESC =

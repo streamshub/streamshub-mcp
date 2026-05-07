@@ -108,11 +108,13 @@ io.streamshub.mcp.strimzi.
 │   ├── kafkaconnect/  → KafkaConnectService, KafkaConnectorService,
 │   │                    KafkaConnectorDiagnosticService
 │   └── metrics/       → KafkaMetricsService, KafkaExporterMetricsService,
+│                        KafkaBridgeMetricsService, KafkaConnectMetricsService,
 │                        StrimziOperatorMetricsService
 ├── dto/               → Strimzi response records and diagnostic reports
 │   ├── kafkabridge/   → KafkaBridgeResponse, etc.
 │   ├── kafkaconnect/  → KafkaConnectResponse, KafkaConnectorResponse, etc.
 │   └── metrics/       → KafkaMetricsResponse, KafkaExporterMetricsResponse,
+│                        KafkaBridgeMetricsResponse, KafkaConnectMetricsResponse,
 │                        StrimziOperatorMetricsResponse
 ├── prompt/            → MCP prompt templates (DiagnoseClusterIssuePrompt, TroubleshootConnectivityPrompt,
 │                        AnalyzeKafkaMetricsPrompt, AnalyzeStrimziOperatorMetricsPrompt,
@@ -121,6 +123,7 @@ io.streamshub.mcp.strimzi.
 ├── resource/template/ → MCP resource templates and completions (5 templates)
 ├── config/            → StrimziConstants (labels, resource URIs), StrimziToolsPrompts
 │   └── metrics/       → KafkaMetricCategories, KafkaExporterMetricCategories,
+│                        KafkaBridgeMetricCategories, KafkaConnectMetricCategories,
 │                        StrimziOperatorMetricCategories (category constants + metric name mappings)
 └── util/              → NamespaceElicitationHelper (Strimzi-specific namespace disambiguation),
                          MetricNameResolver, TimeRangeValidator

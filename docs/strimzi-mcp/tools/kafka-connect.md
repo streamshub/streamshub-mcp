@@ -107,6 +107,7 @@ Get details for my-debezium-connector
 
 ## Next steps
 
+- **[Metrics tools](metrics.md)** -- Query KafkaConnect metrics (worker, connector, source, sink)
 - **[Drain Cleaner tools](drain-cleaner.md)** -- Monitor Strimzi Drain Cleaner
 - **[Diagnostic tools](diagnostics.md)** -- Run multi-step diagnostic workflows including connector diagnostics
 - **[Tools reference](.)** -- Back to tools overview

@@ -1,0 +1,135 @@
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaConnect
+metadata:
+  name: mcp-connect
+  namespace: strimzi-kafka
+  labels:
+    strimzi.io/cluster: mcp-cluster
+    mcp: strimzi
+    system: strimzi
+  annotations:
+    strimzi.io/use-connector-resources: "true"
+spec:
+  replicas: 1
+  bootstrapServers: mcp-cluster-kafka-bootstrap:9093
+  build:
+    output:
+      type: docker
+      image: localhost:5001/strimzi-kafka/mcp-connect-build:dev
+      additionalBuildOptions:
+        - "--tls-verify=false"
+      additionalPushOptions:
+        - "--tls-verify=false"
+    plugins:
+      - name: camel-timer-source
+        artifacts:
+          - type: tgz
+            url: https://repo.maven.apache.org/maven2/org/apache/camel/kafkaconnector/camel-timer-source-kafka-connector/4.18.0/camel-timer-source-kafka-connector-4.18.0-package.tar.gz
+            sha512sum: 79fd69db4a99911d952630cd14cee4e2447c2dad1c47d59910c71218701535c09be4171ebd76f689695892b711a71553bb91ef6b33c52ee795a7c173a0f3a69e
+  tls:
+    trustedCertificates:
+      - secretName: mcp-cluster-cluster-ca-cert
+        certificate: ca.crt
+  authentication:
+    type: tls
+    certificateAndKey:
+      secretName: mcp-connect-user
+      certificate: user.crt
+      key: user.key
+  groupId: mcp-connect-group
+  offsetStorageTopic: mcp-connect-offsets
+  configStorageTopic: mcp-connect-configs
+  statusStorageTopic: mcp-connect-status
+  config:
+    offset.storage.replication.factor: 3
+    config.storage.replication.factor: 3
+    status.storage.replication.factor: 3
+    key.converter: org.apache.kafka.connect.storage.StringConverter
+    value.converter: org.apache.kafka.connect.storage.StringConverter
+  logging:
+    type: inline
+    loggers:
+      rootLogger.level: INFO
+  metricsConfig:
+    type: jmxPrometheusExporter
+    valueFrom:
+      configMapKeyRef:
+        name: connect-metrics
+        key: metrics-config.yml
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: connect-metrics
+  namespace: strimzi-kafka
+  labels:
+    app: strimzi
+    mcp: strimzi
+    system: strimzi
+data:
+  metrics-config.yml: |
+    # See https://github.com/prometheus/jmx_exporter for more info about JMX Prometheus Exporter metrics
+    lowercaseOutputName: true
+    rules:
+      # Kafka Connect Worker metrics
+      - pattern: kafka.connect<type=connect-worker-metrics><>([a-z-]+)
+        name: kafka_connect_worker_$1
+        type: GAUGE
+      # Kafka Connect Worker Rebalance metrics
+      - pattern: kafka.connect<type=connect-worker-rebalance-metrics><>([a-z-]+)
+        name: kafka_connect_worker_rebalance_$1
+        type: GAUGE
+      # Kafka Connect Connector Task metrics
+      - pattern: kafka.connect<type=connector-task-metrics, connector=(.+), task=(.+)><>([a-z-]+)
+        name: kafka_connect_connector_task_$3
+        type: GAUGE
+        labels:
+          connector: "$1"
+          task: "$2"
+      # Kafka Connect Source Task metrics
+      - pattern: kafka.connect<type=source-task-metrics, connector=(.+), task=(.+)><>([a-z-]+)
+        name: kafka_connect_source_task_$3
+        type: GAUGE
+        labels:
+          connector: "$1"
+          task: "$2"
+      # Kafka Connect Sink Task metrics
+      - pattern: kafka.connect<type=sink-task-metrics, connector=(.+), task=(.+)><>([a-z-]+)
+        name: kafka_connect_sink_task_$3
+        type: GAUGE
+        labels:
+          connector: "$1"
+          task: "$2"
+      # Kafka Connect Connector-level metrics
+      - pattern: kafka.connect<type=connector-metrics, connector=(.+)><>([a-z-]+)
+        name: kafka_connect_connector_$2
+        type: GAUGE
+        labels:
+          connector: "$1"
+      # Kafka producer metrics from Connect workers
+      - pattern: kafka.producer<type=(.+), client-id=(.+)><>([a-z-]+)-total
+        name: kafka_connect_producer_$3_total
+        type: COUNTER
+        labels:
+          type: "$1"
+          clientId: "$2"
+      - pattern: kafka.producer<type=(.+), client-id=(.+)><>([a-z-]+)
+        name: kafka_connect_producer_$3
+        type: GAUGE
+        labels:
+          type: "$1"
+          clientId: "$2"
+      # Kafka consumer metrics from Connect workers
+      - pattern: kafka.consumer<type=(.+), client-id=(.+)><>([a-z-]+)-total
+        name: kafka_connect_consumer_$3_total
+        type: COUNTER
+        labels:
+          type: "$1"
+          clientId: "$2"
+      - pattern: kafka.consumer<type=(.+), client-id=(.+)><>([a-z-]+)
+        name: kafka_connect_consumer_$3
+        type: GAUGE
+        labels:
+          type: "$1"
+          clientId: "$2"
