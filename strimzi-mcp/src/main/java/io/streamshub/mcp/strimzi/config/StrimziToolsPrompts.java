@@ -257,6 +257,19 @@ public final class StrimziToolsPrompts {
             + " Omit to list users across all clusters.";
 
     /**
+     * KafkaRebalance name parameter description.
+     */
+    public static final String REBALANCE_NAME_DESC =
+        "KafkaRebalance name (e.g., 'my-rebalance').";
+
+    /**
+     * Optional cluster filter for rebalance listing.
+     */
+    public static final String CLUSTER_FILTER_REBALANCE_DESC =
+        "Kafka cluster name to filter rebalances."
+            + " Omit to list rebalances across all clusters.";
+
+    /**
      * Aggregation level parameter description for metrics tools.
      */
     public static final String AGGREGATION_DESC =

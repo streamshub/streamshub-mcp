@@ -22,6 +22,7 @@ import io.streamshub.mcp.strimzi.dto.UpgradeReadinessReport;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
+import io.strimzi.api.kafka.model.rebalance.KafkaRebalance;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,7 @@ class UpgradeReadinessDiagnosticServiceTest {
         KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Kafka.class);
         KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaNodePool.class);
         KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Pod.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaRebalance.class);
     }
 
     @Test

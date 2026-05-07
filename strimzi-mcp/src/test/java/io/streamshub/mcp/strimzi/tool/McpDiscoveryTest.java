@@ -84,6 +84,8 @@ class McpDiscoveryTest {
                     "get_kafka_bridge_logs",
                     "list_kafka_users",
                     "get_kafka_user",
+                    "list_kafka_rebalances",
+                    "get_kafka_rebalance",
                     "diagnose_kafka_cluster",
                     "diagnose_kafka_connectivity",
                     "diagnose_kafka_metrics",

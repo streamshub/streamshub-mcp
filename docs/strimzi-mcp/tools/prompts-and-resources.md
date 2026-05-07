@@ -198,9 +198,11 @@ Pre-upgrade readiness check for a Kafka cluster. Also available as the server-dr
 - `target_version` (optional) -- Target Kafka or Strimzi version (e.g., "Kafka 4.2.0")
 
 **Workflow**:
-1. **Pre-flight checks**: Cluster health, operator status, node pools and pods, replication metrics. Each produces a GO/NO-GO verdict.
+1. **Pre-flight checks**: Cluster health, operator status, node pools and pods, replication metrics, active rebalance check. Each produces a GO/NO-GO verdict.
 2. **Safety checks**: Performance and resource metrics (headroom for rolling restart), Drain Cleaner readiness, certificate expiry, Kubernetes events.
 3. **Verdict**: GO/NO-GO/CONDITIONAL with pre-flight checklist and maintenance window estimate.
+
+Active rebalances (New, PendingProposal, ProposalReady, Rebalancing, Stopped) are a **hard blocker** for upgrades -- a rolling restart during data movement can leave partitions in an inconsistent state.
 
 ## Resource templates
 
