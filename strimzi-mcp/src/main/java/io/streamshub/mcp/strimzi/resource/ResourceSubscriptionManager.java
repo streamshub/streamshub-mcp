@@ -209,7 +209,12 @@ public class ResourceSubscriptionManager implements Closeable {
                 .watch(new Watcher<>() {
                     @Override
                     public void eventReceived(final Action action, final Kafka kafka) {
-                        handleKafkaEvent(action, kafka);
+                        try {
+                            handleKafkaEvent(action, kafka);
+                        } catch (Exception e) {
+                            LOG.warnf("Error processing Kafka %s event: %s",
+                                action, e.getMessage());
+                        }
                     }
 
                     @Override
@@ -239,7 +244,12 @@ public class ResourceSubscriptionManager implements Closeable {
                 .watch(new Watcher<>() {
                     @Override
                     public void eventReceived(final Action action, final KafkaNodePool nodePool) {
-                        handleNodePoolEvent(action, nodePool);
+                        try {
+                            handleNodePoolEvent(action, nodePool);
+                        } catch (Exception e) {
+                            LOG.warnf("Error processing KafkaNodePool %s event: %s",
+                                action, e.getMessage());
+                        }
                     }
 
                     @Override
@@ -269,7 +279,12 @@ public class ResourceSubscriptionManager implements Closeable {
                 .watch(new Watcher<>() {
                     @Override
                     public void eventReceived(final Action action, final KafkaTopic topic) {
-                        handleTopicEvent(action, topic);
+                        try {
+                            handleTopicEvent(action, topic);
+                        } catch (Exception e) {
+                            LOG.warnf("Error processing KafkaTopic %s event: %s",
+                                action, e.getMessage());
+                        }
                     }
 
                     @Override
@@ -299,7 +314,12 @@ public class ResourceSubscriptionManager implements Closeable {
                 .watch(new Watcher<>() {
                     @Override
                     public void eventReceived(final Action action, final KafkaUser user) {
-                        handleUserEvent(action, user);
+                        try {
+                            handleUserEvent(action, user);
+                        } catch (Exception e) {
+                            LOG.warnf("Error processing KafkaUser %s event: %s",
+                                action, e.getMessage());
+                        }
                     }
 
                     @Override
@@ -330,7 +350,12 @@ public class ResourceSubscriptionManager implements Closeable {
                 .watch(new Watcher<>() {
                     @Override
                     public void eventReceived(final Action action, final Deployment deployment) {
-                        handleOperatorEvent(action, deployment);
+                        try {
+                            handleOperatorEvent(action, deployment);
+                        } catch (Exception e) {
+                            LOG.warnf("Error processing Operator %s event: %s",
+                                action, e.getMessage());
+                        }
                     }
 
                     @Override
@@ -401,7 +426,7 @@ public class ResourceSubscriptionManager implements Closeable {
                     LOG.infof("Reconciliation: removed orphaned entry %s", uri);
                 }
             } catch (Exception e) {
-                LOG.debugf("Reconciliation: could not verify %s: %s", uri, e.getMessage());
+                LOG.warnf("Reconciliation: could not verify %s: %s", uri, e.getMessage());
             }
         }
         if (removed > 0) {
@@ -547,7 +572,7 @@ public class ResourceSubscriptionManager implements Closeable {
         } catch (JsonProcessingException e) {
             LOG.warnf("Failed to serialize cluster status for %s/%s: %s", namespace, name, e.getMessage());
         } catch (Exception e) {
-            LOG.debugf("Could not update cluster status resource %s: %s", uri, e.getMessage());
+            LOG.warnf("Could not update cluster status resource %s: %s", uri, e.getMessage());
         }
     }
 
@@ -559,7 +584,7 @@ public class ResourceSubscriptionManager implements Closeable {
         } catch (JsonProcessingException e) {
             LOG.warnf("Failed to serialize topology for %s/%s: %s", namespace, clusterName, e.getMessage());
         } catch (Exception e) {
-            LOG.debugf("Could not update topology resource %s: %s", uri, e.getMessage());
+            LOG.warnf("Could not update topology resource %s: %s", uri, e.getMessage());
         }
     }
 
@@ -571,7 +596,7 @@ public class ResourceSubscriptionManager implements Closeable {
         } catch (JsonProcessingException e) {
             LOG.warnf("Failed to serialize node pool status for %s/%s: %s", namespace, name, e.getMessage());
         } catch (Exception e) {
-            LOG.debugf("Could not update node pool status resource %s: %s", uri, e.getMessage());
+            LOG.warnf("Could not update node pool status resource %s: %s", uri, e.getMessage());
         }
     }
 
@@ -583,7 +608,7 @@ public class ResourceSubscriptionManager implements Closeable {
         } catch (JsonProcessingException e) {
             LOG.warnf("Failed to serialize topic status for %s/%s: %s", namespace, name, e.getMessage());
         } catch (Exception e) {
-            LOG.debugf("Could not update topic status resource %s: %s", uri, e.getMessage());
+            LOG.warnf("Could not update topic status resource %s: %s", uri, e.getMessage());
         }
     }
 
@@ -595,7 +620,7 @@ public class ResourceSubscriptionManager implements Closeable {
         } catch (JsonProcessingException e) {
             LOG.warnf("Failed to serialize KafkaUser status for %s/%s: %s", namespace, name, e.getMessage());
         } catch (Exception e) {
-            LOG.debugf("Could not update KafkaUser status resource %s: %s", uri, e.getMessage());
+            LOG.warnf("Could not update KafkaUser status resource %s: %s", uri, e.getMessage());
         }
     }
 
@@ -607,7 +632,7 @@ public class ResourceSubscriptionManager implements Closeable {
         } catch (JsonProcessingException e) {
             LOG.warnf("Failed to serialize operator status for %s: %s", namespace, e.getMessage());
         } catch (Exception e) {
-            LOG.debugf("Could not update operator status resource %s: %s", uri, e.getMessage());
+            LOG.warnf("Could not update operator status resource %s: %s", uri, e.getMessage());
         }
     }
 
