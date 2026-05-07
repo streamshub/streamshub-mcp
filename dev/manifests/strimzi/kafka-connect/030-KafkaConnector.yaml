@@ -1,0 +1,30 @@
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: mcp-connect-timer-topic
+  namespace: strimzi-kafka
+  labels:
+    strimzi.io/cluster: mcp-cluster
+    mcp: strimzi
+    system: strimzi
+spec:
+  partitions: 3
+  replicas: 3
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaConnector
+metadata:
+  name: mcp-timer-source
+  namespace: strimzi-kafka
+  labels:
+    strimzi.io/cluster: mcp-connect
+    mcp: strimzi
+    system: strimzi
+spec:
+  class: org.apache.camel.kafkaconnector.timersource.CamelTimersourceSourceConnector
+  tasksMax: 1
+  config:
+    topics: mcp-connect-timer-topic
+    camel.kamelet.timer-source.message: mcp-test
+    camel.kamelet.timer-source.period: 60000

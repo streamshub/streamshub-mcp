@@ -1,0 +1,33 @@
+---
+# KafkaUser for connect authentication to Kafka via TLS listener.
+# Access to connect internal topics and connector data topics.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: mcp-connect-user
+  namespace: strimzi-kafka
+  labels:
+    strimzi.io/cluster: mcp-cluster
+    mcp: strimzi
+    system: strimzi
+spec:
+  authentication:
+    type: tls
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: topic
+          name: mcp-connect-
+          patternType: prefix
+        operations:
+          - Read
+          - Write
+          - Describe
+          - Create
+      - resource:
+          type: group
+          name: mcp-connect-
+          patternType: prefix
+        operations:
+          - Read
