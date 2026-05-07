@@ -51,7 +51,7 @@ public class CompletionCache {
                 Instant.now().plusSeconds(cacheTtlSeconds)));
             return names;
         } catch (Exception e) {
-            LOG.debugf("Error fetching %s names for completion: %s", cacheKey, e.getMessage());
+            LOG.warnf("Error fetching %s names for completion: %s", cacheKey, e.getMessage());
             return List.of();
         }
     }

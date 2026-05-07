@@ -76,7 +76,7 @@ public class ResponseSizeLimitFilter implements GuardrailFilter {
 
             return objectMapper.treeToValue(tree, result.getClass());
         } catch (Exception e) {
-            LOG.debugf("Could not enforce size limit for tool '%s': %s", toolName, e.getMessage());
+            LOG.warnf("Could not enforce size limit for tool '%s': %s", toolName, e.getMessage());
             return result;
         }
     }
