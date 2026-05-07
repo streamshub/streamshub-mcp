@@ -139,7 +139,7 @@ Assesses whether a Kafka cluster is ready for a Strimzi or Kafka version upgrade
 Checks cluster health, operator status, pod health, replication, resource headroom, Drain Cleaner, and certificates.
 
 **3-Phase workflow**:
-1. **Phase 1 -- Pre-flight checks**: Cluster health, operator status, node pools and pods, replication metrics.
+1. **Phase 1 -- Pre-flight checks**: Cluster health, operator status, node pools and pods, replication metrics, active rebalance check (hard blocker).
 2. **Phase 2 -- Safety checks**: Performance metrics (headroom), resource metrics, Drain Cleaner readiness, certificate expiry, events.
 3. **Phase 3 -- Verdict**: GO/NO-GO/CONDITIONAL verdict with pre-flight checklist and maintenance window estimate.
 

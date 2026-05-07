@@ -92,21 +92,25 @@ io.streamshub.mcp.strimzi.
 ├── tool/              → MCP tool definitions (thin wrappers, no logic)
 │                        KafkaTools, KafkaTopicTools, KafkaNodePoolTools,
 │                        StrimziOperatorTools, StrimziEventsTools, ConfigurationTools,
+│                        KafkaRebalanceTools,
 │                        DrainCleanerTools, DiagnosticTools (composite diagnostic tools)
 │   ├── kafkaconnect/  → KafkaConnectTools, KafkaConnectorTools
 │   └── metrics/       → MetricsTools
 ├── service/           → Business logic (KafkaService, KafkaTopicService, KafkaNodePoolService,
 │                        KafkaCertificateService, KafkaConfigService, KafkaConfigComparisonService,
+│                        KafkaRebalanceService,
 │                        StrimziOperatorService, StrimziEventsService, DrainCleanerService,
 │                        CompletionService)
 │                        Diagnostic orchestrators: KafkaClusterDiagnosticService,
 │                        KafkaConnectivityDiagnosticService, KafkaMetricsDiagnosticService,
 │                        OperatorMetricsDiagnosticService
+│   ├── kafkabridge/   → KafkaBridgeService
 │   ├── kafkaconnect/  → KafkaConnectService, KafkaConnectorService,
 │   │                    KafkaConnectorDiagnosticService
 │   └── metrics/       → KafkaMetricsService, KafkaExporterMetricsService,
 │                        StrimziOperatorMetricsService
 ├── dto/               → Strimzi response records and diagnostic reports
+│   ├── kafkabridge/   → KafkaBridgeResponse, etc.
 │   ├── kafkaconnect/  → KafkaConnectResponse, KafkaConnectorResponse, etc.
 │   └── metrics/       → KafkaMetricsResponse, KafkaExporterMetricsResponse,
 │                        StrimziOperatorMetricsResponse

@@ -22,6 +22,7 @@ import io.streamshub.mcp.strimzi.dto.KafkaCertificateResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
+import io.streamshub.mcp.strimzi.dto.KafkaRebalanceResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziEventsResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
 import io.streamshub.mcp.strimzi.dto.UpgradeReadinessReport;
@@ -51,7 +52,7 @@ import java.util.Map;
 public class UpgradeReadinessDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(UpgradeReadinessDiagnosticService.class);
-    private static final int PHASE1_STEPS = 4;
+    private static final int PHASE1_STEPS = 5;
     private static final int MAX_PHASE2_STEPS = 5;
     private static final String DIAGNOSTIC_LABEL = "Upgrade readiness check";
 
@@ -64,6 +65,7 @@ public class UpgradeReadinessDiagnosticService {
     private static final String STEP_DRAIN_CLEANER = "drain_cleaner";
     private static final String STEP_CERTIFICATES = "certificates";
     private static final String STEP_EVENTS = "events";
+    private static final String STEP_ACTIVE_REBALANCES = "active_rebalances";
 
     @Inject
     KafkaService kafkaService;
@@ -85,6 +87,9 @@ public class UpgradeReadinessDiagnosticService {
 
     @Inject
     KafkaMetricsService metricsService;
+
+    @Inject
+    KafkaRebalanceService rebalanceService;
 
     @Inject
     ObjectMapper objectMapper;
@@ -168,6 +173,11 @@ public class UpgradeReadinessDiagnosticService {
         DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 
+        List<KafkaRebalanceResponse> activeRebalances = gatherActiveRebalances(
+            resolvedNs, name, completed, failed, mcpLog);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+        DiagnosticHelper.checkCancellation(cancellation);
+
         // === Phase 2: Deep investigation ===
         InvestigationAreas areas = investigateAreas(
             sampling, cluster, operator, nodePools, pods,
@@ -217,13 +227,13 @@ public class UpgradeReadinessDiagnosticService {
 
         // === Phase 3: Final analysis ===
         String analysis = produceAnalysis(sampling, cluster, operator,
-            nodePools, pods, replicationMetrics,
+            nodePools, pods, replicationMetrics, activeRebalances,
             performanceMetrics, resourceMetrics, drainCleaner,
             certificates, events, version);
 
         return UpgradeReadinessReport.of(cluster, operator, nodePools, pods,
             replicationMetrics, performanceMetrics, resourceMetrics,
-            drainCleaner, certificates, events, analysis,
+            drainCleaner, certificates, events, activeRebalances, analysis,
             completed, failed.isEmpty() ? null : failed);
     }
 
@@ -341,6 +351,41 @@ public class UpgradeReadinessDiagnosticService {
             failed.add(STEP_REPLICATION_METRICS + ": " + e.getMessage());
             return null;
         }
+    }
+
+    @WithSpan("diagnose.upgrade.active_rebalances")
+    List<KafkaRebalanceResponse> gatherActiveRebalances(final String namespace,
+                                                         final String clusterName,
+                                                         final List<String> completed,
+                                                         final List<String> failed,
+                                                         final McpLog mcpLog) {
+        try {
+            List<KafkaRebalanceResponse> all = rebalanceService.listRebalances(
+                namespace, clusterName);
+            List<KafkaRebalanceResponse> active = all.stream()
+                .filter(r -> isActiveState(r.state()))
+                .toList();
+            completed.add(STEP_ACTIVE_REBALANCES);
+            if (active.isEmpty()) {
+                DiagnosticHelper.sendClientNotification(mcpLog,
+                    "No active rebalances found (safe to proceed)");
+            } else {
+                DiagnosticHelper.sendClientNotification(mcpLog,
+                    String.format("WARNING: %d active rebalance(s) found — upgrade blocked",
+                        active.size()));
+            }
+            return active;
+        } catch (Exception e) {
+            LOG.warnf("Failed to check active rebalances: %s", e.getMessage());
+            failed.add(STEP_ACTIVE_REBALANCES + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    private boolean isActiveState(final String state) {
+        return "New".equals(state) || "PendingProposal".equals(state)
+            || "ProposalReady".equals(state) || "Rebalancing".equals(state)
+            || "Stopped".equals(state);
     }
 
     // ---- Phase 2: Deep investigation ----
@@ -485,6 +530,7 @@ public class UpgradeReadinessDiagnosticService {
                            final List<KafkaNodePoolResponse> nodePools,
                            final KafkaClusterPodsResponse pods,
                            final KafkaMetricsResponse replicationMetrics,
+                           final List<KafkaRebalanceResponse> activeRebalances,
                            final KafkaMetricsResponse performanceMetrics,
                            final KafkaMetricsResponse resourceMetrics,
                            final DrainCleanerReadinessResponse drainCleaner,
@@ -498,8 +544,8 @@ public class UpgradeReadinessDiagnosticService {
         try {
             Map<String, Object> fullData = buildFullSummary(
                 cluster, operator, nodePools, pods, replicationMetrics,
-                performanceMetrics, resourceMetrics, drainCleaner,
-                certificates, events, targetVersion);
+                activeRebalances, performanceMetrics, resourceMetrics,
+                drainCleaner, certificates, events, targetVersion);
             String dataJson = objectMapper.writeValueAsString(fullData);
 
             SamplingResponse response = sampling.requestBuilder()
@@ -554,6 +600,7 @@ public class UpgradeReadinessDiagnosticService {
                                                   final List<KafkaNodePoolResponse> nodePools,
                                                   final KafkaClusterPodsResponse pods,
                                                   final KafkaMetricsResponse replicationMetrics,
+                                                  final List<KafkaRebalanceResponse> activeRebalances,
                                                   final KafkaMetricsResponse performanceMetrics,
                                                   final KafkaMetricsResponse resourceMetrics,
                                                   final DrainCleanerReadinessResponse drainCleaner,
@@ -569,6 +616,9 @@ public class UpgradeReadinessDiagnosticService {
         DiagnosticHelper.putIfNotNull(data, "node_pools", nodePools);
         DiagnosticHelper.putIfNotNull(data, "pods", pods);
         DiagnosticHelper.putIfNotNull(data, STEP_REPLICATION_METRICS, replicationMetrics);
+        if (activeRebalances != null && !activeRebalances.isEmpty()) {
+            data.put(STEP_ACTIVE_REBALANCES, activeRebalances);
+        }
         DiagnosticHelper.putIfNotNull(data, STEP_PERFORMANCE_METRICS, performanceMetrics);
         DiagnosticHelper.putIfNotNull(data, STEP_RESOURCE_METRICS, resourceMetrics);
         DiagnosticHelper.putIfNotNull(data, STEP_DRAIN_CLEANER, drainCleaner);
@@ -647,7 +697,9 @@ public class UpgradeReadinessDiagnosticService {
         you may skip performance_metrics and resource_metrics. \
         If the operator is not running or its version is very old, set events to true. \
         Always set certificates to true if the cluster uses TLS. \
-        Always set drain_cleaner to true if node pools have more than a few replicas.\
+        Always set drain_cleaner to true if node pools have more than a few replicas. \
+        If there are active rebalances (New, PendingProposal, ProposalReady, Rebalancing, Stopped), \
+        always note this as a hard blocker — upgrades must not proceed while rebalancing is in progress.\
         """;
 
     static final String ANALYSIS_SYSTEM_PROMPT = """
@@ -664,6 +716,7 @@ public class UpgradeReadinessDiagnosticService {
           * Performance headroom (request queue times, handler idle ratio)
           * Resource headroom (JVM heap, GC pressure)
           * Drain Cleaner status (if applicable)
+          * Active rebalances (hard blocker if any are in progress)
           * Certificate expiry (days remaining)
           * Recent warning/error events
         - Blocking issues (if any, with severity)
@@ -671,7 +724,7 @@ public class UpgradeReadinessDiagnosticService {
         - Maintenance window estimate (based on cluster size and rolling restart time)
 
         Be conservative: flag CONDITIONAL if any area shows degradation, \
-        and NO-GO if there are under-replicated partitions, expired certificates, \
+        and NO-GO if there are active rebalances, under-replicated partitions, expired certificates, \
         or the operator is not healthy.\
         """;
 }

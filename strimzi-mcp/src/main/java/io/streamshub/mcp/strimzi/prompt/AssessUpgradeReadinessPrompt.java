@@ -147,7 +147,31 @@ public class AssessUpgradeReadinessPrompt {
             the restart will cause further replica loss and potential data \
             unavailability.
 
-            ## Step 5: Resource headroom [GO/NO-GO]
+            ## Step 5: Active rebalance check [GO/NO-GO — HARD BLOCKER]
+            Use `list_kafka_rebalances(cluster_name='%s'%s)`.
+
+            **GO conditions**:
+            - No KafkaRebalance resources in active states \
+            (New, PendingProposal, ProposalReady, Rebalancing, Stopped)
+            - Only Ready or ReconciliationPaused rebalances are acceptable
+            - Empty list (no rebalances or CRD not installed) is also GO
+
+            **NO-GO conditions** (ANY blocks upgrade):
+            - Any rebalance in Rebalancing state (data movement in progress)
+            - Any rebalance in PendingProposal or ProposalReady state \
+            (proposal pending — may be approved during upgrade)
+            - Any rebalance in New or Stopped state (pending processing)
+
+            **Why this is a hard blocker:** A rebalance moves partition replicas \
+            between brokers. If an upgrade triggers a rolling restart while \
+            replicas are being moved, the rebalance will fail, potentially \
+            leaving partitions in an inconsistent state. Wait for the rebalance \
+            to complete (Ready state) or stop it before upgrading.
+
+            If any active rebalance is found, use `get_kafka_rebalance` to get \
+            details and report the state, mode, and optimization metrics.
+
+            ## Step 6: Resource headroom [GO/NO-GO]
             Use `get_kafka_metrics(cluster_name='%s'%s, category='resources')` \
             and `get_kafka_metrics(cluster_name='%s'%s, category='performance')`.
 
@@ -166,7 +190,7 @@ public class AssessUpgradeReadinessPrompt {
             load of the restarting broker. If utilization is already high, \
             this can cause a cascade of failures.
 
-            ## Step 6: Drain Cleaner readiness [GO/NO-GO]
+            ## Step 7: Drain Cleaner readiness [GO/NO-GO]
             Use `check_drain_cleaner_readiness` to verify drain cleaner status.
 
             **GO conditions**:
@@ -178,7 +202,7 @@ public class AssessUpgradeReadinessPrompt {
             - If Drain Cleaner is NOT deployed, pod evictions during node \
             maintenance may be abrupt and cause partition unavailability
 
-            ## Step 7: Certificate health [ADVISORY]
+            ## Step 8: Certificate health [ADVISORY]
             Use `get_kafka_cluster_certificates(cluster_name='%s'%s)` to check \
             certificate validity.
             - Certificates expiring within 7 days: **delay upgrade** and renew first
@@ -186,14 +210,14 @@ public class AssessUpgradeReadinessPrompt {
             - An upgrade may trigger certificate renewal if the operator \
             detects approaching expiry
 
-            ## Step 8: Kubernetes events [ADVISORY]
+            ## Step 9: Kubernetes events [ADVISORY]
             Use `get_strimzi_events(cluster_name='%s'%s)` to check for recent \
             warning events.
             - Recent FailedScheduling events suggest node resource pressure
             - Recent eviction events suggest node instability
             - These may impact the rolling restart process
 
-            ## Step 9: Upgrade readiness verdict
+            ## Step 10: Upgrade readiness verdict
             Produce a structured readiness report:
 
             **Overall verdict**: GO / NO-GO / CONDITIONAL
@@ -205,6 +229,7 @@ public class AssessUpgradeReadinessPrompt {
             | Operator health | GO/NO-GO | ... |
             | Pod health | GO/NO-GO | ... |
             | Replication | GO/NO-GO | ... |
+            | Rebalances | GO/NO-GO | ... |
             | Resource headroom | GO/NO-GO | ... |
             | Drain Cleaner | GO/NO-GO | ... |
             | Certificates | OK/WARNING | ... |
@@ -229,6 +254,7 @@ public class AssessUpgradeReadinessPrompt {
                 clusterName, nsArg,
                 nsArg.isEmpty() ? "" : "namespace='" + namespace + "'",
                 nsArg,
+                clusterName, nsArg,
                 clusterName, nsArg,
                 clusterName, nsArg,
                 clusterName, nsArg,
