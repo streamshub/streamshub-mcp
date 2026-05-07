@@ -66,7 +66,7 @@ The server collects logs from Kafka and Strimzi operator pods with the following
 
 The server supports metrics queries with the following capabilities:
 
-- Category-based queries for replication, throughput, performance, and resource metrics
+- Category-based queries for Kafka cluster, Kafka Exporter, KafkaConnect, KafkaBridge, and Strimzi operator metrics
 - Built-in interpretation guides with thresholds and diagnostic recommendations
 - Multiple metrics providers: pod scraping (default) or Prometheus
 - Flexible time ranges with ISO 8601 or relative formats

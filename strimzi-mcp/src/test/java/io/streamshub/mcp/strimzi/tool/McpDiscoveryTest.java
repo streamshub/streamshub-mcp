@@ -98,6 +98,7 @@ class McpDiscoveryTest {
                     "get_kafka_metrics",
                     "get_kafka_exporter_metrics",
                     "get_kafka_bridge_metrics",
+                    "get_kafka_connect_metrics",
                     "get_strimzi_operator_metrics",
                     "diagnose_kafka_topic",
                     "assess_upgrade_readiness"
