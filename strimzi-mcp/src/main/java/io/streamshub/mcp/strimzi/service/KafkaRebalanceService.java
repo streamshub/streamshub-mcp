@@ -273,6 +273,19 @@ public class KafkaRebalanceService {
         return null;
     }
 
+    /**
+     * Check if a rebalance state is active (not terminal).
+     * Active states: New, PendingProposal, ProposalReady, Rebalancing, Stopped.
+     *
+     * @param state the rebalance state string
+     * @return true if the state is active
+     */
+    public static boolean isActiveRebalanceState(final String state) {
+        return "New".equals(state) || "PendingProposal".equals(state)
+            || "ProposalReady".equals(state) || "Rebalancing".equals(state)
+            || "Stopped".equals(state);
+    }
+
     private List<ConditionInfo> extractConditions(final KafkaRebalance rebalance) {
         if (rebalance.getStatus() == null || rebalance.getStatus().getConditions() == null
             || rebalance.getStatus().getConditions().isEmpty()) {

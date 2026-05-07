@@ -363,7 +363,7 @@ public class UpgradeReadinessDiagnosticService {
             List<KafkaRebalanceResponse> all = rebalanceService.listRebalances(
                 namespace, clusterName);
             List<KafkaRebalanceResponse> active = all.stream()
-                .filter(r -> isActiveState(r.state()))
+                .filter(r -> KafkaRebalanceService.isActiveRebalanceState(r.state()))
                 .toList();
             completed.add(STEP_ACTIVE_REBALANCES);
             if (active.isEmpty()) {
@@ -380,12 +380,6 @@ public class UpgradeReadinessDiagnosticService {
             failed.add(STEP_ACTIVE_REBALANCES + ": " + e.getMessage());
             return null;
         }
-    }
-
-    private boolean isActiveState(final String state) {
-        return "New".equals(state) || "PendingProposal".equals(state)
-            || "ProposalReady".equals(state) || "Rebalancing".equals(state)
-            || "Stopped".equals(state);
     }
 
     // ---- Phase 2: Deep investigation ----

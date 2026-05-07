@@ -91,8 +91,8 @@ class KafkaConfigServiceTest {
             .withMetadata(new ObjectMetaBuilder().withName("my-cluster").withNamespace("kafka").build())
             .withNewSpec()
                 .withNewKafka()
-                    .withVersion("3.9.0")
-                    .withMetadataVersion("3.9-IV0")
+                    .withVersion("4.2.0")
+                    .withMetadataVersion("4.2-IV0")
                     .withConfig(Map.of("log.retention.hours", 168, "num.partitions", 3))
                 .endKafka()
             .endSpec()
@@ -104,8 +104,8 @@ class KafkaConfigServiceTest {
         assertNotNull(response);
         assertEquals("my-cluster", response.name());
         assertEquals("kafka", response.namespace());
-        assertEquals("3.9.0", response.kafkaVersion());
-        assertEquals("3.9-IV0", response.metadataVersion());
+        assertEquals("4.2.0", response.kafkaVersion());
+        assertEquals("4.2-IV0", response.metadataVersion());
         assertNotNull(response.brokerConfig());
         assertEquals(168, response.brokerConfig().get("log.retention.hours"));
         assertEquals(3, response.brokerConfig().get("num.partitions"));

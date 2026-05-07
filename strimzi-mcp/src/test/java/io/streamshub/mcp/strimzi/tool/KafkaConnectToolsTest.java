@@ -65,7 +65,7 @@ class KafkaConnectToolsTest {
     void testListKafkaConnects() {
         when(connectService.listConnects(null)).thenReturn(List.of(
             KafkaConnectResponse.summary("my-connect", "kafka", "Ready",
-                ReplicasInfo.of(3, 3), "3.7.0",
+                ReplicasInfo.of(3, 3), "4.2.0",
                 "my-cluster-kafka-bootstrap:9092", "http://my-connect-connect-api:8083",
                 5, List.of(ConditionInfo.of("Ready", "True", null, null, null)))
         ));
@@ -87,11 +87,11 @@ class KafkaConnectToolsTest {
     void testGetKafkaConnect() {
         when(connectService.getConnect(null, "my-connect")).thenReturn(
             KafkaConnectResponse.of("my-connect", "kafka", "Ready",
-                ReplicasInfo.of(3, 3), "3.7.0",
+                ReplicasInfo.of(3, 3), "4.2.0",
                 "my-cluster-kafka-bootstrap:9092", "http://my-connect-connect-api:8083",
                 2, List.of(
                     KafkaConnectResponse.ConnectorPluginInfo.of(
-                        "org.apache.kafka.connect.file.FileStreamSinkConnector", "sink", "3.7.0")),
+                        "org.apache.kafka.connect.file.FileStreamSinkConnector", "sink", "4.2.0")),
                 List.of(ConditionInfo.of("Ready", "True", null, null, null)),
                 null, null)
         );
