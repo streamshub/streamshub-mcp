@@ -290,7 +290,7 @@ public class KafkaRebalanceService {
      * @return true if the state is active
      */
     public static boolean isActiveRebalanceState(final String state) {
-        return ACTIVE_REBALANCE_STATES.contains(state);
+        return state != null && ACTIVE_REBALANCE_STATES.contains(state);
     }
 
     private List<ConditionInfo> extractConditions(final KafkaRebalance rebalance) {

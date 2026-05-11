@@ -22,13 +22,20 @@ import static org.mockito.ArgumentMatchers.anyString;
  * Helper for setting up mock Kubernetes client chains
  * that return empty results for {@link io.streamshub.mcp.common.service.KubernetesResourceService}.
  */
-final class KubernetesMockHelper {
+public final class KubernetesMockHelper {
 
     private KubernetesMockHelper() {
     }
 
+    /**
+     * Set up mock Kubernetes client chain that returns empty results for a resource type.
+     *
+     * @param <T>              the resource type
+     * @param kubernetesClient the mocked Kubernetes client
+     * @param resourceClass    the resource class to mock
+     */
     @SuppressWarnings("unchecked")
-    static <T extends HasMetadata> void setupEmptyResourceQuery(
+    public static <T extends HasMetadata> void setupEmptyResourceQuery(
             KubernetesClient kubernetesClient, Class<T> resourceClass) {
         MixedOperation resourceOp = Mockito.mock(MixedOperation.class);
         Mockito.lenient().when(kubernetesClient.resources(resourceClass)).thenReturn(resourceOp);
