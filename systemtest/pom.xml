@@ -18,8 +18,8 @@
         <strimzi.test-clients.version>0.14.0</strimzi.test-clients.version>
         <allure.junit.version>2.34.0</allure.junit.version>
         <allure.report.version>2.39.0</allure.report.version>
-        <allure.maven.version>2.17.0</allure.maven.version>
-        <log4j.version>2.25.4</log4j.version>
+        <allure.maven.version>3.0.1</allure.maven.version>
+        <log4j.version>2.26.0</log4j.version>
         <slf4j.version>2.0.17</slf4j.version>
         <!-- Skip system tests by default — enable with -Psystemtest -->
         <skipITs>true</skipITs>
