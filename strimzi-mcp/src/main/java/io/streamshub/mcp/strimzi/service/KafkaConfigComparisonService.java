@@ -97,6 +97,10 @@ public class KafkaConfigComparisonService {
         if (name2 == null) {
             throw new ToolCallException("Second cluster name is required");
         }
+        InputUtils.validateK8sName(name1, "first cluster name");
+        InputUtils.validateK8sName(ns1, "first namespace");
+        InputUtils.validateK8sName(name2, "second cluster name");
+        InputUtils.validateK8sName(ns2, "second namespace");
 
         LOG.infof("Starting comparison: cluster1=%s (ns=%s), cluster2=%s (ns=%s)",
             name1, ns1 != null ? ns1 : "auto", name2, ns2 != null ? ns2 : "auto");

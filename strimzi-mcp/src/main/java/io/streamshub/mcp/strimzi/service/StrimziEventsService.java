@@ -72,6 +72,8 @@ public class StrimziEventsService {
         if (name == null) {
             throw new ToolCallException("Cluster name is required");
         }
+        InputUtils.validateK8sName(name, "cluster name");
+        InputUtils.validateK8sName(ns, "namespace");
 
         LOG.infof("Getting events for cluster=%s (namespace=%s, sinceMinutes=%s)",
             name, ns != null ? ns : "auto", sinceMinutes);
@@ -126,6 +128,11 @@ public class StrimziEventsService {
         try {
             List<KafkaNodePool> nodePools = k8sService.queryResourcesByLabel(
                 KafkaNodePool.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, name);
+            if (nodePools.size() > maxRelatedResources) {
+                LOG.warnf("Cluster %s has %d node pools, limiting event queries to first %d",
+                    name, nodePools.size(), maxRelatedResources);
+                nodePools = nodePools.subList(0, maxRelatedResources);
+            }
             for (KafkaNodePool nodePool : nodePools) {
                 resourceEvents.add(eventsService.getEventsForResource(
                     resolvedNs, nodePool.getMetadata().getName(), "KafkaNodePool", sinceTime));
