@@ -118,6 +118,7 @@ deploy_drain_cleaner() {
 
 teardown_drain_cleaner() {
     local drain_cleaner_dir="$STRIMZI_DIR/drain-cleaner"
+    local drain_cleaner_ns="strimzi-drain-cleaner"
 
     log_info "Removing Strimzi Drain Cleaner..."
     if [ "$OCP" = true ]; then
@@ -125,6 +126,9 @@ teardown_drain_cleaner() {
     else
         kubectl delete -k "$drain_cleaner_dir/certmanager/" --ignore-not-found
     fi
+
+    log_info "Deleting namespace $drain_cleaner_ns..."
+    kubectl delete namespace "$drain_cleaner_ns" --ignore-not-found --timeout=60s 2>/dev/null || true
     log_success "Drain Cleaner removed"
 }
 
@@ -277,6 +281,30 @@ deploy() {
     fi
 }
 
+delete_kafka_topics() {
+    local topics
+    topics=$(kubectl get kafkatopic -n "$KAFKA_NS" -o name 2>/dev/null) || true
+
+    if [ -z "$topics" ]; then
+        log_info "No KafkaTopics found in namespace $KAFKA_NS"
+        return
+    fi
+
+    log_info "Deleting all KafkaTopics in namespace $KAFKA_NS..."
+    if kubectl delete kafkatopic --all -n "$KAFKA_NS" --timeout=60s 2>/dev/null; then
+        log_success "All KafkaTopics deleted"
+        return
+    fi
+
+    log_warning "Some KafkaTopics are stuck, removing finalizers..."
+    for topic in $(kubectl get kafkatopic -n "$KAFKA_NS" -o name 2>/dev/null); do
+        kubectl patch "$topic" -n "$KAFKA_NS" -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null
+    done
+
+    kubectl delete kafkatopic --all -n "$KAFKA_NS" --ignore-not-found --timeout=30s 2>/dev/null
+    log_success "KafkaTopics cleaned up"
+}
+
 teardown() {
     check_kubectl
 
@@ -287,6 +315,8 @@ teardown() {
     if [ "$INSTALL_BRIDGE" = true ]; then
         teardown_bridge
     fi
+
+    delete_kafka_topics
 
     log_info "Removing Kafka cluster..."
     if [ "$OCP" = true ]; then
