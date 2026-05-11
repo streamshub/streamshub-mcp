@@ -56,7 +56,7 @@ class McpDiscoveryTest {
                 List<String> expectedTools = List.of(
                     "list_kafka_clusters",
                     "get_kafka_cluster",
-                    "get_kafka_cluster_overview",
+                    "get_strimzi_kafka_cluster_overview",
                     "get_kafka_cluster_pods",
                     "get_kafka_bootstrap_servers",
                     "get_kafka_cluster_certificates",

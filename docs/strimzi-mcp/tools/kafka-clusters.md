@@ -34,7 +34,7 @@ Get detailed information about a specific Kafka cluster including status, versio
 Get details for mcp-cluster
 ```
 
-## get_kafka_cluster_overview
+## get_strimzi_kafka_cluster_overview
 
 Get a full overview of a Kafka cluster and all related Strimzi resources in a single call. Shows the dependency graph: which operator manages the cluster, its node pools, topic/user counts with readiness breakdown, active rebalances, connected KafkaConnect clusters and KafkaBridge instances, and Drain Cleaner status.
 

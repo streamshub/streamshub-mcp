@@ -16,12 +16,14 @@ import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.rebalance.KafkaRebalance;
 import io.strimzi.api.kafka.model.rebalance.KafkaRebalanceSpec;
+import io.strimzi.api.kafka.model.rebalance.KafkaRebalanceState;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -33,6 +35,13 @@ public class KafkaRebalanceService {
     private static final Logger LOG = Logger.getLogger(KafkaRebalanceService.class);
     private static final String AUTO_APPROVAL_ANNOTATION = "strimzi.io/rebalance-auto-approval";
     private static final String REBALANCE_ANNOTATION = "strimzi.io/rebalance";
+    private static final String STATE_UNKNOWN = "Unknown";
+    private static final Set<String> ACTIVE_REBALANCE_STATES = Set.of(
+        KafkaRebalanceState.New.name(),
+        KafkaRebalanceState.PendingProposal.name(),
+        KafkaRebalanceState.ProposalReady.name(),
+        KafkaRebalanceState.Rebalancing.name(),
+        KafkaRebalanceState.Stopped.name());
 
     @Inject
     KubernetesResourceService k8sService;
@@ -202,13 +211,13 @@ public class KafkaRebalanceService {
 
     private String extractState(final KafkaRebalance rebalance) {
         if (rebalance.getStatus() == null || rebalance.getStatus().getConditions() == null) {
-            return "Unknown";
+            return STATE_UNKNOWN;
         }
         return rebalance.getStatus().getConditions().stream()
             .filter(c -> "True".equals(c.getStatus()))
             .map(Condition::getType)
             .findFirst()
-            .orElse("Unknown");
+            .orElse(STATE_UNKNOWN);
     }
 
     private String extractMode(final KafkaRebalance rebalance) {
@@ -281,9 +290,7 @@ public class KafkaRebalanceService {
      * @return true if the state is active
      */
     public static boolean isActiveRebalanceState(final String state) {
-        return "New".equals(state) || "PendingProposal".equals(state)
-            || "ProposalReady".equals(state) || "Rebalancing".equals(state)
-            || "Stopped".equals(state);
+        return ACTIVE_REBALANCE_STATES.contains(state);
     }
 
     private List<ConditionInfo> extractConditions(final KafkaRebalance rebalance) {

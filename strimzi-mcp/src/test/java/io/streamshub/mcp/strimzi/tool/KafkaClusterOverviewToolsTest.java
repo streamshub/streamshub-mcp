@@ -82,7 +82,7 @@ class KafkaClusterOverviewToolsTest {
         );
 
         client.when()
-            .toolsCall("get_kafka_cluster_overview",
+            .toolsCall("get_strimzi_kafka_cluster_overview",
                 Map.of("clusterName", "my-cluster"), response -> {
                     assertFalse(response.isError());
                     String json = response.content().getFirst().asText().text();
@@ -120,7 +120,7 @@ class KafkaClusterOverviewToolsTest {
         );
 
         client.when()
-            .toolsCall("get_kafka_cluster_overview",
+            .toolsCall("get_strimzi_kafka_cluster_overview",
                 Map.of("clusterName", "empty-cluster"), response -> {
                     assertFalse(response.isError());
                     String json = response.content().getFirst().asText().text();
@@ -147,7 +147,7 @@ class KafkaClusterOverviewToolsTest {
         );
 
         client.when()
-            .toolsCall("get_kafka_cluster_overview",
+            .toolsCall("get_strimzi_kafka_cluster_overview",
                 Map.of("clusterName", "my-cluster", "namespace", "kafka"), response -> {
                     assertFalse(response.isError());
                     String json = response.content().getFirst().asText().text();

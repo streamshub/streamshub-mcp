@@ -123,9 +123,9 @@ public class KafkaTools {
      * @param namespace   optional namespace
      * @return the cluster overview response
      */
-    @WithSpan("tool.get_kafka_cluster_overview")
+    @WithSpan("tool.get_strimzi_kafka_cluster_overview")
     @Tool(
-        name = "get_kafka_cluster_overview",
+        name = "get_strimzi_kafka_cluster_overview",
         description = "Get a full overview of a Kafka cluster and all related resources."
             + " Shows operator, node pools, topic/user counts, connected KafkaConnect/Bridge, and rebalances.",
         annotations = @Tool.Annotations(
