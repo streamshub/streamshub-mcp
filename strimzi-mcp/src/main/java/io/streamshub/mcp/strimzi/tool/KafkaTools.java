@@ -19,9 +19,11 @@ import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaCertificateResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterLogsResponse;
+import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.service.KafkaCertificateService;
+import io.streamshub.mcp.strimzi.service.KafkaClusterOverviewService;
 import io.streamshub.mcp.strimzi.service.KafkaService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -44,6 +46,9 @@ public class KafkaTools {
 
     @Inject
     KafkaCertificateService kafkaCertificateService;
+
+    @Inject
+    KafkaClusterOverviewService overviewService;
 
     @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
     int defaultTailLines;
@@ -109,6 +114,37 @@ public class KafkaTools {
         ) final String namespace
     ) {
         return kafkaService.getCluster(namespace, clusterName);
+    }
+
+    /**
+     * Get a full overview of a Kafka cluster and all related resources.
+     *
+     * @param clusterName the cluster name
+     * @param namespace   optional namespace
+     * @return the cluster overview response
+     */
+    @WithSpan("tool.get_strimzi_kafka_cluster_overview")
+    @Tool(
+        name = "get_strimzi_kafka_cluster_overview",
+        description = "Get a full overview of a Kafka cluster and all related resources."
+            + " Shows operator, node pools, topic/user counts, connected KafkaConnect/Bridge, and rebalances.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    public KafkaClusterOverviewResponse getKafkaClusterOverview(
+        @ToolArg(
+            description = StrimziToolsPrompts.CLUSTER_DESC
+        ) final String clusterName,
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace
+    ) {
+        return overviewService.getOverview(namespace, clusterName);
     }
 
     /**

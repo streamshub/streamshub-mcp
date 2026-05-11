@@ -34,6 +34,32 @@ Get detailed information about a specific Kafka cluster including status, versio
 Get details for mcp-cluster
 ```
 
+## get_strimzi_kafka_cluster_overview
+
+Get a full overview of a Kafka cluster and all related Strimzi resources in a single call. Shows the dependency graph: which operator manages the cluster, its node pools, topic/user counts with readiness breakdown, active rebalances, connected KafkaConnect clusters and KafkaBridge instances, and Drain Cleaner status.
+
+KafkaConnect and KafkaBridge resources are matched by comparing their `spec.bootstrapServers` against the cluster's listener addresses.
+
+**Parameters**:
+- `clusterName` (required) -- Name of the Kafka cluster
+- `namespace` (optional) -- Kubernetes namespace
+
+**Returns**: Structured overview including:
+- **Cluster summary** -- name, version, readiness, replica counts
+- **Operator** -- name, version, status
+- **Node pools** -- name, roles, replica counts per pool
+- **Topics** -- total count, ready/not-ready breakdown
+- **Users** -- total count, ready/not-ready breakdown
+- **Rebalances** -- total, active count, state breakdown
+- **KafkaConnects** -- connected clusters with connector counts
+- **KafkaBridges** -- connected bridge instances
+- **Drain Cleaner** -- deployment and readiness status
+
+**Example**:
+```
+Give me an overview of my-cluster and all its related resources
+```
+
 ## get_kafka_cluster_pods
 
 Get pod information for a Kafka cluster.

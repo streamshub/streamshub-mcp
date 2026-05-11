@@ -72,8 +72,8 @@ class KafkaConfigComparisonServiceTest {
     @Test
     void testComparisonWithTwoClusters() {
         setupTwoKafkaClusters(
-            "cluster-a", "kafka", Map.of("log.retention.hours", 168, "num.partitions", 3), "3.9.0",
-            "cluster-b", "kafka", Map.of("log.retention.hours", 72, "num.partitions", 6), "3.8.0");
+            "cluster-a", "kafka", Map.of("log.retention.hours", 168, "num.partitions", 3), "4.2.0",
+            "cluster-b", "kafka", Map.of("log.retention.hours", 72, "num.partitions", 6), "4.1.0");
 
         KafkaConfigComparisonReport report = comparisonService.compare(
             "kafka", "cluster-a", "kafka", "cluster-b",
@@ -84,8 +84,8 @@ class KafkaConfigComparisonServiceTest {
         assertNotNull(report.cluster2Config());
         assertEquals("cluster-a", report.cluster1Config().name());
         assertEquals("cluster-b", report.cluster2Config().name());
-        assertEquals("3.9.0", report.cluster1Config().kafkaVersion());
-        assertEquals("3.8.0", report.cluster2Config().kafkaVersion());
+        assertEquals("4.2.0", report.cluster1Config().kafkaVersion());
+        assertEquals("4.1.0", report.cluster2Config().kafkaVersion());
         // No sampling → analysis should be null
         assertNull(report.analysis());
         assertNotNull(report.stepsCompleted());
@@ -100,8 +100,8 @@ class KafkaConfigComparisonServiceTest {
     @Test
     void testReportMetadata() {
         setupTwoKafkaClusters(
-            "cluster-a", "kafka", Map.of(), "3.9.0",
-            "cluster-b", "kafka", Map.of(), "3.9.0");
+            "cluster-a", "kafka", Map.of(), "4.2.0",
+            "cluster-b", "kafka", Map.of(), "4.2.0");
 
         KafkaConfigComparisonReport report = comparisonService.compare(
             "kafka", "cluster-a", "kafka", "cluster-b",
