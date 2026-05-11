@@ -90,6 +90,8 @@ public class KafkaBridgeService {
         if (normalizedName == null) {
             throw new ToolCallException("KafkaBridge name is required");
         }
+        InputUtils.validateK8sName(normalizedName, "bridge name");
+        InputUtils.validateK8sName(ns, "namespace");
 
         LOG.infof("Getting KafkaBridge name=%s (namespace=%s)", normalizedName, ns != null ? ns : "auto");
 
@@ -111,6 +113,8 @@ public class KafkaBridgeService {
         if (normalizedName == null) {
             throw new ToolCallException("KafkaBridge name is required");
         }
+        InputUtils.validateK8sName(normalizedName, "bridge name");
+        InputUtils.validateK8sName(ns, "namespace");
 
         LOG.infof("Getting pods for KafkaBridge=%s in namespace=%s",
             normalizedName, ns != null ? ns : "auto");
@@ -150,6 +154,8 @@ public class KafkaBridgeService {
         if (normalizedName == null) {
             throw new ToolCallException("KafkaBridge name is required");
         }
+        InputUtils.validateK8sName(normalizedName, "bridge name");
+        InputUtils.validateK8sName(ns, "namespace");
 
         LOG.infof("Getting logs for KafkaBridge=%s (namespace=%s, filter=%s, sinceSeconds=%s, "
                 + "tailLines=%s, previous=%s)",

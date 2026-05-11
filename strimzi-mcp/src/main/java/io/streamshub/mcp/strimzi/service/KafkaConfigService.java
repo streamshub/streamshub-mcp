@@ -91,6 +91,8 @@ public class KafkaConfigService {
         if (name == null) {
             throw new ToolCallException("Cluster name is required");
         }
+        InputUtils.validateK8sName(name, "cluster name");
+        InputUtils.validateK8sName(ns, "namespace");
 
         LOG.infof("Getting effective config for cluster=%s (namespace=%s)", name, ns != null ? ns : "auto");
 
