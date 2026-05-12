@@ -13,6 +13,7 @@ import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse.BridgeSummary;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse.ClusterSummary;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse.ConnectSummary;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse.DrainCleanerSummary;
+import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse.MirrorMakerSummary;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse.NodePoolSummary;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse.RebalanceSummary;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse.ResourceCount;
@@ -22,9 +23,11 @@ import io.streamshub.mcp.strimzi.dto.KafkaRebalanceResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectResponse;
+import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2Response;
 import io.streamshub.mcp.strimzi.service.kafkabridge.KafkaBridgeService;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectService;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectorService;
+import io.streamshub.mcp.strimzi.service.kafkamirrormaker2.KafkaMirrorMaker2Service;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.kafka.Status;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
@@ -81,6 +84,9 @@ public class KafkaClusterOverviewService {
     KafkaBridgeService bridgeService;
 
     @Inject
+    KafkaMirrorMaker2Service mirrorMakerService;
+
+    @Inject
     DrainCleanerService drainCleanerService;
 
     KafkaClusterOverviewService() {
@@ -118,6 +124,7 @@ public class KafkaClusterOverviewService {
             countUsers(resolvedNs, name),
             gatherRebalances(resolvedNs, name),
             findConnectedConnects(resolvedNs, bootstrapAddresses),
+            findConnectedMirrorMakers(resolvedNs, bootstrapAddresses),
             findConnectedBridges(resolvedNs, bootstrapAddresses),
             gatherDrainCleaner(),
             Instant.now());
@@ -225,6 +232,26 @@ public class KafkaClusterOverviewService {
         }
     }
 
+    private List<MirrorMakerSummary> findConnectedMirrorMakers(final String namespace,
+                                                               final Set<String> bootstrapAddresses) {
+        try {
+            List<KafkaMirrorMaker2Response> allMm2 = mirrorMakerService.listMirrorMakers(namespace);
+            return allMm2.stream()
+                .filter(m -> mm2ConnectsToCluster(m, bootstrapAddresses))
+                .map(m -> {
+                    Integer replicas = m.replicas() != null ? m.replicas().expected() : null;
+                    int mirrorCount = m.sourceClusterAliases() != null
+                        ? m.sourceClusterAliases().size() : 0;
+                    return new MirrorMakerSummary(m.name(), m.namespace(),
+                        m.readiness(), replicas, mirrorCount);
+                })
+                .toList();
+        } catch (Exception e) {
+            LOG.warnf("Could not find connected KafkaMirrorMaker2 instances: %s", e.getMessage());
+            return null;
+        }
+    }
+
     private List<BridgeSummary> findConnectedBridges(final String namespace,
                                                      final Set<String> bootstrapAddresses) {
         try {
@@ -272,6 +299,30 @@ public class KafkaClusterOverviewService {
             }
         }
         return addresses;
+    }
+
+    private boolean mm2ConnectsToCluster(final KafkaMirrorMaker2Response mm2,
+                                         final Set<String> clusterAddresses) {
+        if (matchesBootstrap(mm2.bootstrapServers(), clusterAddresses)) {
+            return true;
+        }
+        if (mm2.targetCluster() != null) {
+            for (String addr : clusterAddresses) {
+                if (addr.contains(mm2.targetCluster())) {
+                    return true;
+                }
+            }
+        }
+        if (mm2.sourceClusterAliases() != null) {
+            for (String alias : mm2.sourceClusterAliases()) {
+                for (String addr : clusterAddresses) {
+                    if (addr.contains(alias)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private boolean matchesBootstrap(final String specBootstrapServers,

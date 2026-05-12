@@ -265,6 +265,12 @@ public final class StrimziToolsPrompts {
             + " Omit to list users across all clusters.";
 
     /**
+     * KafkaMirrorMaker2 name parameter description.
+     */
+    public static final String MIRROR_MAKER_NAME_DESC =
+        "KafkaMirrorMaker2 name (e.g., 'my-mirror-maker').";
+
+    /**
      * KafkaRebalance name parameter description.
      */
     public static final String REBALANCE_NAME_DESC =

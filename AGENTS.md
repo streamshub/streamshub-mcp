@@ -95,6 +95,7 @@ io.streamshub.mcp.strimzi.
 │                        KafkaRebalanceTools,
 │                        DrainCleanerTools, DiagnosticTools (composite diagnostic tools)
 │   ├── kafkaconnect/  → KafkaConnectTools, KafkaConnectorTools
+│   ├── kafkamirrormaker2/ → KafkaMirrorMaker2Tools
 │   └── metrics/       → MetricsTools
 ├── service/           → Business logic (KafkaService, KafkaTopicService, KafkaNodePoolService,
 │                        KafkaCertificateService, KafkaConfigService, KafkaConfigComparisonService,
@@ -107,12 +108,15 @@ io.streamshub.mcp.strimzi.
 │   ├── kafkabridge/   → KafkaBridgeService
 │   ├── kafkaconnect/  → KafkaConnectService, KafkaConnectorService,
 │   │                    KafkaConnectorDiagnosticService
+│   ├── kafkamirrormaker2/ → KafkaMirrorMaker2Service,
+│   │                    KafkaMirrorMaker2DiagnosticService
 │   └── metrics/       → KafkaMetricsService, KafkaExporterMetricsService,
 │                        KafkaBridgeMetricsService, KafkaConnectMetricsService,
 │                        StrimziOperatorMetricsService
 ├── dto/               → Strimzi response records and diagnostic reports
 │   ├── kafkabridge/   → KafkaBridgeResponse, etc.
 │   ├── kafkaconnect/  → KafkaConnectResponse, KafkaConnectorResponse, etc.
+│   ├── kafkamirrormaker2/ → KafkaMirrorMaker2Response, KafkaMirrorMaker2DiagnosticReport, etc.
 │   └── metrics/       → KafkaMetricsResponse, KafkaExporterMetricsResponse,
 │                        KafkaBridgeMetricsResponse, KafkaConnectMetricsResponse,
 │                        StrimziOperatorMetricsResponse

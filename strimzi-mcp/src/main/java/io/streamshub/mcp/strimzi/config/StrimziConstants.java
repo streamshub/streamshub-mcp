@@ -45,6 +45,11 @@ public final class StrimziConstants {
          */
         public static final String KAFKA_BRIDGE = "KafkaBridge";
 
+        /**
+         * Kind label value for KafkaMirrorMaker2 pods.
+         */
+        public static final String KAFKA_MIRROR_MAKER_2 = "KafkaMirrorMaker2";
+
         private KindValues() {
         }
     }

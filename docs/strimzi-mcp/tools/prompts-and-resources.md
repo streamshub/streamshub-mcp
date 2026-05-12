@@ -168,6 +168,23 @@ Step-by-step troubleshooting of a KafkaTopic issue. Focuses on topic-specific di
 5. Check Kubernetes events
 6. Diagnose and recommend (topic config, operator issues, or redirect to cluster prompts)
 
+### troubleshoot-mirror-maker
+
+Step-by-step troubleshooting of a KafkaMirrorMaker2 issue. Also available as the server-driven [`diagnose_kafka_mirror_maker`](diagnostics.md#diagnose_kafka_mirror_maker) composite tool.
+
+**Parameters**:
+- `mirror_maker_name` (required) -- Name of the KafkaMirrorMaker2 to troubleshoot
+- `namespace` (optional) -- Kubernetes namespace
+- `symptom` (optional) -- Observed symptom (e.g., "replication lag", "connectors failing")
+
+**Workflow**:
+1. Check MM2 status, mirror configurations, and connector statuses
+2. Analyze MirrorSourceConnector and MirrorCheckpointConnector health
+3. Check MM2 pods for crashes and restarts
+4. Check MM2 logs for replication, authentication, and connectivity errors
+5. Check Kubernetes events
+6. Correlate and diagnose (replication issues, topic patterns, consumer groups, resources, operator)
+
 ### analyze-capacity
 
 Capacity analysis of a Kafka cluster.

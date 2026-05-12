@@ -102,7 +102,12 @@ class McpDiscoveryTest {
                     "get_kafka_connect_metrics",
                     "get_strimzi_operator_metrics",
                     "diagnose_kafka_topic",
-                    "assess_upgrade_readiness"
+                    "assess_upgrade_readiness",
+                    "list_kafka_mirror_makers",
+                    "get_kafka_mirror_maker",
+                    "get_kafka_mirror_maker_pods",
+                    "get_kafka_mirror_maker_logs",
+                    "diagnose_kafka_mirror_maker"
                 );
 
                 for (String toolName : expectedTools) {
@@ -142,6 +147,8 @@ class McpDiscoveryTest {
                     "Prompt 'analyze-capacity' should be registered");
                 assertNotNull(page.findByName("assess-upgrade-readiness"),
                     "Prompt 'assess-upgrade-readiness' should be registered");
+                assertNotNull(page.findByName("troubleshoot-mirror-maker"),
+                    "Prompt 'troubleshoot-mirror-maker' should be registered");
             })
             .send()
             .thenAssertResults();

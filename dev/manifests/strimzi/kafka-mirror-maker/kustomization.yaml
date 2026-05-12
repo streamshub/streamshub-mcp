@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - 010-Kafka-secondary.yaml
+  - 020-KafkaUser-mm2.yaml
+  - 030-KafkaMirrorMaker2.yaml
+  - 040-KafkaTopic-source.yaml

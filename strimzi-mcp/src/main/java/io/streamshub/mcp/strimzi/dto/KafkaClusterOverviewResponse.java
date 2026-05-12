@@ -23,9 +23,10 @@ import java.util.Map;
  * @param topics        topic count and readiness breakdown
  * @param users         user count and readiness breakdown
  * @param rebalances    rebalance count, active count, and state breakdown
- * @param kafkaConnects KafkaConnect clusters connected to this Kafka cluster
- * @param kafkaBridges  KafkaBridge instances connected to this Kafka cluster
- * @param drainCleaner  Drain Cleaner readiness (null if not deployed)
+ * @param kafkaConnects    KafkaConnect clusters connected to this Kafka cluster
+ * @param kafkaMirrorMakers KafkaMirrorMaker2 instances connected to this Kafka cluster
+ * @param kafkaBridges     KafkaBridge instances connected to this Kafka cluster
+ * @param drainCleaner     Drain Cleaner readiness (null if not deployed)
  * @param timestamp     when this overview was generated
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -37,6 +38,7 @@ public record KafkaClusterOverviewResponse(
     @JsonProperty("users") ResourceCount users,
     @JsonProperty("rebalances") RebalanceSummary rebalances,
     @JsonProperty("kafka_connects") List<ConnectSummary> kafkaConnects,
+    @JsonProperty("kafka_mirror_makers") List<MirrorMakerSummary> kafkaMirrorMakers,
     @JsonProperty("kafka_bridges") List<BridgeSummary> kafkaBridges,
     @JsonProperty("drain_cleaner") DrainCleanerSummary drainCleaner,
     @JsonProperty("timestamp") Instant timestamp
@@ -173,6 +175,25 @@ public record KafkaClusterOverviewResponse(
         @JsonProperty("namespace") String namespace,
         @JsonProperty("readiness") String readiness,
         @JsonProperty("replicas") Integer replicas
+    ) {
+    }
+
+    /**
+     * KafkaMirrorMaker2 summary.
+     *
+     * @param name        the MM2 name
+     * @param namespace   the namespace
+     * @param readiness   the readiness status
+     * @param replicas    the replica count
+     * @param mirrorCount the number of mirror configurations
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record MirrorMakerSummary(
+        @JsonProperty("name") String name,
+        @JsonProperty("namespace") String namespace,
+        @JsonProperty("readiness") String readiness,
+        @JsonProperty("replicas") Integer replicas,
+        @JsonProperty("mirror_count") int mirrorCount
     ) {
     }
 

@@ -23,6 +23,7 @@ import io.streamshub.mcp.strimzi.dto.KafkaTopicDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.OperatorMetricsDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.UpgradeReadinessReport;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticReport;
 import io.streamshub.mcp.strimzi.service.KafkaClusterDiagnosticService;
 import io.streamshub.mcp.strimzi.service.KafkaConfigComparisonService;
 import io.streamshub.mcp.strimzi.service.KafkaConnectivityDiagnosticService;
@@ -31,6 +32,7 @@ import io.streamshub.mcp.strimzi.service.KafkaTopicDiagnosticService;
 import io.streamshub.mcp.strimzi.service.OperatorMetricsDiagnosticService;
 import io.streamshub.mcp.strimzi.service.UpgradeReadinessDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectorDiagnosticService;
+import io.streamshub.mcp.strimzi.service.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -68,6 +70,9 @@ public class DiagnosticTools {
 
     @Inject
     UpgradeReadinessDiagnosticService upgradeReadinessService;
+
+    @Inject
+    KafkaMirrorMaker2DiagnosticService mirrorMakerDiagnosticService;
 
     DiagnosticTools() {
     }
@@ -544,6 +549,49 @@ public class DiagnosticTools {
     ) {
         return upgradeReadinessService.diagnose(
             namespace, clusterName, targetVersion,
+            sampling, elicitation, mcpLog, progress, cancellation);
+    }
+
+    /**
+     * Run a composite diagnostic workflow for a KafkaMirrorMaker2 instance.
+     *
+     * @param mirrorMakerName the KafkaMirrorMaker2 name
+     * @param namespace       optional namespace
+     * @param symptom         optional symptom description
+     * @param sinceMinutes    optional time window for logs and events
+     * @param sampling        MCP Sampling for LLM analysis
+     * @param elicitation     MCP Elicitation for namespace disambiguation
+     * @param mcpLog          MCP log for progress notifications
+     * @param progress        MCP progress tracking
+     * @param cancellation    MCP cancellation checking
+     * @return a consolidated MM2 diagnostic report
+     */
+    @WithSpan("tool.diagnose_kafka_mirror_maker")
+    @Tool(
+        name = "diagnose_kafka_mirror_maker",
+        description = "Multi-step diagnostic workflow for KafkaMirrorMaker2."
+            + " Gathers MM2 status, connector health, pod status, logs, and events.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    public KafkaMirrorMaker2DiagnosticReport diagnoseKafkaMirrorMaker(
+        @ToolArg(description = StrimziToolsPrompts.MIRROR_MAKER_NAME_DESC) final String mirrorMakerName,
+        @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
+        @ToolArg(description = StrimziToolsPrompts.SYMPTOM_DESC, required = false) final String symptom,
+        @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
+            required = false) final Integer sinceMinutes,
+        final Sampling sampling,
+        final Elicitation elicitation,
+        final McpLog mcpLog,
+        final Progress progress,
+        final Cancellation cancellation
+    ) {
+        return mirrorMakerDiagnosticService.diagnose(
+            namespace, mirrorMakerName, symptom, sinceMinutes,
             sampling, elicitation, mcpLog, progress, cancellation);
     }
 }

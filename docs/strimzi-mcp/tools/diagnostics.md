@@ -156,6 +156,30 @@ Checks cluster health, operator status, pod health, replication, resource headro
 Check if my-cluster is ready for upgrade to Kafka 4.2.0
 ```
 
+## diagnose_kafka_mirror_maker
+
+Runs a multi-step diagnostic workflow for a KafkaMirrorMaker2 instance.
+Gathers MM2 status, connector health, pod status, logs, and events in a single call.
+
+**3-Phase workflow**:
+1. **Phase 1 -- Initial data gathering**: MM2 status and configuration, pod health.
+2. **Phase 2 -- Deep investigation**: MM2 logs (error-filtered), Kubernetes events.
+3. **Phase 3 -- Analysis**: Root cause analysis distinguishing replication issues, topic pattern problems, resource exhaustion, and operator failures.
+
+**Parameters**:
+- `mirrorMakerName` (required) -- Name of the KafkaMirrorMaker2
+- `namespace` (optional) -- Kubernetes namespace
+- `symptom` (optional) -- Observed symptom
+- `sinceMinutes` (optional) -- Time window for logs/events
+
+**Uses Sampling**: Yes -- Root cause analysis
+**Uses Elicitation**: Yes -- Namespace disambiguation
+
+**Example**:
+```
+Diagnose issues with my-mirror-maker
+```
+
 ## compare_kafka_clusters
 
 Compares the effective configuration of two Kafka clusters.
