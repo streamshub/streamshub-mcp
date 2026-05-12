@@ -1,0 +1,30 @@
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: source-orders
+  namespace: strimzi-kafka
+  labels:
+    strimzi.io/cluster: mcp-cluster-secondary
+    mcp: strimzi
+    system: strimzi
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 86400000
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: source-events
+  namespace: strimzi-kafka
+  labels:
+    strimzi.io/cluster: mcp-cluster-secondary
+    mcp: strimzi
+    system: strimzi
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 86400000

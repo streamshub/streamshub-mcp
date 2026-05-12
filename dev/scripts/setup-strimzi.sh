@@ -15,6 +15,7 @@ INSTALL_PROMETHEUS=false
 INSTALL_LOKI=false
 INSTALL_DRAIN_CLEANER=false
 INSTALL_BRIDGE=false
+INSTALL_MIRROR_MAKER=false
 INSTALL_TEST_CLIENTS=false
 OCP=false
 
@@ -156,6 +157,37 @@ teardown_bridge() {
     log_success "KafkaBridge removed"
 }
 
+deploy_mirror_maker() {
+    log_info "Deploying secondary Kafka cluster and MirrorMaker2..."
+    kubectl apply -k "$STRIMZI_DIR/kafka-mirror-maker/"
+
+    log_info "Waiting for secondary cluster to be ready (this may take a few minutes)..."
+    kubectl wait kafka/mcp-cluster-secondary \
+        --for=condition=Ready \
+        -n "$KAFKA_NS" \
+        --timeout=600s
+    log_success "Secondary Kafka cluster is ready"
+
+    log_info "Waiting for MirrorMaker2 user to be ready..."
+    kubectl wait kafkauser/mm2-user \
+        --for=condition=Ready \
+        -n "$KAFKA_NS" \
+        --timeout=120s
+
+    log_info "Waiting for MirrorMaker2 to be ready..."
+    kubectl wait kafkamirrormaker2/mcp-mirror-maker \
+        --for=condition=Ready \
+        -n "$KAFKA_NS" \
+        --timeout=300s
+    log_success "MirrorMaker2 is ready"
+}
+
+teardown_mirror_maker() {
+    log_info "Removing MirrorMaker2 and secondary cluster..."
+    kubectl delete -k "$STRIMZI_DIR/kafka-mirror-maker/" --ignore-not-found
+    log_success "MirrorMaker2 and secondary cluster removed"
+}
+
 deploy_test_clients() {
     log_info "Deploying test clients..."
     kubectl apply -k "$STRIMZI_DIR/test-clients/"
@@ -236,6 +268,10 @@ deploy() {
         deploy_bridge
     fi
 
+    if [ "$INSTALL_MIRROR_MAKER" = true ]; then
+        deploy_mirror_maker
+    fi
+
     if [ "$INSTALL_TEST_CLIENTS" = true ]; then
         deploy_test_clients
     fi
@@ -258,6 +294,10 @@ deploy() {
     if [ "$INSTALL_BRIDGE" = true ]; then
         echo "KafkaBridge:         mcp-bridge"
     fi
+    if [ "$INSTALL_MIRROR_MAKER" = true ]; then
+        echo "Secondary cluster:   mcp-cluster-secondary"
+        echo "MirrorMaker2:        mcp-mirror-maker"
+    fi
     if [ "$INSTALL_TEST_CLIENTS" = true ]; then
         echo "Test clients:        kafka-producer, kafka-consumer, http-producer, http-consumer"
     fi
@@ -278,6 +318,9 @@ deploy() {
     echo "  kubectl get kafkauser -n $KAFKA_NS"
     if [ "$INSTALL_BRIDGE" = true ]; then
         echo "  kubectl get kafkabridge -n $KAFKA_NS"
+    fi
+    if [ "$INSTALL_MIRROR_MAKER" = true ]; then
+        echo "  kubectl get kafkamirrormaker2 -n $KAFKA_NS"
     fi
 }
 
@@ -310,6 +353,10 @@ teardown() {
 
     if [ "$INSTALL_TEST_CLIENTS" = true ]; then
         teardown_test_clients
+    fi
+
+    if [ "$INSTALL_MIRROR_MAKER" = true ]; then
+        teardown_mirror_maker
     fi
 
     if [ "$INSTALL_BRIDGE" = true ]; then
@@ -362,6 +409,9 @@ for arg in "$@"; do
         "--bridge")
             INSTALL_BRIDGE=true
             ;;
+        "--mirror-maker")
+            INSTALL_MIRROR_MAKER=true
+            ;;
         "--test-clients")
             INSTALL_TEST_CLIENTS=true
             ;;
@@ -396,6 +446,7 @@ case "$COMMAND" in
         echo "  --loki           Also deploy/remove Loki for log collection (OpenShift only)"
         echo "  --drain-cleaner  Also deploy/remove Strimzi Drain Cleaner"
         echo "  --bridge         Also deploy/remove KafkaBridge (HTTP REST API to Kafka)"
+        echo "  --mirror-maker   Also deploy/remove secondary Kafka cluster + MirrorMaker2"
         echo "  --test-clients   Also deploy/remove test clients (Kafka + HTTP producers/consumers)"
         ;;
     *)

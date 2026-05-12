@@ -77,6 +77,7 @@ class KafkaClusterOverviewToolsTest {
                 new RebalanceSummary(1, 0, Map.of("Ready", 1)),
                 List.of(new ConnectSummary("my-connect", "kafka", "Ready", 2, 3)),
                 List.of(),
+                List.of(),
                 new DrainCleanerSummary("strimzi-drain-cleaner", true),
                 Instant.now())
         );
@@ -115,6 +116,7 @@ class KafkaClusterOverviewToolsTest {
                 new RebalanceSummary(0, 0, null),
                 List.of(),
                 List.of(),
+                List.of(),
                 null,
                 Instant.now())
         );
@@ -142,7 +144,7 @@ class KafkaClusterOverviewToolsTest {
                 ResourceCount.of(10, 10, 0),
                 ResourceCount.of(2, 2, 0),
                 new RebalanceSummary(0, 0, null),
-                List.of(), List.of(), null,
+                List.of(), List.of(), List.of(), null,
                 Instant.now())
         );
 

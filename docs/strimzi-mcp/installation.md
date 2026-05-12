@@ -48,6 +48,9 @@ You can pass additional flags to deploy observability infrastructure alongside S
 
 # Deploy Strimzi with Drain Cleaner for graceful node drains
 ./dev/scripts/setup-strimzi.sh deploy --drain-cleaner
+
+# Deploy Strimzi with a secondary Kafka cluster and MirrorMaker2 for cross-cluster replication
+./dev/scripts/setup-strimzi.sh deploy --mirror-maker
 ```
 
 On OpenShift, add the `--ocp` flag to use Route listeners instead of NodePort:
