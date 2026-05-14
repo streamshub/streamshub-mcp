@@ -107,7 +107,7 @@ io.streamshub.mcp.strimzi.
 │                        OperatorMetricsDiagnosticService
 │   ├── kafkabridge/   → KafkaBridgeService
 │   ├── kafkaconnect/  → KafkaConnectService, KafkaConnectorService,
-│   │                    KafkaConnectorDiagnosticService
+│   │                    KafkaConnectDiagnosticService, KafkaConnectorDiagnosticService
 │   ├── kafkamirrormaker2/ → KafkaMirrorMaker2Service,
 │   │                    KafkaMirrorMaker2DiagnosticService
 │   └── metrics/       → KafkaMetricsService, KafkaExporterMetricsService,

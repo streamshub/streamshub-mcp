@@ -78,6 +78,7 @@ class McpDiscoveryTest {
                     "get_kafka_connect_logs",
                     "list_kafka_connectors",
                     "get_kafka_connector",
+                    "diagnose_kafka_connect",
                     "diagnose_kafka_connector",
                     "list_kafka_bridges",
                     "get_kafka_bridge",
@@ -149,6 +150,8 @@ class McpDiscoveryTest {
                     "Prompt 'assess-upgrade-readiness' should be registered");
                 assertNotNull(page.findByName("troubleshoot-mirror-maker"),
                     "Prompt 'troubleshoot-mirror-maker' should be registered");
+                assertNotNull(page.findByName("troubleshoot-connect"),
+                    "Prompt 'troubleshoot-connect' should be registered");
             })
             .send()
             .thenAssertResults();
