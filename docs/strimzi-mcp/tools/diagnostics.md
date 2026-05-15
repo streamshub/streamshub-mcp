@@ -96,7 +96,7 @@ For individual connector issues, use `diagnose_kafka_connector` instead.
 
 **3-Phase workflow**:
 1. **Phase 1 -- Initial data gathering**: Connect cluster status, connector inventory (scope detection).
-2. **Phase 2 -- Deep investigation**: Pod health, Connect logs (error-filtered), Kubernetes events.
+2. **Phase 2 -- Deep investigation**: Pod health, Connect logs (error-filtered), Connect worker metrics, Kubernetes events.
 3. **Phase 3 -- Analysis**: Root cause analysis distinguishing deployment, resource, plugin, rebalancing, and connectivity issues.
 
 **Parameters**:

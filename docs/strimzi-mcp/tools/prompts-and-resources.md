@@ -130,8 +130,9 @@ Step-by-step troubleshooting of a KafkaConnect cluster platform issue. For indiv
 2. Check connector inventory — scope detection (all failing vs isolated)
 3. Check Connect pods for crashes, restarts, resource pressure
 4. Check Connect logs for WorkerRebalance, OOM, plugin, connectivity errors
-5. Check Kubernetes events for scheduling and eviction issues
-6. Correlate and diagnose (deployment/resource/plugin/rebalancing/connectivity)
+5. Check Connect worker metrics and resource metrics (JVM, GC, CPU)
+6. Check Kubernetes events for scheduling and eviction issues
+7. Correlate and diagnose (deployment/resource/plugin/rebalancing/connectivity)
 
 ### troubleshoot-connector
 

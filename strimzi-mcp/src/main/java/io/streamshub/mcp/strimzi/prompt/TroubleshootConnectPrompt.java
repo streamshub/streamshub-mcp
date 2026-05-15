@@ -112,12 +112,25 @@ public class TroubleshootConnectPrompt {
             `GroupCoordinatorNotAvailableException`, `DisconnectException`, \
             `SaslAuthenticationException`.
 
-            ## Step 5: Check Kubernetes events
+            ## Step 5: Check Connect metrics
+            Use `get_kafka_connect_metrics(connect_cluster='%s'%s, category='worker')`.
+            Check for:
+            - Connector and task counts — do they match expected deployed connectors?
+            - Task startup failures or high startup attempt rates
+            - Worker rebalance rate — frequent rebalances indicate instability
+
+            If worker metrics show resource pressure, also check:
+            Use `get_kafka_connect_metrics(connect_cluster='%s'%s, category='resources')`.
+            - High JVM heap usage (>80%% indicates memory pressure)
+            - High GC pause times or frequent collections
+            - CPU saturation
+
+            ## Step 6: Check Kubernetes events
             Use `get_strimzi_events(%s)`.
             Look for: reconciliation failures, scheduling failures, \
             resource quota issues, eviction events, image pull errors.
 
-            ## Step 6: Correlate and diagnose
+            ## Step 7: Correlate and diagnose
             Distinguish between:
             - **Deployment/operator issues**: reconciliation failures, image pull errors, \
             invalid CR configuration — check operator logs and events
@@ -138,6 +151,8 @@ public class TroubleshootConnectPrompt {
                 StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
                 connectCluster, nsArg,
                 nsArg.isEmpty() ? "" : "namespace='" + namespace + "'",
+                connectCluster, nsArg,
+                connectCluster, nsArg,
                 connectCluster, nsArg,
                 connectCluster, nsArg,
                 nsArg.isEmpty() ? "" : "namespace='" + namespace + "'");
