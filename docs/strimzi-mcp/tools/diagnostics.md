@@ -88,6 +88,31 @@ Analyzes reconciliation, resource, and JVM metrics, correlating with operator lo
 Analyze Strimzi operator metrics
 ```
 
+## diagnose_kafka_connect
+
+Runs a multi-step diagnostic workflow for a KafkaConnect cluster.
+Focuses on cluster platform health — deployment, resources, plugins, worker rebalancing, and Kafka connectivity.
+For individual connector issues, use `diagnose_kafka_connector` instead.
+
+**3-Phase workflow**:
+1. **Phase 1 -- Initial data gathering**: Connect cluster status, connector inventory (scope detection).
+2. **Phase 2 -- Deep investigation**: Pod health, Connect logs (error-filtered), Connect worker metrics, Kubernetes events.
+3. **Phase 3 -- Analysis**: Root cause analysis distinguishing deployment, resource, plugin, rebalancing, and connectivity issues.
+
+**Parameters**:
+- `connectName` (required) -- Name of the KafkaConnect cluster
+- `namespace` (optional) -- Kubernetes namespace
+- `symptom` (optional) -- Observed symptom
+- `sinceMinutes` (optional) -- Time window for logs/events
+
+**Uses Sampling**: Yes -- Root cause analysis
+**Uses Elicitation**: Yes -- Namespace disambiguation
+
+**Example**:
+```
+Diagnose issues with my-connect cluster
+```
+
 ## diagnose_kafka_connector
 
 Runs a multi-step diagnostic workflow for a KafkaConnector.

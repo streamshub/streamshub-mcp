@@ -116,6 +116,24 @@ Security audit of Kafka cluster users, ACLs, authentication, quotas, and certifi
 4. Assess overall security posture with high/medium/informational findings
 5. Provide prioritized remediation recommendations
 
+### troubleshoot-connect
+
+Step-by-step troubleshooting of a KafkaConnect cluster platform issue. For individual connector issues, use `troubleshoot-connector` instead. Also available as the server-driven [`diagnose_kafka_connect`](diagnostics.md#diagnose_kafka_connect) composite tool.
+
+**Parameters**:
+- `connect_cluster` (required) -- Name of the KafkaConnect cluster to troubleshoot
+- `namespace` (optional) -- Kubernetes namespace
+- `symptom` (optional) -- Observed symptom (e.g., "pods crashing", "workers rebalancing")
+
+**Workflow**:
+1. Check Connect cluster status, replicas, conditions, REST API
+2. Check connector inventory — scope detection (all failing vs isolated)
+3. Check Connect pods for crashes, restarts, resource pressure
+4. Check Connect logs for WorkerRebalance, OOM, plugin, connectivity errors
+5. Check Connect worker metrics and resource metrics (JVM, GC, CPU)
+6. Check Kubernetes events for scheduling and eviction issues
+7. Correlate and diagnose (deployment/resource/plugin/rebalancing/connectivity)
+
 ### troubleshoot-connector
 
 Step-by-step troubleshooting of a KafkaConnector issue.

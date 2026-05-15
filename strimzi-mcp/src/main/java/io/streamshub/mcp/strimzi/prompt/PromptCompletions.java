@@ -112,6 +112,32 @@ public class PromptCompletions {
      * @param context the completion context with argument metadata
      * @return matching values for the requested argument
      */
+    /**
+     * Complete arguments for the troubleshoot-connect prompt.
+     *
+     * <p>Supports completions for {@code namespace} and {@code connect_cluster}
+     * arguments.</p>
+     *
+     * @param partial the partial input value
+     * @param context the completion context with argument metadata
+     * @return matching values for the requested argument
+     */
+    @CompletePrompt("troubleshoot-connect")
+    public List<String> completeTroubleshootConnectArgs(final String partial,
+                                                        final CompleteContext context) {
+        return completionService.completeByArgumentName(partial, context);
+    }
+
+    /**
+     * Complete arguments for the troubleshoot-mirror-maker prompt.
+     *
+     * <p>Supports completions for {@code namespace} and {@code mirror_maker_name}
+     * arguments.</p>
+     *
+     * @param partial the partial input value
+     * @param context the completion context with argument metadata
+     * @return matching values for the requested argument
+     */
     @CompletePrompt("troubleshoot-mirror-maker")
     public List<String> completeTroubleshootMirrorMakerArgs(final String partial,
                                                              final CompleteContext context) {

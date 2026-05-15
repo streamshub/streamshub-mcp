@@ -22,6 +22,7 @@ import io.streamshub.mcp.strimzi.dto.KafkaMetricsDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.KafkaTopicDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.OperatorMetricsDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.UpgradeReadinessReport;
+import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticReport;
 import io.streamshub.mcp.strimzi.service.KafkaClusterDiagnosticService;
@@ -31,6 +32,7 @@ import io.streamshub.mcp.strimzi.service.KafkaMetricsDiagnosticService;
 import io.streamshub.mcp.strimzi.service.KafkaTopicDiagnosticService;
 import io.streamshub.mcp.strimzi.service.OperatorMetricsDiagnosticService;
 import io.streamshub.mcp.strimzi.service.UpgradeReadinessDiagnosticService;
+import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectorDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticService;
 import jakarta.inject.Inject;
@@ -63,6 +65,9 @@ public class DiagnosticTools {
     OperatorMetricsDiagnosticService operatorMetricsDiagnosticService;
 
     @Inject
+    KafkaConnectDiagnosticService connectDiagnosticService;
+
+    @Inject
     KafkaConnectorDiagnosticService connectorDiagnosticService;
 
     @Inject
@@ -75,6 +80,49 @@ public class DiagnosticTools {
     KafkaMirrorMaker2DiagnosticService mirrorMakerDiagnosticService;
 
     DiagnosticTools() {
+    }
+
+    /**
+     * Run a composite diagnostic workflow for a KafkaConnect cluster.
+     *
+     * @param connectName  the KafkaConnect cluster name
+     * @param namespace    optional namespace
+     * @param symptom      optional symptom description
+     * @param sinceMinutes optional time window for logs and events
+     * @param sampling     MCP Sampling for LLM analysis
+     * @param elicitation  MCP Elicitation for namespace disambiguation
+     * @param mcpLog       MCP log for progress notifications
+     * @param progress     MCP progress tracking
+     * @param cancellation MCP cancellation checking
+     * @return a consolidated Connect cluster diagnostic report
+     */
+    @WithSpan("tool.diagnose_kafka_connect")
+    @Tool(
+        name = "diagnose_kafka_connect",
+        description = "Multi-step diagnostic workflow for a KafkaConnect cluster."
+            + " Gathers cluster status, connector inventory, pod health, logs, and events.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    public KafkaConnectDiagnosticReport diagnoseKafkaConnect(
+        @ToolArg(description = StrimziToolsPrompts.CONNECT_CLUSTER_DESC) final String connectName,
+        @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
+        @ToolArg(description = StrimziToolsPrompts.SYMPTOM_DESC, required = false) final String symptom,
+        @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
+            required = false) final Integer sinceMinutes,
+        final Sampling sampling,
+        final Elicitation elicitation,
+        final McpLog mcpLog,
+        final Progress progress,
+        final Cancellation cancellation
+    ) {
+        return connectDiagnosticService.diagnose(
+            namespace, connectName, symptom, sinceMinutes,
+            sampling, elicitation, mcpLog, progress, cancellation);
     }
 
     /**

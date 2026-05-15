@@ -109,5 +109,6 @@ Get details for my-debezium-connector
 
 - **[Metrics tools](metrics.md)** -- Query KafkaConnect metrics (worker, connector, source, sink)
 - **[Drain Cleaner tools](drain-cleaner.md)** -- Monitor Strimzi Drain Cleaner
-- **[Diagnostic tools](diagnostics.md)** -- Run multi-step diagnostic workflows including connector diagnostics
+- **[Diagnostic tools](diagnostics.md)** -- Run `diagnose_kafka_connect` (cluster) or `diagnose_kafka_connector` (individual)
+- **[Prompts, resources, and subscriptions](prompts-and-resources.md)** -- Use `troubleshoot-connect` or `troubleshoot-connector` prompts
 - **[Tools reference](.)** -- Back to tools overview
