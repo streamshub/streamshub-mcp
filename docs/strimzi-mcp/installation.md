@@ -230,6 +230,46 @@ kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n kafka-names
 kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n kafka-namespace
 ```
 
+## Security model
+
+The Strimzi MCP Server is designed for platform engineering and SRE teams that already have Kubernetes access.
+It provides a read-only view of Strimzi-managed resources and relies on Kubernetes RBAC as its sole authorization mechanism.
+
+### Authentication and authorization
+
+The MCP server has **no built-in authentication or authorization**.
+It inherits the Kubernetes identity of its runtime environment:
+
+- **Kubernetes deployment** -- The server uses its ServiceAccount token. The ServiceAccount's RBAC rules determine which resources the server can access.
+- **Local development** (`quarkus:dev`) -- The server uses the current user's kubeconfig. All tools operate with the user's Kubernetes permissions.
+
+The MCP HTTP endpoint (`/mcp`) does not require credentials.
+Any client that can reach the endpoint can invoke all tools.
+
+### Securing the MCP endpoint
+
+In production, restrict access to the MCP endpoint using infrastructure-level controls:
+
+- **Kubernetes NetworkPolicy** -- Limit which pods or namespaces can reach the MCP server
+- **Authenticating reverse proxy** -- Deploy an OAuth2 proxy, mTLS termination, or API gateway in front of the MCP server
+- **Service mesh** -- Use Istio, Linkerd, or similar to enforce mutual TLS and authorization policies
+- **Ingress authentication** -- Configure ingress controller annotations for authentication (e.g., `nginx.ingress.kubernetes.io/auth-url`)
+
+CORS is restricted to `localhost` origins by default.
+Configure `quarkus.http.cors.origins` to allow other origins (see [configuration](configuration.md)).
+
+### Data safety
+
+All tools are read-only (`readOnlyHint=true`, `destructiveHint=false`).
+The server never creates, modifies, or deletes Kubernetes resources.
+
+Sensitive data is protected by multiple layers:
+
+- **Credential secrets** are never exposed. The server reads Secrets only for certificate metadata (issuer, expiry) -- never for secret data such as passwords, keys, or tokens.
+- **Log redaction** automatically strips sensitive patterns (tokens, passwords, API keys) from log output before returning it to the client.
+- **Response size limits** truncate large responses to prevent excessive data transfer.
+- **Rate limiting** throttles requests per category to prevent resource exhaustion.
+
 ### Production configuration
 
 The prod overlay references an optional ConfigMap (`strimzi-mcp-config`) and Secret (`strimzi-mcp-secrets`) via `envFrom`.

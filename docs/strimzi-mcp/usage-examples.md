@@ -217,6 +217,252 @@ Recommendations:
 3. Monitor for memory-related GC pauses
 ```
 
+### KafkaConnect cluster diagnosis
+
+**Question**: "Diagnose issues with my-connect cluster"
+
+**What happens**:
+- AI calls `diagnose_kafka_connect` diagnostic tool
+- Gathers cluster status, connector inventory, pod health, logs, and events
+- Uses Sampling to focus on problem areas
+
+**Example interaction**:
+```
+I'll run a diagnostic workflow for the KafkaConnect cluster my-connect...
+
+Step 1: Checking KafkaConnect status...
+⚠ Cluster is NotReady
+  - Conditions: NotReady — Connect worker group rebalancing
+
+Step 2: Checking connector inventory...
+Found 4 connectors:
+  - debezium-source: Running (2/2 tasks)
+  - jdbc-sink: Running (1/1 tasks)
+  - s3-sink: Failed (0/3 tasks)
+  - file-source: Paused (1/1 tasks)
+
+Step 3: Checking pod health...
+⚠ Found pod issues:
+  - my-connect-connect-2: OOMKilled (3 restarts in last hour)
+
+Step 4: Collecting Connect logs...
+Found errors in my-connect-connect-2:
+  - "java.lang.OutOfMemoryError: Java heap space"
+  - "Worker rebalance triggered due to member leaving group"
+
+Root Cause: Pod my-connect-connect-2 is running out of memory, causing
+OOMKills and repeated worker group rebalances. The s3-sink connector
+failure may be a consequence of the rebalance instability.
+
+Recommendation: Increase memory limits for the KafkaConnect pods and
+review the s3-sink connector configuration for excessive buffering.
+```
+
+### Connector troubleshooting
+
+**Question**: "Why is my-debezium-connector failing?"
+
+**What happens**:
+- AI calls `diagnose_kafka_connector` diagnostic tool
+- Checks connector status, parent KafkaConnect cluster, pod health, logs
+- Uses Sampling to analyze task failures
+
+**Example interaction**:
+```
+Running diagnostic workflow for KafkaConnector my-debezium-connector...
+
+Step 1: Checking connector status...
+⚠ Connector is in FAILED state
+  - Type: source (Debezium PostgreSQL)
+  - Tasks: 0/1 running
+  - Task 0 error: "io.debezium.DebeziumException: Failed to connect to
+    PostgreSQL server"
+
+Step 2: Checking parent KafkaConnect cluster...
+✓ KafkaConnect cluster my-connect is Ready
+✓ All Connect pods are healthy (3/3)
+
+Step 3: Collecting logs...
+Found errors related to my-debezium-connector:
+  - "Connection refused to database host: postgres.default:5432"
+  - "Connector task failed, marking connector as FAILED"
+
+Root Cause: The Debezium connector cannot reach the PostgreSQL database
+at postgres.default:5432. The KafkaConnect platform itself is healthy.
+
+Recommendation:
+1. Verify the database hostname and port in the connector configuration
+2. Check NetworkPolicies blocking traffic from the Connect namespace
+3. Verify the PostgreSQL service is running in the default namespace
+```
+
+### Topic diagnosis
+
+**Question**: "Diagnose issues with order-events topic"
+
+**What happens**:
+- AI calls `diagnose_kafka_topic` diagnostic tool
+- Checks topic status, related topics, cluster health, operator logs, events, Kafka Exporter metrics
+- Detects whether the issue is topic-specific or cluster-wide
+
+**Example interaction**:
+```
+Running diagnostic workflow for KafkaTopic order-events...
+
+Step 1: Checking topic status...
+⚠ Topic is NotReady
+  - Partitions: 12, Replication factor: 3
+  - Condition: NotReady — "Replication factor 3 larger than available brokers: 2"
+
+Step 2: Scope detection...
+Checking related topics on cluster mcp-cluster:
+  - 15 other topics are also NotReady with the same condition
+  → This is a cluster-wide issue, not specific to order-events
+
+Step 3: Checking cluster health...
+⚠ Cluster mcp-cluster: 2/3 brokers ready
+  - Node pool broker: 2/3 replicas ready
+
+Step 4: Collecting operator logs...
+Found relevant entries:
+  - "Reconciliation of KafkaTopic order-events failed: replication factor
+    3 larger than available brokers: 2"
+
+Root Cause: Broker mcp-cluster-kafka-2 is down, reducing available
+brokers below the replication factor. This affects all topics with
+replication factor 3, not just order-events.
+
+Recommendation: Investigate why the third broker is unavailable. Run
+`diagnose_kafka_cluster` for a full cluster diagnosis.
+```
+
+### MirrorMaker2 diagnosis
+
+**Question**: "Check replication health for my-mirror-maker"
+
+**What happens**:
+- AI calls `diagnose_kafka_mirror_maker` diagnostic tool
+- Gathers MM2 status, connector health, pod status, logs, and events
+
+**Example interaction**:
+```
+Running diagnostic workflow for KafkaMirrorMaker2 my-mirror-maker...
+
+Step 1: Checking MM2 status...
+⚠ MM2 is Ready but showing connector issues
+  - Source cluster: mcp-cluster → Target cluster: dr-cluster
+  - Connectors: 3 configured (MirrorSourceConnector, MirrorCheckpointConnector,
+    MirrorHeartbeatConnector)
+
+Step 2: Checking connector health...
+⚠ MirrorSourceConnector: Running with warnings
+  - Tasks: 4/4 running
+  - Topic pattern: "order-.*|user-.*"
+  - Matched topics: 8
+
+✓ MirrorCheckpointConnector: Running (1/1 tasks)
+✓ MirrorHeartbeatConnector: Running (1/1 tasks)
+
+Step 3: Checking pod health...
+✓ All MM2 pods are healthy (2/2)
+
+Step 4: Collecting logs...
+Found warnings:
+  - "Consumer group offset sync lagging for group order-processor:
+    source offset 15234, target offset 12890 (lag: 2344)"
+
+Root Cause: The MirrorSourceConnector is running but consumer group
+offset synchronization is lagging for the order-processor group.
+
+Recommendation:
+1. Check network latency between source and target clusters
+2. Review sync.group.offsets.interval.seconds configuration
+3. Monitor if the lag is growing or stabilizing
+```
+
+### Cluster comparison
+
+**Question**: "Compare dev-cluster and prod-cluster configurations"
+
+**What happens**:
+- AI calls `compare_kafka_clusters` diagnostic tool
+- Gathers broker config, resources, JVM options, listeners, and component settings for both clusters
+- Uses Sampling to analyze differences by impact category
+
+**Example interaction**:
+```
+Comparing configuration of dev-cluster and prod-cluster...
+
+Gathering configurations...
+✓ dev-cluster (namespace: kafka-dev): 1 broker, version 3.9.0
+✓ prod-cluster (namespace: kafka-prod): 3 brokers, version 3.9.0
+
+Configuration Differences by Impact:
+
+CRITICAL:
+- Replication factor: dev=1, prod=3
+- Min in-sync replicas: dev=1, prod=2
+
+HIGH:
+- Broker count: dev=1, prod=3
+- Memory limits: dev=2Gi, prod=8Gi
+- CPU limits: dev=500m, prod=2000m
+- Log retention hours: dev=24, prod=168
+
+MEDIUM:
+- JVM heap: dev=-Xmx1g, prod=-Xmx4g
+- num.io.threads: dev=8 (default), prod=16
+- num.network.threads: dev=3 (default), prod=8
+
+LOW:
+- Listeners: dev has plain only, prod has plain + tls + external
+
+Summary: The clusters have significant differences in resilience and
+capacity. The dev cluster is not suitable for production workloads due
+to single-broker deployment and replication factor of 1.
+```
+
+### Upgrade readiness assessment
+
+**Question**: "Is mcp-cluster ready to upgrade to Kafka 4.2.0?"
+
+**What happens**:
+- AI calls `assess_upgrade_readiness` diagnostic tool
+- Runs pre-flight checks: cluster health, operator status, pods, replication, rebalances, certificates
+- Issues GO/NO-GO/CONDITIONAL verdict
+
+**Example interaction**:
+```
+Assessing upgrade readiness for mcp-cluster (target: Kafka 4.2.0)...
+
+Pre-flight Checks:
+✓ Cluster status: Ready
+✓ Operator status: Ready (version 0.45.0)
+✓ All pods healthy: 3/3 brokers, 3/3 controllers
+✓ Under-replicated partitions: 0
+✓ No active KafkaRebalance in progress
+
+Safety Checks:
+✓ CPU headroom: 55% available
+✓ Memory headroom: 40% available
+✓ Drain Cleaner: Ready (webhook validated)
+⚠ Certificate expiry: cluster-ca expires in 12 days
+
+Events:
+✓ No warning events in the last hour
+
+Verdict: CONDITIONAL GO
+
+The cluster is healthy and has sufficient resource headroom for a
+rolling update. However, the cluster CA certificate expires in 12 days.
+
+Pre-upgrade checklist:
+1. ⚠ Renew or rotate the cluster-ca certificate before upgrading
+2. ✓ Ensure a maintenance window of approximately 30-45 minutes
+3. ✓ Verify client applications handle broker restarts gracefully
+4. ✓ Take a backup of the Kafka custom resource
+```
+
 ## Log analysis
 
 ### Finding errors

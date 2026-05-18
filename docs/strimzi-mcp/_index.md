@@ -23,8 +23,12 @@ With the Strimzi MCP Server, AI assistants can:
 - Troubleshoot connectivity and performance issues
 - Monitor Strimzi operator health and reconciliation activity
 - Manage and troubleshoot KafkaConnect clusters and KafkaConnectors
+- Manage and troubleshoot KafkaBridge HTTP endpoints
+- Monitor KafkaMirrorMaker2 cross-cluster replication
 - Check Strimzi Drain Cleaner readiness and webhook configuration
 - Track Kubernetes events for cluster resources
+- Compare configurations across Kafka clusters
+- Assess upgrade readiness with GO/NO-GO verdicts
 
 ## Key features
 
@@ -51,7 +55,12 @@ Available diagnostic tools:
 - [`diagnose_kafka_connectivity`](tools/diagnostics.md#diagnose_kafka_connectivity) -- Connectivity troubleshooting
 - [`diagnose_kafka_metrics`](tools/diagnostics.md#diagnose_kafka_metrics) -- Metrics analysis and anomaly detection
 - [`diagnose_operator_metrics`](tools/diagnostics.md#diagnose_operator_metrics) -- Operator performance analysis
+- [`diagnose_kafka_connect`](tools/diagnostics.md#diagnose_kafka_connect) -- KafkaConnect cluster diagnosis
 - [`diagnose_kafka_connector`](tools/diagnostics.md#diagnose_kafka_connector) -- Connector troubleshooting
+- [`diagnose_kafka_topic`](tools/diagnostics.md#diagnose_kafka_topic) -- Topic diagnosis with scope detection
+- [`assess_upgrade_readiness`](tools/diagnostics.md#assess_upgrade_readiness) -- Pre-upgrade readiness check
+- [`diagnose_kafka_mirror_maker`](tools/diagnostics.md#diagnose_kafka_mirror_maker) -- MirrorMaker2 replication diagnosis
+- [`compare_kafka_clusters`](tools/diagnostics.md#compare_kafka_clusters) -- Cross-cluster configuration comparison
 
 ### Log collection
 
