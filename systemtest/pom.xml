@@ -20,7 +20,7 @@
         <allure.report.version>2.39.0</allure.report.version>
         <allure.maven.version>3.0.1</allure.maven.version>
         <log4j.version>2.26.0</log4j.version>
-        <slf4j.version>2.0.17</slf4j.version>
+        <slf4j.version>2.0.18</slf4j.version>
         <!-- Skip system tests by default — enable with -Psystemtest -->
         <skipITs>true</skipITs>
         <!-- Define empty argLine so parent's @{argLine} doesn't fail -->
