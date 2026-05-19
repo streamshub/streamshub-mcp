@@ -25,6 +25,18 @@ streaming platforms. Java 21, Quarkus 3.x, Strimzi API 1.0.x, Fabric8 Kubernetes
    - Introducing new architectural layers
    - Modifying development workflows
 
+3. **Changelog** (`CHANGELOG.md`) -- Update when:
+   - Adding, changing, or removing tools, prompts, or resource templates
+   - Fixing bugs
+   - Changing configuration options or defaults
+   - Making any user-visible change
+   - Add entries under the `## [Unreleased]` section using Keep a Changelog categories: Added, Changed, Deprecated, Removed, Fixed, Security
+
+4. **Developer documentation** (`dev/docs/`) -- Update when:
+   - Changing build, test, or CI workflows (`TESTING.md`)
+   - Changing release process or scripts (`RELEASING.md`)
+   - Modifying development environment setup or tooling
+
 Documentation updates are mandatory and must be completed before the task is considered done.
 
 ## Modules
