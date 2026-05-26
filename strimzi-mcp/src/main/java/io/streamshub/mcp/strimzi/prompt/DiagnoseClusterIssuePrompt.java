@@ -101,7 +101,9 @@ public class DiagnoseClusterIssuePrompt {
             - Certificate renewal reconciliations (every 30 days)
 
             ## Step 2: Check Strimzi Drain Cleaner [HIGH - graceful eviction handling]
-            Use `check_drain_cleaner_readiness` to assess drain cleaner production readiness.
+            Use `check_drain_cleaner_readiness` **without passing a namespace** to assess drain cleaner \
+            production readiness. The drain cleaner is typically deployed in a different namespace than \
+            the Kafka cluster.
 
             If drain cleaner is NOT deployed:
             - Node drains will cause abrupt pod terminations instead of graceful rolling updates
@@ -117,8 +119,8 @@ public class DiagnoseClusterIssuePrompt {
             or replicas out of sync, drain cleaner status is likely the root cause.**
 
             If drain cleaner IS deployed and the symptom involves evictions:
-            Use `get_drain_cleaner_logs` to check for eviction interception activity, \
-            pod annotation events, and errors during node drains.
+            Use `get_drain_cleaner_logs` **without passing a namespace** to check for eviction \
+            interception activity, pod annotation events, and errors during node drains.
 
             ## Step 3: Check KafkaNodePool statuses [HIGH - broker availability]
             Use `list_kafka_node_pools` to list all node pools for this cluster.
