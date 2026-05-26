@@ -16,6 +16,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -41,6 +42,9 @@ public class MetricsQueryService {
 
     @ConfigProperty(name = "mcp.metrics.max-range-minutes", defaultValue = "10080")  // 7 days
     int maxRangeMinutes;
+
+    @ConfigProperty(name = "mcp.metrics.max-samples", defaultValue = "10000")
+    int maxSamples;
 
     MetricsQueryService() {
         // package-private no-arg constructor for CDI
@@ -96,7 +100,15 @@ public class MetricsQueryService {
         LOG.debugf("Querying metrics: %d metric names, %d pod targets (provider=%s)",
             metricNames.size(), podTargets.size(), providerName);
 
-        return metricsProviderInstance.get().queryMetrics(params);
+        List<MetricSample> samples = metricsProviderInstance.get().queryMetrics(params);
+
+        if (maxSamples > 0 && samples.size() > maxSamples) {
+            LOG.warnf("Metrics query returned %d samples, truncating to %d (mcp.metrics.max-samples)",
+                samples.size(), maxSamples);
+            return new ArrayList<>(samples.subList(0, maxSamples));
+        }
+
+        return samples;
     }
 
     private void requireProvider() {
@@ -131,7 +143,7 @@ public class MetricsQueryService {
             }
 
             int step = stepSeconds != null ? stepSeconds : defaultStepSeconds;
-            return MetricsQueryParams.range(metricNames, labelMatchers, start, end, step);
+            return MetricsQueryParams.range(metricNames, labelMatchers, start, end, step, maxSamples);
         }
 
         // Relative time range
@@ -143,10 +155,10 @@ public class MetricsQueryService {
             Instant end = Instant.now();
             Instant start = end.minusSeconds((long) rangeMinutes * SECONDS_PER_MINUTE);
             int step = stepSeconds != null ? stepSeconds : defaultStepSeconds;
-            return MetricsQueryParams.range(metricNames, labelMatchers, start, end, step);
+            return MetricsQueryParams.range(metricNames, labelMatchers, start, end, step, maxSamples);
         }
 
         // Instant query
-        return MetricsQueryParams.instant(metricNames, labelMatchers, podTargets);
+        return MetricsQueryParams.instant(metricNames, labelMatchers, podTargets, maxSamples);
     }
 }

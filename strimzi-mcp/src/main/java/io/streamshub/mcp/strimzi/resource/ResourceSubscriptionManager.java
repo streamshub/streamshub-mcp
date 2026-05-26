@@ -108,6 +108,7 @@ public class ResourceSubscriptionManager implements Closeable {
 
     private final List<Watch> activeWatches = new CopyOnWriteArrayList<>();
     private final Map<String, String> lastKnownState = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> watchHealthState = new ConcurrentHashMap<>();
     private volatile boolean shuttingDown;
 
     void addWatch(final Watch watch) {
@@ -136,6 +137,33 @@ public class ResourceSubscriptionManager implements Closeable {
 
     boolean isShuttingDown() {
         return shuttingDown;
+    }
+
+    /**
+     * Returns whether all resource watches are healthy.
+     * A watch is unhealthy if it exhausted all reconnection attempts.
+     * Returns {@code true} if watches are disabled or no watch has failed.
+     *
+     * @return {@code true} if all watches are healthy or watches are disabled
+     */
+    public boolean areWatchesHealthy() {
+        if (!watchesEnabled) {
+            return true;
+        }
+        return watchHealthState.values().stream().allMatch(Boolean::booleanValue);
+    }
+
+    /**
+     * Returns the health state of each watch type.
+     *
+     * @return map of watch name to health state ({@code true} = healthy)
+     */
+    public Map<String, Boolean> getWatchHealthState() {
+        return Map.copyOf(watchHealthState);
+    }
+
+    void clearHealthState() {
+        watchHealthState.clear();
     }
 
     void setShuttingDown(final boolean shuttingDown) {
@@ -228,6 +256,7 @@ public class ResourceSubscriptionManager implements Closeable {
                     }
                 }));
             activeWatches.add(watchRef.get());
+            watchHealthState.put("Kafka", true);
             LOG.info("Started watch on Kafka resources");
             return true;
         } catch (Exception e) {
@@ -263,6 +292,7 @@ public class ResourceSubscriptionManager implements Closeable {
                     }
                 }));
             activeWatches.add(watchRef.get());
+            watchHealthState.put("KafkaNodePool", true);
             LOG.info("Started watch on KafkaNodePool resources");
             return true;
         } catch (Exception e) {
@@ -298,6 +328,7 @@ public class ResourceSubscriptionManager implements Closeable {
                     }
                 }));
             activeWatches.add(watchRef.get());
+            watchHealthState.put("KafkaTopic", true);
             LOG.info("Started watch on KafkaTopic resources");
             return true;
         } catch (Exception e) {
@@ -333,6 +364,7 @@ public class ResourceSubscriptionManager implements Closeable {
                     }
                 }));
             activeWatches.add(watchRef.get());
+            watchHealthState.put("KafkaUser", true);
             LOG.info("Started watch on KafkaUser resources");
             return true;
         } catch (Exception e) {
@@ -369,6 +401,7 @@ public class ResourceSubscriptionManager implements Closeable {
                     }
                 }));
             activeWatches.add(watchRef.get());
+            watchHealthState.put("Operator", true);
             LOG.info("Started watch on Strimzi operator Deployments");
             return true;
         } catch (Exception e) {
@@ -386,6 +419,7 @@ public class ResourceSubscriptionManager implements Closeable {
         if (attempt > reconnectMaxAttempts) {
             LOG.errorf("%s watch reconnection failed after %d attempts",
                 watchName, reconnectMaxAttempts);
+            watchHealthState.put(watchName, false);
             return;
         }
         long delay = Math.min(
@@ -399,6 +433,7 @@ public class ResourceSubscriptionManager implements Closeable {
             }
             if (starter.get()) {
                 LOG.infof("%s watch reconnected successfully", watchName);
+                watchHealthState.put(watchName, true);
             } else {
                 scheduleReconnect(watchName, starter, attempt + 1);
             }

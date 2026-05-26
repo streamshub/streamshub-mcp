@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +58,7 @@ class MetricsQueryServiceTest {
         setField(metricsQueryService, "providerName", "pod-scraping");
         setField(metricsQueryService, "defaultStepSeconds", 60);
         setField(metricsQueryService, "maxRangeMinutes", 10080);
+        setField(metricsQueryService, "maxSamples", 10000);
 
         when(metricsProviderInstance.isUnsatisfied()).thenReturn(false);
         when(metricsProviderInstance.get()).thenReturn(metricsProvider);
@@ -134,6 +136,62 @@ class MetricsQueryServiceTest {
         ArgumentCaptor<MetricsQueryParams> captor = ArgumentCaptor.forClass(MetricsQueryParams.class);
         verify(metricsProvider).queryMetrics(captor.capture());
         assertEquals(60, captor.getValue().stepSeconds());
+    }
+
+    @Test
+    void queryTruncatesWhenExceedingMaxSamples() throws Exception {
+        setField(metricsQueryService, "maxSamples", 100);
+
+        List<MetricSample> largeSampleList = new ArrayList<>();
+        for (int i = 0; i < 250; i++) {
+            largeSampleList.add(MetricSample.of("metric_a", Map.of("pod", "pod-" + i), (double) i));
+        }
+        when(metricsProvider.queryMetrics(any(MetricsQueryParams.class)))
+            .thenReturn(largeSampleList);
+
+        List<MetricSample> result = metricsQueryService.queryMetrics(
+            List.of(PodTarget.of("ns", "pod")),
+            Map.of("namespace", "ns"),
+            List.of("metric_a"), null, null, null, null);
+
+        assertEquals(100, result.size());
+        assertEquals("pod-0", result.get(0).labels().get("pod"));
+        assertEquals("pod-99", result.get(99).labels().get("pod"));
+    }
+
+    @Test
+    void queryReturnsAllSamplesWhenUnderLimit() {
+        List<MetricSample> samples = List.of(
+            MetricSample.of("metric_a", Map.of("pod", "pod-0"), 1.0),
+            MetricSample.of("metric_a", Map.of("pod", "pod-1"), 2.0));
+        when(metricsProvider.queryMetrics(any(MetricsQueryParams.class)))
+            .thenReturn(samples);
+
+        List<MetricSample> result = metricsQueryService.queryMetrics(
+            List.of(PodTarget.of("ns", "pod")),
+            Map.of("namespace", "ns"),
+            List.of("metric_a"), null, null, null, null);
+
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void queryReturnsAllSamplesWhenMaxSamplesZero() throws Exception {
+        setField(metricsQueryService, "maxSamples", 0);
+
+        List<MetricSample> samples = new ArrayList<>();
+        for (int i = 0; i < 200; i++) {
+            samples.add(MetricSample.of("metric_a", Map.of("pod", "pod-" + i), (double) i));
+        }
+        when(metricsProvider.queryMetrics(any(MetricsQueryParams.class)))
+            .thenReturn(samples);
+
+        List<MetricSample> result = metricsQueryService.queryMetrics(
+            List.of(PodTarget.of("ns", "pod")),
+            Map.of("namespace", "ns"),
+            List.of("metric_a"), null, null, null, null);
+
+        assertEquals(200, result.size());
     }
 
     @Test

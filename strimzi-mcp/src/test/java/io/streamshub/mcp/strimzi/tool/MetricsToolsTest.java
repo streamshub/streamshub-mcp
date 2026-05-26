@@ -9,6 +9,7 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.common.service.PodsService;
@@ -16,7 +17,6 @@ import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaTopicListResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.dto.ListenerInfo;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
@@ -221,7 +221,7 @@ class MetricsToolsTest {
     @Test
     void testListKafkaTopics() {
         when(topicService.listTopics(null, "my-cluster", null, null)).thenReturn(
-            KafkaTopicListResponse.of(
+            PaginatedResponse.of(
                 List.of(new KafkaTopicResponse("user-events", "my-cluster", 12, 3, "Ready")),
                 1, 0, 100, false)
         );

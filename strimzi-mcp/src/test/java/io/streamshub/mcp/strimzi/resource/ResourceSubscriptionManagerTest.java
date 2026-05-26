@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -56,6 +57,7 @@ class ResourceSubscriptionManagerTest {
         manager.setWatchesEnabled(true);
         manager.clearWatches();
         manager.clearState();
+        manager.clearHealthState();
     }
 
     @AfterEach
@@ -278,6 +280,42 @@ class ResourceSubscriptionManagerTest {
         manager.reconcileState();
 
         assertFalse(manager.containsState(uri));
+    }
+
+    // ---- Watch health state ----
+
+    @Test
+    void testHealthyWhenNoWatchesRegistered() {
+        assertTrue(manager.areWatchesHealthy());
+        assertTrue(manager.getWatchHealthState().isEmpty());
+    }
+
+    @Test
+    void testHealthyWhenWatchesDisabled() {
+        manager.setWatchesEnabled(false);
+        assertTrue(manager.areWatchesHealthy());
+    }
+
+    @Test
+    void testUnhealthyAfterMaxReconnectAttempts() {
+        manager.scheduleReconnect("TestWatch", () -> false, DEFAULT_MAX_ATTEMPTS + 1);
+
+        assertFalse(manager.areWatchesHealthy());
+        Map<String, Boolean> state = manager.getWatchHealthState();
+        assertEquals(false, state.get("TestWatch"));
+    }
+
+    @Test
+    void testHealthStateTracksMultipleWatches() throws InterruptedException {
+        manager.scheduleReconnect("Kafka", () -> true, 1);
+        manager.scheduleReconnect("KafkaTopic", () -> false, DEFAULT_MAX_ATTEMPTS + 1);
+
+        Thread.sleep(2000);
+
+        Map<String, Boolean> state = manager.getWatchHealthState();
+        assertEquals(true, state.get("Kafka"));
+        assertEquals(false, state.get("KafkaTopic"));
+        assertFalse(manager.areWatchesHealthy());
     }
 
     @Test

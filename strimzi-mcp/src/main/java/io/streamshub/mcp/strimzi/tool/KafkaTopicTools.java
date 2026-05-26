@@ -8,9 +8,9 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.dto.KafkaTopicListResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.service.KafkaTopicService;
 import jakarta.inject.Inject;
@@ -51,7 +51,7 @@ public class KafkaTopicTools {
             openWorldHint = false
         )
     )
-    public KafkaTopicListResponse listKafkaTopics(
+    public PaginatedResponse<KafkaTopicResponse> listKafkaTopics(
         @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
