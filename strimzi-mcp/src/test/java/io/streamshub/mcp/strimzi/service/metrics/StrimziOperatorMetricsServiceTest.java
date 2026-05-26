@@ -12,7 +12,7 @@ import io.streamshub.mcp.common.dto.metrics.PodTarget;
 import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.metrics.StrimziOperatorMetricsResponse;
-import io.streamshub.mcp.strimzi.service.StrimziOperatorService;
+import io.streamshub.mcp.strimzi.service.operator.StrimziOperatorService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,7 +39,6 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 /**
  * Unit tests for {@link StrimziOperatorMetricsService}.
  */

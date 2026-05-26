@@ -37,7 +37,6 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
-
 /**
  * Unit tests for {@link KafkaConnectMetricsService}.
  */

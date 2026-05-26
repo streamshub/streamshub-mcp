@@ -7,10 +7,10 @@ package io.streamshub.mcp.strimzi.tool;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.strimzi.dto.DrainCleanerLogsResponse;
-import io.streamshub.mcp.strimzi.dto.DrainCleanerReadinessResponse;
-import io.streamshub.mcp.strimzi.dto.DrainCleanerResponse;
-import io.streamshub.mcp.strimzi.service.DrainCleanerService;
+import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerLogsResponse;
+import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerReadinessResponse;
+import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerResponse;
+import io.streamshub.mcp.strimzi.service.draincleaner.DrainCleanerService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +24,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
-
 /**
  * MCP integration tests for Strimzi Drain Cleaner tools.
  */

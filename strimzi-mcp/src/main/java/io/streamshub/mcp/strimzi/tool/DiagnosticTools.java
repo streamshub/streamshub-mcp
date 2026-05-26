@@ -15,29 +15,28 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterDiagnosticReport;
-import io.streamshub.mcp.strimzi.dto.KafkaConfigComparisonReport;
-import io.streamshub.mcp.strimzi.dto.KafkaConnectivityDiagnosticReport;
-import io.streamshub.mcp.strimzi.dto.KafkaMetricsDiagnosticReport;
-import io.streamshub.mcp.strimzi.dto.KafkaTopicDiagnosticReport;
-import io.streamshub.mcp.strimzi.dto.OperatorMetricsDiagnosticReport;
-import io.streamshub.mcp.strimzi.dto.UpgradeReadinessReport;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaConfigComparisonReport;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaConnectivityDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaMetricsDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.kafka.UpgradeReadinessReport;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticReport;
-import io.streamshub.mcp.strimzi.service.KafkaClusterDiagnosticService;
-import io.streamshub.mcp.strimzi.service.KafkaConfigComparisonService;
-import io.streamshub.mcp.strimzi.service.KafkaConnectivityDiagnosticService;
-import io.streamshub.mcp.strimzi.service.KafkaMetricsDiagnosticService;
-import io.streamshub.mcp.strimzi.service.KafkaTopicDiagnosticService;
-import io.streamshub.mcp.strimzi.service.OperatorMetricsDiagnosticService;
-import io.streamshub.mcp.strimzi.service.UpgradeReadinessDiagnosticService;
+import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.operator.OperatorMetricsDiagnosticReport;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaClusterDiagnosticService;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaConfigComparisonService;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaConnectivityDiagnosticService;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaMetricsDiagnosticService;
+import io.streamshub.mcp.strimzi.service.kafka.UpgradeReadinessDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectorDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticService;
+import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicDiagnosticService;
+import io.streamshub.mcp.strimzi.service.operator.OperatorMetricsDiagnosticService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 /**
  * MCP tool for composite Kafka cluster diagnosis.
  *

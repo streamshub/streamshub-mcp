@@ -10,11 +10,10 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.dto.StrimziEventsResponse;
-import io.streamshub.mcp.strimzi.service.StrimziEventsService;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
+import io.streamshub.mcp.strimzi.service.operator.StrimziEventsService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 /**
  * MCP tools for Strimzi Kubernetes events.
  */

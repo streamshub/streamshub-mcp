@@ -20,7 +20,6 @@ import static org.eclipse.microprofile.health.HealthCheckResponse.Status.UP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
-
 /**
  * Unit tests for {@link WatchHealthReadinessCheck}.
  */

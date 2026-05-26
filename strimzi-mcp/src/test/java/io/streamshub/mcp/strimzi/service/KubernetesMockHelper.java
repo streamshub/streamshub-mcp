@@ -17,7 +17,6 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-
 /**
  * Helper for setting up mock Kubernetes client chains
  * that return empty results for {@link io.streamshub.mcp.common.service.KubernetesResourceService}.

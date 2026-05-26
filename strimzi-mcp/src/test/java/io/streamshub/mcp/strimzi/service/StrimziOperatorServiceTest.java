@@ -18,8 +18,9 @@ import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
-import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
-import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorLogsResponse;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorResponse;
+import io.streamshub.mcp.strimzi.service.operator.StrimziOperatorService;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
-
 /**
  * Service-level tests for {@link StrimziOperatorService} with mocked Kubernetes.
  */

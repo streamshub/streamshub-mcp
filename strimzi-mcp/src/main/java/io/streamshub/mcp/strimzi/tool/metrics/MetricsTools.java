@@ -23,7 +23,6 @@ import io.streamshub.mcp.strimzi.service.metrics.KafkaMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.StrimziOperatorMetricsService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 /**
  * MCP tools for metrics retrieval from Kafka clusters and Strimzi operators.
  */

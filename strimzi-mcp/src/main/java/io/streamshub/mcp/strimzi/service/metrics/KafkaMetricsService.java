@@ -16,7 +16,7 @@ import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.config.metrics.KafkaMetricCategories;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
-import io.streamshub.mcp.strimzi.service.KafkaService;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import io.streamshub.mcp.strimzi.util.MetricNameResolver;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.kafka.Kafka;
@@ -30,7 +30,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 /**
  * Service for retrieving Kafka cluster metrics via pluggable providers.
  */

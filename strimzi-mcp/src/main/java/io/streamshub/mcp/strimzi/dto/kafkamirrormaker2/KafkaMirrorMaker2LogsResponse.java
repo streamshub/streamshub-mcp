@@ -9,7 +9,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.Instant;
 import java.util.List;
-
 /**
  * Response containing logs from KafkaMirrorMaker2 pods.
  *

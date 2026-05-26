@@ -6,7 +6,6 @@ package io.streamshub.mcp.strimzi.dto.kafkamirrormaker2;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
-
 /**
  * Response representing KafkaMirrorMaker2 pods.
  *

@@ -13,7 +13,8 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.strimzi.dto.KafkaConfigComparisonReport;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaConfigComparisonReport;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaConfigComparisonService;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
@@ -33,7 +34,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
-
 /**
  * Tests for {@link KafkaConfigComparisonService}.
  */

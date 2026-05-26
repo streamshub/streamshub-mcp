@@ -16,7 +16,8 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.strimzi.dto.OperatorMetricsDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.operator.OperatorMetricsDiagnosticReport;
+import io.streamshub.mcp.strimzi.service.operator.OperatorMetricsDiagnosticService;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
-
 /**
  * Tests for {@link OperatorMetricsDiagnosticService}.
  */

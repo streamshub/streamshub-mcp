@@ -21,7 +21,6 @@ import jakarta.inject.Inject;
 
 import java.util.List;
 import java.util.Map;
-
 /**
  * Strimzi-specific auto-completion service for MCP prompt and resource template parameters.
  *

@@ -10,13 +10,12 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.dto.KafkaRebalanceResponse;
-import io.streamshub.mcp.strimzi.service.KafkaRebalanceService;
+import io.streamshub.mcp.strimzi.dto.kafkarebalance.KafkaRebalanceResponse;
+import io.streamshub.mcp.strimzi.service.kafkarebalance.KafkaRebalanceService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.util.List;
-
 /**
  * MCP tools for KafkaRebalance operations.
  */

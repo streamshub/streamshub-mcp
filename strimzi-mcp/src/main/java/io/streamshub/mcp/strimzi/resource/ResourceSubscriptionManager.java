@@ -19,16 +19,16 @@ import io.quarkus.runtime.StartupEvent;
 import io.quarkus.scheduler.Scheduled;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaUserResponse;
-import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
-import io.streamshub.mcp.strimzi.service.KafkaNodePoolService;
-import io.streamshub.mcp.strimzi.service.KafkaService;
-import io.streamshub.mcp.strimzi.service.KafkaTopicService;
-import io.streamshub.mcp.strimzi.service.KafkaUserService;
-import io.streamshub.mcp.strimzi.service.StrimziOperatorService;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
+import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
+import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
+import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserResponse;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorResponse;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
+import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
+import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicService;
+import io.streamshub.mcp.strimzi.service.kafkauser.KafkaUserService;
+import io.streamshub.mcp.strimzi.service.operator.StrimziOperatorService;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
@@ -51,7 +51,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-
 /**
  * Manages Kubernetes watches on Strimzi resources and sends MCP resource
  * update notifications to subscribed clients when resource status changes.

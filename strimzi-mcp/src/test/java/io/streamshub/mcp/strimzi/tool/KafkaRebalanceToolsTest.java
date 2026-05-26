@@ -8,10 +8,10 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.ConditionInfo;
-import io.streamshub.mcp.strimzi.dto.KafkaRebalanceResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaRebalanceResponse.OptimizationResultInfo;
-import io.streamshub.mcp.strimzi.dto.KafkaRebalanceResponse.RebalanceSpecInfo;
-import io.streamshub.mcp.strimzi.service.KafkaRebalanceService;
+import io.streamshub.mcp.strimzi.dto.kafkarebalance.KafkaRebalanceResponse;
+import io.streamshub.mcp.strimzi.dto.kafkarebalance.KafkaRebalanceResponse.OptimizationResultInfo;
+import io.streamshub.mcp.strimzi.dto.kafkarebalance.KafkaRebalanceResponse.RebalanceSpecInfo;
+import io.streamshub.mcp.strimzi.service.kafkarebalance.KafkaRebalanceService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +24,6 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
-
 /**
  * MCP integration tests for KafkaRebalance tools.
  */

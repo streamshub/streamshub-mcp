@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
-
 /**
  * Resolves metric names from a combination of category and explicit metric names.
  * Shared across metrics services to avoid duplicated resolution logic.

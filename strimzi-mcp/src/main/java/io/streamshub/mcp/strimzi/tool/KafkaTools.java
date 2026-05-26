@@ -16,21 +16,20 @@ import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaCertificateResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterLogsResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
-import io.streamshub.mcp.strimzi.service.KafkaCertificateService;
-import io.streamshub.mcp.strimzi.service.KafkaClusterOverviewService;
-import io.streamshub.mcp.strimzi.service.KafkaService;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaBootstrapResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterLogsResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaCertificateService;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaClusterOverviewService;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.List;
-
 /**
  * MCP tools for Kafka cluster operations.
  */

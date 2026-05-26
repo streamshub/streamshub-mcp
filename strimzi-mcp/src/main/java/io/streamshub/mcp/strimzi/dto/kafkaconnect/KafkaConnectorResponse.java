@@ -10,7 +10,6 @@ import io.streamshub.mcp.common.dto.ConditionInfo;
 
 import java.util.List;
 import java.util.Map;
-
 /**
  * Response containing KafkaConnector information.
  * Used for both list (summary) and get (detail) operations.

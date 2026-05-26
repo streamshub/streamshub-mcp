@@ -15,7 +15,7 @@ import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.config.metrics.StrimziOperatorMetricCategories;
 import io.streamshub.mcp.strimzi.dto.metrics.StrimziOperatorMetricsResponse;
-import io.streamshub.mcp.strimzi.service.StrimziOperatorService;
+import io.streamshub.mcp.strimzi.service.operator.StrimziOperatorService;
 import io.streamshub.mcp.strimzi.util.MetricNameResolver;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -26,7 +26,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
 /**
  * Service for retrieving Strimzi operator metrics via pluggable providers.
  * Supports cluster operator pods and, when a cluster name is provided,

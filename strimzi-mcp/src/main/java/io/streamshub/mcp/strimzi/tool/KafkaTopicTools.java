@@ -11,11 +11,10 @@ import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
-import io.streamshub.mcp.strimzi.service.KafkaTopicService;
+import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
+import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 /**
  * MCP tools for Kafka topic operations.
  */

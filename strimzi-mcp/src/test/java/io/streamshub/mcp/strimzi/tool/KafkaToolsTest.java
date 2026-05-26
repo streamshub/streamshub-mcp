@@ -11,13 +11,13 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
-import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaCertificateResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
-import io.streamshub.mcp.strimzi.dto.ListenerInfo;
-import io.streamshub.mcp.strimzi.service.KafkaCertificateService;
-import io.streamshub.mcp.strimzi.service.KafkaService;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaBootstrapResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.ListenerInfo;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaCertificateService;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,7 +33,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
-
 /**
  * MCP integration tests for Kafka cluster tools.
  */

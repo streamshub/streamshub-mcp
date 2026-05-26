@@ -10,13 +10,12 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.dto.KafkaUserResponse;
-import io.streamshub.mcp.strimzi.service.KafkaUserService;
+import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserResponse;
+import io.streamshub.mcp.strimzi.service.kafkauser.KafkaUserService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.util.List;
-
 /**
  * MCP tools for KafkaUser operations.
  */

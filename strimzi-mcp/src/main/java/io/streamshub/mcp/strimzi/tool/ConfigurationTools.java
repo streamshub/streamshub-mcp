@@ -10,11 +10,10 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.dto.KafkaEffectiveConfigResponse;
-import io.streamshub.mcp.strimzi.service.KafkaConfigService;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaEffectiveConfigResponse;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaConfigService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 /**
  * MCP tools for Kafka cluster configuration inspection.
  */

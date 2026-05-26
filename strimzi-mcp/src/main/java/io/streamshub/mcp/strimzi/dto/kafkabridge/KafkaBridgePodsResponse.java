@@ -6,7 +6,6 @@ package io.streamshub.mcp.strimzi.dto.kafkabridge;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
-
 /**
  * Response representing KafkaBridge pods containment: a bridge contains pods.
  *

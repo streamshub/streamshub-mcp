@@ -11,7 +11,6 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.util.List;
-
 /**
  * Auto-completions for MCP resource template URI variables.
  *

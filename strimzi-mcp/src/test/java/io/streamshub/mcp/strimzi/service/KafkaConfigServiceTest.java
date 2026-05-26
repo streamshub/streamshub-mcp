@@ -16,7 +16,8 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.strimzi.dto.KafkaEffectiveConfigResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaEffectiveConfigResponse;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaConfigService;
 import io.strimzi.api.kafka.model.common.ExternalConfigurationReferenceBuilder;
 import io.strimzi.api.kafka.model.common.InlineLoggingBuilder;
 import io.strimzi.api.kafka.model.common.JvmOptionsBuilder;
@@ -50,7 +51,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
-
 /**
  * Tests for {@link KafkaConfigService}.
  */

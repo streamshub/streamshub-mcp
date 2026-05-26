@@ -11,11 +11,10 @@ import io.quarkiverse.mcp.server.ResourceTemplate;
 import io.quarkiverse.mcp.server.ResourceTemplateArg;
 import io.quarkiverse.mcp.server.TextResourceContents;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
-import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
-import io.streamshub.mcp.strimzi.service.KafkaNodePoolService;
+import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
+import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 /**
  * MCP resource template for KafkaNodePool status.
  *

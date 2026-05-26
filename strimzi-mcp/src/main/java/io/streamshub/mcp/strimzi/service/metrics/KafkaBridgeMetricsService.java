@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 /**
  * Service for retrieving KafkaBridge metrics via pluggable providers.
  * KafkaBridge exposes HTTP request metrics, Kafka producer/consumer metrics,

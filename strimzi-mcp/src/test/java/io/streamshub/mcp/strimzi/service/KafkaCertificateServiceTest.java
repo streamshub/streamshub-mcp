@@ -21,7 +21,8 @@ import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.strimzi.dto.KafkaCertificateResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaCertificateService;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
@@ -41,7 +42,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 /**
  * Service-level tests for {@link KafkaCertificateService} with mocked Kubernetes.
  */
