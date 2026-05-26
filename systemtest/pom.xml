@@ -25,6 +25,8 @@
         <skipITs>true</skipITs>
         <!-- Define empty argLine so parent's @{argLine} doesn't fail -->
         <argLine></argLine>
+        <!-- Coverage is measured on unit/component tests, not system tests -->
+        <jacoco.skip>true</jacoco.skip>
     </properties>
 
     <dependencies>

@@ -19,6 +19,20 @@ Test naming convention: `methodName_condition_expectedResult`.
 
 Each domain service, diagnostic service, and tools class has a corresponding test class.
 
+## Code coverage
+
+Code coverage is collected using JaCoCo and is gated behind a Maven profile to keep production builds clean.
+
+```bash
+./mvnw verify -Pcoverage                  # Run tests with coverage
+./mvnw verify -Pcoverage -pl strimzi-mcp  # Coverage for a single module
+```
+
+Reports are generated at `<module>/target/site/jacoco/index.html`.
+The `systemtest` module is excluded from coverage collection (`jacoco.skip=true`).
+
+CI runs with `-Pcoverage` and uploads reports as a build artifact.
+
 ## System tests
 
 System tests verify complete workflows against a real Kubernetes cluster.
