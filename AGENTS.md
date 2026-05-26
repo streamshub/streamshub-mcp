@@ -51,6 +51,7 @@ Documentation updates are mandatory and must be completed before the task is con
 ```bash
 ./mvnw compile                      # compile all modules + checkstyle
 ./mvnw test                         # unit tests (no live cluster needed)
+./mvnw verify -Pcoverage            # tests with JaCoCo coverage (reports in target/site/jacoco/)
 ./mvnw quarkus:dev -pl strimzi-mcp  # dev mode on http://localhost:8080/mcp
 ```
 

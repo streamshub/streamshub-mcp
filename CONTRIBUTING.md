@@ -24,6 +24,7 @@ Use descriptive branch names:
 ```bash
 ./mvnw compile              # Compile and run checkstyle
 ./mvnw test                 # Run unit tests
+./mvnw verify -Pcoverage    # Run tests with JaCoCo code coverage
 ./mvnw verify -Psystemtest  # Run system tests (requires Kubernetes cluster)
 ```
 
