@@ -15,12 +15,12 @@ import io.quarkiverse.mcp.server.SamplingMessage;
 import io.quarkiverse.mcp.server.SamplingResponse;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
+import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaTopicDiagnosticReport;
-import io.streamshub.mcp.strimzi.dto.KafkaTopicListResponse;
 import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziEventsResponse;
 import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
@@ -144,7 +144,7 @@ public class KafkaTopicDiagnosticService {
 
         String resolvedCluster = cluster != null ? cluster : topic.cluster();
 
-        KafkaTopicListResponse relatedTopics = gatherRelatedTopics(
+        PaginatedResponse<KafkaTopicResponse> relatedTopics = gatherRelatedTopics(
             ns, resolvedCluster, completed, failed, mcpLog);
         DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
@@ -221,7 +221,7 @@ public class KafkaTopicDiagnosticService {
     }
 
     @WithSpan("diagnose.topic.related_topics")
-    KafkaTopicListResponse gatherRelatedTopics(final String namespace,
+    PaginatedResponse<KafkaTopicResponse> gatherRelatedTopics(final String namespace,
                                                 final String clusterName,
                                                 final List<String> completed,
                                                 final List<String> failed,
@@ -231,7 +231,7 @@ public class KafkaTopicDiagnosticService {
             return null;
         }
         try {
-            KafkaTopicListResponse result = topicService.listTopics(namespace, clusterName, null, null);
+            PaginatedResponse<KafkaTopicResponse> result = topicService.listTopics(namespace, clusterName, null, null);
             completed.add(STEP_RELATED_TOPICS);
             DiagnosticHelper.sendClientNotification(mcpLog,
                 String.format("Found %d related topics for cluster '%s'", result.total(), clusterName));
@@ -336,7 +336,7 @@ public class KafkaTopicDiagnosticService {
     @WithSpan("diagnose.topic.investigation")
     InvestigationAreas investigateAreas(final Sampling sampling,
                                          final KafkaTopicResponse topic,
-                                         final KafkaTopicListResponse relatedTopics,
+                                         final PaginatedResponse<KafkaTopicResponse> relatedTopics,
                                          final KafkaClusterResponse cluster,
                                          final String symptom) {
         if (sampling == null || !sampling.isSupported()) {
@@ -366,7 +366,7 @@ public class KafkaTopicDiagnosticService {
     @SuppressWarnings("checkstyle:ParameterNumber")
     String produceAnalysis(final Sampling sampling,
                            final KafkaTopicResponse topic,
-                           final KafkaTopicListResponse relatedTopics,
+                           final PaginatedResponse<KafkaTopicResponse> relatedTopics,
                            final KafkaClusterResponse cluster,
                            final StrimziOperatorLogsResponse operatorLogs,
                            final StrimziEventsResponse events,
@@ -398,7 +398,7 @@ public class KafkaTopicDiagnosticService {
     // ---- Helpers ----
 
     private Map<String, Object> buildPhase1Summary(final KafkaTopicResponse topic,
-                                                    final KafkaTopicListResponse relatedTopics,
+                                                    final PaginatedResponse<KafkaTopicResponse> relatedTopics,
                                                     final KafkaClusterResponse cluster,
                                                     final String symptom) {
         Map<String, Object> summary = new LinkedHashMap<>();
@@ -425,7 +425,7 @@ public class KafkaTopicDiagnosticService {
 
     @SuppressWarnings("checkstyle:ParameterNumber")
     private Map<String, Object> buildFullSummary(final KafkaTopicResponse topic,
-                                                  final KafkaTopicListResponse relatedTopics,
+                                                  final PaginatedResponse<KafkaTopicResponse> relatedTopics,
                                                   final KafkaClusterResponse cluster,
                                                   final StrimziOperatorLogsResponse operatorLogs,
                                                   final StrimziEventsResponse events,

@@ -6,9 +6,10 @@ package io.streamshub.mcp.strimzi.service;
 
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
+import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
-import io.streamshub.mcp.strimzi.dto.KafkaTopicListResponse;
+import io.streamshub.mcp.common.util.PaginationUtils;
 import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
@@ -49,8 +50,8 @@ public class KafkaTopicService {
      * @param limit       maximum topics to return, or null for the configured default
      * @return paginated topic list response
      */
-    public KafkaTopicListResponse listTopics(final String namespace, final String clusterName,
-                                              final Integer offset, final Integer limit) {
+    public PaginatedResponse<KafkaTopicResponse> listTopics(final String namespace, final String clusterName,
+                                                             final Integer offset, final Integer limit) {
         String ns = InputUtils.normalizeInput(namespace);
         String normalizedClusterName = InputUtils.normalizeInput(clusterName);
 
@@ -58,11 +59,8 @@ public class KafkaTopicService {
             throw new ToolCallException("Cluster name is required");
         }
 
-        int effectiveOffset = offset != null ? Math.max(0, offset) : 0;
-        int effectiveLimit = limit != null ? Math.max(1, limit) : defaultPageSize;
-
-        LOG.infof("Listing Kafka topics for cluster=%s (namespace=%s, offset=%d, limit=%d)",
-            normalizedClusterName, ns != null ? ns : "all", effectiveOffset, effectiveLimit);
+        LOG.infof("Listing Kafka topics for cluster=%s (namespace=%s)",
+            normalizedClusterName, ns != null ? ns : "all");
 
         List<KafkaTopic> topics;
         if (ns != null) {
@@ -73,22 +71,11 @@ public class KafkaTopicService {
                 KafkaTopic.class, ResourceLabels.STRIMZI_CLUSTER_LABEL, normalizedClusterName);
         }
 
-        if (topics.size() > maxTopicListSize) {
-            LOG.warnf("Topic list for cluster %s truncated from %d to %d",
-                normalizedClusterName, topics.size(), maxTopicListSize);
-            topics = topics.subList(0, maxTopicListSize);
-        }
-
-        int total = topics.size();
-        int fromIndex = Math.min(effectiveOffset, total);
-        int toIndex = Math.min(effectiveOffset + effectiveLimit, total);
-        boolean hasMore = toIndex < total;
-
-        List<KafkaTopicResponse> page = topics.subList(fromIndex, toIndex).stream()
+        List<KafkaTopicResponse> allResponses = topics.stream()
             .map(this::createTopicResponse)
             .toList();
 
-        return KafkaTopicListResponse.of(page, total, effectiveOffset, effectiveLimit, hasMore);
+        return PaginationUtils.paginate(allResponses, offset, limit, defaultPageSize, maxTopicListSize);
     }
 
     /**

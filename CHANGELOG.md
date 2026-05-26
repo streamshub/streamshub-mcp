@@ -27,9 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **MCP tool metrics** for self-monitoring via `strimzi_mcp_tool_invocations_total` and `strimzi_mcp_tool_duration_seconds`
 - **Resource watch reconnection** with exponential backoff, safe closure, and state reconciliation
 - **Kubernetes name validation** on all services that query the Kubernetes API
+- **Metrics sample cap** -- configurable `mcp.metrics.max-samples` (default 10000) to prevent memory spikes from large metric queries
+- **Watch health readiness check** -- readiness probe reports DOWN when resource watches exhaust reconnection attempts
 
 ### Changed
 
+- Generalized pagination into reusable `PaginatedResponse` and `PaginationUtils` in `common`
+- Increased base deployment memory requests/limits (384Mi/768Mi)
 - Migrated Strimzi API from v1beta2 to v1
 - Improved error propagation from Kubernetes queries
 - Improved input validation and log deduplication

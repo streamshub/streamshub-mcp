@@ -69,8 +69,16 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
             metricFilter != null ? metricFilter : "none");
 
         List<MetricSample> allSamples = new ArrayList<>();
+        int maxSamples = params.maxSamples();
+        boolean limitEnabled = maxSamples > 0;
 
         for (PodTarget target : targets) {
+            if (limitEnabled && allSamples.size() >= maxSamples) {
+                LOG.warnf("Pod scraping exceeded max-samples limit (%d), skipping remaining targets",
+                    maxSamples);
+                break;
+            }
+
             int port = resolvePort(target);
             String path = target.path() != null ? target.path() : PodTarget.DEFAULT_PATH;
             String proxyUrl = String.format("/api/v1/namespaces/%s/pods/%s:%d/proxy%s",
@@ -85,6 +93,9 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
                     LOG.debugf("Scraped %d sample(s) from pod %s/%s",
                         samples.size(), target.namespace(), target.podName());
                     for (MetricSample sample : samples) {
+                        if (limitEnabled && allSamples.size() >= maxSamples) {
+                            break;
+                        }
                         allSamples.add(MetricSample.of(sample.name(),
                             MetricLabelFilter.filterLabels(sample.labels()),
                             sample.value(), sample.timestamp()));

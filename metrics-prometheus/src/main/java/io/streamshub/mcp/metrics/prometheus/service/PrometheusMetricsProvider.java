@@ -63,7 +63,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             response = client.instantQuery(promql, null);
         }
 
-        return convertResponse(response);
+        return convertResponse(response, params.maxSamples());
     }
 
     /**
@@ -132,7 +132,8 @@ public class PrometheusMetricsProvider implements MetricsProvider {
         }
     }
 
-    private List<MetricSample> convertResponse(final PrometheusResponse response) {
+    private List<MetricSample> convertResponse(final PrometheusResponse response,
+                                                final int maxSamples) {
         if (response == null || response.data() == null || response.data().result() == null) {
             return List.of();
         }
@@ -143,14 +144,23 @@ public class PrometheusMetricsProvider implements MetricsProvider {
         }
 
         List<MetricSample> samples = new ArrayList<>();
+        boolean limitEnabled = maxSamples > 0;
 
         for (PrometheusResponse.PrometheusResult result : response.data().result()) {
+            if (limitEnabled && samples.size() >= maxSamples) {
+                LOG.warnf("Prometheus query exceeded max-samples limit (%d), truncating results", maxSamples);
+                break;
+            }
+
             Map<String, String> labels = result.metric();
             String metricName = labels != null ? labels.getOrDefault("__name__", "") : "";
 
             if (result.values() != null) {
                 // Range query result (matrix)
                 for (List<Object> valueEntry : result.values()) {
+                    if (limitEnabled && samples.size() >= maxSamples) {
+                        break;
+                    }
                     addSample(samples, metricName, labels, valueEntry);
                 }
             } else if (result.value() != null) {

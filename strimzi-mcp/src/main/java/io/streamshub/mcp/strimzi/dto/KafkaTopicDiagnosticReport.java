@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaExporterMetricsResponse;
 
 import java.time.Instant;
@@ -30,7 +31,7 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record KafkaTopicDiagnosticReport(
     @JsonProperty("topic") KafkaTopicResponse topic,
-    @JsonProperty("related_topics") KafkaTopicListResponse relatedTopics,
+    @JsonProperty("related_topics") PaginatedResponse<KafkaTopicResponse> relatedTopics,
     @JsonProperty("cluster") KafkaClusterResponse cluster,
     @JsonProperty("operator_logs") StrimziOperatorLogsResponse operatorLogs,
     @JsonProperty("events") StrimziEventsResponse events,
@@ -58,7 +59,7 @@ public record KafkaTopicDiagnosticReport(
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
     public static KafkaTopicDiagnosticReport of(final KafkaTopicResponse topic,
-                                                 final KafkaTopicListResponse relatedTopics,
+                                                 final PaginatedResponse<KafkaTopicResponse> relatedTopics,
                                                  final KafkaClusterResponse cluster,
                                                  final StrimziOperatorLogsResponse operatorLogs,
                                                  final StrimziEventsResponse events,
