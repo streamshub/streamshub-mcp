@@ -11,7 +11,6 @@ import io.streamshub.mcp.common.dto.ReplicasInfo;
 
 import java.time.Instant;
 import java.util.List;
-
 /**
  * Response containing KafkaConnect cluster information.
  * Used for both list (summary) and get (detail) operations.

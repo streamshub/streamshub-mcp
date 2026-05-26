@@ -8,7 +8,8 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.strimzi.dto.KafkaRebalanceResponse;
+import io.streamshub.mcp.strimzi.dto.kafkarebalance.KafkaRebalanceResponse;
+import io.streamshub.mcp.strimzi.service.kafkarebalance.KafkaRebalanceService;
 import io.strimzi.api.kafka.model.rebalance.KafkaRebalance;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 /**
  * Service-level tests for {@link KafkaRebalanceService} with mocked Kubernetes.
  */

@@ -18,15 +18,14 @@ import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
-import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
-import io.streamshub.mcp.strimzi.service.StrimziOperatorService;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorLogsResponse;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorResponse;
+import io.streamshub.mcp.strimzi.service.operator.StrimziOperatorService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.List;
-
 /**
  * MCP tools for Strimzi operator operations.
  */

@@ -19,7 +19,8 @@ import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.strimzi.dto.KafkaTopicDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicDiagnosticReport;
+import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicDiagnosticService;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
@@ -38,7 +39,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
-
 /**
  * Tests for {@link KafkaTopicDiagnosticService}.
  */

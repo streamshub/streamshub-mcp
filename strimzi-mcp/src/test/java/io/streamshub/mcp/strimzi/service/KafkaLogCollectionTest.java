@@ -11,7 +11,9 @@ import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.log.LogCollectionService;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterLogsResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterLogsResponse;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
+import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
 import io.strimzi.api.ResourceLabels;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +36,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-
 /**
  * Unit tests for Kafka log collection via {@link KafkaService#getClusterLogs}.
  * Verifies that the service correctly delegates to {@link LogCollectionService}

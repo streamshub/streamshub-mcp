@@ -8,8 +8,8 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
-import io.streamshub.mcp.strimzi.service.KafkaNodePoolService;
+import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
+import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +22,6 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
-
 /**
  * MCP integration tests for KafkaNodePool tools.
  */

@@ -23,7 +23,8 @@ import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterDiagnosticReport;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaClusterDiagnosticService;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.kafka.KafkaStatusBuilder;
@@ -43,7 +44,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
-
 /**
  * Tests for {@link KafkaClusterDiagnosticService}.
  */

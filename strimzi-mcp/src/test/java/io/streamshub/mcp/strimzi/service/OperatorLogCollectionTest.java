@@ -12,7 +12,8 @@ import io.streamshub.mcp.common.service.DeploymentService;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.log.LogCollectionService;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
-import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorLogsResponse;
+import io.streamshub.mcp.strimzi.service.operator.StrimziOperatorService;
 import io.strimzi.api.ResourceLabels;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-
 /**
  * Unit tests for operator log collection via {@link StrimziOperatorService#getOperatorLogs}.
  * Verifies that the service correctly delegates to {@link LogCollectionService}

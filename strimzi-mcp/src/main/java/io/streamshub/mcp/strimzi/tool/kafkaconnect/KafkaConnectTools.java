@@ -25,7 +25,6 @@ import jakarta.inject.Singleton;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.List;
-
 /**
  * MCP tools for KafkaConnect cluster operations.
  */

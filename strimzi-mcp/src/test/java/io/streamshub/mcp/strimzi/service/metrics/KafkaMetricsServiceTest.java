@@ -12,7 +12,7 @@ import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
-import io.streamshub.mcp.strimzi.service.KafkaService;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,7 +37,6 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
-
 /**
  * Unit tests for {@link KafkaMetricsService}.
  */

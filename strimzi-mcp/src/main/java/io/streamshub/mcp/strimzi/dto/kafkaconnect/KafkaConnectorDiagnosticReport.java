@@ -6,11 +6,10 @@ package io.streamshub.mcp.strimzi.dto.kafkaconnect;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.streamshub.mcp.strimzi.dto.StrimziEventsResponse;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
 
 import java.time.Instant;
 import java.util.List;
-
 /**
  * Consolidated diagnostic report for a KafkaConnector issue.
  * Composes data from multiple services gathered during a single diagnostic workflow.

@@ -12,7 +12,6 @@ import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import jakarta.inject.Singleton;
 
 import java.util.List;
-
 /**
  * MCP prompt template for troubleshooting Kafka cluster connectivity.
  *

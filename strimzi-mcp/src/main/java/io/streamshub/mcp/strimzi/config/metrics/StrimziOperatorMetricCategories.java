@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 /**
  * Curated metric name categories for Strimzi cluster operator metrics.
  * Maps human-friendly category names to lists of Prometheus metric names,

@@ -11,13 +11,12 @@ import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
-import io.streamshub.mcp.strimzi.service.KafkaNodePoolService;
+import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
+import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.util.List;
-
 /**
  * MCP tools for KafkaNodePool operations.
  */

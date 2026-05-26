@@ -9,9 +9,9 @@ import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.service.PodsService;
-import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
-import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
-import io.streamshub.mcp.strimzi.service.StrimziOperatorService;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorLogsResponse;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorResponse;
+import io.streamshub.mcp.strimzi.service.operator.StrimziOperatorService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
-
 /**
  * MCP integration tests for Strimzi operator tools.
  */

@@ -16,6 +16,7 @@ import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
+import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicService;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +27,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 /**
  * Service-level tests for {@link KafkaTopicService} with mocked Kubernetes.
  */

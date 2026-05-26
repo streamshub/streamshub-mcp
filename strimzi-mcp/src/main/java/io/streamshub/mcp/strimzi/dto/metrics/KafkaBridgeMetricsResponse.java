@@ -13,7 +13,6 @@ import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
-
 /**
  * Response containing metrics data from a KafkaBridge.
  * Metrics are always grouped and aggregated into time series based on the

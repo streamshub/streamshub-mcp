@@ -11,11 +11,10 @@ import io.quarkiverse.mcp.server.ResourceTemplate;
 import io.quarkiverse.mcp.server.ResourceTemplateArg;
 import io.quarkiverse.mcp.server.TextResourceContents;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
-import io.streamshub.mcp.strimzi.dto.KafkaUserResponse;
-import io.streamshub.mcp.strimzi.service.KafkaUserService;
+import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserResponse;
+import io.streamshub.mcp.strimzi.service.kafkauser.KafkaUserService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
 /**
  * MCP resource template for KafkaUser status.
  *

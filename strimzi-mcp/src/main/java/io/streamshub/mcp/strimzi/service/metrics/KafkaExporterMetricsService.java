@@ -16,7 +16,7 @@ import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.config.metrics.KafkaExporterMetricCategories;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaExporterMetricsResponse;
-import io.streamshub.mcp.strimzi.service.KafkaService;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import io.streamshub.mcp.strimzi.util.MetricNameResolver;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.kafka.Kafka;
@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 /**
  * Service for retrieving Kafka Exporter metrics via pluggable providers.
  * Kafka Exporter exposes consumer group lag, topic partition offsets,

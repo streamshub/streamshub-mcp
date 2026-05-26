@@ -7,14 +7,14 @@ package io.streamshub.mcp.strimzi.tool;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse.ClusterSummary;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse.ConnectSummary;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse.DrainCleanerSummary;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse.NodePoolSummary;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse.RebalanceSummary;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterOverviewResponse.ResourceCount;
-import io.streamshub.mcp.strimzi.service.KafkaClusterOverviewService;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse.ClusterSummary;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse.ConnectSummary;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse.DrainCleanerSummary;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse.NodePoolSummary;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse.RebalanceSummary;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse.ResourceCount;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaClusterOverviewService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,7 +28,6 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
-
 /**
  * MCP integration tests for Kafka cluster overview tool.
  */

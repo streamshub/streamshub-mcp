@@ -13,24 +13,24 @@ import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.common.service.PodsService;
-import io.streamshub.mcp.strimzi.dto.KafkaBootstrapResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterPodsResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaClusterResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaNodePoolResponse;
-import io.streamshub.mcp.strimzi.dto.KafkaTopicResponse;
-import io.streamshub.mcp.strimzi.dto.ListenerInfo;
-import io.streamshub.mcp.strimzi.dto.StrimziOperatorLogsResponse;
-import io.streamshub.mcp.strimzi.dto.StrimziOperatorResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaBootstrapResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.ListenerInfo;
+import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
+import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaBridgeMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.StrimziOperatorMetricsResponse;
-import io.streamshub.mcp.strimzi.service.KafkaNodePoolService;
-import io.streamshub.mcp.strimzi.service.KafkaService;
-import io.streamshub.mcp.strimzi.service.KafkaTopicService;
-import io.streamshub.mcp.strimzi.service.StrimziOperatorService;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorLogsResponse;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorResponse;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
+import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
+import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicService;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaBridgeMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.StrimziOperatorMetricsService;
+import io.streamshub.mcp.strimzi.service.operator.StrimziOperatorService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +47,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
-
 /**
  * MCP integration tests verifying tool discovery, parameter binding,
  * response serialization, and error handling through the MCP protocol layer.

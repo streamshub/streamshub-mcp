@@ -16,16 +16,15 @@ import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.dto.DrainCleanerLogsResponse;
-import io.streamshub.mcp.strimzi.dto.DrainCleanerReadinessResponse;
-import io.streamshub.mcp.strimzi.dto.DrainCleanerResponse;
-import io.streamshub.mcp.strimzi.service.DrainCleanerService;
+import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerLogsResponse;
+import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerReadinessResponse;
+import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerResponse;
+import io.streamshub.mcp.strimzi.service.draincleaner.DrainCleanerService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.List;
-
 /**
  * MCP tools for Strimzi Drain Cleaner operations.
  */

@@ -18,15 +18,15 @@ import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
-import io.streamshub.mcp.strimzi.dto.StrimziEventsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaConnectMetricsResponse;
-import io.streamshub.mcp.strimzi.service.StrimziEventsService;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaConnectMetricsService;
+import io.streamshub.mcp.strimzi.service.operator.StrimziEventsService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -36,7 +36,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 /**
  * Orchestrates a multi-step diagnostic workflow for KafkaConnect clusters.
  *

@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 /**
  * Service for retrieving KafkaConnect metrics via pluggable providers.
  * KafkaConnect exposes worker, connector task, source, sink,

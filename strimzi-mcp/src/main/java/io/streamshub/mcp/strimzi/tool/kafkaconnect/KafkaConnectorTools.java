@@ -16,7 +16,6 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.util.List;
-
 /**
  * MCP tools for KafkaConnector operations.
  */

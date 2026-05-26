@@ -18,9 +18,10 @@ import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
-import io.streamshub.mcp.strimzi.dto.DrainCleanerLogsResponse;
-import io.streamshub.mcp.strimzi.dto.DrainCleanerReadinessResponse;
-import io.streamshub.mcp.strimzi.dto.DrainCleanerResponse;
+import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerLogsResponse;
+import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerReadinessResponse;
+import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerResponse;
+import io.streamshub.mcp.strimzi.service.draincleaner.DrainCleanerService;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
-
 /**
  * Service-level tests for {@link DrainCleanerService} with mocked Kubernetes.
  */

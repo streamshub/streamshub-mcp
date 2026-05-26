@@ -21,7 +21,8 @@ import io.fabric8.kubernetes.client.dsl.V1APIGroupDSL;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.strimzi.dto.StrimziEventsResponse;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
+import io.streamshub.mcp.strimzi.service.operator.StrimziEventsService;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
@@ -39,7 +40,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
-
 /**
  * Tests for {@link StrimziEventsService}.
  */

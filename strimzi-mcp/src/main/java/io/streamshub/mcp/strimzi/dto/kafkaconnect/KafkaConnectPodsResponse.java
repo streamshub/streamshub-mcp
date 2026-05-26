@@ -6,7 +6,6 @@ package io.streamshub.mcp.strimzi.dto.kafkaconnect;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
-
 /**
  * Response representing KafkaConnect pods containment: a Connect cluster contains pods.
  *

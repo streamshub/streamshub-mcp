@@ -12,7 +12,6 @@ import io.streamshub.mcp.common.dto.ReplicasInfo;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-
 /**
  * Response containing KafkaBridge information.
  * Used for both list (summary) and get (detail) operations.

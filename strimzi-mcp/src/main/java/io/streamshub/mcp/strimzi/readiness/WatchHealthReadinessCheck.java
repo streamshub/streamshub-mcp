@@ -13,7 +13,6 @@ import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
 import org.eclipse.microprofile.health.Readiness;
 
 import java.util.Map;
-
 /**
  * Readiness health check that reports the health of Kubernetes resource watches.
  * Reports DOWN when any watch has exhausted its reconnection attempts.
