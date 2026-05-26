@@ -190,7 +190,8 @@ public class AssessUpgradeReadinessPrompt {
             this can cause a cascade of failures.
 
             ## Step 7: Drain Cleaner readiness [GO/NO-GO]
-            Use `check_drain_cleaner_readiness` to verify drain cleaner status.
+            Use `check_drain_cleaner_readiness` **without passing a namespace** to verify drain cleaner \
+            status. The drain cleaner is typically deployed in a different namespace than the Kafka cluster.
 
             **GO conditions**:
             - Drain Cleaner deployed and ready (ensures graceful pod evictions)
