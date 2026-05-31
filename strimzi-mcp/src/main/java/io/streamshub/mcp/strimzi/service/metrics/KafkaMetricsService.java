@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 /**
  * Service for retrieving Kafka cluster metrics via pluggable providers.
  */
@@ -38,6 +39,7 @@ public class KafkaMetricsService {
 
     private static final Logger LOG = Logger.getLogger(KafkaMetricsService.class);
     private static final String DEFAULT_CATEGORY = KafkaMetricCategories.REPLICATION;
+    private static final Set<String> DEFAULT_QUANTILES = Set.of("0.50", "0.99");
 
     @Inject
     KubernetesResourceService k8sService;
@@ -145,6 +147,7 @@ public class KafkaMetricsService {
         List<MetricSample> samples = metricsQueryService.queryMetrics(
             podTargets, labelMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
 
+        samples = filterByBrokerPods(samples, pods);
         samples = filterByRequestTypes(samples, requestTypes);
 
         // Build interpretation from effective categories
@@ -152,6 +155,13 @@ public class KafkaMetricsService {
         if (effectiveCategories.isEmpty() && (metricNames == null || metricNames.isBlank())) {
             effectiveCategories.add(DEFAULT_CATEGORY);
         }
+
+        // Apply default quantile filter and zero-value stripping for performance category
+        if (effectiveCategories.contains(KafkaMetricCategories.PERFORMANCE)) {
+            samples = filterByQuantiles(samples, DEFAULT_QUANTILES);
+            samples = filterZeroValues(samples);
+        }
+
         String interpretation = KafkaMetricCategories.interpretation(effectiveCategories);
 
         AggregationLevel level = AggregationLevel.fromString(aggregation);
@@ -161,6 +171,44 @@ public class KafkaMetricsService {
         }
         return KafkaMetricsResponse.of(name, resolvedNs,
             metricsQueryService.providerName(), categories, samples, interpretation, level);
+    }
+
+    private static List<MetricSample> filterByBrokerPods(final List<MetricSample> samples,
+                                                          final List<Pod> brokerPods) {
+        Set<String> brokerPodNames = brokerPods.stream()
+            .map(p -> p.getMetadata().getName())
+            .collect(Collectors.toSet());
+        return samples.stream()
+            .filter(s -> {
+                if (s.labels() == null) {
+                    return true;
+                }
+                // Filter by Prometheus metric label (reliable for both providers)
+                String brokerRole = s.labels().get("strimzi_io_broker_role");
+                if (brokerRole != null) {
+                    return "true".equals(brokerRole);
+                }
+                // Fallback: filter by pod name
+                String podLabel = s.labels().get("pod");
+                return podLabel == null || brokerPodNames.contains(podLabel);
+            })
+            .toList();
+    }
+
+    private static List<MetricSample> filterByQuantiles(final List<MetricSample> samples,
+                                                         final Set<String> quantiles) {
+        return samples.stream()
+            .filter(s -> {
+                String quantile = s.labels() != null ? s.labels().get("quantile") : null;
+                return quantile == null || quantiles.contains(quantile);
+            })
+            .toList();
+    }
+
+    private static List<MetricSample> filterZeroValues(final List<MetricSample> samples) {
+        return samples.stream()
+            .filter(s -> s.value() != 0.0)
+            .toList();
     }
 
     private static List<MetricSample> filterByRequestTypes(final List<MetricSample> samples,

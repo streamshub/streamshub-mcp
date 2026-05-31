@@ -18,14 +18,14 @@ class AggregationLevelTest {
     }
 
     @Test
-    void fromStringNullDefaultsToBroker() {
-        assertEquals(AggregationLevel.BROKER, AggregationLevel.fromString(null));
+    void fromStringNullDefaultsToCluster() {
+        assertEquals(AggregationLevel.CLUSTER, AggregationLevel.fromString(null));
     }
 
     @Test
-    void fromStringBlankDefaultsToBroker() {
-        assertEquals(AggregationLevel.BROKER, AggregationLevel.fromString(""));
-        assertEquals(AggregationLevel.BROKER, AggregationLevel.fromString("   "));
+    void fromStringBlankDefaultsToCluster() {
+        assertEquals(AggregationLevel.CLUSTER, AggregationLevel.fromString(""));
+        assertEquals(AggregationLevel.CLUSTER, AggregationLevel.fromString("   "));
     }
 
     @Test

@@ -7,10 +7,12 @@ package io.streamshub.mcp.metrics.prometheus.service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Unit tests for {@link PrometheusMetricsProvider} PromQL query building.
@@ -94,5 +96,53 @@ class PrometheusMetricsProviderTest {
         assertEquals(
             "metric_a{namespace=\"kafka\",pod=\"broker-0\"}",
             query);
+    }
+
+    @Test
+    void partitionMetricsSeparatesCountersAndGauges() {
+        List<String> counters = new ArrayList<>();
+        List<String> gauges = new ArrayList<>();
+
+        PrometheusMetricsProvider.partitionMetrics(
+            List.of("bytesin_total", "underreplicated", "messagesin_total", "jvm_heap"),
+            counters, gauges);
+
+        assertEquals(List.of("bytesin_total", "messagesin_total"), counters);
+        assertEquals(List.of("underreplicated", "jvm_heap"), gauges);
+    }
+
+    @Test
+    void partitionMetricsNullInput() {
+        List<String> counters = new ArrayList<>();
+        List<String> gauges = new ArrayList<>();
+
+        PrometheusMetricsProvider.partitionMetrics(null, counters, gauges);
+
+        assertTrue(counters.isEmpty());
+        assertTrue(gauges.isEmpty());
+    }
+
+    @Test
+    void partitionMetricsAllCounters() {
+        List<String> counters = new ArrayList<>();
+        List<String> gauges = new ArrayList<>();
+
+        PrometheusMetricsProvider.partitionMetrics(
+            List.of("a_total", "b_total"), counters, gauges);
+
+        assertEquals(List.of("a_total", "b_total"), counters);
+        assertTrue(gauges.isEmpty());
+    }
+
+    @Test
+    void partitionMetricsAllGauges() {
+        List<String> counters = new ArrayList<>();
+        List<String> gauges = new ArrayList<>();
+
+        PrometheusMetricsProvider.partitionMetrics(
+            List.of("gauge_a", "gauge_b"), counters, gauges);
+
+        assertTrue(counters.isEmpty());
+        assertEquals(List.of("gauge_a", "gauge_b"), gauges);
     }
 }

@@ -41,6 +41,10 @@ public class PrometheusMetricsProvider implements MetricsProvider {
         // package-private no-arg constructor for CDI
     }
 
+    private static final String TOTAL_SUFFIX = "_total";
+    private static final String RATE_SUFFIX = "_rate_per_second";
+    private static final String DEFAULT_RATE_WINDOW = "5m";
+
     @Override
     public List<MetricSample> queryMetrics(final MetricsQueryParams params) {
         if (prometheusClientInstance.isUnsatisfied()) {
@@ -49,21 +53,74 @@ public class PrometheusMetricsProvider implements MetricsProvider {
         }
 
         PrometheusClient client = prometheusClientInstance.get();
-        String promql = buildPromQL(params.metricNames(), params.labelMatchers());
 
-        LOG.debugf("Executing PromQL query: %s", promql);
+        List<String> counterMetrics = new ArrayList<>();
+        List<String> gaugeMetrics = new ArrayList<>();
+        partitionMetrics(params.metricNames(), counterMetrics, gaugeMetrics);
 
-        PrometheusResponse response;
+        List<MetricSample> allSamples = new ArrayList<>();
+
+        if (!gaugeMetrics.isEmpty()) {
+            String promql = buildPromQL(gaugeMetrics, params.labelMatchers());
+            LOG.debugf("Executing PromQL query (gauges): %s", promql);
+            PrometheusResponse response = executeQuery(client, promql, params);
+            allSamples.addAll(convertResponse(response, params.maxSamples()));
+        }
+
+        if (!counterMetrics.isEmpty()) {
+            allSamples.addAll(queryCountersWithRate(client, counterMetrics, params));
+        }
+
+        return allSamples;
+    }
+
+    private List<MetricSample> queryCountersWithRate(final PrometheusClient client,
+                                                      final List<String> counterMetrics,
+                                                      final MetricsQueryParams params) {
+        String rateWindow = params.isRangeQuery()
+            ? params.stepSeconds() + "s"
+            : DEFAULT_RATE_WINDOW;
+        String rateFunc = params.isRangeQuery() ? "rate" : "irate";
+
+        List<MetricSample> result = new ArrayList<>();
+        for (String metric : counterMetrics) {
+            String inner = buildPromQL(List.of(metric), params.labelMatchers());
+            String promql = rateFunc + "(" + inner + "[" + rateWindow + "])";
+            LOG.debugf("Executing PromQL query (counter rate): %s", promql);
+
+            PrometheusResponse response = executeQuery(client, promql, params);
+            String renamedMetric = metric.substring(0, metric.length() - TOTAL_SUFFIX.length())
+                + RATE_SUFFIX;
+            result.addAll(convertResponseWithName(response, params.maxSamples(), renamedMetric));
+        }
+        return result;
+    }
+
+    private PrometheusResponse executeQuery(final PrometheusClient client,
+                                             final String promql,
+                                             final MetricsQueryParams params) {
         if (params.isRangeQuery()) {
             String start = String.valueOf(params.startTime().getEpochSecond());
             String end = String.valueOf(params.endTime().getEpochSecond());
             String step = params.stepSeconds() + "s";
-            response = client.rangeQuery(promql, start, end, step);
-        } else {
-            response = client.instantQuery(promql, null);
+            return client.rangeQuery(promql, start, end, step);
         }
+        return client.instantQuery(promql, null);
+    }
 
-        return convertResponse(response, params.maxSamples());
+    static void partitionMetrics(final List<String> metricNames,
+                                  final List<String> counters,
+                                  final List<String> gauges) {
+        if (metricNames == null) {
+            return;
+        }
+        for (String name : metricNames) {
+            if (name.endsWith(TOTAL_SUFFIX)) {
+                counters.add(name);
+            } else {
+                gauges.add(name);
+            }
+        }
     }
 
     /**
@@ -130,6 +187,44 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             query.append(PromQLSanitizer.sanitizeLabelValue(entry.getValue()));
             query.append("\"");
         }
+    }
+
+    private List<MetricSample> convertResponseWithName(final PrometheusResponse response,
+                                                       final int maxSamples,
+                                                       final String metricName) {
+        if (response == null || response.data() == null || response.data().result() == null) {
+            return List.of();
+        }
+
+        if (!"success".equals(response.status())) {
+            LOG.warnf("Prometheus query returned non-success status: %s", response.status());
+            return List.of();
+        }
+
+        List<MetricSample> samples = new ArrayList<>();
+        boolean limitEnabled = maxSamples > 0;
+
+        for (PrometheusResponse.PrometheusResult result : response.data().result()) {
+            if (limitEnabled && samples.size() >= maxSamples) {
+                LOG.warnf("Prometheus query exceeded max-samples limit (%d), truncating results", maxSamples);
+                break;
+            }
+
+            Map<String, String> labels = result.metric();
+
+            if (result.values() != null) {
+                for (List<Object> valueEntry : result.values()) {
+                    if (limitEnabled && samples.size() >= maxSamples) {
+                        break;
+                    }
+                    addSample(samples, metricName, labels, valueEntry);
+                }
+            } else if (result.value() != null) {
+                addSample(samples, metricName, labels, result.value());
+            }
+        }
+
+        return samples;
     }
 
     private List<MetricSample> convertResponse(final PrometheusResponse response,
