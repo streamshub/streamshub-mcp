@@ -2,10 +2,10 @@
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaNodePool
 metadata:
-  name: secondary-combined
-  namespace: strimzi-kafka
+  name: mirror-combined
+  namespace: strimzi-kafka-mirror
   labels:
-    strimzi.io/cluster: mcp-cluster-secondary
+    strimzi.io/cluster: mcp-cluster-mirror
     mcp: strimzi
     system: strimzi
 spec:
@@ -24,8 +24,8 @@ spec:
 apiVersion: kafka.strimzi.io/v1
 kind: Kafka
 metadata:
-  name: mcp-cluster-secondary
-  namespace: strimzi-kafka
+  name: mcp-cluster-mirror
+  namespace: strimzi-kafka-mirror
   labels:
     mcp: strimzi
     system: strimzi
