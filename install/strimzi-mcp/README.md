@@ -17,6 +17,8 @@ install/strimzi-mcp/
 ├── optional/                    # Optional resources (applied manually)
 │   ├── role-sensitive.yaml
 │   ├── rolebinding-sensitive.yaml
+│   ├── clusterrole-loki-application-view.yaml
+│   ├── clusterrolebinding-loki-application-view.yaml
 │   └── podmonitor.yaml
 └── overlays/
     ├── dev/                     # Local development
@@ -123,6 +125,20 @@ To grant sensitive permissions in the namespaces where you need them:
 kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n <kafka-namespace>
 kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n <kafka-namespace>
 ```
+
+## Loki RBAC (OpenShift Logging)
+
+When using the Loki log provider with OpenShift Logging (LokiStack), the service account needs permission to read application logs via the Loki gateway.
+OpenShift Logging v6.x does not auto-create the required `cluster-logging-application-view` ClusterRole (v5.x did), so you may need to create it manually:
+
+```bash
+kubectl apply -f install/strimzi-mcp/optional/clusterrole-loki-application-view.yaml
+kubectl apply -f install/strimzi-mcp/optional/clusterrolebinding-loki-application-view.yaml
+```
+
+Without this, Loki queries will return `403 Forbidden` with the message "You don't have permission to access this tenant."
+
+> **Note**: The `dev-deploy.sh --loki` script creates this ClusterRole automatically if it is missing.
 
 ## Metrics monitoring
 

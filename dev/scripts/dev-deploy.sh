@@ -129,6 +129,26 @@ fi
 
 if [ "$LOKI" = true ]; then
     echo "==> Granting Loki RBAC to service account $SA_NAME"
+    # OpenShift Logging v6.x does not auto-create this ClusterRole (v5.x did).
+    # Create it if missing so the SA can read application logs via the Loki gateway.
+    if ! kubectl get clusterrole cluster-logging-application-view &>/dev/null; then
+        echo "    ClusterRole cluster-logging-application-view not found, creating it"
+        kubectl apply -f - <<'ROLE_EOF'
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-logging-application-view
+rules:
+- apiGroups:
+  - loki.grafana.com
+  resources:
+  - application
+  resourceNames:
+  - logs
+  verbs:
+  - get
+ROLE_EOF
+    fi
     kubectl create clusterrolebinding "${SA_NAME}-logging-application-view" \
         --clusterrole=cluster-logging-application-view \
         --serviceaccount="${DEPLOY_NS}:${SA_NAME}" \
