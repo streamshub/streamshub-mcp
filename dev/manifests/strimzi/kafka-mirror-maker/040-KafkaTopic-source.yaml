@@ -5,12 +5,12 @@ metadata:
   name: source-orders
   namespace: strimzi-kafka
   labels:
-    strimzi.io/cluster: mcp-cluster-secondary
+    strimzi.io/cluster: mcp-cluster
     mcp: strimzi
     system: strimzi
 spec:
   partitions: 3
-  replicas: 1
+  replicas: 3
   config:
     retention.ms: 86400000
 ---
@@ -20,11 +20,11 @@ metadata:
   name: source-events
   namespace: strimzi-kafka
   labels:
-    strimzi.io/cluster: mcp-cluster-secondary
+    strimzi.io/cluster: mcp-cluster
     mcp: strimzi
     system: strimzi
 spec:
   partitions: 3
-  replicas: 1
+  replicas: 3
   config:
     retention.ms: 86400000

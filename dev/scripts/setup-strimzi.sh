@@ -10,6 +10,9 @@ STRIMZI_DIR="$SCRIPT_DIR/../manifests/strimzi"
 OPERATOR_NS="strimzi"
 KAFKA_NS="strimzi-kafka"
 CLUSTER_NAME="mcp-cluster"
+MIRROR_NS="strimzi-kafka-mirror"
+MIRROR_MAKER_NS="strimzi-mirror-maker"
+MIRROR_CLUSTER="mcp-cluster-mirror"
 
 INSTALL_PROMETHEUS=false
 INSTALL_LOKI=false
@@ -30,6 +33,17 @@ log_info()    { echo -e "${BLUE}[INFO]  $1${NC}"; }
 log_success() { echo -e "${GREEN}[OK]    $1${NC}"; }
 log_warning() { echo -e "${YELLOW}[WARN]  $1${NC}"; }
 log_error()   { echo -e "${RED}[ERROR] $1${NC}"; }
+
+copy_secret() {
+    local secret_name="$1"
+    local source_ns="$2"
+    local target_ns="$3"
+    log_info "Copying secret '$secret_name' from $source_ns to $target_ns..."
+    kubectl get secret "$secret_name" -n "$source_ns" -o json \
+        | jq 'del(.metadata.resourceVersion, .metadata.uid, .metadata.creationTimestamp,
+              .metadata.managedFields, .metadata.ownerReferences, .metadata.namespace)' \
+        | kubectl apply -n "$target_ns" -f -
+}
 
 check_kubectl() {
     if ! command -v kubectl &> /dev/null; then
@@ -158,15 +172,8 @@ teardown_bridge() {
 }
 
 deploy_mirror_maker() {
-    log_info "Deploying secondary Kafka cluster and MirrorMaker2..."
+    log_info "Deploying mirror cluster, MirrorMaker2, and verification consumer..."
     kubectl apply -k "$STRIMZI_DIR/kafka-mirror-maker/"
-
-    log_info "Waiting for secondary cluster to be ready (this may take a few minutes)..."
-    kubectl wait kafka/mcp-cluster-secondary \
-        --for=condition=Ready \
-        -n "$KAFKA_NS" \
-        --timeout=600s
-    log_success "Secondary Kafka cluster is ready"
 
     log_info "Waiting for MirrorMaker2 user to be ready..."
     kubectl wait kafkauser/mm2-user \
@@ -174,18 +181,32 @@ deploy_mirror_maker() {
         -n "$KAFKA_NS" \
         --timeout=120s
 
+    copy_secret "mcp-cluster-cluster-ca-cert" "$KAFKA_NS" "$MIRROR_MAKER_NS"
+    copy_secret "mm2-user" "$KAFKA_NS" "$MIRROR_MAKER_NS"
+
+    log_info "Waiting for mirror cluster to be ready (this may take a few minutes)..."
+    kubectl wait kafka/"$MIRROR_CLUSTER" \
+        --for=condition=Ready \
+        -n "$MIRROR_NS" \
+        --timeout=600s
+    log_success "Mirror Kafka cluster is ready"
+
     log_info "Waiting for MirrorMaker2 to be ready..."
     kubectl wait kafkamirrormaker2/mcp-mirror-maker \
         --for=condition=Ready \
-        -n "$KAFKA_NS" \
+        -n "$MIRROR_MAKER_NS" \
         --timeout=300s
     log_success "MirrorMaker2 is ready"
+
+    log_info "Mirror consumer deployed — check logs with: kubectl logs -n $MIRROR_NS deployment/mirror-consumer"
 }
 
 teardown_mirror_maker() {
-    log_info "Removing MirrorMaker2 and secondary cluster..."
+    log_info "Removing MirrorMaker2, mirror cluster, and verification consumer..."
     kubectl delete -k "$STRIMZI_DIR/kafka-mirror-maker/" --ignore-not-found
-    log_success "MirrorMaker2 and secondary cluster removed"
+    kubectl delete namespace "$MIRROR_NS" --ignore-not-found --timeout=60s 2>/dev/null || true
+    kubectl delete namespace "$MIRROR_MAKER_NS" --ignore-not-found --timeout=60s 2>/dev/null || true
+    log_success "MirrorMaker2 and mirror cluster removed"
 }
 
 deploy_test_clients() {
@@ -295,8 +316,9 @@ deploy() {
         echo "KafkaBridge:         mcp-bridge"
     fi
     if [ "$INSTALL_MIRROR_MAKER" = true ]; then
-        echo "Secondary cluster:   mcp-cluster-secondary"
-        echo "MirrorMaker2:        mcp-mirror-maker"
+        echo "Mirror cluster:      $MIRROR_CLUSTER (ns: $MIRROR_NS)"
+        echo "MirrorMaker2:        mcp-mirror-maker (ns: $MIRROR_MAKER_NS)"
+        echo "Mirror consumer:     mirror-consumer (ns: $MIRROR_NS)"
     fi
     if [ "$INSTALL_TEST_CLIENTS" = true ]; then
         echo "Test clients:        kafka-producer, kafka-consumer, http-producer, http-consumer"
@@ -320,7 +342,9 @@ deploy() {
         echo "  kubectl get kafkabridge -n $KAFKA_NS"
     fi
     if [ "$INSTALL_MIRROR_MAKER" = true ]; then
-        echo "  kubectl get kafkamirrormaker2 -n $KAFKA_NS"
+        echo "  kubectl get kafka -n $MIRROR_NS"
+        echo "  kubectl get kafkamirrormaker2 -n $MIRROR_MAKER_NS"
+        echo "  kubectl logs -n $MIRROR_NS deployment/mirror-consumer"
     fi
 }
 
@@ -446,7 +470,7 @@ case "$COMMAND" in
         echo "  --loki           Also deploy/remove Loki for log collection (OpenShift only)"
         echo "  --drain-cleaner  Also deploy/remove Strimzi Drain Cleaner"
         echo "  --bridge         Also deploy/remove KafkaBridge (HTTP REST API to Kafka)"
-        echo "  --mirror-maker   Also deploy/remove secondary Kafka cluster + MirrorMaker2"
+        echo "  --mirror-maker   Also deploy/remove mirror Kafka cluster + MirrorMaker2 (separate namespaces)"
         echo "  --test-clients   Also deploy/remove test clients (Kafka + HTTP producers/consumers)"
         ;;
     *)

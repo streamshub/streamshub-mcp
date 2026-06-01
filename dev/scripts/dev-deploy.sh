@@ -128,6 +128,11 @@ if [ "$LOKI" = true ] || [ "$PROMETHEUS" = true ]; then
 fi
 
 if [ "$LOKI" = true ]; then
+    echo "==> Granting Loki RBAC to service account $SA_NAME"
+    kubectl create clusterrolebinding "${SA_NAME}-logging-application-view" \
+        --clusterrole=cluster-logging-application-view \
+        --serviceaccount="${DEPLOY_NS}:${SA_NAME}" \
+        --dry-run=client -o yaml | kubectl apply -f -
     echo "==> Configuring Loki log provider"
     kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
         MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-loki}" \
