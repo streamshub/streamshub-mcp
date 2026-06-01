@@ -167,7 +167,7 @@ public class KafkaTopicDiagnosticService {
         StrimziOperatorLogsResponse operatorLogs = null;
         if (areas.operatorLogs) {
             operatorLogs = gatherOperatorLogs(
-                resolvedNs, name, completed, failed, mcpLog);
+                null, name, completed, failed, mcpLog);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }

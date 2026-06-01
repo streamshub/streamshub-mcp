@@ -160,7 +160,7 @@ public class UpgradeReadinessDiagnosticService {
         String resolvedNs = cluster.namespace();
 
         StrimziOperatorResponse operator = gatherOperatorStatus(
-            resolvedNs, completed, failed, mcpLog);
+            null, completed, failed, mcpLog);
         DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
         DiagnosticHelper.checkCancellation(cancellation);
 

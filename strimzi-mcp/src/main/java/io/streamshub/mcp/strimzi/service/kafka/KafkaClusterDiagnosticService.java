@@ -190,9 +190,9 @@ public class KafkaClusterDiagnosticService {
         StrimziOperatorResponse operator = null;
         StrimziOperatorLogsResponse operatorLogs = null;
         if (areas.operatorLogs) {
-            operator = gatherOperatorStatus(resolvedNs, completed, failed, mcpLog);
+            operator = gatherOperatorStatus(null, completed, failed, mcpLog);
             operatorLogs = gatherOperatorLogs(
-                resolvedNs, sinceMinutes, completed, failed, mcpLog);
+                null, sinceMinutes, completed, failed, mcpLog);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }

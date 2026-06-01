@@ -97,8 +97,9 @@ public class AssessUpgradeReadinessPrompt {
             Record the current Kafka version and Strimzi operator version.
 
             ## Step 2: Operator health [GO/NO-GO]
-            Use `list_strimzi_operators(%s)` and `get_strimzi_operator` to check \
-            operator status.
+            Use `list_strimzi_operators` **without passing a namespace** and `get_strimzi_operator` \
+            to check operator status. The operator is typically deployed in a different namespace \
+            than the Kafka cluster.
 
             **GO conditions**:
             - Operator deployment is available with all replicas ready
@@ -108,7 +109,7 @@ public class AssessUpgradeReadinessPrompt {
             - Operator not available or degraded
             - Operator pod restarting or in error state
 
-            Use `get_strimzi_operator_logs(%s)` to check for recent errors.
+            Use `get_strimzi_operator_logs` **without passing a namespace** to check for recent errors.
             Any recurring reconciliation errors indicate instability.
 
             ## Step 3: Node pool and pod health [GO/NO-GO]
@@ -252,8 +253,6 @@ public class AssessUpgradeReadinessPrompt {
                 clusterName, nsClause, versionClause,
                 StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
                 clusterName, nsArg,
-                nsArg.isEmpty() ? "" : "namespace='" + namespace + "'",
-                nsArg,
                 clusterName, nsArg,
                 clusterName, nsArg,
                 clusterName, nsArg,
