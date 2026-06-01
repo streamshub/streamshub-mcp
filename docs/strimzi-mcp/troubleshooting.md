@@ -387,6 +387,15 @@ kubectl -n streamshub-mcp exec <mcp-pod> -- \
      --from=secret/loki-auth
    ```
 
+4. **403 Forbidden on OpenShift Logging v6.x**
+
+   OpenShift Logging v6.x does not auto-create the `cluster-logging-application-view` ClusterRole
+   that the LokiStack gateway requires for read access. Apply the optional RBAC manifests:
+   ```bash
+   kubectl apply -f install/strimzi-mcp/optional/clusterrole-loki-application-view.yaml
+   kubectl apply -f install/strimzi-mcp/optional/clusterrolebinding-loki-application-view.yaml
+   ```
+
 ## Metrics issues
 
 ### No metrics returned
