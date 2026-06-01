@@ -17,6 +17,7 @@ MIRROR_CLUSTER="mcp-cluster-mirror"
 INSTALL_PROMETHEUS=false
 INSTALL_LOKI=false
 INSTALL_DRAIN_CLEANER=false
+INSTALL_CONNECT=false
 INSTALL_BRIDGE=false
 INSTALL_MIRROR_MAKER=false
 INSTALL_TEST_CLIENTS=false
@@ -145,6 +146,30 @@ teardown_drain_cleaner() {
     log_info "Deleting namespace $drain_cleaner_ns..."
     kubectl delete namespace "$drain_cleaner_ns" --ignore-not-found --timeout=60s 2>/dev/null || true
     log_success "Drain Cleaner removed"
+}
+
+deploy_connect() {
+    log_info "Deploying KafkaConnect..."
+    kubectl apply -k "$STRIMZI_DIR/kafka-connect/"
+
+    log_info "Waiting for KafkaConnect user to be ready..."
+    kubectl wait kafkauser/mcp-connect-user \
+        --for=condition=Ready \
+        -n "$KAFKA_NS" \
+        --timeout=120s
+
+    log_info "Waiting for KafkaConnect to be ready..."
+    kubectl wait kafkaconnect/mcp-connect \
+        --for=condition=Ready \
+        -n "$KAFKA_NS" \
+        --timeout=300s
+    log_success "KafkaConnect is ready"
+}
+
+teardown_connect() {
+    log_info "Removing KafkaConnect..."
+    kubectl delete -k "$STRIMZI_DIR/kafka-connect/" --ignore-not-found
+    log_success "KafkaConnect removed"
 }
 
 deploy_bridge() {
@@ -285,6 +310,10 @@ deploy() {
         --timeout=120s
     log_success "KafkaUsers are ready"
 
+    if [ "$INSTALL_CONNECT" = true ]; then
+        deploy_connect
+    fi
+
     if [ "$INSTALL_BRIDGE" = true ]; then
         deploy_bridge
     fi
@@ -312,6 +341,9 @@ deploy() {
     echo "Operator namespace:  $OPERATOR_NS"
     echo "Kafka namespace:     $KAFKA_NS"
     echo "Cluster name:        $CLUSTER_NAME"
+    if [ "$INSTALL_CONNECT" = true ]; then
+        echo "KafkaConnect:        mcp-connect"
+    fi
     if [ "$INSTALL_BRIDGE" = true ]; then
         echo "KafkaBridge:         mcp-bridge"
     fi
@@ -338,6 +370,10 @@ deploy() {
     echo "  kubectl get pods -n $KAFKA_NS"
     echo "  kubectl get kafka -n $KAFKA_NS"
     echo "  kubectl get kafkauser -n $KAFKA_NS"
+    if [ "$INSTALL_CONNECT" = true ]; then
+        echo "  kubectl get kafkaconnect -n $KAFKA_NS"
+        echo "  kubectl get kafkaconnector -n $KAFKA_NS"
+    fi
     if [ "$INSTALL_BRIDGE" = true ]; then
         echo "  kubectl get kafkabridge -n $KAFKA_NS"
     fi
@@ -381,6 +417,10 @@ teardown() {
 
     if [ "$INSTALL_MIRROR_MAKER" = true ]; then
         teardown_mirror_maker
+    fi
+
+    if [ "$INSTALL_CONNECT" = true ]; then
+        teardown_connect
     fi
 
     if [ "$INSTALL_BRIDGE" = true ]; then
@@ -430,6 +470,9 @@ for arg in "$@"; do
         "--drain-cleaner")
             INSTALL_DRAIN_CLEANER=true
             ;;
+        "--connect")
+            INSTALL_CONNECT=true
+            ;;
         "--bridge")
             INSTALL_BRIDGE=true
             ;;
@@ -469,6 +512,7 @@ case "$COMMAND" in
         echo "  --prometheus     Also deploy/remove Prometheus for metrics collection"
         echo "  --loki           Also deploy/remove Loki for log collection (OpenShift only)"
         echo "  --drain-cleaner  Also deploy/remove Strimzi Drain Cleaner"
+        echo "  --connect        Also deploy/remove KafkaConnect with a sample connector"
         echo "  --bridge         Also deploy/remove KafkaBridge (HTTP REST API to Kafka)"
         echo "  --mirror-maker   Also deploy/remove mirror Kafka cluster + MirrorMaker2 (separate namespaces)"
         echo "  --test-clients   Also deploy/remove test clients (Kafka + HTTP producers/consumers)"
