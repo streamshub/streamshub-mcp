@@ -10,7 +10,7 @@
 #   ./setup-jaeger.sh help     - Show usage
 #
 # After deployment, configure the MCP server to export traces:
-#   QUARKUS_OTEL_ENABLED=true
+#   QUARKUS_OTEL_SDK_DISABLED=false
 #   QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger-collector.observability.svc.cluster.local:4317
 
 set -e
@@ -77,12 +77,12 @@ deploy() {
     echo "            jaeger-collector.$JAEGER_NS.svc.cluster.local:4318 (OTLP HTTP)"
     echo ""
     echo "MCP server configuration (in-cluster):"
-    echo "  QUARKUS_OTEL_ENABLED=true"
+    echo "  QUARKUS_OTEL_SDK_DISABLED=false"
     echo "  QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger-collector.$JAEGER_NS.svc.cluster.local:4317"
     echo ""
     if [ -n "$collector_route_host" ]; then
         echo "MCP server configuration (local dev mode via Route):"
-        echo "  QUARKUS_OTEL_ENABLED=true"
+        echo "  QUARKUS_OTEL_SDK_DISABLED=false"
         echo "  QUARKUS_OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf"
         echo "  QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT=https://$collector_route_host"
         echo "  QUARKUS_OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer \$(oc whoami -t)"
