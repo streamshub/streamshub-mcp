@@ -299,7 +299,21 @@ On OpenShift, it also creates Routes for the UI and OTLP collector.
 
 #### Configure MCP server
 
-**In-cluster (gRPC):**
+When deploying with `dev-deploy.sh`, use the `--otel` flag:
+
+```bash
+./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:latest --ocp --otel
+```
+
+This sets `QUARKUS_OTEL_SDK_DISABLED=false` and defaults the endpoint to the Jaeger collector.
+You can override the endpoint via environment variable:
+
+```bash
+QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT=http://custom-collector:4317 \
+  ./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:latest --ocp --otel
+```
+
+**Manual configuration (in-cluster gRPC):**
 
 ```bash
 QUARKUS_OTEL_SDK_DISABLED=false
