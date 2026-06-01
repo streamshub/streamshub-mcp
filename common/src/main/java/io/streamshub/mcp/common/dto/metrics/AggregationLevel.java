@@ -46,14 +46,14 @@ public enum AggregationLevel {
 
     /**
      * Parses a string to an aggregation level (case-insensitive).
-     * Returns {@link #BROKER} if the input is null or blank.
+     * Returns {@link #CLUSTER} if the input is null or blank.
      *
      * @param value the level name
-     * @return the parsed level, or BROKER as default
+     * @return the parsed level, or CLUSTER as default
      */
     public static AggregationLevel fromString(final String value) {
         if (value == null || value.isBlank()) {
-            return BROKER;
+            return CLUSTER;
         }
         return valueOf(value.toUpperCase(Locale.ROOT));
     }

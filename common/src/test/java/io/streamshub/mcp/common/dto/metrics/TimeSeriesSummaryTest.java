@@ -30,16 +30,16 @@ class TimeSeriesSummaryTest {
     }
 
     @Test
-    void singleDataPointSummary() {
+    void singleDataPointSummaryHasOnlyLatest() {
         List<List<Object>> dataPoints = List.of(List.of(100L, 42.0));
 
         TimeSeriesSummary summary = TimeSeriesSummary.of(dataPoints);
 
-        assertEquals(42.0, summary.min());
-        assertEquals(42.0, summary.max());
-        assertEquals(42.0, summary.avg());
+        assertNull(summary.min());
+        assertNull(summary.max());
+        assertNull(summary.avg());
         assertEquals(42.0, summary.latest());
-        assertEquals(0.0, summary.delta());
+        assertNull(summary.delta());
         assertEquals(1, summary.originalDataPointCount());
     }
 

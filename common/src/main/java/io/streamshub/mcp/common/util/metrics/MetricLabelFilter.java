@@ -28,8 +28,17 @@ public final class MetricLabelFilter {
         "service"
     );
 
+    private static final Set<String> ROLE_LABELS = Set.of(
+        "strimzi_io_broker_role",
+        "strimzi_io_controller_role"
+    );
+
     private static final Set<String> POD_IDENTITY_LABELS = Set.of(
         "pod", "kubernetes_pod_name", "strimzi_io_pod_name", "node_name", "node_ip"
+    );
+
+    private static final Set<String> POOL_IDENTITY_LABELS = Set.of(
+        "strimzi_io_controller_name", "strimzi_io_pool_name"
     );
 
     private static final Set<String> CANONICAL_LABELS = Set.of("pod", "topic", "partition");
@@ -89,7 +98,7 @@ public final class MetricLabelFilter {
         Map<String, String> filtered = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : labels.entrySet()) {
             String key = entry.getKey();
-            if (INTERNAL_LABELS.contains(key)) {
+            if (INTERNAL_LABELS.contains(key) || ROLE_LABELS.contains(key)) {
                 continue;
             }
             if (shouldStripForLevel(key, level)) {
@@ -132,7 +141,9 @@ public final class MetricLabelFilter {
             case PARTITION -> false;
             case TOPIC -> PARTITION_LABELS.contains(key);
             case BROKER -> TOPIC_PARTITION_LABELS.contains(key);
-            case CLUSTER -> TOPIC_PARTITION_LABELS.contains(key) || POD_IDENTITY_LABELS.contains(key);
+            case CLUSTER -> TOPIC_PARTITION_LABELS.contains(key)
+                || POD_IDENTITY_LABELS.contains(key)
+                || POOL_IDENTITY_LABELS.contains(key);
         };
     }
 }

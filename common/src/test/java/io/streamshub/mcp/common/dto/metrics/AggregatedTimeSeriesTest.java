@@ -62,7 +62,7 @@ class AggregatedTimeSeriesTest {
         AggregatedTimeSeries series = result.getFirst();
         assertEquals("m", series.name());
         assertEquals(2, series.sourceCount());
-        assertEquals(15.0, series.summary().avg(), 0.001);
+        assertEquals(15.0, series.summary().latest(), 0.001);
         assertTrue(series.labels().containsKey("topic"));
         assertTrue(series.labels().containsKey("pod"));
         assertTrue(!series.labels().containsKey("partition"));
@@ -81,7 +81,7 @@ class AggregatedTimeSeriesTest {
         assertEquals(1, result.size());
         AggregatedTimeSeries series = result.getFirst();
         assertEquals(3, series.sourceCount());
-        assertEquals(20.0, series.summary().avg(), 0.001);
+        assertEquals(20.0, series.summary().latest(), 0.001);
         assertTrue(series.labels().containsKey("pod"));
         assertTrue(!series.labels().containsKey("topic"));
         assertTrue(!series.labels().containsKey("partition"));
@@ -116,7 +116,7 @@ class AggregatedTimeSeriesTest {
         assertEquals(1, result.size());
         AggregatedTimeSeries series = result.getFirst();
         assertEquals(3, series.sourceCount());
-        assertEquals(20.0, series.summary().avg(), 0.001);
+        assertEquals(20.0, series.summary().latest(), 0.001);
         assertTrue(!series.labels().containsKey("pod"));
         assertTrue(!series.labels().containsKey("topic"));
         assertTrue(!series.labels().containsKey("partition"));
@@ -149,7 +149,7 @@ class AggregatedTimeSeriesTest {
 
         assertEquals(1, result.size());
         assertEquals(0L, result.getFirst().dataPoints().getFirst().getFirst());
-        assertEquals(10.0, result.getFirst().summary().avg(), 0.001);
+        assertEquals(10.0, result.getFirst().summary().latest(), 0.001);
     }
 
     @Test
@@ -184,8 +184,8 @@ class AggregatedTimeSeriesTest {
 
         assertNotNull(result.getFirst().summary());
         assertEquals(150.0, result.getFirst().summary().latest(), 0.001);
-        assertEquals(150.0, result.getFirst().summary().min(), 0.001);
-        assertEquals(150.0, result.getFirst().summary().max(), 0.001);
+        // single aggregated data point: min/max/avg are null
+        assertEquals(1, result.getFirst().summary().originalDataPointCount());
     }
 
     @Test

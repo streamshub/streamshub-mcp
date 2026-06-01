@@ -289,8 +289,8 @@ public final class StrimziToolsPrompts {
     public static final String AGGREGATION_DESC =
         "Aggregation level: 'partition' (full per-pod/topic/partition detail),"
             + " 'topic' (per-pod/topic, avg across partitions),"
-            + " 'broker' (per-pod, avg across topics+partitions, default),"
-            + " or 'cluster' (single avg across all dimensions)."
+            + " 'broker' (per-pod, avg across topics+partitions),"
+            + " or 'cluster' (single avg across all dimensions, default)."
             + " Aggregation works on topic/partition dimensions."
             + " The server automatically adjusts to the finest level supported by the"
             + " requested category (e.g., 'partition' on a broker-only category becomes 'broker')."

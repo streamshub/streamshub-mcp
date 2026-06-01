@@ -9,10 +9,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.metrics.AggregatedTimeSeries;
 import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
+import io.streamshub.mcp.common.util.metrics.CommonLabelExtractor;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 /**
  * Response containing metrics data from Strimzi operators.
  * Metrics are always grouped and aggregated into time series based on the
@@ -26,6 +28,7 @@ import java.util.Locale;
  * @param metricCount   the number of distinct metric names in the response
  * @param sampleCount   the total number of metric samples before aggregation
  * @param aggregation   the aggregation level used
+ * @param commonLabels  labels shared by all time series (factored out to reduce response size)
  * @param timeSeries    the aggregated time series
  * @param interpretation brief guide for interpreting the returned metrics
  * @param timestamp     the time this result was generated
@@ -41,6 +44,7 @@ public record StrimziOperatorMetricsResponse(
     @JsonProperty("metric_count") long metricCount,
     @JsonProperty("sample_count") int sampleCount,
     @JsonProperty("aggregation") String aggregation,
+    @JsonProperty("common_labels") Map<String, String> commonLabels,
     @JsonProperty("time_series") List<AggregatedTimeSeries> timeSeries,
     @JsonProperty("interpretation") String interpretation,
     @JsonProperty("timestamp") Instant timestamp,
@@ -80,9 +84,12 @@ public record StrimziOperatorMetricsResponse(
         List<AggregatedTimeSeries> series = samples.isEmpty()
             ? List.of() : AggregatedTimeSeries.fromSamples(samples, level);
 
+        CommonLabelExtractor.Result extracted = CommonLabelExtractor.extract(series);
+        Map<String, String> common = extracted.commonLabels().isEmpty() ? null : extracted.commonLabels();
+
         return new StrimziOperatorMetricsResponse(operatorName, clusterName, namespace, provider, categories,
             metricCount, samples.size(), level.name().toLowerCase(Locale.ROOT),
-            series, interpretation, Instant.now(), msg);
+            common, extracted.strippedSeries(), interpretation, Instant.now(), msg);
     }
 
     /**
@@ -96,6 +103,6 @@ public record StrimziOperatorMetricsResponse(
     public static StrimziOperatorMetricsResponse empty(final String operatorName, final String namespace,
                                                         final String message) {
         return new StrimziOperatorMetricsResponse(operatorName, null, namespace, null, List.of(),
-            0, 0, null, List.of(), null, Instant.now(), message);
+            0, 0, null, null, List.of(), null, Instant.now(), message);
     }
 }
