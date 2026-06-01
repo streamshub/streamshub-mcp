@@ -46,6 +46,9 @@ You can pass additional flags to deploy observability infrastructure alongside S
 # Deploy Strimzi with both
 ./dev/scripts/setup-strimzi.sh deploy --prometheus --loki
 
+# Deploy Strimzi with KafkaConnect and a sample connector
+./dev/scripts/setup-strimzi.sh deploy --connect
+
 # Deploy Strimzi with Drain Cleaner for graceful node drains
 ./dev/scripts/setup-strimzi.sh deploy --drain-cleaner
 

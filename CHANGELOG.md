@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Kubernetes name validation** on all services that query the Kubernetes API
 - **Metrics sample cap** -- configurable `mcp.metrics.max-samples` (default 10000) to prevent memory spikes from large metric queries
 - **Watch health readiness check** -- readiness probe reports DOWN when resource watches exhaust reconnection attempts
+- **Metrics improvements** -- common label extraction, rate conversion for counter metrics, and response size optimization with summary statistics
+- **LogQueryException** for structured error handling in log collection across Kubernetes and Loki providers
 
 ### Changed
 
@@ -37,12 +39,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migrated Strimzi API from v1beta2 to v1
 - Improved error propagation from Kubernetes queries
 - Improved input validation and log deduplication
+- Cluster overview now searches Connect, Bridge, and MirrorMaker2 across all namespaces instead of only the Kafka cluster namespace
+- Diagnostic services and prompt templates now auto-discover the Strimzi operator namespace instead of assuming it is in the Kafka cluster namespace
+- `dev-deploy.sh` creates `cluster-logging-application-view` ClusterRole if missing (required for OpenShift Logging v6.x)
+- `setup-strimzi.sh` now supports `--connect` flag to deploy KafkaConnect with a sample connector
+- **MirrorMaker2 dev environment** -- namespace isolation (separate namespaces for mirror cluster and MM2), verification consumer for validating mirroring
 
 ### Fixed
 
 - Resource subscription notifications on watch update failures
 - IPv6 address handling
 - Teardown phase no longer gets stuck when orphaned KafkaTopics exist
+- Operator status and logs in diagnostic services no longer fail when the operator is in a different namespace than Kafka
+- Cluster overview not finding Connect, Bridge, and MirrorMaker2 deployed in namespaces other than the Kafka cluster
+- Prompt templates (`assess-upgrade-readiness`, `troubleshoot-topic`) instructing the LLM to pass the Kafka namespace when querying operator tools
+- Loki 403 Forbidden on OpenShift Logging v6.x due to missing `cluster-logging-application-view` ClusterRole
 
 ## [0.0.1] - 2026-04-24
 
