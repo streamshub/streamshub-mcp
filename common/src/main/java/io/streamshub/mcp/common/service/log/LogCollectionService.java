@@ -123,7 +123,8 @@ public class LogCollectionService {
                 }
             } catch (Exception e) {
                 LOG.debugf("Could not retrieve logs from pod %s: %s", podName, e.getMessage());
-                allLogs.append("=== Pod: ").append(podName).append(" === (logs unavailable)\n");
+                allLogs.append("=== Pod: ").append(podName)
+                    .append(" === (logs unavailable: ").append(e.getMessage()).append(")\n");
             }
             if (options.progressCallback() != null) {
                 options.progressCallback().accept(podIndex, pods.size());

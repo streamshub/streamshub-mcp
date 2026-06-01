@@ -3,7 +3,7 @@ apiVersion: kafka.strimzi.io/v1
 kind: KafkaMirrorMaker2
 metadata:
   name: mcp-mirror-maker
-  namespace: strimzi-kafka
+  namespace: strimzi-mirror-maker
   labels:
     mcp: strimzi
     system: strimzi
@@ -11,26 +11,31 @@ spec:
   version: 4.2.0
   replicas: 1
   target:
-    alias: mcp-cluster
-    bootstrapServers: mcp-cluster-kafka-bootstrap:9777
-    tls:
-      trustedCertificates:
-        - secretName: mcp-cluster-cluster-ca-cert
-          pattern: "*.crt"
-    authentication:
-      type: scram-sha-512
-      username: mm2-user
-      passwordSecret:
-        secretName: mm2-user
-        password: password
+    alias: mcp-cluster-mirror
+    bootstrapServers: mcp-cluster-mirror-kafka-bootstrap.strimzi-kafka-mirror.svc:9092
     groupId: mcp-mirror-maker
     configStorageTopic: mirrormaker2-cluster-configs
     statusStorageTopic: mirrormaker2-cluster-status
     offsetStorageTopic: mirrormaker2-cluster-offsets
+    config:
+      # -1 means it will use the default replication factor configured in the broker
+      config.storage.replication.factor: -1
+      offset.storage.replication.factor: -1
+      status.storage.replication.factor: -1
   mirrors:
     - source:
-        alias: mcp-cluster-secondary
-        bootstrapServers: mcp-cluster-secondary-kafka-bootstrap:9092
+        alias: mcp-cluster
+        bootstrapServers: mcp-cluster-kafka-bootstrap.strimzi-kafka.svc:9777
+        tls:
+          trustedCertificates:
+            - secretName: mcp-cluster-cluster-ca-cert
+              pattern: "*.crt"
+        authentication:
+          type: scram-sha-512
+          username: mm2-user
+          passwordSecret:
+            secretName: mm2-user
+            password: password
       sourceConnector:
         tasksMax: 1
         config:
@@ -49,5 +54,5 @@ spec:
       cpu: 100m
       memory: 256Mi
     limits:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 1000m
+      memory: 1024Mi
