@@ -150,7 +150,11 @@ teardown_drain_cleaner() {
 
 deploy_connect() {
     log_info "Deploying KafkaConnect..."
-    kubectl apply -k "$STRIMZI_DIR/kafka-connect/"
+    if [ "$OCP" = true ]; then
+        kubectl apply -k "$STRIMZI_DIR/kafka-connect-openshift/"
+    else
+        kubectl apply -k "$STRIMZI_DIR/kafka-connect/"
+    fi
 
     log_info "Waiting for KafkaConnect user to be ready..."
     kubectl wait kafkauser/mcp-connect-user \
@@ -168,7 +172,11 @@ deploy_connect() {
 
 teardown_connect() {
     log_info "Removing KafkaConnect..."
-    kubectl delete -k "$STRIMZI_DIR/kafka-connect/" --ignore-not-found
+    if [ "$OCP" = true ]; then
+        kubectl delete -k "$STRIMZI_DIR/kafka-connect-openshift/" --ignore-not-found
+    else
+        kubectl delete -k "$STRIMZI_DIR/kafka-connect/" --ignore-not-found
+    fi
     log_success "KafkaConnect removed"
 }
 
