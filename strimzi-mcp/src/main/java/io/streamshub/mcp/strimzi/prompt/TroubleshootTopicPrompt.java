@@ -132,7 +132,8 @@ public class TroubleshootTopicPrompt {
             validate replication factor) and continue.
 
             ## Step 4: Check Topic Operator reconciliation
-            Use `get_strimzi_operator_logs(%s)` and look specifically for \
+            Use `get_strimzi_operator_logs` **without passing a namespace** (the operator \
+            is typically in a different namespace) and look specifically for \
             Topic Operator log entries mentioning `%s`.
             Look for:
             - Reconciliation errors or exceptions for this topic
@@ -180,7 +181,6 @@ public class TroubleshootTopicPrompt {
                 topicName, clusterArg, nsArg,
                 clusterLead, nsArg,
                 clusterLead, nsArg,
-                nsArg,
                 topicName,
                 clusterLead, nsArg);
     }

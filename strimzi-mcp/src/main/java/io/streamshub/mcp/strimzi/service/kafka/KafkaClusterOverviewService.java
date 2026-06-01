@@ -121,7 +121,7 @@ public class KafkaClusterOverviewService {
 
         return new KafkaClusterOverviewResponse(
             buildClusterSummary(cluster),
-            gatherOperator(resolvedNs),
+            gatherOperator(null),
             gatherNodePools(resolvedNs, name),
             countTopics(resolvedNs, name),
             countUsers(resolvedNs, name),
