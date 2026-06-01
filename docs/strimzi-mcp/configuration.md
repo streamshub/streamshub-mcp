@@ -269,7 +269,7 @@ When enabled, the server exports traces via OTLP to a collector (e.g., Jaeger, G
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `quarkus.otel.enabled` | `false` | Enable OpenTelemetry tracing |
+| `quarkus.otel.sdk.disabled` | `true` | Set to `false` to enable tracing. OTEL is included in the image but disabled at runtime by default. |
 | `quarkus.otel.exporter.otlp.endpoint` | `http://localhost:4317` | OTLP collector endpoint (gRPC) |
 | `quarkus.otel.exporter.otlp.protocol` | `grpc` | OTLP protocol: `grpc` (port 4317) or `http/protobuf` (port 4318) |
 | `quarkus.otel.exporter.otlp.headers` | - | Auth headers (e.g., `Authorization=Bearer <token>`) |
@@ -302,14 +302,14 @@ On OpenShift, it also creates Routes for the UI and OTLP collector.
 **In-cluster (gRPC):**
 
 ```bash
-QUARKUS_OTEL_ENABLED=true
+QUARKUS_OTEL_SDK_DISABLED=false
 QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger-collector.observability.svc.cluster.local:4317
 ```
 
 **Local dev mode via OpenShift Route (HTTP):**
 
 ```bash
-QUARKUS_OTEL_ENABLED=true
+QUARKUS_OTEL_SDK_DISABLED=false
 QUARKUS_OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT=https://<collector-route-host>
 QUARKUS_OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer $(oc whoami -t)
@@ -324,7 +324,7 @@ kind: ConfigMap
 metadata:
   name: strimzi-mcp-config
 data:
-  QUARKUS_OTEL_ENABLED: "true"
+  QUARKUS_OTEL_SDK_DISABLED: "false"
   QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger-collector.observability.svc.cluster.local:4317"
 ```
 
