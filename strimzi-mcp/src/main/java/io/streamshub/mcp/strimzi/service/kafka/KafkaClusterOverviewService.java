@@ -126,9 +126,9 @@ public class KafkaClusterOverviewService {
             countTopics(resolvedNs, name),
             countUsers(resolvedNs, name),
             gatherRebalances(resolvedNs, name),
-            findConnectedConnects(resolvedNs, bootstrapAddresses),
-            findConnectedMirrorMakers(resolvedNs, bootstrapAddresses),
-            findConnectedBridges(resolvedNs, bootstrapAddresses),
+            findConnectedConnects(null, bootstrapAddresses),
+            findConnectedMirrorMakers(null, bootstrapAddresses),
+            findConnectedBridges(null, bootstrapAddresses),
             gatherDrainCleaner(),
             Instant.now());
     }
