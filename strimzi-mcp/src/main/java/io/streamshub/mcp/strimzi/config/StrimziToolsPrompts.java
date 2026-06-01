@@ -61,6 +61,14 @@ public final class StrimziToolsPrompts {
             + " Case-insensitive. Omit for no keyword filtering.";
 
     /**
+     * Pod names filter parameter description.
+     */
+    public static final String POD_NAMES_DESC =
+        "List of specific pod names to collect logs from"
+            + " (e.g., ['my-cluster-kafka-0', 'my-cluster-kafka-2'])."
+            + " Omit to collect from all pods in the cluster.";
+
+    /**
      * Sections parameter description.
      */
     public static final String SECTIONS_DESC =

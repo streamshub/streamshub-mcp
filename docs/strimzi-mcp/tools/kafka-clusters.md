@@ -116,16 +116,21 @@ Get logs from Kafka cluster pods with error analysis and advanced filtering.
 - `filter` (optional) -- Log level filter (e.g., "ERROR", "WARN", "INFO")
 - `keywords` (optional) -- List of keywords to search for in logs
 - `sinceMinutes` (optional) -- Time window in minutes
-- `startTime` (optional) -- Start time (ISO 8601 format or relative like "-1h")
-- `endTime` (optional) -- End time (ISO 8601 format or "now")
+- `startTime` (optional) -- Start time (ISO 8601 format)
+- `endTime` (optional) -- End time (ISO 8601 format)
 - `tailLines` (optional) -- Number of lines to tail from each pod
 - `previous` (optional) -- Get logs from previous container instance
+- `podNames` (optional) -- List of specific pod names to collect logs from. Omit to collect from all pods in the cluster.
 
-**Returns**: Aggregated logs from all Kafka pods with error analysis and statistics
+**Returns**: Aggregated logs from the specified (or all) Kafka pods with error analysis and statistics
 
-**Example**:
+**Examples**:
 ```
 Get ERROR logs from mcp-cluster for the last 60 minutes
+```
+
+```
+Get logs from pods my-cluster-kafka-0 and my-cluster-kafka-2 in the last 30 minutes
 ```
 
 ## get_kafka_cluster_config

@@ -237,7 +237,7 @@ public class KafkaClusterDiagnosticService {
         KafkaMetricsResponse metrics = null;
         if (areas.metrics) {
             metrics = gatherMetrics(
-                resolvedNs, name, completed, failed, mcpLog);
+                resolvedNs, name, logParams, completed, failed, mcpLog);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
@@ -455,12 +455,17 @@ public class KafkaClusterDiagnosticService {
     @WithSpan("diagnose.cluster.metrics")
     KafkaMetricsResponse gatherMetrics(final String namespace,
                                        final String clusterName,
+                                       final LogCollectionParams timeWindow,
                                        final List<String> completed,
                                        final List<String> failed,
                                        final McpLog mcpLog) {
         try {
+            Integer rangeMinutes = timeWindow.sinceSeconds() != null
+                ? timeWindow.sinceSeconds() / SECONDS_PER_MINUTE : null;
             KafkaMetricsResponse result = kafkaMetricsService.getKafkaMetrics(
-                namespace, clusterName, "replication", null, null, null, null, null, null, null);
+                namespace, clusterName, "replication", null,
+                rangeMinutes, timeWindow.startTime(), timeWindow.endTime(),
+                null, null, null);
             completed.add(STEP_METRICS);
             DiagnosticHelper.sendClientNotification(mcpLog, "Retrieved Kafka replication metrics");
             return result;
