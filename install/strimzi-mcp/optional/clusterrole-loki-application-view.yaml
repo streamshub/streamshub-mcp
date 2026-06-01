@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-logging-application-view
+  labels:
+    app.kubernetes.io/name: strimzi-mcp
+    app.kubernetes.io/part-of: streamshub
+rules:
+  # Allow reading application logs via the OpenShift LokiStack gateway.
+  # OpenShift Logging v6.x does not auto-create this ClusterRole (v5.x did).
+  - apiGroups: ["loki.grafana.com"]
+    resources: ["application"]
+    resourceNames: ["logs"]
+    verbs: ["get"]
