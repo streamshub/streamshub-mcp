@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.service.kafka;
 
 import io.fabric8.kubernetes.api.model.Secret;
 import io.quarkiverse.mcp.server.ToolCallException;
+import io.streamshub.mcp.common.service.KubernetesQueryException;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.CertificateUtils;
 import io.streamshub.mcp.common.util.InputUtils;
@@ -83,36 +84,47 @@ public class KafkaCertificateService {
                 "Listener '" + normalizedListener + "' not found on cluster '" + normalizedName + "'");
         }
 
+        List<String> errors = new ArrayList<>();
         List<KafkaCertificateResponse.CertificateInfo> certificates =
-            fetchCertificateMetadata(resolvedNs, normalizedName);
+            fetchCertificateMetadata(resolvedNs, normalizedName, errors);
 
         if (certificates.isEmpty() && listenerAuth.isEmpty()) {
             return KafkaCertificateResponse.empty(normalizedName, resolvedNs,
                 "No certificate secrets found. Ensure the sensitive RBAC Role is configured.");
         }
 
-        return KafkaCertificateResponse.of(normalizedName, resolvedNs, certificates, listenerAuth);
+        return KafkaCertificateResponse.of(normalizedName, resolvedNs, certificates, listenerAuth, errors);
     }
 
     private List<KafkaCertificateResponse.CertificateInfo> fetchCertificateMetadata(
-            final String namespace, final String clusterName) {
+            final String namespace, final String clusterName, final List<String> errors) {
 
         List<KafkaCertificateResponse.CertificateInfo> result = new ArrayList<>();
 
         fetchAndParseCert(namespace, clusterName,
-            StrimziConstants.Secrets.CLUSTER_CA_CERT_SUFFIX, CLUSTER_CA_TYPE, result);
+            StrimziConstants.Secrets.CLUSTER_CA_CERT_SUFFIX, CLUSTER_CA_TYPE, result, errors);
 
         fetchAndParseCert(namespace, clusterName,
-            StrimziConstants.Secrets.CLIENTS_CA_CERT_SUFFIX, CLIENTS_CA_TYPE, result);
+            StrimziConstants.Secrets.CLIENTS_CA_CERT_SUFFIX, CLIENTS_CA_TYPE, result, errors);
 
         return result;
     }
 
     private void fetchAndParseCert(final String namespace, final String clusterName,
                                    final String secretSuffix, final String certType,
-                                   final List<KafkaCertificateResponse.CertificateInfo> result) {
+                                   final List<KafkaCertificateResponse.CertificateInfo> result,
+                                   final List<String> errors) {
         String secretName = clusterName + secretSuffix;
-        Secret secret = k8sService.getResource(Secret.class, namespace, secretName);
+        Secret secret;
+        try {
+            secret = k8sService.getResource(Secret.class, namespace, secretName);
+        } catch (KubernetesQueryException e) {
+            LOG.warnf("Unable to read %s certificate secret %s in namespace %s: %s",
+                certType, secretName, namespace, e.getMessage());
+            errors.add(String.format("Unable to read %s certificate secret '%s': %s",
+                certType, secretName, e.getMessage()));
+            return;
+        }
 
         if (secret == null) {
             LOG.debugf("Secret %s not found in namespace %s (RBAC may not be configured)",

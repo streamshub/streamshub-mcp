@@ -17,6 +17,7 @@ import java.util.List;
  * @param namespace              the Kubernetes namespace
  * @param certificates           certificate metadata from Strimzi-managed secrets
  * @param listenerAuthentication authentication configuration per listener
+ * @param errors                 errors encountered while fetching certificate secrets
  * @param message                a human-readable message describing the result
  * @param timestamp              the time this result was generated
  */
@@ -26,6 +27,7 @@ public record KafkaCertificateResponse(
     @JsonProperty("namespace") String namespace,
     @JsonProperty("certificates") List<CertificateInfo> certificates,
     @JsonProperty("listener_authentication") List<ListenerAuthInfo> listenerAuthentication,
+    @JsonProperty("errors") List<String> errors,
     @JsonProperty("message") String message,
     @JsonProperty("timestamp") Instant timestamp
 ) {
@@ -41,12 +43,14 @@ public record KafkaCertificateResponse(
      */
     public static KafkaCertificateResponse of(final String clusterName, final String namespace,
                                               final List<CertificateInfo> certificates,
-                                              final List<ListenerAuthInfo> listenerAuthentication) {
+                                              final List<ListenerAuthInfo> listenerAuthentication,
+                                              final List<String> errors) {
         return new KafkaCertificateResponse(
             clusterName,
             namespace,
             certificates,
             listenerAuthentication,
+            errors.isEmpty() ? null : errors,
             String.format("Found %d certificates and %d listeners for cluster '%s'",
                 certificates.size(), listenerAuthentication.size(), clusterName),
             Instant.now()
@@ -68,6 +72,7 @@ public record KafkaCertificateResponse(
             namespace,
             List.of(),
             List.of(),
+            null,
             message,
             Instant.now()
         );

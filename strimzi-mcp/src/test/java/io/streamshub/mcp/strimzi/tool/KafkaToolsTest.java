@@ -170,7 +170,8 @@ class KafkaToolsTest {
                 List.of(
                     KafkaCertificateResponse.ListenerAuthInfo.of(
                         "tls", "internal", true, "tls")
-                ))
+                ),
+                List.of())
         );
 
         client.when()

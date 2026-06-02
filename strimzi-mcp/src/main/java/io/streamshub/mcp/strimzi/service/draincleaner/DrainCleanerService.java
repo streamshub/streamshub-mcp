@@ -373,7 +373,17 @@ public class DrainCleanerService {
 
     private CertificateInfo parseTlsCertificate(final String namespace) {
         String secretName = StrimziConstants.DrainCleaner.WEBHOOK_CONFIG_NAME;
-        Secret secret = k8sService.getResource(Secret.class, namespace, secretName);
+        Secret secret;
+        try {
+            secret = k8sService.getResource(Secret.class, namespace, secretName);
+        } catch (KubernetesQueryException e) {
+            LOG.warnf("Unable to check TLS certificate for Drain Cleaner in namespace %s: %s",
+                namespace, e.getMessage());
+            return new CertificateInfo(false, null,
+                "Unable to read TLS secret '" + secretName + "' in namespace '" + namespace
+                    + "': " + e.getMessage()
+                    + ". Ensure the MCP server has RBAC permissions to read Secrets in this namespace.");
+        }
 
         if (secret == null) {
             return new CertificateInfo(false, null,
