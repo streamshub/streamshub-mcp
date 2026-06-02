@@ -12,10 +12,12 @@ Gathers cluster status, node pools, pods, Drain Cleaner readiness, operator logs
 
 **3-Phase workflow**:
 1. **Phase 1 -- Initial data gathering**: Always runs.
-Gathers cluster status, node pools, pods.
+Gathers cluster status, node pools, pods, and Drain Cleaner readiness.
 If namespace is ambiguous and Elicitation is supported, asks the user to choose.
-2. **Phase 2 -- Deep investigation**: If Sampling is supported, sends Phase 1 results to LLM and asks which areas need deeper investigation.
-If not supported, investigates all areas.
+2. **Phase 2 -- Deep investigation**: If Sampling is supported, sends Phase 1 results to LLM and asks which areas need deeper investigation and recommends a time window for log/event/metrics collection.
+If not supported, investigates all areas with a default 30-minute window.
+   - **Smart pod filtering**: Logs are collected only from problematic pods (not Running, not ready, or high restart count) when unhealthy pods are detected. If all pods are healthy, logs are collected from all pods. The restart threshold is configurable via `mcp.diagnostic.restart-threshold` (default: 3).
+   - **Smart time window**: The triage LLM recommends a time window based on the symptom -- relative (last N minutes) for active issues, or absolute (start/end ISO 8601) for past incidents. The same time window is applied to logs, events, and metrics. If no errors are found, the window auto-escalates once, then uses Elicitation to ask if the user wants to expand further.
 3. **Phase 3 -- Analysis**: If Sampling is supported, sends all gathered data to LLM for root cause analysis.
 If not supported, returns raw data without analysis.
 
@@ -23,7 +25,7 @@ If not supported, returns raw data without analysis.
 - `clusterName` (required) -- Name of the Kafka cluster
 - `namespace` (optional) -- Kubernetes namespace
 - `symptom` (optional) -- Observed symptom or issue description
-- `sinceMinutes` (optional) -- Time window for logs/events (default: 30)
+- `sinceMinutes` (optional) -- Time window for logs/events/metrics (overrides triage recommendation; default: 30 when triage is unavailable)
 
 **Uses Sampling**: Yes -- LLM-guided triage and analysis
 **Uses Elicitation**: Yes -- Namespace disambiguation

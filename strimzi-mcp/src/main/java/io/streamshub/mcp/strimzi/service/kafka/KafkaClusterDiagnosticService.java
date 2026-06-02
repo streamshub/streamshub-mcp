@@ -14,7 +14,9 @@ import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.SamplingMessage;
 import io.quarkiverse.mcp.server.SamplingResponse;
 import io.quarkiverse.mcp.server.ToolCallException;
+import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
+import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
@@ -41,10 +43,13 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 /**
  * Orchestrates a multistep diagnostic workflow for Kafka clusters.
  *
@@ -62,6 +67,9 @@ public class KafkaClusterDiagnosticService {
     private static final int SECONDS_PER_MINUTE = 60;
     private static final int PHASE1_STEPS = 4;
     private static final int MAX_PHASE2_STEPS = 6;
+    private static final int DEFAULT_TIME_WINDOW_MINUTES = 30;
+    private static final int ESCALATED_TIME_WINDOW_MINUTES = 60;
+    private static final int ABSOLUTE_WINDOW_EXPANSION_MINUTES = 30;
     private static final String DIAGNOSTIC_LABEL = "Kafka cluster diagnostic";
 
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
@@ -108,6 +116,9 @@ public class KafkaClusterDiagnosticService {
 
     @ConfigProperty(name = "mcp.sampling.analysis-max-tokens", defaultValue = "1500")
     int analysisMaxTokens;
+
+    @ConfigProperty(name = "mcp.diagnostic.restart-threshold", defaultValue = "3")
+    int restartThreshold;
 
     KafkaClusterDiagnosticService() {
     }
@@ -186,13 +197,15 @@ public class KafkaClusterDiagnosticService {
             sampling, cluster, nodePools, pods, drainCleaner, symptom);
 
         int totalSteps = PHASE1_STEPS + areas.enabledCount();
+        LogCollectionParams logParams = resolveLogParams(sinceMinutes, areas, mcpLog);
+        Integer effectiveSinceMinutes = resolveEffectiveSinceMinutes(sinceMinutes, areas);
 
         StrimziOperatorResponse operator = null;
         StrimziOperatorLogsResponse operatorLogs = null;
         if (areas.operatorLogs) {
             operator = gatherOperatorStatus(null, completed, failed, mcpLog);
             operatorLogs = gatherOperatorLogs(
-                null, sinceMinutes, completed, failed, mcpLog);
+                null, effectiveSinceMinutes, completed, failed, mcpLog);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
@@ -200,7 +213,8 @@ public class KafkaClusterDiagnosticService {
         KafkaClusterLogsResponse clusterLogs = null;
         if (areas.clusterLogs) {
             clusterLogs = gatherClusterLogs(
-                resolvedNs, name, sinceMinutes, completed, failed, mcpLog);
+                resolvedNs, name, logParams, pods, elicitation,
+                completed, failed, mcpLog);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
@@ -208,7 +222,7 @@ public class KafkaClusterDiagnosticService {
         StrimziEventsResponse events = null;
         if (areas.events) {
             events = gatherEvents(
-                resolvedNs, name, sinceMinutes, completed, failed, mcpLog);
+                resolvedNs, name, effectiveSinceMinutes, completed, failed, mcpLog);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
@@ -223,7 +237,7 @@ public class KafkaClusterDiagnosticService {
         KafkaMetricsResponse metrics = null;
         if (areas.metrics) {
             metrics = gatherMetrics(
-                resolvedNs, name, completed, failed, mcpLog);
+                resolvedNs, name, logParams, completed, failed, mcpLog);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
@@ -231,7 +245,7 @@ public class KafkaClusterDiagnosticService {
         DrainCleanerLogsResponse drainCleanerLogs = null;
         if (areas.drainCleanerLogs) {
             drainCleanerLogs = gatherDrainCleanerLogs(
-                sinceMinutes, completed, failed, mcpLog);
+                effectiveSinceMinutes, completed, failed, mcpLog);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
             DiagnosticHelper.checkCancellation(cancellation);
         }
@@ -367,23 +381,55 @@ public class KafkaClusterDiagnosticService {
     }
 
     @WithSpan("diagnose.cluster.logs")
+    @SuppressWarnings("checkstyle:ParameterNumber")
     KafkaClusterLogsResponse gatherClusterLogs(final String namespace,
                                                final String clusterName,
-                                               final Integer sinceMinutes,
+                                               final LogCollectionParams logParams,
+                                               final KafkaClusterPodsResponse pods,
+                                               final Elicitation elicitation,
                                                final List<String> completed,
                                                final List<String> failed,
                                                final McpLog mcpLog) {
         try {
-            KafkaClusterLogsResponse result = kafkaService.getClusterLogs(
-                namespace, clusterName, buildErrorLogParams(sinceMinutes));
+            Set<String> problematicPods = identifyProblematicPods(pods);
+
+            KafkaClusterLogsResponse result = collectClusterLogs(
+                namespace, clusterName, logParams, problematicPods, pods, mcpLog);
+
+            // Escalation: if no errors found, try a broader time window
+            if (result != null && !result.hasErrors()) {
+                result = escalateLogCollection(
+                    namespace, clusterName, logParams, problematicPods, pods,
+                    elicitation, mcpLog);
+            }
+
             completed.add(STEP_CLUSTER_LOGS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Collected Kafka cluster logs");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Kafka cluster logs: %s", e.getMessage());
             failed.add(STEP_CLUSTER_LOGS + ": " + e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Identify pods that need log investigation based on health indicators.
+     * A pod is considered problematic if it is not Running, not ready,
+     * or has a high restart count.
+     *
+     * @param pods the pod health data from Phase 1
+     * @return set of problematic pod names, empty if all pods are healthy
+     */
+    Set<String> identifyProblematicPods(final KafkaClusterPodsResponse pods) {
+        if (pods == null || pods.podSummary() == null || pods.podSummary().pods() == null) {
+            return Set.of();
+        }
+        return pods.podSummary().pods().stream()
+            .filter(pod -> !KubernetesConstants.PodPhases.RUNNING.equals(pod.phase())
+                || !pod.ready()
+                || pod.restarts() > restartThreshold)
+            .map(PodSummaryResponse.PodInfo::name)
+            .collect(Collectors.toSet());
     }
 
     @WithSpan("diagnose.cluster.events")
@@ -409,12 +455,17 @@ public class KafkaClusterDiagnosticService {
     @WithSpan("diagnose.cluster.metrics")
     KafkaMetricsResponse gatherMetrics(final String namespace,
                                        final String clusterName,
+                                       final LogCollectionParams timeWindow,
                                        final List<String> completed,
                                        final List<String> failed,
                                        final McpLog mcpLog) {
         try {
+            Integer rangeMinutes = timeWindow.sinceSeconds() != null
+                ? timeWindow.sinceSeconds() / SECONDS_PER_MINUTE : null;
             KafkaMetricsResponse result = kafkaMetricsService.getKafkaMetrics(
-                namespace, clusterName, "replication", null, null, null, null, null, null, null);
+                namespace, clusterName, "replication", null,
+                rangeMinutes, timeWindow.startTime(), timeWindow.endTime(),
+                null, null, null);
             completed.add(STEP_METRICS);
             DiagnosticHelper.sendClientNotification(mcpLog, "Retrieved Kafka replication metrics");
             return result;
@@ -540,6 +591,196 @@ public class KafkaClusterDiagnosticService {
             .build();
     }
 
+    /**
+     * Resolve log collection params from the user-provided sinceMinutes and triage-recommended window.
+     * Priority: user sinceMinutes > triage absolute window > triage relative window > default 30 min.
+     */
+    LogCollectionParams resolveLogParams(final Integer userSinceMinutes,
+                                         final InvestigationAreas areas,
+                                         final McpLog mcpLog) {
+        if (userSinceMinutes != null) {
+            return buildErrorLogParams(userSinceMinutes);
+        }
+        if (areas.hasAbsoluteWindow()) {
+            DiagnosticHelper.sendClientNotification(mcpLog,
+                String.format("Using triage-recommended time window: %s to %s",
+                    areas.windowStartTime(), areas.windowEndTime()));
+            return LogCollectionParams.builder(defaultTailLines)
+                .filter("errors")
+                .startTime(areas.windowStartTime())
+                .endTime(areas.windowEndTime())
+                .build();
+        }
+        int window = areas.hasRelativeWindow()
+            ? areas.timeWindowMinutes() : DEFAULT_TIME_WINDOW_MINUTES;
+        DiagnosticHelper.sendClientNotification(mcpLog,
+            String.format("Using time window: last %d minutes", window));
+        return buildErrorLogParams(window);
+    }
+
+    /**
+     * Resolve the effective sinceMinutes for events and operator logs.
+     * Returns the user value, triage relative value, or default 30 min.
+     * For absolute windows, returns null (events use sinceMinutes, not start/end).
+     */
+    Integer resolveEffectiveSinceMinutes(final Integer userSinceMinutes,
+                                          final InvestigationAreas areas) {
+        if (userSinceMinutes != null) {
+            return userSinceMinutes;
+        }
+        if (areas.hasAbsoluteWindow()) {
+            return null;
+        }
+        return areas.hasRelativeWindow()
+            ? areas.timeWindowMinutes() : DEFAULT_TIME_WINDOW_MINUTES;
+    }
+
+    private KafkaClusterLogsResponse collectClusterLogs(final String namespace,
+                                                         final String clusterName,
+                                                         final LogCollectionParams logParams,
+                                                         final Set<String> problematicPods,
+                                                         final KafkaClusterPodsResponse pods,
+                                                         final McpLog mcpLog) {
+        if (problematicPods.isEmpty()) {
+            DiagnosticHelper.sendClientNotification(mcpLog,
+                "Collecting Kafka cluster logs (all pods healthy, collecting from all)");
+            return kafkaService.getClusterLogs(namespace, clusterName, logParams);
+        }
+        int totalPods = pods != null && pods.podSummary() != null
+            ? pods.podSummary().totalPods() : 0;
+        DiagnosticHelper.sendClientNotification(mcpLog,
+            String.format("Collecting logs from %d problematic pods (out of %d total): %s",
+                problematicPods.size(), totalPods, problematicPods));
+        return kafkaService.getClusterLogs(namespace, clusterName, logParams, problematicPods);
+    }
+
+    @SuppressWarnings("checkstyle:ParameterNumber")
+    private KafkaClusterLogsResponse escalateLogCollection(final String namespace,
+                                                            final String clusterName,
+                                                            final LogCollectionParams originalParams,
+                                                            final Set<String> problematicPods,
+                                                            final KafkaClusterPodsResponse pods,
+                                                            final Elicitation elicitation,
+                                                            final McpLog mcpLog) {
+        // Auto-escalate once: expand the time window
+        LogCollectionParams expandedParams = expandTimeWindow(originalParams);
+        if (expandedParams == null) {
+            return collectClusterLogs(namespace, clusterName, originalParams,
+                problematicPods, pods, mcpLog);
+        }
+
+        DiagnosticHelper.sendClientNotification(mcpLog,
+            "No errors found in initial time window, expanding and re-collecting");
+        KafkaClusterLogsResponse result = collectClusterLogs(
+            namespace, clusterName, expandedParams, problematicPods, pods, mcpLog);
+
+        if (result != null && !result.hasErrors()) {
+            // Still no errors — ask the user if they want to expand further
+            result = elicitFurtherExpansion(namespace, clusterName, expandedParams,
+                problematicPods, pods, elicitation, mcpLog, result);
+        }
+        return result;
+    }
+
+    @SuppressWarnings("checkstyle:ParameterNumber")
+    private KafkaClusterLogsResponse elicitFurtherExpansion(final String namespace,
+                                                            final String clusterName,
+                                                            final LogCollectionParams currentParams,
+                                                            final Set<String> problematicPods,
+                                                            final KafkaClusterPodsResponse pods,
+                                                            final Elicitation elicitation,
+                                                            final McpLog mcpLog,
+                                                            final KafkaClusterLogsResponse currentResult) {
+        if (elicitation == null || !elicitation.isSupported()) {
+            return currentResult;
+        }
+
+        String selected = DiagnosticHelper.elicitSelection(
+            elicitation,
+            "No errors found in the expanded time window. Would you like to expand the search window further?",
+            "time_expansion",
+            "Select how much to expand the time window",
+            List.of("Expand to 2 hours on each side",
+                     "Expand to 4 hours on each side",
+                     "Accept current results"));
+
+        if (selected == null || selected.contains("Accept")) {
+            return currentResult;
+        }
+
+        int expansionMinutes = selected.contains("4 hours") ? 240 : 120;
+        LogCollectionParams widerParams = expandTimeWindowBy(currentParams, expansionMinutes);
+        if (widerParams == null) {
+            return currentResult;
+        }
+
+        DiagnosticHelper.sendClientNotification(mcpLog,
+            String.format("Expanding time window by %d minutes on each side", expansionMinutes));
+        return collectClusterLogs(namespace, clusterName, widerParams, problematicPods, pods, mcpLog);
+    }
+
+    /**
+     * Auto-expand the time window for the first escalation attempt.
+     * Relative windows: double (e.g. 30 → 60 min, capped at 120).
+     * Absolute windows: expand by 30 min on each side.
+     */
+    LogCollectionParams expandTimeWindow(final LogCollectionParams params) {
+        if (params.startTime() != null && params.endTime() != null) {
+            return expandAbsoluteWindow(params, ABSOLUTE_WINDOW_EXPANSION_MINUTES);
+        }
+        if (params.sinceSeconds() != null) {
+            int currentMinutes = params.sinceSeconds() / SECONDS_PER_MINUTE;
+            int expanded = Math.min(currentMinutes * 2, ESCALATED_TIME_WINDOW_MINUTES);
+            if (expanded <= currentMinutes) {
+                return null;
+            }
+            return LogCollectionParams.builder(params.tailLines())
+                .filter(params.filter())
+                .sinceSeconds(expanded * SECONDS_PER_MINUTE)
+                .build();
+        }
+        return buildErrorLogParams(ESCALATED_TIME_WINDOW_MINUTES);
+    }
+
+    /**
+     * Expand the time window by a user-selected amount (for elicitation escalation).
+     */
+    private LogCollectionParams expandTimeWindowBy(final LogCollectionParams params,
+                                                    final int expansionMinutes) {
+        if (params.startTime() != null && params.endTime() != null) {
+            return expandAbsoluteWindow(params, expansionMinutes);
+        }
+        if (params.sinceSeconds() != null) {
+            int currentMinutes = params.sinceSeconds() / SECONDS_PER_MINUTE;
+            return LogCollectionParams.builder(params.tailLines())
+                .filter(params.filter())
+                .sinceSeconds((currentMinutes + expansionMinutes) * SECONDS_PER_MINUTE)
+                .build();
+        }
+        return LogCollectionParams.builder(params.tailLines())
+            .filter(params.filter())
+            .sinceSeconds(expansionMinutes * SECONDS_PER_MINUTE)
+            .build();
+    }
+
+    private LogCollectionParams expandAbsoluteWindow(final LogCollectionParams params,
+                                                      final int expansionMinutes) {
+        try {
+            Instant start = Instant.parse(params.startTime());
+            Instant end = Instant.parse(params.endTime());
+            String newStart = start.minusSeconds((long) expansionMinutes * SECONDS_PER_MINUTE).toString();
+            String newEnd = end.plusSeconds((long) expansionMinutes * SECONDS_PER_MINUTE).toString();
+            return LogCollectionParams.builder(params.tailLines())
+                .filter(params.filter())
+                .startTime(newStart)
+                .endTime(newEnd)
+                .build();
+        } catch (Exception e) {
+            LOG.warnf("Could not expand absolute time window: %s", e.getMessage());
+            return null;
+        }
+    }
+
     private Map<String, Object> buildPhase1Summary(final KafkaClusterResponse cluster,
                                                    final List<KafkaNodePoolResponse> nodePools,
                                                    final KafkaClusterPodsResponse pods,
@@ -562,6 +803,7 @@ public class KafkaClusterDiagnosticService {
             summary.put("drain_cleaner_deployed", drainCleaner.deployed());
             summary.put("drain_cleaner_ready", drainCleaner.overallReady());
         }
+        summary.put("current_time_utc", Instant.now().toString());
         return summary;
     }
 
@@ -600,13 +842,20 @@ public class KafkaClusterDiagnosticService {
         try {
             String text = DiagnosticHelper.extractSamplingText(response);
             Map<String, Object> parsed = objectMapper.readValue(text, DiagnosticHelper.MAP_TYPE_REF);
+
+            Integer timeWindow = parsed.get("time_window_minutes") instanceof Number n
+                ? n.intValue() : null;
+            String startTime = parsed.get("window_start_time") instanceof String s ? s : null;
+            String endTime = parsed.get("window_end_time") instanceof String s ? s : null;
+
             return new InvestigationAreas(
                 Boolean.TRUE.equals(parsed.get(STEP_OPERATOR_LOGS)),
                 Boolean.TRUE.equals(parsed.get(STEP_CLUSTER_LOGS)),
                 Boolean.TRUE.equals(parsed.get(STEP_EVENTS)),
                 Boolean.TRUE.equals(parsed.getOrDefault(STEP_USERS, Boolean.TRUE)),
                 Boolean.TRUE.equals(parsed.get(STEP_METRICS)),
-                Boolean.TRUE.equals(parsed.get(STEP_DRAIN_CLEANER_LOGS))
+                Boolean.TRUE.equals(parsed.get(STEP_DRAIN_CLEANER_LOGS)),
+                timeWindow, startTime, endTime
             );
         } catch (Exception e) {
             LOG.debugf("Could not parse triage response, investigating all: %s", e.getMessage());
@@ -615,34 +864,39 @@ public class KafkaClusterDiagnosticService {
     }
 
     /**
-     * Flags indicating which investigation areas the LLM recommended.
+     * Flags indicating which investigation areas the LLM recommended,
+     * plus an optional time window for log and event collection.
      *
      * @param operatorLogs     whether to gather operator logs
      * @param clusterLogs      whether to gather cluster logs
      * @param events           whether to gather Kubernetes events
-     * @param users        whether to gather KafkaUser status
+     * @param users            whether to gather KafkaUser status
      * @param metrics          whether to gather replication metrics
      * @param drainCleanerLogs whether to gather drain cleaner logs
+     * @param timeWindowMinutes relative time window in minutes (e.g. 30 = last 30 min)
+     * @param windowStartTime  absolute start time in ISO 8601 for past incidents
+     * @param windowEndTime    absolute end time in ISO 8601 for past incidents
      */
     record InvestigationAreas(boolean operatorLogs, boolean clusterLogs,
                               boolean events, boolean users, boolean metrics,
-                              boolean drainCleanerLogs) {
+                              boolean drainCleanerLogs,
+                              Integer timeWindowMinutes,
+                              String windowStartTime,
+                              String windowEndTime) {
 
-        /**
-         * Returns areas with all flags set to true (fallback when Sampling is unavailable).
-         *
-         * @return investigation areas with all flags enabled
-         */
         static InvestigationAreas all() {
-            return new InvestigationAreas(true, true, true, true, true, true);
+            return new InvestigationAreas(true, true, true, true, true, true,
+                null, null, null);
         }
 
-        /**
-         * Count how many investigation areas are enabled.
-         * Used to calculate the total number of diagnostic steps for progress reporting.
-         *
-         * @return the number of enabled investigation areas
-         */
+        boolean hasAbsoluteWindow() {
+            return windowStartTime != null && windowEndTime != null;
+        }
+
+        boolean hasRelativeWindow() {
+            return timeWindowMinutes != null;
+        }
+
         private int enabledCount() {
             int c = 0;
             if (operatorLogs) c++;
@@ -667,7 +921,15 @@ public class KafkaClusterDiagnosticService {
         If pods are crashing, set cluster_logs and events to true. \
         If the cluster is NotReady but pods look fine, set operator_logs and metrics to true. \
         If symptom mentions node drain, rolling update, or pod eviction, \
-        or if drain_cleaner_deployed is false, set drain_cleaner_logs to true.\
+        or if drain_cleaner_deployed is false, set drain_cleaner_logs to true. \
+        Also recommend a time window for log and event collection: \
+        For current or active issues, return "time_window_minutes" (integer, e.g. 30). \
+        For past incidents where the symptom mentions a specific time, return \
+        "window_start_time" and "window_end_time" in ISO 8601 format \
+        (e.g. "2024-01-15T01:30:00Z"). Center the window around the incident time \
+        with 30 minutes buffer on each side. \
+        The current UTC time is provided in the data as current_time_utc for reference. \
+        Default to time_window_minutes: 30 if unsure.\
         """;
 
     static final String ANALYSIS_SYSTEM_PROMPT = """

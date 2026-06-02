@@ -284,6 +284,14 @@ public class DiagnosticTools {
    If namespace is ambiguous and Elicitation is supported, asks the user to choose.
 2. **Phase 2 — Deep investigation**: If Sampling is supported, sends Phase 1 results to LLM
    and asks which areas need deeper investigation. If not supported, investigates all areas.
+   - **Pod filtering**: When collecting cluster logs, the service identifies problematic pods
+     (not Running, not ready, or restart count > `mcp.diagnostic.restart-threshold`, default 3).
+     If problematic pods exist, logs are collected only from those pods. If all pods are healthy,
+     logs are collected from all pods.
+   - **Time window**: The triage LLM recommends a time window for log/event collection —
+     either relative (last N minutes) for active issues, or absolute (start/end ISO 8601) for
+     past incidents. Defaults to 30 minutes. If no errors are found, the window auto-escalates
+     once, then uses Elicitation to ask the user whether to expand further.
 3. **Phase 3 — Analysis**: If Sampling is supported, sends all gathered data to LLM for
    root cause analysis. If not supported, returns raw data without analysis.
 
