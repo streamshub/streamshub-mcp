@@ -29,7 +29,9 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 /**
  * MCP tools for Kafka cluster operations.
  */
@@ -261,6 +263,7 @@ public class KafkaTools {
      * @param endTime      optional absolute end time (ISO 8601)
      * @param tailLines    optional number of lines to tail
      * @param previous     optional flag for previous container logs
+     * @param podNames     optional list of specific pod names to collect logs from
      * @param mcpLog       MCP log for client notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
@@ -270,7 +273,8 @@ public class KafkaTools {
     @Tool(
         name = "get_kafka_cluster_logs",
         description = "Get logs from Kafka cluster pods with error analysis."
-            + " Returns logs from all pods belonging to the cluster.",
+            + " Returns logs from all pods belonging to the cluster,"
+            + " or from specific pods when podNames is provided.",
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -279,6 +283,7 @@ public class KafkaTools {
         )
     )
     @RateCategory("log")
+    @SuppressWarnings("checkstyle:ParameterNumber")
     public KafkaClusterLogsResponse getKafkaClusterLogs(
         @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
@@ -315,6 +320,10 @@ public class KafkaTools {
             description = StrimziToolsPrompts.PREVIOUS_DESC,
             required = false
         ) final Boolean previous,
+        @ToolArg(
+            description = StrimziToolsPrompts.POD_NAMES_DESC,
+            required = false
+        ) final List<String> podNames,
         final McpLog mcpLog,
         final Progress progress,
         final Cancellation cancellation
@@ -338,6 +347,8 @@ public class KafkaTools {
                     .build().sendAndForget()
                 : null)
             .build();
-        return kafkaService.getClusterLogs(namespace, clusterName, options);
+        Set<String> podNameFilter = podNames != null && !podNames.isEmpty()
+            ? new LinkedHashSet<>(podNames) : null;
+        return kafkaService.getClusterLogs(namespace, clusterName, options, podNameFilter);
     }
 }

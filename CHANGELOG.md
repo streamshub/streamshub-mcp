@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Pod-level log filtering** -- `get_kafka_cluster_logs` now accepts an optional `podNames` parameter to collect logs from specific pods instead of all. The diagnostic workflow uses this automatically, filtering to problematic pods (not Running, not ready, or restart count > configurable threshold `mcp.diagnostic.restart-threshold`, default 3) when unhealthy pods are detected.
+- **Smart time window for log collection** -- diagnostic triage LLM recommends a time window for log and event collection. Supports relative windows (last N minutes) for active issues and absolute windows (start/end ISO 8601) for past incidents. Defaults to 30 minutes when not specified. Auto-escalates once if no errors found, then uses Elicitation to ask the user if they want to expand further.
 - Generalized pagination into reusable `PaginatedResponse` and `PaginationUtils` in `common`
 - Increased base deployment memory requests/limits (384Mi/768Mi)
 - Migrated Strimzi API from v1beta2 to v1

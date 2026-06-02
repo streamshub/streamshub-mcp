@@ -9,6 +9,7 @@ BASE_IMAGE="quay.io/streamshub/$MODULE:latest"
 OCP=false
 LOKI=false
 PROMETHEUS=false
+OTEL=false
 LOADER=""
 
 usage() {
@@ -26,6 +27,7 @@ usage() {
     echo "  --ocp        Deploy with OpenShift Route for external access"
     echo "  --loki       Enable Loki log provider (defaults to OCP Logging in-cluster URL)"
     echo "  --prometheus Enable Prometheus metrics provider (defaults to OCP Thanos Querier)"
+    echo "  --otel       Enable OpenTelemetry tracing (defaults to Jaeger in observability namespace)"
     echo ""
     echo "Examples:"
     echo "  $0 quay.io/streamshub/strimzi-mcp:latest"
@@ -76,6 +78,7 @@ for arg in "$@"; do
         --ocp)      OCP=true ;;
         --loki)     LOKI=true ;;
         --prometheus) PROMETHEUS=true ;;
+        --otel)     OTEL=true ;;
         *)
             echo "Unknown option: $arg"
             usage
@@ -171,6 +174,13 @@ if [ "$PROMETHEUS" = true ]; then
         QUARKUS_REST_CLIENT_PROMETHEUS_URL="${QUARKUS_REST_CLIENT_PROMETHEUS_URL:-https://thanos-querier.openshift-monitoring.svc:9091}"
 fi
 
+if [ "$OTEL" = true ]; then
+    echo "==> Configuring OpenTelemetry tracing"
+    kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
+        QUARKUS_OTEL_SDK_DISABLED="false" \
+        QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT="${QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger-collector.observability.svc.cluster.local:4317}"
+fi
+
 echo ""
 echo "Deployed $MODULE to Kubernetes."
 if [ "$LOKI" = true ]; then
@@ -178,5 +188,8 @@ if [ "$LOKI" = true ]; then
 fi
 if [ "$PROMETHEUS" = true ]; then
     echo "  Prometheus metrics: enabled"
+fi
+if [ "$OTEL" = true ]; then
+    echo "  OpenTelemetry tracing: enabled"
 fi
 echo "Watch rollout: kubectl -n $DEPLOY_NS rollout status $DEPLOY_TARGET"

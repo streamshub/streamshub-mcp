@@ -21,6 +21,7 @@ INSTALL_CONNECT=false
 INSTALL_BRIDGE=false
 INSTALL_MIRROR_MAKER=false
 INSTALL_TEST_CLIENTS=false
+INSTALL_JAEGER=false
 OCP=false
 
 # Colors
@@ -92,6 +93,14 @@ deploy_loki() {
 
 teardown_loki() {
     "$SCRIPT_DIR/setup-loki.sh" teardown
+}
+
+deploy_jaeger() {
+    "$SCRIPT_DIR/setup-jaeger.sh" deploy
+}
+
+teardown_jaeger() {
+    "$SCRIPT_DIR/setup-jaeger.sh" teardown
 }
 
 deploy_cert_manager() {
@@ -281,6 +290,10 @@ deploy() {
         deploy_loki
     fi
 
+    if [ "$INSTALL_JAEGER" = true ]; then
+        deploy_jaeger
+    fi
+
     if [ "$INSTALL_DRAIN_CLEANER" = true ]; then
         deploy_drain_cleaner
     fi
@@ -343,6 +356,9 @@ deploy() {
     if [ "$INSTALL_LOKI" = true ]; then
         echo "Logging namespace:   openshift-logging"
     fi
+    if [ "$INSTALL_JAEGER" = true ]; then
+        echo "Jaeger namespace:    observability"
+    fi
     if [ "$INSTALL_DRAIN_CLEANER" = true ]; then
         echo "Drain Cleaner ns:    strimzi-drain-cleaner"
     fi
@@ -370,6 +386,9 @@ deploy() {
     fi
     if [ "$INSTALL_LOKI" = true ]; then
         echo "  kubectl get pods -n openshift-logging"
+    fi
+    if [ "$INSTALL_JAEGER" = true ]; then
+        echo "  kubectl get pods -n observability"
     fi
     if [ "$INSTALL_DRAIN_CLEANER" = true ]; then
         echo "  kubectl get pods -n strimzi-drain-cleaner"
@@ -459,6 +478,10 @@ teardown() {
         teardown_loki
     fi
 
+    if [ "$INSTALL_JAEGER" = true ]; then
+        teardown_jaeger
+    fi
+
     log_success "Teardown complete"
 }
 
@@ -489,6 +512,9 @@ for arg in "$@"; do
             ;;
         "--test-clients")
             INSTALL_TEST_CLIENTS=true
+            ;;
+        "--jaeger")
+            INSTALL_JAEGER=true
             ;;
         "--ocp")
             OCP=true
@@ -523,6 +549,7 @@ case "$COMMAND" in
         echo "  --connect        Also deploy/remove KafkaConnect with a sample connector"
         echo "  --bridge         Also deploy/remove KafkaBridge (HTTP REST API to Kafka)"
         echo "  --mirror-maker   Also deploy/remove mirror Kafka cluster + MirrorMaker2 (separate namespaces)"
+        echo "  --jaeger         Also deploy/remove Jaeger for tracing"
         echo "  --test-clients   Also deploy/remove test clients (Kafka + HTTP producers/consumers)"
         ;;
     *)
