@@ -108,6 +108,9 @@ spec:
         includes:
           - namespace: strimzi-kafka
           - namespace: strimzi
+          - namespace: strimzi-drain-cleaner
+          - namespace: strimzi-kafka-mirror
+          - namespace: strimzi-mirror-maker
   pipelines:
     - name: strimzi-to-loki
       inputRefs:
