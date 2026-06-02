@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.service.kafka;
 
 import io.fabric8.kubernetes.api.model.Secret;
 import io.quarkiverse.mcp.server.ToolCallException;
+import io.streamshub.mcp.common.service.KubernetesQueryException;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.CertificateUtils;
 import io.streamshub.mcp.common.util.InputUtils;
@@ -112,7 +113,13 @@ public class KafkaCertificateService {
                                    final String secretSuffix, final String certType,
                                    final List<KafkaCertificateResponse.CertificateInfo> result) {
         String secretName = clusterName + secretSuffix;
-        Secret secret = k8sService.getResource(Secret.class, namespace, secretName);
+        Secret secret;
+        try {
+            secret = k8sService.getResource(Secret.class, namespace, secretName);
+        } catch (KubernetesQueryException e) {
+            LOG.warnf("Unable to read secret %s in namespace %s: %s", secretName, namespace, e.getMessage());
+            return;
+        }
 
         if (secret == null) {
             LOG.debugf("Secret %s not found in namespace %s (RBAC may not be configured)",
