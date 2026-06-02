@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - Unreleased
+## [0.2.0] - Unreleased
+
+## Added
+
+## Changed
+
+## Fixed
+
+## [0.1.0] - 2026-06-02
 
 ### Added
 
@@ -82,5 +90,6 @@ Initial release of the Strimzi MCP Server.
 - Automatic namespace discovery on all tools
 - Dynamic parameter completions via live Kubernetes queries
 
-[0.1.0]: https://github.com/streamshub/streamshub-mcp/compare/v0.0.1...v0.1.0
+[0.2.0]: https://github.com/streamshub/streamshub-mcp/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/streamshub/streamshub-mcp/releases/tag/v0.1.0
 [0.0.1]: https://github.com/streamshub/streamshub-mcp/releases/tag/v0.0.1
