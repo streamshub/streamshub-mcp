@@ -210,13 +210,21 @@ QUARKUS_REST_CLIENT_PROMETHEUS_KEY_STORE_TYPE=PKCS12
 
 ## Advanced configuration
 
+### Diagnostic configuration
+
+Configure diagnostic workflow behavior.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `mcp.diagnostic.restart-threshold` | `3` | Pod restart count threshold for smart pod filtering. Pods with restarts above this value are considered problematic and prioritized for log collection during diagnostics. |
+
 ### Sampling configuration
 
 Configure LLM-powered diagnostic analysis used by composite diagnostic tools.
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `mcp.sampling.triage-max-tokens` | `200` | Maximum tokens for triage requests (decides investigation areas) |
+| `mcp.sampling.triage-max-tokens` | `200` | Maximum tokens for triage requests (decides investigation areas and time window) |
 | `mcp.sampling.analysis-max-tokens` | `1500` | Maximum tokens for analysis requests (root cause analysis) |
 
 These settings control how much context the LLM receives during diagnostic workflows:

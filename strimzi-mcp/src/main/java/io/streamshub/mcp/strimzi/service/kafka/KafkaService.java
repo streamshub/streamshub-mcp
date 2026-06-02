@@ -41,6 +41,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 /**
  * Service for Kafka cluster operations.
@@ -201,6 +202,21 @@ public class KafkaService {
      */
     public KafkaClusterLogsResponse getClusterLogs(final String namespace, final String clusterName,
                                                    final LogCollectionParams options) {
+        return getClusterLogs(namespace, clusterName, options, null);
+    }
+
+    /**
+     * Get logs from Kafka cluster pods, optionally filtered to specific pods by name.
+     *
+     * @param namespace     the namespace, or null for auto-discovery
+     * @param clusterName   the cluster name
+     * @param options       log collection options (filter, keywords, pagination, callbacks)
+     * @param podNameFilter set of pod names to include; if null or empty, collects from all pods
+     * @return the cluster logs response
+     */
+    public KafkaClusterLogsResponse getClusterLogs(final String namespace, final String clusterName,
+                                                   final LogCollectionParams options,
+                                                   final Set<String> podNameFilter) {
         String ns = InputUtils.normalizeInput(namespace);
         String normalizedName = InputUtils.normalizeInput(clusterName);
 
@@ -208,10 +224,12 @@ public class KafkaService {
             throw new ToolCallException("Cluster name is required");
         }
 
-        LOG.infof("Getting logs for cluster=%s (namespace=%s, filter=%s, sinceSeconds=%s, tailLines=%s, previous=%s)",
+        boolean filtering = podNameFilter != null && !podNameFilter.isEmpty();
+        LOG.infof("Getting logs for cluster=%s (namespace=%s, filter=%s, sinceSeconds=%s, tailLines=%s, previous=%s%s)",
             normalizedName, ns != null ? ns : "auto",
             options.filter() != null ? options.filter() : "none",
-            options.sinceSeconds(), options.tailLines(), options.previous());
+            options.sinceSeconds(), options.tailLines(), options.previous(),
+            filtering ? ", podFilter=" + podNameFilter.size() + " pods" : "");
 
         if (ns == null) {
             ns = discoverClusterNamespace(normalizedName);
@@ -219,6 +237,12 @@ public class KafkaService {
 
         List<Pod> pods = k8sService.queryResourcesByLabel(
             Pod.class, ns, ResourceLabels.STRIMZI_CLUSTER_LABEL, normalizedName);
+
+        if (filtering) {
+            pods = pods.stream()
+                .filter(pod -> podNameFilter.contains(pod.getMetadata().getName()))
+                .toList();
+        }
 
         if (pods.isEmpty()) {
             return KafkaClusterLogsResponse.empty(normalizedName, ns);
