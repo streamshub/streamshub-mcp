@@ -9,6 +9,7 @@ on:
       - 'common/**'
       - 'strimzi-mcp/**'
       - 'systemtest/**'
+      - 'install/**'
       - 'dev/**'
   workflow_dispatch:
 

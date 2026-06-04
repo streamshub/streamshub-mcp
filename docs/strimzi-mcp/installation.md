@@ -127,17 +127,89 @@ cd strimzi-mcp
 
 The default image location is `quay.io/streamshub/strimzi-mcp:latest`.
 
-### Choose an overlay
+### Install with Helm
+
+The Helm chart is the recommended way to install the MCP server.
+It supports all deployment configurations through `values.yaml` overrides.
+
+```bash
+# Basic installation
+helm install streamshub-mcp-strimzi install/strimzi-mcp/helm/ \
+  -n streamshub-mcp --create-namespace
+
+# Production: 2 replicas, higher resources
+helm install streamshub-mcp-strimzi install/strimzi-mcp/helm/ \
+  -n streamshub-mcp --create-namespace \
+  --set replicaCount=2 \
+  --set resources.requests.cpu=250m \
+  --set resources.requests.memory=512Mi \
+  --set resources.limits.cpu=1 \
+  --set resources.limits.memory=1Gi
+```
+
+Install from a release tag without cloning the repository:
+
+```bash
+helm install streamshub-mcp-strimzi oci://quay.io/streamshub/charts/streamshub-mcp-strimzi \
+  --version <version> \
+  -n streamshub-mcp --create-namespace
+```
+
+Configure backend providers:
+
+```bash
+# Prometheus metrics
+helm upgrade streamshub-mcp-strimzi install/strimzi-mcp/helm/ -n streamshub-mcp \
+  --set mcp.metrics.provider=prometheus \
+  --set mcp.metrics.prometheus.url=http://prometheus.monitoring:9090
+
+# Loki logs
+helm upgrade streamshub-mcp-strimzi install/strimzi-mcp/helm/ -n streamshub-mcp \
+  --set mcp.log.provider=loki \
+  --set mcp.log.loki.url=http://loki-gateway.openshift-logging:8080
+
+# OpenTelemetry tracing
+helm upgrade streamshub-mcp-strimzi install/strimzi-mcp/helm/ -n streamshub-mcp \
+  --set mcp.tracing.enabled=true \
+  --set mcp.tracing.endpoint=http://jaeger-collector.observability:4317
+```
+
+Enable optional features:
+
+```bash
+# Sensitive RBAC in specific namespaces
+helm upgrade streamshub-mcp-strimzi install/strimzi-mcp/helm/ -n streamshub-mcp \
+  --set sensitive.namespaces={strimzi-kafka,kafka-prod}
+
+# Loki RBAC for OpenShift Logging
+helm upgrade streamshub-mcp-strimzi install/strimzi-mcp/helm/ -n streamshub-mcp \
+  --set loki.enabled=true
+
+# PodMonitor for Prometheus scraping
+helm upgrade streamshub-mcp-strimzi install/strimzi-mcp/helm/ -n streamshub-mcp \
+  --set podMonitor.enabled=true
+
+# Ingress (also works on OpenShift)
+helm upgrade streamshub-mcp-strimzi install/strimzi-mcp/helm/ -n streamshub-mcp \
+  --set ingress.enabled=true \
+  --set ingress.hosts[0].host=mcp.example.com
+```
+
+See [`install/strimzi-mcp/helm/values.yaml`](../../install/strimzi-mcp/helm/values.yaml) for all available settings.
+
+### Install with Kustomize
+
+#### Choose an overlay
 
 The deployment manifests use [Kustomize](https://kustomize.io/) with a base and environment-specific overlays:
 
 | Overlay | Command | Use case |
 |---------|---------|----------|
-| `base` | `kubectl apply -k install/strimzi-mcp/base/` | Minimal deployment with defaults |
-| `overlays/dev` | `kubectl apply -k install/strimzi-mcp/overlays/dev/` | Local development (Kind, minikube) |
-| `overlays/dev-openshift` | `kubectl apply -k install/strimzi-mcp/overlays/dev-openshift/` | Local development (OpenShift) |
-| `overlays/prod` | `kubectl apply -k install/strimzi-mcp/overlays/prod/` | Production Kubernetes |
-| `overlays/prod-openshift` | `kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/` | Production OpenShift |
+| `base` | `kubectl apply -k install/strimzi-mcp/kustomize/base/` | Minimal deployment with defaults |
+| `overlays/dev` | `kubectl apply -k install/strimzi-mcp/kustomize/overlays/dev/` | Local development (Kind, minikube) |
+| `overlays/dev-openshift` | `kubectl apply -k install/strimzi-mcp/kustomize/overlays/dev-openshift/` | Local development (OpenShift) |
+| `overlays/prod` | `kubectl apply -k install/strimzi-mcp/kustomize/overlays/prod/` | Production Kubernetes |
+| `overlays/prod-openshift` | `kubectl apply -k install/strimzi-mcp/kustomize/overlays/prod-openshift/` | Production OpenShift |
 
 The **prod** overlay adds:
 
@@ -156,13 +228,13 @@ Replace `<version>` with a tag from the [releases page](https://github.com/strea
 
 ```bash
 # Production Kubernetes
-kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/overlays/prod?ref=<version>"
+kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/kustomize/overlays/prod?ref=<version>"
 
 # Production OpenShift
-kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/overlays/prod-openshift?ref=<version>"
+kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/kustomize/overlays/prod-openshift?ref=<version>"
 
 # Base (minimal deployment)
-kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/base?ref=<version>"
+kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/kustomize/base?ref=<version>"
 ```
 
 ### Deploy from a local clone
@@ -171,10 +243,10 @@ Deploy using the overlay that matches your environment:
 
 ```bash
 # Production Kubernetes
-kubectl apply -k install/strimzi-mcp/overlays/prod/
+kubectl apply -k install/strimzi-mcp/kustomize/overlays/prod/
 
 # Production OpenShift
-kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/
+kubectl apply -k install/strimzi-mcp/kustomize/overlays/prod-openshift/
 
 # Verify the deployment
 kubectl -n streamshub-mcp rollout status deployment/streamshub-mcp-strimzi
@@ -184,14 +256,14 @@ kubectl -n streamshub-mcp get pods
 To override the image tag or registry:
 
 ```bash
-cd install/strimzi-mcp/base
+cd install/strimzi-mcp/kustomize/base
 kustomize edit set image quay.io/streamshub/strimzi-mcp=my-registry.io/my-org/strimzi-mcp:1.0.0
 kubectl apply -k ../overlays/prod/
 ```
 
 ### Deployment resources
 
-The `install/strimzi-mcp/base/` directory contains the following resources:
+The `install/strimzi-mcp/kustomize/base/` directory contains the following resources:
 
 | File | Resource | Purpose |
 |------|----------|---------|
@@ -204,7 +276,7 @@ The `install/strimzi-mcp/base/` directory contains the following resources:
 | `../optional/role-sensitive.yaml` | Role | Optional per-namespace permissions for sensitive resources |
 | `../optional/rolebinding-sensitive.yaml` | RoleBinding | Companion RoleBinding for the sensitive Role |
 
-For the full directory structure and overlay details, see the [install README](../../install/strimzi-mcp/README.md).
+For the full directory structure and overlay details, see the [Kustomize README](../../install/strimzi-mcp/kustomize/README.md).
 
 ### RBAC configuration
 
@@ -232,8 +304,8 @@ The optional Role grants access to:
 Deploy the sensitive Role and its RoleBinding only in namespaces where you need these features:
 
 ```bash
-kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n kafka-namespace
-kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n kafka-namespace
+kubectl apply -f install/strimzi-mcp/kustomize/optional/role-sensitive.yaml -n kafka-namespace
+kubectl apply -f install/strimzi-mcp/kustomize/optional/rolebinding-sensitive.yaml -n kafka-namespace
 ```
 
 ## Security model
@@ -314,7 +386,7 @@ Configure your MCP client to use `http://localhost:8080/mcp`.
 The `prod-openshift` and `dev-openshift` overlays include an edge-terminated Route automatically:
 
 ```bash
-kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/
+kubectl apply -k install/strimzi-mcp/kustomize/overlays/prod-openshift/
 
 # Get the Route hostname
 ROUTE_HOST=$(oc -n streamshub-mcp get route streamshub-mcp-strimzi -o jsonpath='{.spec.host}')

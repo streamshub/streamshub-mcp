@@ -1,0 +1,98 @@
+suite: ingress
+templates:
+  - ingress.yaml
+release:
+  name: test
+  namespace: streamshub-mcp
+tests:
+  - it: should not render when disabled
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render when enabled
+    set:
+      ingress.enabled: true
+    asserts:
+      - isKind:
+          of: Ingress
+      - equal:
+          path: metadata.name
+          value: test-streamshub-mcp-strimzi
+
+  - it: should set ingress class name
+    set:
+      ingress.enabled: true
+      ingress.className: nginx
+    asserts:
+      - equal:
+          path: spec.ingressClassName
+          value: nginx
+
+  - it: should set annotations
+    set:
+      ingress.enabled: true
+      ingress.annotations:
+        haproxy.router.openshift.io/timeout: "3600s"
+    asserts:
+      - isSubset:
+          path: metadata.annotations
+          content:
+            haproxy.router.openshift.io/timeout: "3600s"
+
+  - it: should configure hosts and paths
+    set:
+      ingress.enabled: true
+      ingress.hosts:
+        - host: mcp.example.com
+          paths:
+            - path: /
+              pathType: Prefix
+    asserts:
+      - equal:
+          path: spec.rules[0].host
+          value: "mcp.example.com"
+      - equal:
+          path: spec.rules[0].http.paths[0].path
+          value: /
+      - equal:
+          path: spec.rules[0].http.paths[0].pathType
+          value: Prefix
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: test-streamshub-mcp-strimzi
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.port.number
+          value: 8080
+
+  - it: should configure TLS
+    set:
+      ingress.enabled: true
+      ingress.tls:
+        - secretName: mcp-tls
+          hosts:
+            - mcp.example.com
+    asserts:
+      - equal:
+          path: spec.tls[0].secretName
+          value: mcp-tls
+      - contains:
+          path: spec.tls[0].hosts
+          content: mcp.example.com
+
+  - it: should omit host when empty (OpenShift auto-assign)
+    set:
+      ingress.enabled: true
+    asserts:
+      - isNull:
+          path: spec.rules[0].host
+      - equal:
+          path: spec.rules[0].http.paths[0].path
+          value: /
+
+  - it: should not have TLS when empty
+    set:
+      ingress.enabled: true
+    asserts:
+      - isNull:
+          path: spec.tls

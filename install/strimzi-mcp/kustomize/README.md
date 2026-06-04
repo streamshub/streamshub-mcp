@@ -5,7 +5,7 @@ This directory contains [Kustomize](https://kustomize.io/) manifests for deployi
 ## Directory structure
 
 ```
-install/strimzi-mcp/
+install/strimzi-mcp/kustomize/                  # Kustomize manifests
 ├── base/                        # Base resources (all environments)
 │   ├── kustomization.yaml
 │   ├── namespace.yaml
@@ -48,7 +48,7 @@ For local development with images built and loaded into a local cluster (Kind, m
 - `imagePullPolicy: Always`
 
 ```bash
-kubectl apply -k install/strimzi-mcp/overlays/dev/
+kubectl apply -k install/strimzi-mcp/kustomize/overlays/dev/
 ```
 
 ### Dev-OpenShift
@@ -59,7 +59,7 @@ Extends the dev overlay with an OpenShift Route for external access (used by `de
 - `imagePullPolicy: Always` (inherited from dev)
 
 ```bash
-kubectl apply -k install/strimzi-mcp/overlays/dev-openshift/
+kubectl apply -k install/strimzi-mcp/kustomize/overlays/dev-openshift/
 ```
 
 ### Prod
@@ -71,7 +71,7 @@ For production Kubernetes deployments.
 - Optional ConfigMap (`strimzi-mcp-config`) and Secret (`strimzi-mcp-secrets`) for configuration via `envFrom`
 
 ```bash
-kubectl apply -k install/strimzi-mcp/overlays/prod/
+kubectl apply -k install/strimzi-mcp/kustomize/overlays/prod/
 ```
 
 ### Prod-OpenShift
@@ -82,7 +82,7 @@ Extends the prod overlay with an OpenShift Route for external access.
 - Redirects insecure traffic to HTTPS
 
 ```bash
-kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/
+kubectl apply -k install/strimzi-mcp/kustomize/overlays/prod-openshift/
 ```
 
 ## Configuration
@@ -109,7 +109,7 @@ data:
 Override the container image:
 
 ```bash
-cd install/strimzi-mcp/base
+cd install/strimzi-mcp/kustomize/base
 kustomize edit set image quay.io/streamshub/strimzi-mcp=my-registry.io/my-org/strimzi-mcp:1.0.0
 kubectl apply -k ../overlays/prod/
 ```
@@ -122,8 +122,8 @@ These are not included in any overlay by default.
 To grant sensitive permissions in the namespaces where you need them:
 
 ```bash
-kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n <kafka-namespace>
-kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n <kafka-namespace>
+kubectl apply -f install/strimzi-mcp/kustomize/optional/role-sensitive.yaml -n <kafka-namespace>
+kubectl apply -f install/strimzi-mcp/kustomize/optional/rolebinding-sensitive.yaml -n <kafka-namespace>
 ```
 
 ## Loki RBAC (OpenShift Logging)
@@ -132,8 +132,8 @@ When using the Loki log provider with OpenShift Logging (LokiStack), the service
 OpenShift Logging v6.x does not auto-create the required `cluster-logging-application-view` ClusterRole (v5.x did), so you may need to create it manually:
 
 ```bash
-kubectl apply -f install/strimzi-mcp/optional/clusterrole-loki-application-view.yaml
-kubectl apply -f install/strimzi-mcp/optional/clusterrolebinding-loki-application-view.yaml
+kubectl apply -f install/strimzi-mcp/kustomize/optional/clusterrole-loki-application-view.yaml
+kubectl apply -f install/strimzi-mcp/kustomize/optional/clusterrolebinding-loki-application-view.yaml
 ```
 
 Without this, Loki queries will return `403 Forbidden` with the message "You don't have permission to access this tenant."
@@ -146,7 +146,7 @@ The MCP server exposes Prometheus metrics at `/q/metrics`. To enable scraping, a
 (requires the Prometheus Operator CRD to be installed):
 
 ```bash
-kubectl apply -f install/strimzi-mcp/optional/podmonitor.yaml -n streamshub-mcp
+kubectl apply -f install/strimzi-mcp/kustomize/optional/podmonitor.yaml -n streamshub-mcp
 ```
 
 This creates a PodMonitor that scrapes `mcp.tool.calls` and `mcp.tool.call.duration` metrics from the MCP server pods.
@@ -155,7 +155,7 @@ This creates a PodMonitor that scrapes `mcp.tool.calls` and `mcp.tool.call.durat
 
 ```bash
 # Dry-run to validate manifests
-kubectl apply -k install/strimzi-mcp/overlays/prod/ --dry-run=client
+kubectl apply -k install/strimzi-mcp/kustomize/overlays/prod/ --dry-run=client
 
 # Check deployment status
 kubectl -n streamshub-mcp rollout status deployment/streamshub-mcp-strimzi

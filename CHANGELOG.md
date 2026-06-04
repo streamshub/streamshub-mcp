@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Fleet overview tool** -- `get_kafka_fleet_overview` returns aggregated health across all Kafka clusters in a single call, including status distribution, total broker count, per-cluster summaries with cross-resource relationship counts (topics, users, active rebalances, connected KafkaConnect/Bridge/MirrorMaker2), and warnings for clusters that need attention
+- **Helm chart full configurability** -- every `@ConfigProperty` is now exposed as a structured value in `values.yaml`: Loki labels/tenant/timeouts, Prometheus timeouts, OTEL protocol/propagators, topics pagination, events limits, diagnostic thresholds, watch reconnection, completion cache, guardrails (redaction/rate-limits/response-size), CORS origins, log level, and TLS trust-all. Added deployment features: `strategy`, `extraVolumes`/`extraVolumeMounts`, `topologySpreadConstraints`, `terminationGracePeriodSeconds`, `PodDisruptionBudget`, and monitoring RBAC bindings (`cluster-monitoring-view`/`cluster-reader`).
+- **Helm chart unit tests** -- 14 test suites covering all templates using helm-unittest: deployment env vars (default, Loki, Prometheus, tracing, TLS, guardrails), RBAC (ClusterRole, sensitive Roles, Loki, monitoring), service, ServiceAccount, PDB, Ingress, Route, and PodMonitor. Dedicated `helm-test.yml` CI workflow.
+- **Helm install system tests** -- `HelmInstallST` with 3 tests: Helm install + tool call verification, `helm upgrade` with `sensitive.namespaces` for RBAC, and config override validation (log level, tail lines). Uses `HelmSetup` helper with builder pattern for install/upgrade/uninstall.
+- **Release script Chart.yaml version update** -- `release.sh` now updates both `version` and `appVersion` in Chart.yaml.
+
 
 ### Changed
 

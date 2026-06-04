@@ -1,0 +1,52 @@
+suite: role-sensitive
+templates:
+  - role-sensitive.yaml
+release:
+  name: test
+  namespace: streamshub-mcp
+tests:
+  - it: should not render when namespaces is empty
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should create a Role per namespace
+    set:
+      sensitive.namespaces:
+        - kafka-prod
+        - kafka-staging
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should create Role in the specified namespace
+    set:
+      sensitive.namespaces:
+        - kafka-prod
+    asserts:
+      - isKind:
+          of: Role
+      - equal:
+          path: metadata.name
+          value: test-streamshub-mcp-strimzi-sensitive
+      - equal:
+          path: metadata.namespace
+          value: kafka-prod
+
+  - it: should grant Secrets get and pods/proxy get
+    set:
+      sensitive.namespaces:
+        - kafka-prod
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: [""]
+            resources: ["secrets"]
+            verbs: ["get"]
+      - contains:
+          path: rules
+          content:
+            apiGroups: [""]
+            resources: ["pods/proxy"]
+            verbs: ["get"]

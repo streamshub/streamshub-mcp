@@ -610,7 +610,7 @@ spec:
 Apply the updated Deployment:
 
 ```bash
-kubectl apply -k install/strimzi-mcp/base/
+kubectl apply -k install/strimzi-mcp/kustomize/base/
 ```
 
 ### Quick configuration update
@@ -677,8 +677,8 @@ When using OpenShift Logging with a LokiStack gateway, the MCP server's service 
 OpenShift Logging v6.x does not auto-create this ClusterRole (v5.x did), so apply the optional manifests:
 
 ```bash
-kubectl apply -f install/strimzi-mcp/optional/clusterrole-loki-application-view.yaml
-kubectl apply -f install/strimzi-mcp/optional/clusterrolebinding-loki-application-view.yaml
+kubectl apply -f install/strimzi-mcp/kustomize/optional/clusterrole-loki-application-view.yaml
+kubectl apply -f install/strimzi-mcp/kustomize/optional/clusterrolebinding-loki-application-view.yaml
 ```
 
 Without this, Loki queries will return `403 Forbidden`.

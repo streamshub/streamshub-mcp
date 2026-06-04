@@ -1,0 +1,216 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "strimzi-mcp.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "strimzi-mcp.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  {{- with .Values.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "strimzi-mcp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "strimzi-mcp.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "strimzi-mcp.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            # -- JVM options
+            - name: JAVA_OPTS_APPEND
+              value: "-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
+            # -- Log provider
+            - name: MCP_LOG_PROVIDER
+              value: {{ include "strimzi-mcp.logProvider" . | quote }}
+            - name: MCP_LOG_TAIL_LINES
+              value: {{ .Values.mcp.log.tailLines | quote }}
+            {{- if eq .Values.mcp.log.provider "loki" }}
+            - name: QUARKUS_REST_CLIENT_LOKI_URL
+              value: {{ .Values.mcp.log.loki.url | quote }}
+            - name: MCP_LOG_LOKI_AUTH_MODE
+              value: {{ .Values.mcp.log.loki.authMode | quote }}
+            {{- if .Values.mcp.log.loki.tenantId }}
+            - name: MCP_LOG_LOKI_TENANT_ID
+              value: {{ .Values.mcp.log.loki.tenantId | quote }}
+            {{- end }}
+            {{- if .Values.mcp.log.loki.saTokenPath }}
+            - name: MCP_LOG_LOKI_SA_TOKEN_PATH
+              value: {{ .Values.mcp.log.loki.saTokenPath | quote }}
+            {{- end }}
+            {{- if .Values.mcp.log.loki.labels.namespace }}
+            - name: MCP_LOG_LOKI_LABEL_NAMESPACE
+              value: {{ .Values.mcp.log.loki.labels.namespace | quote }}
+            {{- end }}
+            {{- if .Values.mcp.log.loki.labels.pod }}
+            - name: MCP_LOG_LOKI_LABEL_POD
+              value: {{ .Values.mcp.log.loki.labels.pod | quote }}
+            {{- end }}
+            - name: QUARKUS_REST_CLIENT_LOKI_CONNECT_TIMEOUT
+              value: {{ .Values.mcp.log.loki.connectTimeout | quote }}
+            - name: QUARKUS_REST_CLIENT_LOKI_READ_TIMEOUT
+              value: {{ .Values.mcp.log.loki.readTimeout | quote }}
+            {{- end }}
+            # -- Metrics provider
+            - name: MCP_METRICS_PROVIDER
+              value: {{ include "strimzi-mcp.metricsProvider" . | quote }}
+            - name: MCP_METRICS_DEFAULT_STEP_SECONDS
+              value: {{ .Values.mcp.metrics.stepSeconds | quote }}
+            - name: MCP_METRICS_MAX_RANGE_MINUTES
+              value: {{ .Values.mcp.metrics.maxRangeMinutes | quote }}
+            - name: MCP_METRICS_MAX_SAMPLES
+              value: {{ .Values.mcp.metrics.maxSamples | quote }}
+            {{- if eq .Values.mcp.metrics.provider "prometheus" }}
+            - name: QUARKUS_REST_CLIENT_PROMETHEUS_URL
+              value: {{ .Values.mcp.metrics.prometheus.url | quote }}
+            - name: MCP_METRICS_PROMETHEUS_AUTH_MODE
+              value: {{ .Values.mcp.metrics.prometheus.authMode | quote }}
+            {{- if .Values.mcp.metrics.prometheus.saTokenPath }}
+            - name: MCP_METRICS_PROMETHEUS_SA_TOKEN_PATH
+              value: {{ .Values.mcp.metrics.prometheus.saTokenPath | quote }}
+            {{- end }}
+            - name: QUARKUS_REST_CLIENT_PROMETHEUS_CONNECT_TIMEOUT
+              value: {{ .Values.mcp.metrics.prometheus.connectTimeout | quote }}
+            - name: QUARKUS_REST_CLIENT_PROMETHEUS_READ_TIMEOUT
+              value: {{ .Values.mcp.metrics.prometheus.readTimeout | quote }}
+            {{- end }}
+            # -- Tracing
+            {{- if .Values.mcp.tracing.enabled }}
+            - name: QUARKUS_OTEL_SDK_DISABLED
+              value: "false"
+            - name: QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.mcp.tracing.endpoint | quote }}
+            - name: QUARKUS_OTEL_SERVICE_NAME
+              value: {{ .Values.mcp.tracing.serviceName | quote }}
+            - name: QUARKUS_OTEL_PROPAGATORS
+              value: {{ .Values.mcp.tracing.propagators | quote }}
+            {{- if .Values.mcp.tracing.protocol }}
+            - name: QUARKUS_OTEL_EXPORTER_OTLP_PROTOCOL
+              value: {{ .Values.mcp.tracing.protocol | quote }}
+            {{- end }}
+            {{- end }}
+            # -- Sampling
+            - name: MCP_SAMPLING_TRIAGE_MAX_TOKENS
+              value: {{ .Values.mcp.sampling.triageMaxTokens | quote }}
+            - name: MCP_SAMPLING_ANALYSIS_MAX_TOKENS
+              value: {{ .Values.mcp.sampling.analysisMaxTokens | quote }}
+            # -- Topics
+            - name: MCP_TOPICS_DEFAULT_PAGE_SIZE
+              value: {{ .Values.mcp.topics.defaultPageSize | quote }}
+            - name: MCP_TOPICS_MAX_LIST_SIZE
+              value: {{ .Values.mcp.topics.maxListSize | quote }}
+            # -- Events
+            - name: MCP_EVENTS_MAX_RELATED_RESOURCES
+              value: {{ .Values.mcp.events.maxRelatedResources | quote }}
+            # -- Diagnostic
+            - name: MCP_DIAGNOSTIC_RESTART_THRESHOLD
+              value: {{ .Values.mcp.diagnostic.restartThreshold | quote }}
+            # -- Watch
+            - name: MCP_RESOURCE_WATCHES_ENABLED
+              value: {{ .Values.mcp.watch.enabled | quote }}
+            - name: MCP_WATCH_RECONNECT_INITIAL_DELAY_MS
+              value: {{ .Values.mcp.watch.reconnectInitialDelayMs | quote }}
+            - name: MCP_WATCH_RECONNECT_MAX_DELAY_MS
+              value: {{ .Values.mcp.watch.reconnectMaxDelayMs | quote }}
+            - name: MCP_WATCH_RECONNECT_MAX_ATTEMPTS
+              value: {{ .Values.mcp.watch.reconnectMaxAttempts | quote }}
+            # -- Completion cache
+            - name: MCP_COMPLETION_CACHE_TTL_SECONDS
+              value: {{ .Values.mcp.completion.cacheTtlSeconds | quote }}
+            # -- Guardrails
+            - name: MCP_GUARDRAIL_LOG_REDACTION_ENABLED
+              value: {{ .Values.mcp.guardrail.logRedaction.enabled | quote }}
+            {{- range $i, $pattern := .Values.mcp.guardrail.logRedaction.customPatterns }}
+            - name: {{ printf "MCP_GUARDRAIL_LOG_REDACTION_CUSTOM_PATTERNS_%d" $i }}
+              value: {{ $pattern | quote }}
+            {{- end }}
+            - name: MCP_GUARDRAIL_MAX_RESPONSE_BYTES
+              value: {{ .Values.mcp.guardrail.maxResponseBytes | quote }}
+            - name: MCP_GUARDRAIL_RATE_LIMIT_LOG_RPM
+              value: {{ .Values.mcp.guardrail.rateLimit.logRpm | quote }}
+            - name: MCP_GUARDRAIL_RATE_LIMIT_METRICS_RPM
+              value: {{ .Values.mcp.guardrail.rateLimit.metricsRpm | quote }}
+            - name: MCP_GUARDRAIL_RATE_LIMIT_GENERAL_RPM
+              value: {{ .Values.mcp.guardrail.rateLimit.generalRpm | quote }}
+            # -- CORS
+            - name: QUARKUS_HTTP_CORS_ORIGINS
+              value: {{ .Values.mcp.cors.origins | quote }}
+            # -- Logging
+            - name: QUARKUS_LOG_CATEGORY__IO_STREAMSHUB_MCP__LEVEL
+              value: {{ .Values.mcp.logLevel | quote }}
+            # -- TLS
+            {{- if .Values.tls.trustAll }}
+            - name: QUARKUS_TLS_TRUST_ALL
+              value: "true"
+            {{- end }}
+            # -- User-supplied env overrides
+            {{- range $key, $val := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end }}
+          {{- with .Values.envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

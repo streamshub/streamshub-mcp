@@ -1,0 +1,47 @@
+suite: pdb
+templates:
+  - pdb.yaml
+release:
+  name: test
+  namespace: streamshub-mcp
+tests:
+  - it: should not render when disabled
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render when enabled
+    set:
+      podDisruptionBudget.enabled: true
+    asserts:
+      - isKind:
+          of: PodDisruptionBudget
+      - equal:
+          path: metadata.name
+          value: test-streamshub-mcp-strimzi
+      - equal:
+          path: metadata.namespace
+          value: streamshub-mcp
+      - isNotNull:
+          path: spec.selector.matchLabels
+
+  - it: should use minAvailable by default
+    set:
+      podDisruptionBudget.enabled: true
+    asserts:
+      - equal:
+          path: spec.minAvailable
+          value: 1
+      - isNull:
+          path: spec.maxUnavailable
+
+  - it: should use maxUnavailable when set
+    set:
+      podDisruptionBudget.enabled: true
+      podDisruptionBudget.maxUnavailable: 1
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+      - isNull:
+          path: spec.minAvailable

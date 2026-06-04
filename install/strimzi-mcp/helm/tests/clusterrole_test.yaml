@@ -1,0 +1,78 @@
+suite: clusterrole
+templates:
+  - clusterrole.yaml
+release:
+  name: test
+  namespace: streamshub-mcp
+tests:
+  - it: should render a ClusterRole
+    asserts:
+      - isKind:
+          of: ClusterRole
+      - equal:
+          path: metadata.name
+          value: test-streamshub-mcp-strimzi
+
+  - it: should grant access to all Strimzi CRDs
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["kafka.strimzi.io"]
+            resources:
+              - kafkas
+              - kafkabridges
+              - kafkaconnectors
+              - kafkaconnects
+              - kafkamirrormaker2s
+              - kafkanodepools
+              - kafkarebalances
+              - kafkatopics
+              - kafkausers
+            verbs: ["get", "list", "watch"]
+
+  - it: should grant access to StrimziPodSets
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["core.strimzi.io"]
+            resources:
+              - strimzipodsets
+            verbs: ["get", "list", "watch"]
+
+  - it: should grant pod log access with get only
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: [""]
+            resources: ["pods/log"]
+            verbs: ["get"]
+
+  - it: should grant events access with list only
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: [""]
+            resources: ["events"]
+            verbs: ["list"]
+
+  - it: should grant access to OpenShift routes
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["route.openshift.io"]
+            resources: ["routes"]
+            verbs: ["get", "list"]
+
+  - it: should grant access to drain cleaner webhooks
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["admissionregistration.k8s.io"]
+            resources: ["validatingwebhookconfigurations"]
+            verbs: ["get", "list"]

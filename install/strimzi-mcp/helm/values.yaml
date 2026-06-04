@@ -1,0 +1,335 @@
+# -- Number of replicas
+replicaCount: 1
+
+image:
+  # -- Container image repository
+  repository: quay.io/streamshub/strimzi-mcp
+  # -- Container image tag (defaults to Chart appVersion)
+  tag: ""
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+
+# -- Image pull secrets
+imagePullSecrets: []
+
+# -- Override chart name
+nameOverride: ""
+# -- Override full release name
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Create a ServiceAccount
+  create: true
+  # -- Annotations for the ServiceAccount
+  annotations: {}
+  # -- Override ServiceAccount name (defaults to fullname)
+  name: ""
+
+# -- Pod-level security context
+podSecurityContext:
+  runAsNonRoot: true
+
+# -- Container-level security context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  # -- Service type
+  type: ClusterIP
+  # -- Service port
+  port: 8080
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 384Mi
+  limits:
+    cpu: 500m
+    memory: 768Mi
+
+# =============================================================================
+# MCP Server Configuration
+# =============================================================================
+# Structured configuration that generates the correct environment variables.
+# Use the 'env' map below for any settings not covered here.
+
+mcp:
+  # -- Application log level for io.streamshub.mcp category
+  logLevel: "INFO"
+
+  # -- CORS allowed origins (comma-separated patterns)
+  cors:
+    origins: "http://localhost:*,https://localhost:*"
+
+  log:
+    # -- Log provider: "kubernetes" (default, reads pod logs via K8s API)
+    #    or "loki" (queries a Loki/LokiStack instance)
+    provider: kubernetes
+    # -- Number of log lines to tail
+    tailLines: 200
+    loki:
+      # -- Loki endpoint URL (required when provider=loki)
+      url: ""
+      # -- Loki auth mode: none, basic, bearer-token, or sa-token
+      authMode: none
+      # -- Loki tenant ID (X-Scope-OrgID header, leave empty to omit)
+      tenantId: ""
+      # -- Override SA token path (leave empty for default /var/run/secrets/.../token)
+      saTokenPath: ""
+      labels:
+        # -- Loki label for namespace: "namespace" (Promtail/Alloy)
+        #    or "kubernetes_namespace_name" (OpenShift Logging)
+        namespace: ""
+        # -- Loki label for pod: "pod" (Promtail/Alloy)
+        #    or "kubernetes_pod_name" (OpenShift Logging)
+        pod: ""
+      # -- Loki REST client connect timeout (ms)
+      connectTimeout: 5000
+      # -- Loki REST client read timeout (ms)
+      readTimeout: 30000
+
+  metrics:
+    # -- Metrics provider: "pod-scraping" (default, scrapes pods directly)
+    #    or "prometheus" (queries a Prometheus instance)
+    provider: pod-scraping
+    # -- Default step interval for metrics queries (seconds)
+    stepSeconds: 60
+    # -- Max time range for metrics queries (minutes, 10080 = 7 days)
+    maxRangeMinutes: 10080
+    # -- Max number of metric samples per query (0 = unlimited)
+    maxSamples: 10000
+    prometheus:
+      # -- Prometheus endpoint URL (required when provider=prometheus)
+      url: ""
+      # -- Prometheus auth mode: none, basic, bearer-token, or sa-token
+      authMode: none
+      # -- Override SA token path (leave empty for default /var/run/secrets/.../token)
+      saTokenPath: ""
+      # -- Prometheus REST client connect timeout (ms)
+      connectTimeout: 5000
+      # -- Prometheus REST client read timeout (ms)
+      readTimeout: 30000
+
+  tracing:
+    # -- Enable OpenTelemetry tracing
+    enabled: false
+    # -- OTLP exporter endpoint
+    endpoint: "http://localhost:4317"
+    # -- OTEL service name
+    serviceName: "strimzi-mcp"
+    # -- OTLP protocol: "" (grpc, default) or "http/protobuf"
+    protocol: ""
+    # -- OTEL propagators
+    propagators: "tracecontext,baggage"
+
+  sampling:
+    # -- Max tokens for triage requests (decides which areas to investigate)
+    triageMaxTokens: 200
+    # -- Max tokens for analysis requests (produces root cause analysis)
+    analysisMaxTokens: 1500
+
+  topics:
+    # -- Default page size for list_kafka_topics
+    defaultPageSize: 100
+    # -- Maximum total topics returned
+    maxListSize: 5000
+
+  events:
+    # -- Max related resources (pods, PVCs) to query events for per cluster
+    maxRelatedResources: 50
+
+  diagnostic:
+    # -- Pod restart count threshold to flag as problematic
+    restartThreshold: 3
+
+  watch:
+    # -- Enable resource watches for live change notifications
+    enabled: true
+    # -- Initial reconnect delay (ms)
+    reconnectInitialDelayMs: 1000
+    # -- Max reconnect delay (ms)
+    reconnectMaxDelayMs: 60000
+    # -- Max reconnect attempts before giving up
+    reconnectMaxAttempts: 10
+
+  completion:
+    # -- Completion cache TTL (seconds)
+    cacheTtlSeconds: 5
+
+  guardrail:
+    logRedaction:
+      # -- Enable automatic log redaction of sensitive patterns
+      enabled: true
+      # -- Additional regex patterns for redaction (appended after built-in rules)
+      customPatterns: []
+    # -- Max response size in bytes (truncates largest text fields when exceeded)
+    maxResponseBytes: 500000
+    rateLimit:
+      # -- Rate limit for log tools (requests per minute, 0 = unlimited)
+      logRpm: 0
+      # -- Rate limit for metrics tools (requests per minute, 0 = unlimited)
+      metricsRpm: 0
+      # -- Rate limit for general tools (requests per minute, 0 = unlimited)
+      generalRpm: 0
+
+# =============================================================================
+# TLS Configuration
+# =============================================================================
+
+tls:
+  # -- Trust all TLS certificates (useful for self-signed certs in dev/OpenShift)
+  trustAll: false
+
+# -- Additional environment variables (merged after structured mcp.* config)
+# Example:
+#   env:
+#     QUARKUS_LOG_CATEGORY__IO_STREAMSHUB_MCP__LEVEL: DEBUG
+env: {}
+
+# -- Additional environment variables from ConfigMaps or Secrets
+# Example:
+#   envFrom:
+#     - configMapRef:
+#         name: strimzi-mcp-config
+#         optional: true
+#     - secretRef:
+#         name: strimzi-mcp-secrets
+#         optional: true
+envFrom: []
+
+# -- Liveness probe configuration
+livenessProbe:
+  httpGet:
+    path: /q/health/live
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+
+# -- Readiness probe configuration
+readinessProbe:
+  httpGet:
+    path: /q/health/ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+# -- Pod annotations
+podAnnotations: {}
+
+# -- Pod labels (in addition to standard labels)
+podLabels: {}
+
+# -- Node selector
+nodeSelector: {}
+
+# -- Tolerations
+tolerations: []
+
+# -- Affinity rules
+affinity: {}
+
+# -- Topology spread constraints
+topologySpreadConstraints: []
+
+# -- Deployment strategy
+strategy: {}
+#  type: RollingUpdate
+#  rollingUpdate:
+#    maxUnavailable: 0
+#    maxSurge: 1
+
+# -- Termination grace period (seconds)
+terminationGracePeriodSeconds: 30
+
+# -- Extra volumes (e.g. for TLS certificates)
+extraVolumes: []
+#  - name: loki-tls
+#    secret:
+#      secretName: loki-tls-certs
+
+# -- Extra volume mounts
+extraVolumeMounts: []
+#  - name: loki-tls
+#    mountPath: /etc/loki-tls
+#    readOnly: true
+
+# =============================================================================
+# Optional Features
+# =============================================================================
+
+# Sensitive RBAC -- grants Secrets get + pods/proxy get (namespaced Role).
+# A Role and RoleBinding are created in each listed namespace.
+# Use 'helm upgrade' to add/remove namespaces.
+sensitive:
+  # -- Namespaces to create the sensitive Role in (empty = disabled)
+  namespaces: []
+
+# Loki application log RBAC (OpenShift Logging).
+# Creates the cluster-logging-application-view ClusterRole that
+# OpenShift Logging v6.x does not auto-create.
+loki:
+  # -- Enable Loki ClusterRole and ClusterRoleBinding
+  enabled: false
+
+# Monitoring RBAC -- grants cluster-monitoring-view and cluster-reader
+# ClusterRoleBindings to the service account (required for Prometheus/Loki
+# on OpenShift with service account token auth).
+monitoring:
+  # -- Enable monitoring ClusterRoleBindings
+  enabled: false
+
+# PodMonitor for Prometheus Operator scraping
+podMonitor:
+  # -- Enable PodMonitor creation
+  enabled: false
+  # -- Additional PodMonitor labels (e.g., for Prometheus selector)
+  labels: {}
+
+# PodDisruptionBudget
+podDisruptionBudget:
+  # -- Enable PodDisruptionBudget
+  enabled: false
+  # -- Minimum available pods (mutually exclusive with maxUnavailable)
+  minAvailable: 1
+  # -- Maximum unavailable pods (uncomment and remove minAvailable to use)
+  # maxUnavailable: 1
+
+# OpenShift Route (use this on OpenShift instead of Ingress)
+route:
+  # -- Enable OpenShift Route
+  enabled: false
+  # -- Route hostname (leave empty for auto-generated)
+  host: ""
+  # -- Route annotations
+  annotations:
+    haproxy.router.openshift.io/timeout: 3600s
+    haproxy.router.openshift.io/balance: source
+  tls:
+    # -- TLS termination: edge, passthrough, or reencrypt
+    termination: edge
+    # -- Insecure traffic policy: Redirect, Allow, or None
+    insecureEdgeTerminationPolicy: Redirect
+
+# Kubernetes Ingress
+ingress:
+  # -- Enable Ingress
+  enabled: false
+  # -- Ingress class name
+  className: ""
+  # -- Ingress annotations
+  annotations: {}
+  # -- Ingress hosts
+  hosts:
+    - host: ""
+      paths:
+        - path: /
+          pathType: Prefix
+  # -- Ingress TLS configuration
+  tls: []

@@ -64,12 +64,16 @@ echo "==> Setting version to $RELEASE_VERSION"
     -DgenerateBackupPoms=false \
     -q
 
-(cd install/strimzi-mcp/base && kustomize edit set image "quay.io/streamshub/strimzi-mcp:${RELEASE_VERSION}")
+(cd install/strimzi-mcp/kustomize/base && kustomize edit set image "quay.io/streamshub/strimzi-mcp:${RELEASE_VERSION}")
+
+sed -i.bak "s/^version:.*/version: ${RELEASE_VERSION}/" install/strimzi-mcp/helm/Chart.yaml
+sed -i.bak "s/^appVersion:.*/appVersion: \"${RELEASE_VERSION}\"/" install/strimzi-mcp/helm/Chart.yaml
+rm -f install/strimzi-mcp/helm/Chart.yaml.bak
 
 echo "==> Verifying build compiles"
 ./mvnw package -DskipTests -Dquarkus.container-image.build=false -q
 
-git add pom.xml '*/pom.xml' install/strimzi-mcp/base/kustomization.yaml
+git add pom.xml '*/pom.xml' install/strimzi-mcp/kustomize/base/kustomization.yaml install/strimzi-mcp/helm/Chart.yaml
 git commit -m "Release ${RELEASE_VERSION}"
 
 echo ""

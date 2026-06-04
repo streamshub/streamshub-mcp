@@ -1,0 +1,19 @@
+{{- if .Values.podMonitor.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "strimzi-mcp.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "strimzi-mcp.labels" . | nindent 4 }}
+    {{- with .Values.podMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "strimzi-mcp.selectorLabels" . | nindent 6 }}
+  podMetricsEndpoints:
+    - path: /q/metrics
+      port: http
+{{- end }}

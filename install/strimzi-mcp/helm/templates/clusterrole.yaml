@@ -1,0 +1,60 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "strimzi-mcp.fullname" . }}
+  labels:
+    {{- include "strimzi-mcp.labels" . | nindent 4 }}
+rules:
+  # Strimzi custom resources
+  - apiGroups: ["kafka.strimzi.io"]
+    resources:
+      - kafkas
+      - kafkabridges
+      - kafkaconnectors
+      - kafkaconnects
+      - kafkamirrormaker2s
+      - kafkanodepools
+      - kafkarebalances
+      - kafkatopics
+      - kafkausers
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["core.strimzi.io"]
+    resources:
+      - strimzipodsets
+    verbs: ["get", "list", "watch"]
+  # Strimzi operator deployments
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+  # Pods and services
+  - apiGroups: [""]
+    resources: ["pods", "services"]
+    verbs: ["get", "list"]
+  # Pod logs (get only, no list)
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  # Events (list only, used with field selectors)
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list"]
+  # ConfigMaps (logging overrides, external configuration references)
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+  # Routes (OpenShift)
+  - apiGroups: ["route.openshift.io"]
+    resources: ["routes"]
+    verbs: ["get", "list"]
+  # Ingresses
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list"]
+  # Leases (operator leader election status)
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list"]
+  # Drain Cleaner webhook configuration
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["get", "list"]

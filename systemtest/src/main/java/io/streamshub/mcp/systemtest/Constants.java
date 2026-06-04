@@ -76,8 +76,14 @@ public final class Constants {
     /** Project root directory (parent of systemtest module). */
     public static final String PROJECT_ROOT = System.getProperty("user.dir") + "/..";
 
-    /** Path to MCP server install directory. */
-    public static final String INSTALL_DIR = PROJECT_ROOT + "/install/strimzi-mcp/base/";
+    /** Path to MCP server kustomize install directory. */
+    public static final String INSTALL_DIR_KUSTOMIZE = PROJECT_ROOT + "/install/strimzi-mcp/kustomize/base/";
+
+    /** Path to MCP server Helm chart directory. */
+    public static final String INSTALL_DIR_HELM = PROJECT_ROOT + "/install/strimzi-mcp/helm/";
+
+    /** Default Helm release name. */
+    public static final String HELM_RELEASE_NAME = "streamshub-mcp-strimzi";
 
     /** Path to Strimzi manifests directory. */
     public static final String STRIMZI_MANIFESTS_DIR = PROJECT_ROOT + "/dev/manifests/strimzi/";

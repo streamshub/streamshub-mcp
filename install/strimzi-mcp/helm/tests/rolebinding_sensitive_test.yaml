@@ -1,0 +1,49 @@
+suite: rolebinding-sensitive
+templates:
+  - rolebinding-sensitive.yaml
+release:
+  name: test
+  namespace: streamshub-mcp
+tests:
+  - it: should not render when namespaces is empty
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should create a RoleBinding per namespace
+    set:
+      sensitive.namespaces:
+        - kafka-prod
+        - kafka-staging
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should bind to the sensitive Role in the target namespace
+    set:
+      sensitive.namespaces:
+        - kafka-prod
+    asserts:
+      - isKind:
+          of: RoleBinding
+      - equal:
+          path: metadata.namespace
+          value: kafka-prod
+      - equal:
+          path: roleRef.kind
+          value: Role
+      - equal:
+          path: roleRef.name
+          value: test-streamshub-mcp-strimzi-sensitive
+
+  - it: should reference SA from the release namespace
+    set:
+      sensitive.namespaces:
+        - kafka-prod
+    asserts:
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: test-streamshub-mcp-strimzi
+            namespace: streamshub-mcp

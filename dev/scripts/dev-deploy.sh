@@ -106,9 +106,9 @@ case "$LOADER" in
 esac
 
 if [ "$OCP" = true ]; then
-    OVERLAY_DIR="$PROJECT_ROOT/install/$MODULE/overlays/dev-openshift"
+    OVERLAY_DIR="$PROJECT_ROOT/install/strimzi-mcp/kustomize/overlays/dev-openshift"
 else
-    OVERLAY_DIR="$PROJECT_ROOT/install/$MODULE/overlays/dev"
+    OVERLAY_DIR="$PROJECT_ROOT/install/strimzi-mcp/kustomize/overlays/dev"
 fi
 
 echo "==> Deploying $MODULE with image: $IMAGE"

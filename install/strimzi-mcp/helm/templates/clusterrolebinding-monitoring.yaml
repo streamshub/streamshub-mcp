@@ -1,0 +1,31 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "strimzi-mcp.fullname" . }}-monitoring-view
+  labels:
+    {{- include "strimzi-mcp.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-monitoring-view
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "strimzi-mcp.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "strimzi-mcp.fullname" . }}-cluster-reader
+  labels:
+    {{- include "strimzi-mcp.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "strimzi-mcp.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
