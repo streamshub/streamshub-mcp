@@ -3,7 +3,7 @@ title = 'Usage Examples'
 weight = 4
 +++
 
-Practical examples of using the Strimzi MCP Server with AI assistants to manage and troubleshoot Kafka infrastructure.
+Practical examples of using the MCP Server for Strimzi with AI assistants to manage and troubleshoot Kafka infrastructure.
 
 ## Basic cluster operations
 

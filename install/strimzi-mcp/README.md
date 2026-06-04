@@ -1,6 +1,6 @@
-# Strimzi MCP Server -- Kustomize Installation
+# MCP Server for Strimzi -- Kustomize Installation
 
-This directory contains [Kustomize](https://kustomize.io/) manifests for deploying the Strimzi MCP Server to Kubernetes.
+This directory contains [Kustomize](https://kustomize.io/) manifests for deploying the MCP Server for Strimzi to Kubernetes.
 
 ## Directory structure
 

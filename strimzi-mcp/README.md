@@ -1,13 +1,13 @@
-# Strimzi MCP Server
+# MCP Server for Strimzi
 
-A Quarkus application that provides Strimzi Kafka management tools via MCP (Model Context Protocol) for AI assistants and automation.
+A Quarkus application that provides management tools for Apache Kafka clusters deployed by Strimzi via MCP (Model Context Protocol) for AI assistants and automation.
 
 > [!WARNING]
 > This project is in early alpha version and under active development. APIs, tool definitions, and configuration may change without notice.
 
 ## Overview
 
-The Strimzi MCP Server enables AI assistants to manage and troubleshoot Strimzi-managed Kafka clusters on Kubernetes.
+The MCP Server for Strimzi enables AI assistants to manage and troubleshoot Strimzi-managed Kafka clusters on Kubernetes.
 Ask your AI assistant questions like:
 
 - "List all Kafka clusters"

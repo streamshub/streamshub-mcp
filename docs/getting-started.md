@@ -12,7 +12,7 @@ AI assistants use MCP tools to query your cluster and provide answers based on r
 
 ## Available MCP servers
 
-- **[Strimzi MCP Server](strimzi-mcp/)** -- Tools for managing and troubleshooting Apache Kafka clusters deployed with Strimzi
+- **[MCP Server for Strimzi](strimzi-mcp/)** -- Tools for managing and troubleshooting Apache Kafka clusters deployed with Strimzi
 
 ## Prerequisites
 
@@ -22,9 +22,9 @@ Before you begin, ensure you have:
 - An AI assistant that supports MCP (Claude Desktop, Claude Code, or similar)
 - Java 21 or later and Maven 3.8 or later (for local development)
 
-## Quick start with Strimzi MCP
+## Quick start with MCP Server for Strimzi
 
-This example deploys the Strimzi MCP Server for local development.
+This example deploys the MCP Server for Strimzi for local development.
 For detailed instructions including Kubernetes deployment, see the [installation guide](strimzi-mcp/installation.md).
 
 ### Step 1: Clone the repository

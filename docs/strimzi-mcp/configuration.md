@@ -3,11 +3,11 @@ title = 'Configuration'
 weight = 2
 +++
 
-Configure the Strimzi MCP Server to customize its behavior and integrate with external systems.
+Configure the MCP Server for Strimzi to customize its behavior and integrate with external systems.
 
 ## Configuration overview
 
-You can configure the Strimzi MCP Server through:
+You can configure the MCP Server for Strimzi through:
 
 - **Environment variables** — Recommended for Kubernetes deployments
 - **application.properties file** — Convenient for local development

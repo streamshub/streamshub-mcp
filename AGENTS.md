@@ -44,7 +44,7 @@ Documentation updates are mandatory and must be completed before the task is con
 - **`common`** (`streamshub-mcp-common`) - Generic Kubernetes helpers, DTOs, MCP framework utilities shared across modules
 - **`metrics-prometheus`** (`streamshub-metrics-prometheus`) - Prometheus/Thanos metrics provider (pluggable, replaceable JAR)
 - **`loki-log-provider`** (`streamshub-loki-log-provider`) - Loki log provider (pluggable, replaceable JAR)
-- **`strimzi-mcp`** (`strimzi-mcp`) - Strimzi Kafka management MCP tools and services
+- **`strimzi-mcp`** (`strimzi-mcp`) - MCP Server for Strimzi: Kafka management tools and services
 
 ## Build & Test
 
@@ -98,7 +98,7 @@ io.streamshub.mcp.loki.
 └── LokiLogProvider (implements LogCollectorProvider)
 ```
 
-### Strimzi module (`strimzi-mcp/`)
+### MCP Server for Strimzi module (`strimzi-mcp/`)
 
 ```
 io.streamshub.mcp.strimzi.
