@@ -3,7 +3,7 @@ title = 'Installation'
 weight = 1
 +++
 
-This guide describes how to deploy the Strimzi MCP Server to a Kubernetes cluster.
+This guide describes how to deploy the MCP Server for Strimzi to a Kubernetes cluster.
 For a local development setup using `quarkus:dev`, see the [getting started guide](../getting-started.md).
 
 ## Prerequisites
@@ -238,7 +238,7 @@ kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n kafk
 
 ## Security model
 
-The Strimzi MCP Server is designed for platform engineering and SRE teams that already have Kubernetes access.
+The MCP Server for Strimzi is designed for platform engineering and SRE teams that already have Kubernetes access.
 It provides a read-only view of Strimzi-managed resources and relies on Kubernetes RBAC as its sole authorization mechanism.
 
 ### Authentication and authorization

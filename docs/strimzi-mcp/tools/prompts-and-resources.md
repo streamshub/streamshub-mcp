@@ -3,7 +3,7 @@ title = 'Prompts, resources, and subscriptions'
 weight = 6
 +++
 
-Prompt templates, resource templates, and resource subscriptions provided by the Strimzi MCP Server.
+Prompt templates, resource templates, and resource subscriptions provided by the MCP Server for Strimzi.
 
 ## Prompt templates
 

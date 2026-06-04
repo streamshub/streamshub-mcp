@@ -17,7 +17,7 @@ Works with any MCP-compatible client including Claude Code, Claude Desktop, VS C
 
 | Server | Description |
 |--------|-------------|
-| [Strimzi MCP](strimzi-mcp/) | Manage and troubleshoot Strimzi-managed Kafka clusters on Kubernetes |
+| [MCP Server for Strimzi](strimzi-mcp/) | Manage and troubleshoot Strimzi-managed Kafka clusters on Kubernetes |
 
 ## Key capabilities
 
@@ -40,7 +40,7 @@ For server-specific documentation, see the README in each server directory.
 Documentation is available in the [`docs/`](docs/) directory:
 
 - [Getting started](docs/getting-started.md) -- Quick start guide
-- [Strimzi MCP Server](docs/strimzi-mcp/) -- Installation, configuration, tools, and troubleshooting
+- [MCP Server for Strimzi](docs/strimzi-mcp/) -- Installation, configuration, tools, and troubleshooting
 
 ## Development
 

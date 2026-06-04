@@ -1,9 +1,9 @@
 +++
-title = 'Strimzi MCP Server'
+title = 'MCP Server for Strimzi'
 weight = 1
 +++
 
-The Strimzi MCP Server provides AI assistants with tools to manage and troubleshoot Apache Kafka clusters deployed with the Strimzi operator on Kubernetes.
+The MCP Server for Strimzi provides AI assistants with tools to manage and troubleshoot Apache Kafka clusters deployed with the Strimzi operator on Kubernetes.
 
 > **Warning:**
 > This project is in early alpha version and under active development.
@@ -11,10 +11,10 @@ The Strimzi MCP Server provides AI assistants with tools to manage and troublesh
 
 ## Overview
 
-The Strimzi MCP Server exposes Strimzi-managed Kafka resources through the Model Context Protocol.
+The MCP Server for Strimzi exposes Strimzi-managed Kafka resources through the Model Context Protocol.
 AI assistants use these tools to check cluster health, collect logs, query metrics, and troubleshoot issues.
 
-With the Strimzi MCP Server, AI assistants can:
+With the MCP Server for Strimzi, AI assistants can:
 
 - Monitor Kafka cluster health and status
 - Run multi-step diagnostic workflows with intelligent triage
@@ -131,7 +131,7 @@ For enhanced functionality:
 
 ## Architecture
 
-The Strimzi MCP Server is built on:
+The MCP Server for Strimzi is built on:
 
 - **Quarkus** -- Cloud-native Java framework
 - **Fabric8 Kubernetes Client** -- Kubernetes API access

@@ -3,7 +3,7 @@ title = 'Troubleshooting'
 weight = 5
 +++
 
-Resolve common issues when using the Strimzi MCP Server.
+Resolve common issues when using the MCP Server for Strimzi.
 
 ## Server issues
 

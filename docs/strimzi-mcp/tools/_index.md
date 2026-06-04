@@ -3,7 +3,7 @@ title = 'Tools reference'
 weight = 3
 +++
 
-Complete reference for all tools, prompts, and resources provided by the Strimzi MCP Server.
+Complete reference for all tools, prompts, and resources provided by the MCP Server for Strimzi.
 
 ## Tool categories
 
