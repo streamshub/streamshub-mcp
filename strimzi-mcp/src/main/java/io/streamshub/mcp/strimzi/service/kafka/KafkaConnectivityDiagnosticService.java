@@ -206,7 +206,7 @@ public class KafkaConnectivityDiagnosticService {
             return result;
         } catch (ToolCallException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
-                    && elicitation != null && elicitation.isSupported()) {
+                    && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "checked for connectivity");
                 return gatherClusterStatus(resolved, clusterName, null,
                     completed, mcpLog);

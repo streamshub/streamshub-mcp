@@ -188,7 +188,7 @@ public class KafkaMetricsDiagnosticService {
             return result;
         } catch (ToolCallException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
-                    && elicitation != null && elicitation.isSupported()) {
+                    && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "analyzed for metrics");
                 return gatherClusterStatus(resolved, clusterName, null,
                     completed, mcpLog);

@@ -41,7 +41,6 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -117,7 +116,7 @@ public class KafkaClusterOverviewService {
         KafkaClusterResponse cluster = kafkaService.getCluster(ns, name);
         String resolvedNs = cluster.namespace();
 
-        Set<String> bootstrapAddresses = extractBootstrapAddresses(cluster, name);
+        Set<String> bootstrapAddresses = BootstrapMatcher.extractBootstrapAddresses(cluster, name);
 
         return new KafkaClusterOverviewResponse(
             buildClusterSummary(cluster),
@@ -221,7 +220,7 @@ public class KafkaClusterOverviewService {
         try {
             List<KafkaConnectResponse> allConnects = connectService.listConnects(namespace);
             return allConnects.stream()
-                .filter(c -> matchesBootstrap(c.bootstrapServers(), bootstrapAddresses))
+                .filter(c -> BootstrapMatcher.matchesBootstrap(c.bootstrapServers(), bootstrapAddresses))
                 .map(c -> {
                     int connectorCount = countConnectors(namespace, c.name());
                     Integer replicas = c.replicas() != null ? c.replicas().expected() : null;
@@ -240,7 +239,7 @@ public class KafkaClusterOverviewService {
         try {
             List<KafkaMirrorMaker2Response> allMm2 = mirrorMakerService.listMirrorMakers(namespace);
             return allMm2.stream()
-                .filter(m -> mm2ConnectsToCluster(m, bootstrapAddresses))
+                .filter(m -> BootstrapMatcher.mm2ConnectsToCluster(m, bootstrapAddresses))
                 .map(m -> {
                     Integer replicas = m.replicas() != null ? m.replicas().expected() : null;
                     int mirrorCount = m.sourceClusterAliases() != null
@@ -260,7 +259,7 @@ public class KafkaClusterOverviewService {
         try {
             List<KafkaBridgeResponse> allBridges = bridgeService.listBridges(namespace);
             return allBridges.stream()
-                .filter(b -> matchesBootstrap(b.bootstrapServers(), bootstrapAddresses))
+                .filter(b -> BootstrapMatcher.matchesBootstrap(b.bootstrapServers(), bootstrapAddresses))
                 .map(b -> {
                     Integer replicas = b.replicas() != null ? b.replicas().expected() : null;
                     return new BridgeSummary(b.name(), b.namespace(), b.readiness(), replicas);
@@ -286,60 +285,6 @@ public class KafkaClusterOverviewService {
     }
 
     // ---- Helpers ----
-
-    private Set<String> extractBootstrapAddresses(final KafkaClusterResponse cluster,
-                                                   final String clusterName) {
-        Set<String> addresses = new HashSet<>();
-        addresses.add(clusterName + "-kafka-bootstrap");
-
-        if (cluster.listeners() != null) {
-            for (var listener : cluster.listeners()) {
-                if (listener.bootstrapAddress() != null) {
-                    addresses.add(listener.bootstrapAddress());
-                    String host = listener.bootstrapAddress().split(":")[0];
-                    addresses.add(host);
-                }
-            }
-        }
-        return addresses;
-    }
-
-    private boolean mm2ConnectsToCluster(final KafkaMirrorMaker2Response mm2,
-                                         final Set<String> clusterAddresses) {
-        if (matchesBootstrap(mm2.bootstrapServers(), clusterAddresses)) {
-            return true;
-        }
-        if (mm2.targetCluster() != null) {
-            for (String addr : clusterAddresses) {
-                if (addr.contains(mm2.targetCluster())) {
-                    return true;
-                }
-            }
-        }
-        if (mm2.sourceClusterAliases() != null) {
-            for (String alias : mm2.sourceClusterAliases()) {
-                for (String addr : clusterAddresses) {
-                    if (addr.contains(alias)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    private boolean matchesBootstrap(final String specBootstrapServers,
-                                     final Set<String> clusterAddresses) {
-        if (specBootstrapServers == null || specBootstrapServers.isBlank()) {
-            return false;
-        }
-        for (String address : clusterAddresses) {
-            if (specBootstrapServers.contains(address)) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     private int countConnectors(final String namespace, final String connectClusterName) {
         try {

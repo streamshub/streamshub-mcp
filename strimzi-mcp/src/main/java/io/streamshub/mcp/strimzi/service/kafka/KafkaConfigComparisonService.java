@@ -145,7 +145,7 @@ public class KafkaConfigComparisonService {
             return result;
         } catch (ToolCallException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
-                    && elicitation != null && elicitation.isSupported()) {
+                    && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, elicitationContext);
                 return gatherConfigResolved(resolved, clusterName, step, completed, failed, mcpLog);
             }
