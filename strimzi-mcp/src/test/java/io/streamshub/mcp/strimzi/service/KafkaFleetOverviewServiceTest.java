@@ -10,6 +10,7 @@ import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaFleetOverviewResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaFleetOverviewResponse.ClusterSummary;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaFleetOverviewResponse.ClusterWarning;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectResponse;
@@ -100,6 +101,7 @@ class KafkaFleetOverviewServiceTest {
         assertTrue(response.warnings().isEmpty());
         assertNotNull(response.timestamp());
         assertNull(response.namespaceFilter());
+        assertNull(response.resourceErrors());
     }
 
     @Test
@@ -206,7 +208,7 @@ class KafkaFleetOverviewServiceTest {
         KafkaFleetOverviewResponse response = fleetOverviewService.getFleetOverview(null);
 
         assertEquals(1, response.clusters().size());
-        var summary = response.clusters().get(0);
+        ClusterSummary summary = response.clusters().get(0);
         assertEquals("prod", summary.name());
         assertEquals("kafka-prod", summary.namespace());
         assertEquals("Ready", summary.readiness());
@@ -236,7 +238,7 @@ class KafkaFleetOverviewServiceTest {
 
         KafkaFleetOverviewResponse response = fleetOverviewService.getFleetOverview(null);
 
-        var summary = response.clusters().get(0);
+        ClusterSummary summary = response.clusters().get(0);
         assertEquals(2, summary.topicCount());
         assertEquals(1, summary.userCount());
     }
@@ -303,17 +305,64 @@ class KafkaFleetOverviewServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void testFailedResourceQueryReturnsNull() {
+    void testFailedResourceQueryReturnsNullAndReportsError() {
         when(kafkaService.listClusters(null)).thenReturn(List.of(
             buildCluster("prod", "kafka", "Ready", "4.2.0", 3, 3)
         ));
         when(k8sService.queryResourcesByLabel(
             eq(KafkaTopic.class), anyString(), anyString(), anyString()))
             .thenThrow(new RuntimeException("API unavailable"));
+        when(k8sService.queryResourcesByLabel(
+            eq(KafkaUser.class), anyString(), anyString(), anyString()))
+            .thenThrow(new RuntimeException("API unavailable"));
 
         KafkaFleetOverviewResponse response = fleetOverviewService.getFleetOverview(null);
 
-        assertNull(response.clusters().get(0).topicCount());
+        ClusterSummary summary = response.clusters().get(0);
+        assertNull(summary.topicCount());
+        assertNull(summary.userCount());
+        assertNotNull(summary.resourceErrors());
+        assertTrue(summary.resourceErrors().contains("KafkaTopic"));
+        assertTrue(summary.resourceErrors().contains("KafkaUser"));
+        assertNull(response.resourceErrors());
+    }
+
+    @Test
+    void testBulkFetchFailureReportsFleetError() {
+        when(kafkaService.listClusters(null)).thenReturn(List.of(
+            buildCluster("prod", "kafka", "Ready", "4.2.0", 3, 3)
+        ));
+        when(connectService.listConnects(any()))
+            .thenThrow(new RuntimeException("CRD not installed"));
+        when(bridgeService.listBridges(any()))
+            .thenThrow(new RuntimeException("CRD not installed"));
+
+        KafkaFleetOverviewResponse response = fleetOverviewService.getFleetOverview(null);
+
+        assertNotNull(response.resourceErrors());
+        assertTrue(response.resourceErrors().contains("KafkaConnect"));
+        assertTrue(response.resourceErrors().contains("KafkaBridge"));
+        ClusterSummary summary = response.clusters().get(0);
+        assertNull(summary.connectCount());
+        assertNull(summary.bridgeCount());
+        assertNotNull(summary.mirrorMakerCount());
+        assertNotNull(summary.resourceErrors());
+        assertTrue(summary.resourceErrors().contains("KafkaConnect"));
+        assertTrue(summary.resourceErrors().contains("KafkaBridge"));
+    }
+
+    @Test
+    void testSuccessfulQueriesReportNoErrors() {
+        when(kafkaService.listClusters(null)).thenReturn(List.of(
+            buildCluster("prod", "kafka", "Ready", "4.2.0", 3, 3)
+        ));
+
+        KafkaFleetOverviewResponse response = fleetOverviewService.getFleetOverview(null);
+
+        assertNull(response.resourceErrors());
+        assertNull(response.clusters().get(0).resourceErrors());
+        assertEquals(0, response.clusters().get(0).topicCount());
+        assertEquals(0, response.clusters().get(0).userCount());
     }
 
     // ---- Test helpers ----

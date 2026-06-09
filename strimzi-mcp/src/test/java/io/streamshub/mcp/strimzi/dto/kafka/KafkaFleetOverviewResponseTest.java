@@ -36,12 +36,13 @@ class KafkaFleetOverviewResponseTest {
             new StatusDistribution(1, 1, 0, 0),
             List.of(
                 new ClusterSummary("prod", "kafka-prod", "Ready", "4.2.0", 3, 3, 1000L,
-                    42, 5, 0, 1, 0, 0),
+                    42, 5, 0, 1, 0, 0, null),
                 new ClusterSummary("staging", "kafka-staging", "NotReady", "4.2.0", 3, 2, 500L,
-                    10, 2, 1, 0, 0, 0)
+                    10, 2, 1, 0, 0, 0, null)
             ),
             List.of(new ClusterWarning("staging", "kafka-staging", "NotReady", "Cluster is not ready")),
             Instant.parse("2026-06-05T10:00:00Z"),
+            null,
             null
         );
 
@@ -64,6 +65,7 @@ class KafkaFleetOverviewResponseTest {
             new StatusDistribution(0, 0, 0, 0),
             List.of(), List.of(),
             Instant.now(),
+            null,
             null
         );
 
@@ -75,7 +77,7 @@ class KafkaFleetOverviewResponseTest {
     void clusterSummaryRelationshipFieldsSerialized() throws Exception {
         ClusterSummary summary = new ClusterSummary(
             "prod", "kafka", "Ready", "4.2.0", 3, 3, 1000L,
-            42, 5, 1, 2, 1, 0);
+            42, 5, 1, 2, 1, 0, null);
 
         String json = MAPPER.writeValueAsString(summary);
         @SuppressWarnings("unchecked")
@@ -93,7 +95,7 @@ class KafkaFleetOverviewResponseTest {
     void clusterSummaryNullRelationshipsExcludedFromJson() throws Exception {
         ClusterSummary summary = new ClusterSummary(
             "test", "ns", "Ready", "4.2.0", 3, 3, 1000L,
-            null, null, null, null, null, null);
+            null, null, null, null, null, null, null);
 
         String json = MAPPER.writeValueAsString(summary);
         assertFalse(json.contains("topic_count"));
@@ -108,7 +110,7 @@ class KafkaFleetOverviewResponseTest {
     void clusterSummaryNullAgeIsExcludedFromJson() throws Exception {
         ClusterSummary summary = new ClusterSummary(
             "test", "ns", "Ready", "4.2.0", 3, 3, null,
-            null, null, null, null, null, null);
+            null, null, null, null, null, null, null);
 
         String json = MAPPER.writeValueAsString(summary);
         assertFalse(json.contains("age_minutes"));
@@ -143,13 +145,53 @@ class KafkaFleetOverviewResponseTest {
     }
 
     @Test
+    void resourceErrorsIncludedWhenPresent() throws Exception {
+        KafkaFleetOverviewResponse response = new KafkaFleetOverviewResponse(
+            1, 3,
+            new StatusDistribution(1, 0, 0, 0),
+            List.of(new ClusterSummary("prod", "kafka", "Ready", "4.2.0", 3, 3, 1000L,
+                null, null, 0, 1, 0, 0, List.of("KafkaTopic", "KafkaUser"))),
+            List.of(),
+            Instant.now(),
+            null,
+            List.of("KafkaBridge")
+        );
+
+        String json = MAPPER.writeValueAsString(response);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> map = MAPPER.readValue(json, Map.class);
+
+        assertEquals(List.of("KafkaBridge"), map.get("resource_errors"));
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> clusters = (List<Map<String, Object>>) map.get("clusters");
+        assertEquals(List.of("KafkaTopic", "KafkaUser"), clusters.get(0).get("resource_errors"));
+    }
+
+    @Test
+    void resourceErrorsExcludedWhenNull() throws Exception {
+        KafkaFleetOverviewResponse response = new KafkaFleetOverviewResponse(
+            0, 0,
+            new StatusDistribution(0, 0, 0, 0),
+            List.of(), List.of(),
+            Instant.now(),
+            null,
+            null
+        );
+
+        String json = MAPPER.writeValueAsString(response);
+        assertFalse(json.contains("resource_errors"));
+    }
+
+    @Test
     void namespaceFilterIsIncludedWhenSet() throws Exception {
         KafkaFleetOverviewResponse response = new KafkaFleetOverviewResponse(
             1, 3,
             new StatusDistribution(1, 0, 0, 0),
             List.of(), List.of(),
             Instant.now(),
-            "kafka-prod"
+            "kafka-prod",
+            null
         );
 
         String json = MAPPER.writeValueAsString(response);

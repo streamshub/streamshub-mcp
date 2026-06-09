@@ -31,6 +31,7 @@ Get aggregated health overview across all Kafka clusters in a single call. Shows
 - **Status distribution** -- count of clusters by readiness (ready, not_ready, error, unknown)
 - **Clusters** -- per-cluster summary with name, namespace, readiness, Kafka version, broker counts, age, and relationship counts (topics, users, active rebalances, connected KafkaConnect/Bridge/MirrorMaker2 instances)
 - **Warnings** -- clusters with health issues: NotReady, Error, or broker replica mismatch (capped at 20)
+- **Resource errors** -- resource types that failed to load (fleet-level and per-cluster), distinguishing "0 found" from "failed to read"
 
 **Example**:
 ```

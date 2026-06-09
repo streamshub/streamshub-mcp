@@ -21,6 +21,7 @@ import java.util.List;
  * @param warnings           clusters with health issues (capped at 20)
  * @param timestamp          when this overview was generated
  * @param namespaceFilter    the namespace filter applied, or null for all namespaces
+ * @param resourceErrors     resource types that failed to load (null if all succeeded)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record KafkaFleetOverviewResponse(
@@ -30,7 +31,8 @@ public record KafkaFleetOverviewResponse(
     @JsonProperty("clusters") List<ClusterSummary> clusters,
     @JsonProperty("warnings") List<ClusterWarning> warnings,
     @JsonProperty("timestamp") Instant timestamp,
-    @JsonProperty("namespace_filter") String namespaceFilter
+    @JsonProperty("namespace_filter") String namespaceFilter,
+    @JsonProperty("resource_errors") List<String> resourceErrors
 ) {
 
     /**
@@ -65,6 +67,7 @@ public record KafkaFleetOverviewResponse(
      * @param connectCount     number of connected KafkaConnect clusters (null if unavailable)
      * @param bridgeCount      number of connected KafkaBridge instances (null if unavailable)
      * @param mirrorMakerCount number of connected KafkaMirrorMaker2 instances (null if unavailable)
+     * @param resourceErrors   resource types that failed to load for this cluster (null if all succeeded)
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record ClusterSummary(
@@ -80,7 +83,8 @@ public record KafkaFleetOverviewResponse(
         @JsonProperty("active_rebalances") Integer activeRebalances,
         @JsonProperty("connect_count") Integer connectCount,
         @JsonProperty("bridge_count") Integer bridgeCount,
-        @JsonProperty("mirror_maker_count") Integer mirrorMakerCount
+        @JsonProperty("mirror_maker_count") Integer mirrorMakerCount,
+        @JsonProperty("resource_errors") List<String> resourceErrors
     ) {
     }
 

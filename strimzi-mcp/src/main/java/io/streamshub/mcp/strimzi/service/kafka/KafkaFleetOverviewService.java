@@ -31,6 +31,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 /**
  * Service that aggregates health information across all Kafka clusters
  * into a single fleet-level overview with cross-resource relationship counts.
@@ -69,78 +70,125 @@ public class KafkaFleetOverviewService {
      * @param namespace optional namespace filter (null for all namespaces)
      * @return the fleet overview response
      */
-    @SuppressWarnings("checkstyle:CyclomaticComplexity")
     public KafkaFleetOverviewResponse getFleetOverview(final String namespace) {
         String ns = InputUtils.normalizeInput(namespace);
         LOG.infof("Getting fleet overview (namespace=%s)", ns != null ? ns : "all");
 
         List<KafkaClusterResponse> clusters = kafkaService.listClusters(ns);
 
-        List<KafkaConnectResponse> allConnects = bulkListConnects(ns);
-        List<KafkaBridgeResponse> allBridges = bulkListBridges(ns);
-        List<KafkaMirrorMaker2Response> allMirrorMakers = bulkListMirrorMakers(ns);
+        List<String> fleetResourceErrors = new ArrayList<>();
+        List<KafkaConnectResponse> allConnects = bulkFetch(
+            () -> connectService.listConnects(ns), "KafkaConnect", fleetResourceErrors);
+        List<KafkaBridgeResponse> allBridges = bulkFetch(
+            () -> bridgeService.listBridges(ns), "KafkaBridge", fleetResourceErrors);
+        List<KafkaMirrorMaker2Response> allMirrorMakers = bulkFetch(
+            () -> mirrorMakerService.listMirrorMakers(ns), "KafkaMirrorMaker2", fleetResourceErrors);
 
         int totalBrokers = 0;
-        int ready = 0;
-        int notReady = 0;
-        int error = 0;
-        int unknown = 0;
+        int[] statusCounts = new int[4];
 
         List<ClusterSummary> summaries = new ArrayList<>(clusters.size());
         List<ClusterWarning> warnings = new ArrayList<>();
 
         for (KafkaClusterResponse cluster : clusters) {
-            int brokers = cluster.replicas() != null && cluster.replicas().expected() != null
-                ? cluster.replicas().expected() : 0;
-            int readyBrokers = cluster.replicas() != null && cluster.replicas().ready() != null
-                ? cluster.replicas().ready() : 0;
+            int brokers = extractBrokerCount(cluster, true);
+            int readyBrokers = extractBrokerCount(cluster, false);
             totalBrokers += brokers;
 
-            Set<String> bootstrapAddresses = BootstrapMatcher.extractBootstrapAddresses(
-                cluster, cluster.name());
-
-            summaries.add(new ClusterSummary(
-                cluster.name(), cluster.namespace(), cluster.readiness(),
-                cluster.kafkaVersion(), brokers, readyBrokers, cluster.ageMinutes(),
-                countTopics(cluster.namespace(), cluster.name()),
-                countUsers(cluster.namespace(), cluster.name()),
-                countActiveRebalances(cluster.namespace(), cluster.name()),
-                countMatching(allConnects, bootstrapAddresses),
-                countMatchingBridges(allBridges, bootstrapAddresses),
-                countMatchingMirrorMakers(allMirrorMakers, bootstrapAddresses)));
-
-            switch (cluster.readiness()) {
-                case KubernetesConstants.ResourceStatus.READY -> ready++;
-                case KubernetesConstants.ResourceStatus.NOT_READY -> {
-                    notReady++;
-                    addWarning(warnings, cluster.name(), cluster.namespace(),
-                        KubernetesConstants.ResourceStatus.NOT_READY,
-                        "Cluster is not ready: condition Ready=False");
-                }
-                case KubernetesConstants.ResourceStatus.ERROR -> {
-                    error++;
-                    addWarning(warnings, cluster.name(), cluster.namespace(),
-                        KubernetesConstants.ResourceStatus.ERROR,
-                        "Cluster is in error state");
-                }
-                default -> unknown++;
-            }
-
-            if (brokers > 0 && readyBrokers < brokers) {
-                addWarning(warnings, cluster.name(), cluster.namespace(),
-                    "ReplicaMismatch",
-                    String.format("Broker replica mismatch: %d/%d ready", readyBrokers, brokers));
-            }
+            summaries.add(buildClusterSummary(
+                cluster, brokers, readyBrokers,
+                allConnects, allBridges, allMirrorMakers, fleetResourceErrors));
+            accumulateStatus(cluster, statusCounts, warnings);
+            checkReplicaMismatch(cluster, brokers, readyBrokers, warnings);
         }
 
         return new KafkaFleetOverviewResponse(
             clusters.size(),
             totalBrokers,
-            new StatusDistribution(ready, notReady, error, unknown),
+            new StatusDistribution(statusCounts[0], statusCounts[1], statusCounts[2], statusCounts[3]),
             summaries,
             warnings,
             Instant.now(),
-            ns);
+            ns,
+            fleetResourceErrors.isEmpty() ? null : fleetResourceErrors);
+    }
+
+    private int extractBrokerCount(final KafkaClusterResponse cluster, final boolean expected) {
+        if (cluster.replicas() == null) {
+            return 0;
+        }
+        Integer value = expected ? cluster.replicas().expected() : cluster.replicas().ready();
+        return value != null ? value : 0;
+    }
+
+    @SuppressWarnings("checkstyle:ParameterNumber")
+    private ClusterSummary buildClusterSummary(
+            final KafkaClusterResponse cluster,
+            final int brokers, final int readyBrokers,
+            final List<KafkaConnectResponse> allConnects,
+            final List<KafkaBridgeResponse> allBridges,
+            final List<KafkaMirrorMaker2Response> allMirrorMakers,
+            final List<String> fleetErrors) {
+
+        Set<String> bootstrapAddresses = BootstrapMatcher.extractBootstrapAddresses(
+            cluster, cluster.name());
+
+        List<String> clusterErrors = new ArrayList<>(fleetErrors);
+        Integer topicCount = countTopics(cluster.namespace(), cluster.name());
+        if (topicCount == null) {
+            clusterErrors.add("KafkaTopic");
+        }
+        Integer userCount = countUsers(cluster.namespace(), cluster.name());
+        if (userCount == null) {
+            clusterErrors.add("KafkaUser");
+        }
+        Integer activeRebalances = countActiveRebalances(cluster.namespace(), cluster.name());
+        if (activeRebalances == null) {
+            clusterErrors.add("KafkaRebalance");
+        }
+
+        return new ClusterSummary(
+            cluster.name(), cluster.namespace(), cluster.readiness(),
+            cluster.kafkaVersion(), brokers, readyBrokers, cluster.ageMinutes(),
+            topicCount, userCount, activeRebalances,
+            fleetErrors.contains("KafkaConnect")
+                ? null : countIfPresent(allConnects, bootstrapAddresses),
+            fleetErrors.contains("KafkaBridge")
+                ? null : countMatchingBridges(allBridges, bootstrapAddresses),
+            fleetErrors.contains("KafkaMirrorMaker2")
+                ? null : countMatchingMirrorMakers(allMirrorMakers, bootstrapAddresses),
+            clusterErrors.isEmpty() ? null : clusterErrors);
+    }
+
+    private void accumulateStatus(final KafkaClusterResponse cluster,
+                                  final int[] statusCounts,
+                                  final List<ClusterWarning> warnings) {
+        switch (cluster.readiness()) {
+            case KubernetesConstants.ResourceStatus.READY -> statusCounts[0]++;
+            case KubernetesConstants.ResourceStatus.NOT_READY -> {
+                statusCounts[1]++;
+                addWarning(warnings, cluster.name(), cluster.namespace(),
+                    KubernetesConstants.ResourceStatus.NOT_READY,
+                    "Cluster is not ready: condition Ready=False");
+            }
+            case KubernetesConstants.ResourceStatus.ERROR -> {
+                statusCounts[2]++;
+                addWarning(warnings, cluster.name(), cluster.namespace(),
+                    KubernetesConstants.ResourceStatus.ERROR,
+                    "Cluster is in error state");
+            }
+            default -> statusCounts[3]++;
+        }
+    }
+
+    private void checkReplicaMismatch(final KafkaClusterResponse cluster,
+                                      final int brokers, final int readyBrokers,
+                                      final List<ClusterWarning> warnings) {
+        if (brokers > 0 && readyBrokers < brokers) {
+            addWarning(warnings, cluster.name(), cluster.namespace(),
+                "ReplicaMismatch",
+                String.format("Broker replica mismatch: %d/%d ready", readyBrokers, brokers));
+        }
     }
 
     // ---- Label-based counts (per cluster) ----
@@ -182,35 +230,23 @@ public class KafkaFleetOverviewService {
 
     // ---- Bulk-fetched infrastructure (one query total, matched per cluster) ----
 
-    private List<KafkaConnectResponse> bulkListConnects(final String namespace) {
+    private <T> List<T> bulkFetch(final Supplier<List<T>> fetcher,
+                                   final String resourceType,
+                                   final List<String> errors) {
         try {
-            return connectService.listConnects(namespace);
+            return fetcher.get();
         } catch (Exception e) {
-            LOG.warnf("Could not list KafkaConnects: %s", e.getMessage());
+            LOG.warnf("Could not list %s resources: %s", resourceType, e.getMessage());
+            errors.add(resourceType);
             return List.of();
         }
     }
 
-    private List<KafkaBridgeResponse> bulkListBridges(final String namespace) {
-        try {
-            return bridgeService.listBridges(namespace);
-        } catch (Exception e) {
-            LOG.warnf("Could not list KafkaBridges: %s", e.getMessage());
-            return List.of();
+    private Integer countIfPresent(final List<KafkaConnectResponse> connects,
+                                   final Set<String> bootstrapAddresses) {
+        if (connects.isEmpty()) {
+            return 0;
         }
-    }
-
-    private List<KafkaMirrorMaker2Response> bulkListMirrorMakers(final String namespace) {
-        try {
-            return mirrorMakerService.listMirrorMakers(namespace);
-        } catch (Exception e) {
-            LOG.warnf("Could not list KafkaMirrorMaker2 instances: %s", e.getMessage());
-            return List.of();
-        }
-    }
-
-    private Integer countMatching(final List<KafkaConnectResponse> connects,
-                                  final Set<String> bootstrapAddresses) {
         return (int) connects.stream()
             .filter(c -> BootstrapMatcher.matchesBootstrap(c.bootstrapServers(), bootstrapAddresses))
             .count();
