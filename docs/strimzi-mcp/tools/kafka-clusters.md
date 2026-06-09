@@ -19,6 +19,25 @@ List Kafka clusters with status and configuration.
 List all Kafka clusters
 ```
 
+## get_kafka_fleet_overview
+
+Get aggregated health overview across all Kafka clusters in a single call. Shows status distribution, total broker count, per-cluster summaries, and warnings for clusters that need attention. Designed for fleet-level triage without inspecting each cluster individually.
+
+**Parameters**:
+- `namespace` (optional) -- Limit to a specific namespace
+
+**Returns**: Aggregated fleet summary including:
+- **Total clusters and brokers** -- aggregate counts
+- **Status distribution** -- count of clusters by readiness (ready, not_ready, error, unknown)
+- **Clusters** -- per-cluster summary with name, namespace, readiness, Kafka version, broker counts, age, and relationship counts (topics, users, active rebalances, connected KafkaConnect/Bridge/MirrorMaker2 instances)
+- **Warnings** -- clusters with health issues: NotReady, Error, or broker replica mismatch (capped at 20)
+- **Resource errors** -- resource types that failed to load (fleet-level and per-cluster), distinguishing "0 found" from "failed to read"
+
+**Example**:
+```
+Give me a fleet overview of all Kafka clusters
+```
+
 ## get_kafka_cluster
 
 Get detailed information about a specific Kafka cluster including status, version, and configuration.

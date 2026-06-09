@@ -196,7 +196,7 @@ public class KafkaConnectorDiagnosticService {
             return result;
         } catch (ToolCallException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
-                    && elicitation != null && elicitation.isSupported()) {
+                    && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "diagnosed");
                 return gatherConnectorStatus(resolved, connectorName, null, completed, mcpLog);
             }

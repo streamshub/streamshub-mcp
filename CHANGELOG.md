@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - Unreleased
 
-## Added
+### Added
 
-## Changed
+- **Fleet overview tool** -- `get_kafka_fleet_overview` returns aggregated health across all Kafka clusters in a single call, including status distribution, total broker count, per-cluster summaries with cross-resource relationship counts (topics, users, active rebalances, connected KafkaConnect/Bridge/MirrorMaker2), and warnings for clusters that need attention
 
-## Fixed
+### Changed
+
+### Fixed
+
+- Replaced deprecated `Elicitation.isSupported()` with `isFormModeSupported()` across all diagnostic services
 
 ## [0.1.0] - 2026-06-02
 

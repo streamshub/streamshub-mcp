@@ -275,7 +275,7 @@ public class KafkaClusterDiagnosticService {
             return result;
         } catch (ToolCallException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
-                    && elicitation != null && elicitation.isSupported()) {
+                    && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "diagnosed");
                 return gatherClusterStatus(resolved, clusterName, null,
                     completed, mcpLog);
@@ -691,7 +691,7 @@ public class KafkaClusterDiagnosticService {
                                                             final Elicitation elicitation,
                                                             final McpLog mcpLog,
                                                             final KafkaClusterLogsResponse currentResult) {
-        if (elicitation == null || !elicitation.isSupported()) {
+        if (elicitation == null || !elicitation.isFormModeSupported()) {
             return currentResult;
         }
 

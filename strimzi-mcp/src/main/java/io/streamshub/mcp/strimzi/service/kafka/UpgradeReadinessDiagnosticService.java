@@ -258,7 +258,7 @@ public class UpgradeReadinessDiagnosticService {
             return result;
         } catch (ToolCallException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
-                    && elicitation != null && elicitation.isSupported()) {
+                    && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(
                     e, elicitation, "checked for upgrade readiness");
                 return gatherClusterStatus(resolved, clusterName, null, completed, mcpLog);

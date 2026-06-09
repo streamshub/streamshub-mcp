@@ -22,8 +22,10 @@ import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaFleetOverviewResponse;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaCertificateService;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaClusterOverviewService;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaFleetOverviewService;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -50,6 +52,9 @@ public class KafkaTools {
 
     @Inject
     KafkaClusterOverviewService overviewService;
+
+    @Inject
+    KafkaFleetOverviewService fleetOverviewService;
 
     @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
     int defaultTailLines;
@@ -83,6 +88,34 @@ public class KafkaTools {
         ) final String namespace
     ) {
         return kafkaService.listClusters(namespace);
+    }
+
+    /**
+     * Get aggregated fleet overview across all Kafka clusters.
+     *
+     * @param namespace optional namespace filter
+     * @return the fleet overview response
+     */
+    @WithSpan("tool.get_kafka_fleet_overview")
+    @Tool(
+        name = "get_kafka_fleet_overview",
+        description = "Get aggregated health overview across all Kafka clusters."
+            + " Shows status distribution, total broker count, and clusters with warnings."
+            + " Optionally filter by namespace.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    public KafkaFleetOverviewResponse getKafkaFleetOverview(
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace
+    ) {
+        return fleetOverviewService.getFleetOverview(namespace);
     }
 
     /**

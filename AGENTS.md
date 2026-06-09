@@ -112,9 +112,9 @@ io.streamshub.mcp.strimzi.
 │   └── metrics/       → MetricsTools
 ├── service/           → Business logic (KafkaService, KafkaTopicService, KafkaNodePoolService,
 │                        KafkaCertificateService, KafkaConfigService, KafkaConfigComparisonService,
-│                        KafkaRebalanceService, KafkaClusterOverviewService,
-│                        StrimziOperatorService, StrimziEventsService, DrainCleanerService,
-│                        CompletionService)
+│                        KafkaRebalanceService, KafkaClusterOverviewService, KafkaFleetOverviewService,
+│                        BootstrapMatcher, StrimziOperatorService, StrimziEventsService,
+│                        DrainCleanerService, CompletionService)
 │                        Diagnostic orchestrators: KafkaClusterDiagnosticService,
 │                        KafkaConnectivityDiagnosticService, KafkaMetricsDiagnosticService,
 │                        OperatorMetricsDiagnosticService

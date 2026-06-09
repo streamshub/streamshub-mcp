@@ -214,7 +214,7 @@ public class KafkaTopicDiagnosticService {
             return result;
         } catch (ToolCallException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
-                    && elicitation != null && elicitation.isSupported()) {
+                    && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "diagnosed");
                 return gatherTopicStatus(resolved, clusterName, topicName, null, completed, mcpLog);
             }
