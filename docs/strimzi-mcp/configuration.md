@@ -77,7 +77,7 @@ Use Grafana Loki for centralized log collection and historical log queries.
 | `quarkus.rest-client.loki.url` | `http://localhost:3100` | Loki endpoint URL |
 | `quarkus.rest-client.loki.connect-timeout` | `5000` | Connection timeout in milliseconds |
 | `quarkus.rest-client.loki.read-timeout` | `30000` | Read timeout in milliseconds |
-| `mcp.log.loki.auth-mode` | `none` | Authentication mode: `none`, `basic`, or `serviceaccount` |
+| `mcp.log.loki.auth-mode` | `none` | Authentication mode: `none`, `basic`, `bearer-token`, or `sa-token` |
 | `mcp.log.loki.sa-token-path` | `/var/run/secrets/kubernetes.io/serviceaccount/token` | Path to ServiceAccount token |
 
 To enable Loki:
@@ -100,7 +100,7 @@ QUARKUS_REST_CLIENT_LOKI_PASSWORD=your-password
 **ServiceAccount token (Kubernetes):**
 
 ```bash
-MCP_LOG_LOKI_AUTH_MODE=serviceaccount
+MCP_LOG_LOKI_AUTH_MODE=sa-token
 # The token is automatically read from the mounted ServiceAccount
 ```
 
@@ -164,7 +164,7 @@ Use Prometheus for centralized metrics with long-term retention.
 | `quarkus.rest-client.prometheus.url` | `http://localhost:9090` | Prometheus endpoint URL |
 | `quarkus.rest-client.prometheus.connect-timeout` | `5000` | Connection timeout in milliseconds |
 | `quarkus.rest-client.prometheus.read-timeout` | `30000` | Read timeout in milliseconds |
-| `mcp.metrics.prometheus.auth-mode` | `none` | Authentication mode: `none`, `basic`, or `serviceaccount` |
+| `mcp.metrics.prometheus.auth-mode` | `none` | Authentication mode: `none`, `basic`, `bearer-token`, or `sa-token` |
 | `mcp.metrics.prometheus.sa-token-path` | `/var/run/secrets/kubernetes.io/serviceaccount/token` | Path to ServiceAccount token |
 
 To enable Prometheus:
@@ -187,7 +187,7 @@ QUARKUS_REST_CLIENT_PROMETHEUS_PASSWORD=your-password
 **ServiceAccount token (Kubernetes):**
 
 ```bash
-MCP_METRICS_PROMETHEUS_AUTH_MODE=serviceaccount
+MCP_METRICS_PROMETHEUS_AUTH_MODE=sa-token
 ```
 
 #### Prometheus TLS configuration
@@ -591,7 +591,7 @@ Reference ConfigMap and Secret in the Deployment:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: streamshub-strimzi-mcp
+  name: streamshub-mcp-strimzi
   namespace: streamshub-mcp
 spec:
   template:
@@ -619,15 +619,15 @@ Update environment variables without editing manifests:
 
 ```bash
 # Set Loki URL
-kubectl -n streamshub-mcp set env deployment/streamshub-strimzi-mcp \
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
   QUARKUS_REST_CLIENT_LOKI_URL=http://loki.monitoring:3100
 
 # Set Prometheus URL
-kubectl -n streamshub-mcp set env deployment/streamshub-strimzi-mcp \
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
   QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://prometheus.monitoring:9090
 
 # Set log tail lines
-kubectl -n streamshub-mcp set env deployment/streamshub-strimzi-mcp \
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
   MCP_LOG_TAIL_LINES=500
 ```
 
@@ -666,7 +666,7 @@ Get the Loki service URL and configure the MCP server:
 LOKI_URL=$(kubectl -n loki get svc loki -o jsonpath='{.spec.clusterIP}')
 
 # Configure MCP server
-kubectl -n streamshub-mcp set env deployment/streamshub-strimzi-mcp \
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
   QUARKUS_REST_CLIENT_LOKI_URL=http://${LOKI_URL}:3100 \
   MCP_LOG_PROVIDER=streamshub-loki
 ```
@@ -695,7 +695,7 @@ kubectl -n streamshub-mcp create secret generic loki-auth \
   --from-literal=password=your-password
 
 # Update Deployment to use Secret
-kubectl -n streamshub-mcp set env deployment/streamshub-strimzi-mcp \
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
   MCP_LOG_LOKI_AUTH_MODE=basic \
   --from=secret/loki-auth
 ```
@@ -706,7 +706,7 @@ Check that the integration is working:
 
 ```bash
 # Check MCP server logs
-kubectl -n streamshub-mcp logs -l app=streamshub-strimzi-mcp
+kubectl -n streamshub-mcp logs -l app=streamshub-mcp-strimzi
 
 # Test log collection through your AI assistant
 # Ask: "Collect logs from mcp-cluster"
@@ -746,7 +746,7 @@ Get the Prometheus service URL and configure the MCP server:
 PROM_URL=$(kubectl -n monitoring get svc prometheus-operated -o jsonpath='{.spec.clusterIP}')
 
 # Configure MCP server
-kubectl -n streamshub-mcp set env deployment/streamshub-strimzi-mcp \
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
   QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://${PROM_URL}:9090 \
   MCP_METRICS_PROVIDER=streamshub-prometheus
 ```
@@ -762,7 +762,7 @@ kubectl -n streamshub-mcp create secret generic prometheus-auth \
   --from-literal=password=your-password
 
 # Update Deployment to use Secret
-kubectl -n streamshub-mcp set env deployment/streamshub-strimzi-mcp \
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
   MCP_METRICS_PROMETHEUS_AUTH_MODE=basic \
   --from=secret/prometheus-auth
 ```
@@ -773,7 +773,7 @@ Check that the integration is working:
 
 ```bash
 # Check MCP server logs
-kubectl -n streamshub-mcp logs -l app=streamshub-strimzi-mcp
+kubectl -n streamshub-mcp logs -l app=streamshub-mcp-strimzi
 
 # Test metrics query through your AI assistant
 # Ask: "Query Kafka metrics for mcp-cluster"
@@ -853,7 +853,7 @@ View the current configuration:
 
 ```bash
 # View environment variables in the deployment
-kubectl -n streamshub-mcp get deployment streamshub-strimzi-mcp -o yaml | grep -A 20 env:
+kubectl -n streamshub-mcp get deployment streamshub-mcp-strimzi -o yaml | grep -A 20 env:
 
 # Check ConfigMap
 kubectl -n streamshub-mcp get configmap strimzi-mcp-config -o yaml
@@ -868,11 +868,11 @@ Test connectivity to external services:
 
 ```bash
 # Test Loki connectivity from MCP pod
-kubectl -n streamshub-mcp exec -it deployment/streamshub-strimzi-mcp -- \
+kubectl -n streamshub-mcp exec -it deployment/streamshub-mcp-strimzi -- \
   curl http://loki.monitoring:3100/ready
 
 # Test Prometheus connectivity from MCP pod
-kubectl -n streamshub-mcp exec -it deployment/streamshub-strimzi-mcp -- \
+kubectl -n streamshub-mcp exec -it deployment/streamshub-mcp-strimzi -- \
   curl http://prometheus.monitoring:9090/-/ready
 ```
 
@@ -890,7 +890,7 @@ kubectl -n monitoring get svc loki
 kubectl -n monitoring logs -l app=loki
 
 # Verify network connectivity from MCP pod
-kubectl -n streamshub-mcp exec -it deployment/streamshub-strimzi-mcp -- \
+kubectl -n streamshub-mcp exec -it deployment/streamshub-mcp-strimzi -- \
   curl -v http://loki.monitoring:3100/ready
 ```
 
@@ -906,7 +906,7 @@ kubectl -n monitoring get svc prometheus-operated
 kubectl -n monitoring logs -l app.kubernetes.io/name=prometheus
 
 # Verify network connectivity from MCP pod
-kubectl -n streamshub-mcp exec -it deployment/streamshub-strimzi-mcp -- \
+kubectl -n streamshub-mcp exec -it deployment/streamshub-mcp-strimzi -- \
   curl -v http://prometheus.monitoring:9090/-/ready
 ```
 
@@ -919,11 +919,11 @@ If you see authentication errors:
 kubectl -n streamshub-mcp get secret strimzi-mcp-secrets
 
 # Check if environment variables are set correctly
-kubectl -n streamshub-mcp exec -it deployment/streamshub-strimzi-mcp -- \
+kubectl -n streamshub-mcp exec -it deployment/streamshub-mcp-strimzi -- \
   env | grep -E '(LOKI|PROMETHEUS)'
 
 # Check MCP server logs for authentication errors
-kubectl -n streamshub-mcp logs -l app=streamshub-strimzi-mcp | grep -i auth
+kubectl -n streamshub-mcp logs -l app=streamshub-mcp-strimzi | grep -i auth
 ```
 
 ## Next steps

@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: streamshub-strimzi-mcp
+  name: streamshub-mcp-strimzi
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: strimzi-mcp
+      app.kubernetes.io/name: streamshub-mcp-strimzi
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: strimzi-mcp
+        app.kubernetes.io/name: streamshub-mcp-strimzi
     spec:
-      serviceAccountName: streamshub-strimzi-mcp
+      serviceAccountName: streamshub-mcp-strimzi
       containers:
         - name: strimzi-mcp
           image: quay.io/streamshub/strimzi-mcp:latest

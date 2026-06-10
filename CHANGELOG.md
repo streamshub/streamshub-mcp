@@ -13,9 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Renamed deployment and related resources from `streamshub-strimzi-mcp` to `streamshub-mcp-strimzi` for consistent naming
+
 ### Fixed
 
 - Replaced deprecated `Elicitation.isSupported()` with `isFormModeSupported()` across all diagnostic services
+- Fixed `auth-mode` documentation to use correct values (`sa-token` and `bearer-token`) matching the actual implementation
 
 ## [0.1.0] - 2026-06-02
 
@@ -94,6 +97,6 @@ Initial release of the MCP Server for Strimzi.
 - Automatic namespace discovery on all tools
 - Dynamic parameter completions via live Kubernetes queries
 
-[0.2.0]: https://github.com/streamshub/streamshub-mcp/compare/v0.1.0...v0.2.0
+[0.2.0]: https://github.com/streamshub/streamshub-mcp/compare/v0.1.0...main
 [0.1.0]: https://github.com/streamshub/streamshub-mcp/releases/tag/v0.1.0
 [0.0.1]: https://github.com/streamshub/streamshub-mcp/releases/tag/v0.0.1

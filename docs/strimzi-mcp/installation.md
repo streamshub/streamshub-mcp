@@ -177,7 +177,7 @@ kubectl apply -k install/strimzi-mcp/overlays/prod/
 kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/
 
 # Verify the deployment
-kubectl -n streamshub-mcp rollout status deployment/streamshub-strimzi-mcp
+kubectl -n streamshub-mcp rollout status deployment/streamshub-mcp-strimzi
 kubectl -n streamshub-mcp get pods
 ```
 
@@ -304,7 +304,7 @@ See the [configuration guide](configuration.md) for all available settings.
 Use port-forwarding to access the server from your local machine:
 
 ```bash
-kubectl -n streamshub-mcp port-forward svc/streamshub-strimzi-mcp 8080:8080
+kubectl -n streamshub-mcp port-forward svc/streamshub-mcp-strimzi 8080:8080
 ```
 
 Configure your MCP client to use `http://localhost:8080/mcp`.
@@ -317,15 +317,15 @@ The `prod-openshift` and `dev-openshift` overlays include an edge-terminated Rou
 kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/
 
 # Get the Route hostname
-ROUTE_HOST=$(oc -n streamshub-mcp get route streamshub-strimzi-mcp -o jsonpath='{.spec.host}')
+ROUTE_HOST=$(oc -n streamshub-mcp get route streamshub-mcp-strimzi -o jsonpath='{.spec.host}')
 echo "MCP Server URL: https://${ROUTE_HOST}/mcp"
 ```
 
 Alternatively, create a Route manually:
 
 ```bash
-oc -n streamshub-mcp create route edge streamshub-strimzi-mcp \
-  --service=streamshub-strimzi-mcp \
+oc -n streamshub-mcp create route edge streamshub-mcp-strimzi \
+  --service=streamshub-mcp-strimzi \
   --port=http
 ```
 
@@ -339,7 +339,7 @@ Create an Ingress resource for external access on standard Kubernetes:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: streamshub-strimzi-mcp
+  name: streamshub-mcp-strimzi
   namespace: streamshub-mcp
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
@@ -357,7 +357,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: streamshub-strimzi-mcp
+            name: streamshub-mcp-strimzi
             port:
               number: 8080
 ```
@@ -408,7 +408,7 @@ kubectl cluster-info
 kubectl get crd | grep strimzi
 
 # Check server logs
-kubectl -n streamshub-mcp logs deployment/streamshub-strimzi-mcp
+kubectl -n streamshub-mcp logs deployment/streamshub-mcp-strimzi
 ```
 
 ### RBAC permission errors

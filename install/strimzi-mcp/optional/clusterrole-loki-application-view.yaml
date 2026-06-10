@@ -3,7 +3,7 @@ kind: ClusterRole
 metadata:
   name: cluster-logging-application-view
   labels:
-    app.kubernetes.io/name: strimzi-mcp
+    app.kubernetes.io/name: streamshub-mcp-strimzi
     app.kubernetes.io/part-of: streamshub
 rules:
   # Allow reading application logs via the OpenShift LokiStack gateway.

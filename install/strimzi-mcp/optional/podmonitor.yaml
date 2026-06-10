@@ -7,7 +7,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: strimzi-mcp
+      app.kubernetes.io/name: streamshub-mcp-strimzi
   podMetricsEndpoints:
     - path: /q/metrics
       port: http

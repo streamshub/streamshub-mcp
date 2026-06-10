@@ -158,7 +158,7 @@ This creates a PodMonitor that scrapes `mcp.tool.calls` and `mcp.tool.call.durat
 kubectl apply -k install/strimzi-mcp/overlays/prod/ --dry-run=client
 
 # Check deployment status
-kubectl -n streamshub-mcp rollout status deployment/streamshub-strimzi-mcp
+kubectl -n streamshub-mcp rollout status deployment/streamshub-mcp-strimzi
 
 # Verify pods are running
 kubectl -n streamshub-mcp get pods

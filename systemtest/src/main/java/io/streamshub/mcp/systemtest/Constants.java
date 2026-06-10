@@ -23,13 +23,13 @@ public final class Constants {
     // --- MCP Server ---
 
     /** Name of the MCP server deployment, service, and related resources. */
-    public static final String MCP_NAME = "streamshub-strimzi-mcp";
+    public static final String MCP_NAME = "streamshub-mcp-strimzi";
 
     /** Label key used to identify MCP server resources. */
     public static final String MCP_APP_LABEL_KEY = "app.kubernetes.io/name";
 
     /** Label value used to identify MCP server resources. */
-    public static final String MCP_APP_LABEL = "strimzi-mcp";
+    public static final String MCP_APP_LABEL = "streamshub-mcp-strimzi";
 
     /** Default container port for the MCP server. */
     public static final int MCP_PORT = 8080;

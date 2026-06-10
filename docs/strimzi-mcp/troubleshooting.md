@@ -177,14 +177,14 @@ kubectl -n streamshub-mcp logs <pod-name>
      -n streamshub-mcp
    
    # Update deployment to use secret
-   kubectl patch deployment streamshub-strimzi-mcp \
+   kubectl patch deployment streamshub-mcp-strimzi \
      -n streamshub-mcp \
      -p '{"spec":{"template":{"spec":{"imagePullSecrets":[{"name":"regcred"}]}}}}'
    ```
 
 2. **RBAC issues**
    ```
-   Error: User "system:serviceaccount:streamshub-mcp:streamshub-mcp" 
+   Error: User "system:serviceaccount:streamshub-mcp:streamshub-mcp-strimzi"
    cannot list kafkas
    ```
    
@@ -205,7 +205,7 @@ kubectl -n streamshub-mcp logs <pod-name>
    **Solution**:
    ```bash
    # Reduce resource requests
-   kubectl edit deployment streamshub-strimzi-mcp -n streamshub-mcp
+   kubectl edit deployment streamshub-mcp-strimzi -n streamshub-mcp
    
    # Or scale down other workloads
    ```
@@ -217,14 +217,14 @@ kubectl -n streamshub-mcp logs <pod-name>
 **Diagnosis**:
 ```bash
 # Check service
-kubectl -n streamshub-mcp get svc streamshub-strimzi-mcp
+kubectl -n streamshub-mcp get svc streamshub-mcp-strimzi
 
 # Check endpoints
-kubectl -n streamshub-mcp get endpoints streamshub-strimzi-mcp
+kubectl -n streamshub-mcp get endpoints streamshub-mcp-strimzi
 
 # Test from within cluster
 kubectl -n streamshub-mcp run test --rm -it --image=curlimages/curl -- \
-  curl http://streamshub-strimzi-mcp:8080/q/health
+  curl http://streamshub-mcp-strimzi:8080/q/health
 ```
 
 **Solutions**:
@@ -241,7 +241,7 @@ kubectl -n streamshub-mcp run test --rm -it --image=curlimages/curl -- \
 2. **Port mismatch**: Service port does not match container port
    ```bash
    # Verify service configuration
-   kubectl -n streamshub-mcp get svc streamshub-strimzi-mcp -o yaml
+   kubectl -n streamshub-mcp get svc streamshub-mcp-strimzi -o yaml
    ```
 
 ## AI assistant issues
@@ -363,7 +363,7 @@ kubectl -n streamshub-mcp exec <mcp-pod> -- \
 1. **Loki URL not configured**
    ```bash
    # Set environment variable
-   kubectl -n streamshub-mcp set env deployment/streamshub-strimzi-mcp \
+   kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
      LOKI_URL=http://loki.monitoring:3100
    ```
 
@@ -382,7 +382,7 @@ kubectl -n streamshub-mcp exec <mcp-pod> -- \
    kubectl -n streamshub-mcp create secret generic loki-auth \
      --from-literal=token=your-token
    
-   kubectl -n streamshub-mcp set env deployment/streamshub-strimzi-mcp \
+   kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
      LOKI_AUTH_ENABLED=true \
      --from=secret/loki-auth
    ```
@@ -477,7 +477,7 @@ kubectl -n streamshub-mcp exec <mcp-pod> -- \
 
 4. **Increase resource limits**
    ```bash
-   kubectl -n streamshub-mcp set resources deployment/streamshub-strimzi-mcp \
+   kubectl -n streamshub-mcp set resources deployment/streamshub-mcp-strimzi \
      --limits=cpu=1000m,memory=1Gi \
      --requests=cpu=500m,memory=512Mi
    ```
@@ -504,7 +504,7 @@ kubectl -n streamshub-mcp get pod <pod-name> -o yaml | grep -A 5 resources
 
 2. **Increase memory limits**
    ```bash
-   kubectl -n streamshub-mcp set resources deployment/streamshub-strimzi-mcp \
+   kubectl -n streamshub-mcp set resources deployment/streamshub-mcp-strimzi \
      --limits=memory=2Gi
    ```
 
@@ -519,7 +519,7 @@ export QUARKUS_LOG_CATEGORY__IO_STREAMSHUB_MCP__LEVEL=TRACE
 ./mvnw quarkus:dev
 
 # For Kubernetes deployment
-kubectl -n streamshub-mcp set env deployment/streamshub-strimzi-mcp \
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
   QUARKUS_LOG_LEVEL=DEBUG \
   QUARKUS_LOG_CATEGORY__IO_STREAMSHUB_MCP__LEVEL=TRACE
 ```
@@ -534,10 +534,10 @@ kubectl -n streamshub-mcp logs <pod-name> --tail=100
 kubectl -n streamshub-mcp describe pod <pod-name>
 
 # RBAC permissions
-kubectl auth can-i --list --as=system:serviceaccount:streamshub-mcp:streamshub-mcp
+kubectl auth can-i --list --as=system:serviceaccount:streamshub-mcp:streamshub-mcp-strimzi
 
 # Configuration
-kubectl -n streamshub-mcp get deployment streamshub-strimzi-mcp -o yaml
+kubectl -n streamshub-mcp get deployment streamshub-mcp-strimzi -o yaml
 ```
 
 ### Report issues
