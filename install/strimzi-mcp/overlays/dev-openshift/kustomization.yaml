@@ -5,7 +5,7 @@ namespace: streamshub-mcp
 
 labels:
 - pairs:
-    app.kubernetes.io/name: strimzi-mcp
+    app.kubernetes.io/name: streamshub-mcp-strimzi
   includeSelectors: true
   includeTemplates: true
 - pairs:

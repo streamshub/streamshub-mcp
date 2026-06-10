@@ -7,7 +7,7 @@ labels:
 - includeSelectors: true
   includeTemplates: true
   pairs:
-    app.kubernetes.io/name: strimzi-mcp
+    app.kubernetes.io/name: streamshub-mcp-strimzi
 - includeTemplates: true
   pairs:
     app.kubernetes.io/managed-by: kustomize

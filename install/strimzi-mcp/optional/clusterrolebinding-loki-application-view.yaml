@@ -1,9 +1,9 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: streamshub-strimzi-mcp-logging-application-view
+  name: streamshub-mcp-strimzi-logging-application-view
   labels:
-    app.kubernetes.io/name: strimzi-mcp
+    app.kubernetes.io/name: streamshub-mcp-strimzi
     app.kubernetes.io/part-of: streamshub
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -11,5 +11,5 @@ roleRef:
   name: cluster-logging-application-view
 subjects:
   - kind: ServiceAccount
-    name: streamshub-strimzi-mcp
+    name: streamshub-mcp-strimzi
     namespace: streamshub-mcp

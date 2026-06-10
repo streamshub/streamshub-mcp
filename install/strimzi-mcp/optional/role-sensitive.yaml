@@ -1,9 +1,9 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: streamshub-strimzi-mcp-sensitive
+  name: streamshub-mcp-strimzi-sensitive
   labels:
-    app.kubernetes.io/name: strimzi-mcp
+    app.kubernetes.io/name: streamshub-mcp-strimzi
     app.kubernetes.io/part-of: streamshub
 rules:
   - apiGroups: [""]

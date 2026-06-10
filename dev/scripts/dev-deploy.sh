@@ -115,8 +115,8 @@ echo "==> Deploying $MODULE with image: $IMAGE"
 kustomize build "$OVERLAY_DIR" | sed "s|$BASE_IMAGE|$IMAGE|g" | kubectl apply -f -
 
 DEPLOY_NS="streamshub-mcp"
-DEPLOY_TARGET="deployment/streamshub-strimzi-mcp"
-SA_NAME="streamshub-strimzi-mcp"
+DEPLOY_TARGET="deployment/streamshub-mcp-strimzi"
+SA_NAME="streamshub-mcp-strimzi"
 
 if [ "$LOKI" = true ] || [ "$PROMETHEUS" = true ]; then
     echo "==> Granting monitoring RBAC to service account $SA_NAME"
