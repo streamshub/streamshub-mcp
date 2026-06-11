@@ -8,6 +8,7 @@ import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse.BridgeSummary;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse.ClusterSummary;
@@ -273,11 +274,13 @@ public class KafkaClusterOverviewService {
 
     private DrainCleanerSummary gatherDrainCleaner() {
         try {
-            var readiness = drainCleanerService.checkReadiness(null);
-            if (!readiness.deployed()) {
+            List<DrainCleanerResponse> drainCleaners = drainCleanerService.listDrainCleaners(null);
+            if (drainCleaners.isEmpty()) {
                 return null;
             }
-            return new DrainCleanerSummary("strimzi-drain-cleaner", readiness.overallReady());
+            DrainCleanerResponse dc = drainCleaners.getFirst();
+            String readiness = dc.ready() ? "Ready" : "NotReady";
+            return new DrainCleanerSummary(dc.name(), dc.namespace(), readiness, dc.replicas());
         } catch (Exception e) {
             LOG.warnf("Could not check Drain Cleaner: %s", e.getMessage());
             return null;

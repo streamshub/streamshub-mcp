@@ -77,7 +77,7 @@ class KafkaClusterOverviewToolsTest {
                 List.of(new ConnectSummary("my-connect", "kafka", "Ready", 2, 3)),
                 List.of(),
                 List.of(),
-                new DrainCleanerSummary("strimzi-drain-cleaner", true),
+                new DrainCleanerSummary("strimzi-drain-cleaner", "strimzi-drain-cleaner", "Ready", 1),
                 Instant.now())
         );
 
@@ -96,6 +96,8 @@ class KafkaClusterOverviewToolsTest {
                     assertTrue(json.contains("my-connect"));
                     assertTrue(json.contains("\"connector_count\":3"));
                     assertTrue(json.contains("strimzi-drain-cleaner"));
+                    assertTrue(json.contains("\"readiness\":\"Ready\""));
+                    assertTrue(json.contains("\"replicas\":1"));
                 })
             .thenAssertResults();
     }

@@ -199,13 +199,17 @@ public record KafkaClusterOverviewResponse(
     /**
      * Drain Cleaner summary.
      *
-     * @param name  the drain cleaner deployment name
-     * @param ready whether the drain cleaner is ready
+     * @param name      the drain cleaner deployment name
+     * @param namespace the Kubernetes namespace
+     * @param readiness the readiness status
+     * @param replicas  the replica count
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record DrainCleanerSummary(
         @JsonProperty("name") String name,
-        @JsonProperty("ready") boolean ready
+        @JsonProperty("namespace") String namespace,
+        @JsonProperty("readiness") String readiness,
+        @JsonProperty("replicas") Integer replicas
     ) {
     }
 }
