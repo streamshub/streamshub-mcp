@@ -31,17 +31,19 @@ public class StrimziEventsTools {
     /**
      * Get Kubernetes events for a Kafka cluster and all related resources.
      *
-     * @param clusterName  the cluster name
+     * @param clusterName  the Strimzi resource name
      * @param namespace    optional namespace
      * @param sinceMinutes optional time window in minutes
+     * @param resourceKind optional Strimzi resource kind for non-Kafka resources
      * @return events grouped by resource
      */
     @WithSpan("tool.get_strimzi_events")
     @Tool(
         name = "get_strimzi_events",
-        description = "Get Kubernetes events for a Kafka cluster and all related resources"
-            + " (pods, PVCs, node pools). Shows scheduling, restarts, volume issues,"
-            + " and operator reconciliation events.",
+        description = "Get Kubernetes events for a Strimzi resource and all related pods."
+            + " For Kafka clusters (default), also includes PVC and node pool events."
+            + " For KafkaConnect, KafkaMirrorMaker2, or KafkaBridge, pass the resource_kind"
+            + " parameter to query events for the correct resource type.",
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -51,7 +53,8 @@ public class StrimziEventsTools {
     )
     public StrimziEventsResponse getStrimziEvents(
         @ToolArg(
-            description = StrimziToolsPrompts.CLUSTER_DESC
+            description = "Strimzi resource name (Kafka cluster, KafkaConnect,"
+                + " KafkaMirrorMaker2, or KafkaBridge). e.g., 'my-cluster' or 'my-connect'."
         ) final String clusterName,
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
@@ -60,8 +63,16 @@ public class StrimziEventsTools {
         @ToolArg(
             description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
             required = false
-        ) final Integer sinceMinutes
+        ) final Integer sinceMinutes,
+        @ToolArg(
+            description = StrimziToolsPrompts.RESOURCE_KIND_DESC,
+            required = false
+        ) final String resourceKind
     ) {
+        String trimmedKind = resourceKind != null && !resourceKind.isBlank() ? resourceKind.trim() : null;
+        if (trimmedKind != null) {
+            return eventsService.getResourceEvents(namespace, clusterName, trimmedKind, sinceMinutes);
+        }
         return eventsService.getClusterEvents(namespace, clusterName, sinceMinutes);
     }
 }

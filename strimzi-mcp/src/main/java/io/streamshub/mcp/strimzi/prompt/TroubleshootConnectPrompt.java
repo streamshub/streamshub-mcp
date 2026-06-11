@@ -125,7 +125,7 @@ public class TroubleshootConnectPrompt {
             - CPU saturation
 
             ## Step 6: Check Kubernetes events
-            Use `get_strimzi_events(%s)`.
+            Use `get_strimzi_events(clusterName='%s'%s, resource_kind='KafkaConnect')`.
             Look for: reconciliation failures, scheduling failures, \
             resource quota issues, eviction events, image pull errors.
 
@@ -154,7 +154,7 @@ public class TroubleshootConnectPrompt {
                 connectCluster, nsArg,
                 connectCluster, nsArg,
                 connectCluster, nsArg,
-                nsArg.isEmpty() ? "" : "namespace='" + namespace + "'");
+                connectCluster, nsArg);
 
         return PromptResponse.withMessages(List.of(
             PromptMessage.withUserRole(instructions)

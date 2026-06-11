@@ -79,18 +79,20 @@ Get Strimzi operator logs with ERROR level for the last 30 minutes
 
 ### get_strimzi_events
 
-Get Kubernetes events for a Kafka cluster and all related resources (pods, PVCs, node pools).
+Get Kubernetes events for a Strimzi resource and all related pods. For Kafka clusters (default), also includes PVC and node pool events. For KafkaConnect, KafkaMirrorMaker2, or KafkaBridge, pass the `resource_kind` parameter to query events for the correct resource type.
 
 **Parameters**:
-- `clusterName` (required) -- Name of the Kafka cluster
-- `namespace` (optional) -- Kubernetes namespace
+- `clusterName` (required) -- Name of the Strimzi resource (Kafka cluster, KafkaConnect, KafkaMirrorMaker2, or KafkaBridge)
+- `namespace` (optional) -- Kubernetes namespace. Required when `resource_kind` is specified
 - `sinceMinutes` (optional) -- Time window in minutes (default: 30)
+- `resourceKind` (optional) -- Strimzi resource kind: `KafkaConnect`, `KafkaMirrorMaker2`, or `KafkaBridge`. Omit for Kafka cluster events (default)
 
 **Returns**: Events grouped by resource type showing scheduling, restarts, volume issues, and operator reconciliation events
 
-**Example**:
+**Examples**:
 ```
 Get events for mcp-cluster in the last hour
+Get events for my-connect KafkaConnect cluster
 ```
 
 ## Next steps

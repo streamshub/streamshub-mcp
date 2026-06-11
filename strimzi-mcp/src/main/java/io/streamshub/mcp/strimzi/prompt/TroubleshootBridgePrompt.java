@@ -58,6 +58,9 @@ public class TroubleshootBridgePrompt {
         String nsClause = namespace != null && !namespace.isBlank()
             ? " in namespace `" + namespace + "`"
             : "";
+        String nsArg = namespace != null && !namespace.isBlank()
+            ? ", namespace='" + namespace + "'"
+            : "";
         String symptomClause = symptom != null && !symptom.isBlank()
             ? " The reported symptom is: " + symptom + "."
             : "";
@@ -105,8 +108,8 @@ public class TroubleshootBridgePrompt {
             - Serialization or deserialization failures
 
             ## Step 4: Check Kubernetes events
-            Use `get_strimzi_events` to look for Kubernetes events related to \
-            the bridge resources.
+            Use `get_strimzi_events(clusterName='%s'%s, resource_kind='KafkaBridge')` \
+            to look for Kubernetes events related to the bridge resources.
             Look for: Warning events, reconciliation failures, resource quota \
             issues, pod scheduling failures.
 
@@ -131,7 +134,8 @@ public class TroubleshootBridgePrompt {
             - Severity assessment
             - Specific remediation steps\
             """.formatted(bridgeName, nsClause, symptomClause,
-                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION);
+                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
+                bridgeName, nsArg);
 
         return PromptResponse.withMessages(List.of(
             PromptMessage.withUserRole(instructions)

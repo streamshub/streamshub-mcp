@@ -14,11 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Renamed deployment and related resources from `streamshub-strimzi-mcp` to `streamshub-mcp-strimzi` for consistent naming
+- Added optional `resource_kind` parameter to `get_strimzi_events` tool for querying events on non-Kafka Strimzi resources (KafkaConnect, KafkaMirrorMaker2, KafkaBridge)
 
 ### Fixed
 
 - Replaced deprecated `Elicitation.isSupported()` with `isFormModeSupported()` across all diagnostic services
 - Fixed `auth-mode` documentation to use correct values (`sa-token` and `bearer-token`) matching the actual implementation
+- Fixed diagnostic services and prompt templates incorrectly passing KafkaConnect/KafkaMirrorMaker2 names to `get_strimzi_events` as Kafka cluster names (#145)
 
 ## [0.1.0] - 2026-06-02
 
