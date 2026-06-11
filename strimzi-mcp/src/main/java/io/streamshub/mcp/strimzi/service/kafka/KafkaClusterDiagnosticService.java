@@ -20,6 +20,7 @@ import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerLogsResponse;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerReadinessResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterDiagnosticReport;
@@ -440,8 +441,8 @@ public class KafkaClusterDiagnosticService {
                                        final List<String> failed,
                                        final McpLog mcpLog) {
         try {
-            StrimziEventsResponse result = eventsService.getClusterEvents(
-                namespace, clusterName, sinceMinutes);
+            StrimziEventsResponse result = eventsService.getEvents(
+                namespace, clusterName, StrimziConstants.KindValues.KAFKA, sinceMinutes);
             completed.add(STEP_EVENTS);
             DiagnosticHelper.sendClientNotification(mcpLog, String.format("Found %d events", result.totalEvents()));
             return result;

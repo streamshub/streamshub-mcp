@@ -286,7 +286,7 @@ public class KafkaConnectDiagnosticService {
                                         final List<String> failed,
                                         final McpLog mcpLog) {
         try {
-            StrimziEventsResponse result = eventsService.getResourceEvents(
+            StrimziEventsResponse result = eventsService.getEvents(
                 namespace, connectName, StrimziConstants.KindValues.KAFKA_CONNECT, sinceMinutes);
             completed.add(STEP_EVENTS);
             DiagnosticHelper.sendClientNotification(mcpLog,

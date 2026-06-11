@@ -12,6 +12,7 @@ import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodList;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -72,9 +73,15 @@ class StrimziEventsServiceTest {
     }
 
     @Test
-    void testThrowsWhenClusterNameMissing() {
+    void testThrowsWhenResourceNameMissing() {
         assertThrows(ToolCallException.class, () ->
-            eventsService.getClusterEvents("kafka", null, null));
+            eventsService.getEvents("kafka", null, "Kafka", null));
+    }
+
+    @Test
+    void testThrowsWhenResourceKindMissing() {
+        assertThrows(ToolCallException.class, () ->
+            eventsService.getEvents("kafka", "my-cluster", null, null));
     }
 
     @Test
@@ -99,10 +106,10 @@ class StrimziEventsServiceTest {
 
         setupEventsResponse(List.of(event));
 
-        StrimziEventsResponse result = eventsService.getClusterEvents("kafka", "my-cluster", null);
+        StrimziEventsResponse result = eventsService.getEvents("kafka", "my-cluster", "Kafka", null);
 
         assertNotNull(result);
-        assertEquals("my-cluster", result.clusterName());
+        assertEquals("my-cluster", result.resourceName());
         assertEquals("kafka", result.namespace());
         assertEquals(1, result.totalEvents());
         assertEquals(1, result.resources().size());
@@ -120,7 +127,7 @@ class StrimziEventsServiceTest {
         setupKafkaCRLookup(kafka);
         setupEventsResponse(List.of());
 
-        StrimziEventsResponse result = eventsService.getClusterEvents("kafka", "my-cluster", null);
+        StrimziEventsResponse result = eventsService.getEvents("kafka", "my-cluster", "Kafka", null);
 
         assertNotNull(result);
         assertEquals(0, result.totalEvents());
@@ -187,30 +194,24 @@ class StrimziEventsServiceTest {
         when(fieldEventOp.list()).thenReturn(eventList);
     }
 
-    // ---- Tests for getResourceEvents() ----
+    // ---- Tests for getEvents() with resource kind ----
 
     @Test
     void testGetResourceEventsThrowsWhenNameMissing() {
         assertThrows(ToolCallException.class, () ->
-            eventsService.getResourceEvents("kafka", null, "KafkaConnect", null));
+            eventsService.getEvents("kafka", null, "KafkaConnect", null));
     }
 
     @Test
     void testGetResourceEventsThrowsWhenNamespaceMissing() {
         assertThrows(ToolCallException.class, () ->
-            eventsService.getResourceEvents(null, "my-connect", "KafkaConnect", null));
+            eventsService.getEvents(null, "my-connect", "KafkaConnect", null));
     }
 
     @Test
     void testGetResourceEventsThrowsWhenKindInvalid() {
         assertThrows(ToolCallException.class, () ->
-            eventsService.getResourceEvents("kafka", "my-cluster", "Kafka", null));
-    }
-
-    @Test
-    void testGetResourceEventsThrowsWhenKindNull() {
-        assertThrows(ToolCallException.class, () ->
-            eventsService.getResourceEvents("kafka", "my-connect", null, null));
+            eventsService.getEvents("kafka", "my-cluster", "InvalidKind", null));
     }
 
     @Test
@@ -230,11 +231,11 @@ class StrimziEventsServiceTest {
 
         setupEventsResponse(List.of(event));
 
-        StrimziEventsResponse result = eventsService.getResourceEvents(
+        StrimziEventsResponse result = eventsService.getEvents(
             "kafka", "my-connect", "KafkaConnect", null);
 
         assertNotNull(result);
-        assertEquals("my-connect", result.clusterName());
+        assertEquals("my-connect", result.resourceName());
         assertEquals("kafka", result.namespace());
         assertEquals(1, result.totalEvents());
         assertEquals("KafkaConnect", result.resources().getFirst().resourceKind());
@@ -244,7 +245,7 @@ class StrimziEventsServiceTest {
     void testGetResourceEventsReturnsEmptyWhenNoEvents() {
         setupEventsResponse(List.of());
 
-        StrimziEventsResponse result = eventsService.getResourceEvents(
+        StrimziEventsResponse result = eventsService.getEvents(
             "kafka", "my-connect", "KafkaConnect", null);
 
         assertNotNull(result);
@@ -291,7 +292,7 @@ class StrimziEventsServiceTest {
 
         setupEventsResponse(List.of(crEvent, podEvent));
 
-        StrimziEventsResponse result = eventsService.getResourceEvents(
+        StrimziEventsResponse result = eventsService.getEvents(
             "kafka", "my-connect", "KafkaConnect", null);
 
         assertNotNull(result);
@@ -302,11 +303,11 @@ class StrimziEventsServiceTest {
     void testGetResourceEventsWorksForMirrorMaker2() {
         setupEventsResponse(List.of());
 
-        StrimziEventsResponse result = eventsService.getResourceEvents(
+        StrimziEventsResponse result = eventsService.getEvents(
             "kafka", "my-mm2", "KafkaMirrorMaker2", null);
 
         assertNotNull(result);
-        assertEquals("my-mm2", result.clusterName());
+        assertEquals("my-mm2", result.resourceName());
         assertEquals("kafka", result.namespace());
     }
 
@@ -314,12 +315,59 @@ class StrimziEventsServiceTest {
     void testGetResourceEventsWorksForBridge() {
         setupEventsResponse(List.of());
 
-        StrimziEventsResponse result = eventsService.getResourceEvents(
+        StrimziEventsResponse result = eventsService.getEvents(
             "kafka", "my-bridge", "KafkaBridge", null);
 
         assertNotNull(result);
-        assertEquals("my-bridge", result.clusterName());
+        assertEquals("my-bridge", result.resourceName());
         assertEquals("kafka", result.namespace());
+    }
+
+    @Test
+    void testGetOperatorEvents() {
+        setupDeploymentLookup("strimzi-cluster-operator", "strimzi-operator");
+        setupEventsResponse(List.of());
+
+        StrimziEventsResponse result = eventsService.getEvents(
+            "strimzi-operator", "strimzi-cluster-operator", "StrimziOperator", null);
+
+        assertNotNull(result);
+        assertEquals("strimzi-cluster-operator", result.resourceName());
+        assertEquals("strimzi-operator", result.namespace());
+    }
+
+    @Test
+    void testGetDrainCleanerEvents() {
+        setupDeploymentLookup("strimzi-drain-cleaner", "strimzi-drain-cleaner");
+        setupEventsResponse(List.of());
+
+        StrimziEventsResponse result = eventsService.getEvents(
+            "strimzi-drain-cleaner", "strimzi-drain-cleaner", "DrainCleaner", null);
+
+        assertNotNull(result);
+        assertEquals("strimzi-drain-cleaner", result.resourceName());
+        assertEquals("strimzi-drain-cleaner", result.namespace());
+    }
+
+    @SuppressWarnings("unchecked")
+    private void setupDeploymentLookup(final String name, final String namespace) {
+        Deployment deployment = new io.fabric8.kubernetes.api.model.apps.DeploymentBuilder()
+            .withNewMetadata().withName(name).withNamespace(namespace).endMetadata()
+            .build();
+
+        MixedOperation depOp = Mockito.mock(MixedOperation.class);
+        Mockito.lenient().when(kubernetesClient.resources(Deployment.class)).thenReturn(depOp);
+
+        NonNamespaceOperation nsDepOp = Mockito.mock(NonNamespaceOperation.class);
+        Mockito.lenient().when(depOp.inAnyNamespace()).thenReturn(nsDepOp);
+
+        FilterWatchListDeletable labeledOp = Mockito.mock(FilterWatchListDeletable.class);
+        Mockito.lenient().when(nsDepOp.withLabel(anyString(), anyString())).thenReturn(labeledOp);
+
+        io.fabric8.kubernetes.api.model.apps.DeploymentList depList =
+            new io.fabric8.kubernetes.api.model.apps.DeploymentList();
+        depList.setItems(List.of(deployment));
+        Mockito.lenient().when(labeledOp.list()).thenReturn(depList);
     }
 
     @SuppressWarnings("unchecked")

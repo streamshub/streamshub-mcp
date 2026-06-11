@@ -112,7 +112,7 @@ public class TroubleshootMirrorMakerPrompt {
             `TopicAuthorizationException`, `GroupAuthorizationException`.
 
             ## Step 5: Check Kubernetes events
-            Use `get_strimzi_events(clusterName='%s'%s, resource_kind='KafkaMirrorMaker2')` \
+            Use `get_strimzi_events(resourceName='%s'%s, resource_kind='KafkaMirrorMaker2')` \
             to look for warning events related to the MM2 resource.
             Look for: reconciliation failures, resource quota issues, scheduling failures.
 

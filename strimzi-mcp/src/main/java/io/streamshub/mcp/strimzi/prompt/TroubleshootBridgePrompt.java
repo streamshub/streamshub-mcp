@@ -108,7 +108,7 @@ public class TroubleshootBridgePrompt {
             - Serialization or deserialization failures
 
             ## Step 4: Check Kubernetes events
-            Use `get_strimzi_events(clusterName='%s'%s, resource_kind='KafkaBridge')` \
+            Use `get_strimzi_events(resourceName='%s'%s, resource_kind='KafkaBridge')` \
             to look for Kubernetes events related to the bridge resources.
             Look for: Warning events, reconciliation failures, resource quota \
             issues, pod scheduling failures.

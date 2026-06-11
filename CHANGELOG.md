@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Renamed deployment and related resources from `streamshub-strimzi-mcp` to `streamshub-mcp-strimzi` for consistent naming
-- Added optional `resource_kind` parameter to `get_strimzi_events` tool for querying events on non-Kafka Strimzi resources (KafkaConnect, KafkaMirrorMaker2, KafkaBridge)
+- Unified `get_strimzi_events` event query: merged separate Kafka and non-Kafka code paths into a single method, renamed `clusterName` parameter to `resourceName`, made `resourceKind` required, added `Kafka`, `StrimziOperator`, and `DrainCleaner` as supported resource kinds
 
 ### Fixed
 

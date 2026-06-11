@@ -225,7 +225,7 @@ public class KafkaMirrorMaker2DiagnosticService {
                                         final List<String> failed,
                                         final McpLog mcpLog) {
         try {
-            StrimziEventsResponse result = eventsService.getResourceEvents(
+            StrimziEventsResponse result = eventsService.getEvents(
                 namespace, name, StrimziConstants.KindValues.KAFKA_MIRROR_MAKER_2, sinceMinutes);
             completed.add(STEP_EVENTS);
             DiagnosticHelper.sendClientNotification(mcpLog,

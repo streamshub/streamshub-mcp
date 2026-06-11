@@ -31,9 +31,24 @@ public final class StrimziConstants {
      */
     public static final class KindValues {
         /**
+         * Kind value for Kafka clusters (used by the events tool).
+         */
+        public static final String KAFKA = "Kafka";
+
+        /**
          * Kind label value for the Strimzi cluster operator.
          */
         public static final String CLUSTER_OPERATOR = "cluster-operator";
+
+        /**
+         * Kind value for the Strimzi operator (used by the events tool).
+         */
+        public static final String STRIMZI_OPERATOR = "StrimziOperator";
+
+        /**
+         * Kind value for Drain Cleaner (used by the events tool).
+         */
+        public static final String DRAIN_CLEANER = "DrainCleaner";
 
         /**
          * Kind label value for KafkaConnect pods.

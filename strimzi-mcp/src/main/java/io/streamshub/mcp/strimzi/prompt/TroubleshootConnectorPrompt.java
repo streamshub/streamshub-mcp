@@ -111,7 +111,7 @@ public class TroubleshootConnectorPrompt {
 
             ## Step 5: Check events
             Use `get_strimzi_events` with the Connect cluster name from Step 1 as \
-            `clusterName` and `resource_kind='KafkaConnect'` to look for Kubernetes \
+            `resourceName` and `resource_kind='KafkaConnect'` to look for Kubernetes \
             events related to the Connect cluster pods.
             Look for: Warning events, reconciliation failures, resource quota issues.
 

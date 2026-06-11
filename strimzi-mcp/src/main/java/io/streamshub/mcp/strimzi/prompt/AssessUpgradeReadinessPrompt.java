@@ -212,7 +212,7 @@ public class AssessUpgradeReadinessPrompt {
             detects approaching expiry
 
             ## Step 9: Kubernetes events [ADVISORY]
-            Use `get_strimzi_events(cluster_name='%s'%s)` to check for recent \
+            Use `get_strimzi_events(resourceName='%s'%s, resource_kind='Kafka')` to check for recent \
             warning events.
             - Recent FailedScheduling events suggest node resource pressure
             - Recent eviction events suggest node instability

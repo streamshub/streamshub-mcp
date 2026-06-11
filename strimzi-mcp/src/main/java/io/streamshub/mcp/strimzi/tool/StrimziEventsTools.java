@@ -29,9 +29,9 @@ public class StrimziEventsTools {
     }
 
     /**
-     * Get Kubernetes events for a Kafka cluster and all related resources.
+     * Get Kubernetes events for a Strimzi resource and all related pods.
      *
-     * @param clusterName  the Strimzi resource name
+     * @param resourceName the Strimzi resource name
      * @param namespace    optional namespace
      * @param sinceMinutes optional time window in minutes
      * @param resourceKind optional Strimzi resource kind for non-Kafka resources
@@ -55,7 +55,7 @@ public class StrimziEventsTools {
         @ToolArg(
             description = "Strimzi resource name (Kafka cluster, KafkaConnect,"
                 + " KafkaMirrorMaker2, or KafkaBridge). e.g., 'my-cluster' or 'my-connect'."
-        ) final String clusterName,
+        ) final String resourceName,
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
@@ -65,14 +65,10 @@ public class StrimziEventsTools {
             required = false
         ) final Integer sinceMinutes,
         @ToolArg(
-            description = StrimziToolsPrompts.RESOURCE_KIND_DESC,
-            required = false
+            description = StrimziToolsPrompts.RESOURCE_KIND_DESC
         ) final String resourceKind
     ) {
         String trimmedKind = resourceKind != null && !resourceKind.isBlank() ? resourceKind.trim() : null;
-        if (trimmedKind != null) {
-            return eventsService.getResourceEvents(namespace, clusterName, trimmedKind, sinceMinutes);
-        }
-        return eventsService.getClusterEvents(namespace, clusterName, sinceMinutes);
+        return eventsService.getEvents(namespace, resourceName, trimmedKind, sinceMinutes);
     }
 }
