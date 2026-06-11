@@ -19,6 +19,7 @@ import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
@@ -301,8 +302,8 @@ public class KafkaTopicDiagnosticService {
                                         final List<String> failed,
                                         final McpLog mcpLog) {
         try {
-            StrimziEventsResponse result = eventsService.getClusterEvents(
-                namespace, clusterName, null);
+            StrimziEventsResponse result = eventsService.getEvents(
+                namespace, clusterName, StrimziConstants.KindValues.KAFKA, null);
             completed.add(STEP_EVENTS);
             DiagnosticHelper.sendClientNotification(mcpLog,
                 String.format("Found %d KafkaTopic related events", result.totalEvents()));

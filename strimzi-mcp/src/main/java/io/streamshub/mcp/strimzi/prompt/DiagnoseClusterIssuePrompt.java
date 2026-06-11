@@ -58,6 +58,9 @@ public class DiagnoseClusterIssuePrompt {
         String nsClause = namespace != null && !namespace.isBlank()
             ? " in namespace `" + namespace + "`"
             : "";
+        String nsArg = namespace != null && !namespace.isBlank()
+            ? ", namespace='" + namespace + "'"
+            : "";
         String symptomClause = symptom != null && !symptom.isBlank()
             ? " The reported symptom is: " + symptom + "."
             : "";
@@ -176,7 +179,8 @@ public class DiagnoseClusterIssuePrompt {
             the Kafka application level (check metrics in Step 8).**
 
             ## Step 6: Check Kubernetes events [HIGH - recent cluster activity]
-            Use `get_strimzi_events` to retrieve events for the cluster and all \
+            Use `get_strimzi_events(resourceName='%s'%s, resource_kind='Kafka')` \
+            to retrieve events for the cluster and all \
             related resources (pods, PVCs, node pools).
 
             **CRITICAL EVENT PATTERNS:**
@@ -286,7 +290,8 @@ public class DiagnoseClusterIssuePrompt {
             OOM or disk full are root causes. Offline partitions are symptoms; \
             broker failures or controller issues are root causes.\
             """.formatted(clusterName, nsClause, symptomClause,
-                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION, clusterName);
+                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION, clusterName,
+                clusterName, nsArg);
 
         return PromptResponse.withMessages(List.of(
             PromptMessage.withUserRole(instructions)

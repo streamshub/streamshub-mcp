@@ -17,6 +17,7 @@ import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerReadinessResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
@@ -472,8 +473,8 @@ public class UpgradeReadinessDiagnosticService {
                                         final List<String> failed,
                                         final McpLog mcpLog) {
         try {
-            StrimziEventsResponse result = eventsService.getClusterEvents(
-                namespace, clusterName, null);
+            StrimziEventsResponse result = eventsService.getEvents(
+                namespace, clusterName, StrimziConstants.KindValues.KAFKA, null);
             completed.add(STEP_EVENTS);
             DiagnosticHelper.sendClientNotification(mcpLog,
                 String.format("Found %d cluster-related events", result.totalEvents()));

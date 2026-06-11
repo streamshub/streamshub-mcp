@@ -18,6 +18,7 @@ import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectResponse;
@@ -287,8 +288,8 @@ public class KafkaConnectorDiagnosticService {
                                         final List<String> failed,
                                         final McpLog mcpLog) {
         try {
-            StrimziEventsResponse result = eventsService.getClusterEvents(
-                namespace, connectClusterName, sinceMinutes);
+            StrimziEventsResponse result = eventsService.getEvents(
+                namespace, connectClusterName, StrimziConstants.KindValues.KAFKA_CONNECT, sinceMinutes);
             completed.add(STEP_EVENTS);
             DiagnosticHelper.sendClientNotification(mcpLog,
                 String.format("Found %d KafkaConnect related events", result.totalEvents()));

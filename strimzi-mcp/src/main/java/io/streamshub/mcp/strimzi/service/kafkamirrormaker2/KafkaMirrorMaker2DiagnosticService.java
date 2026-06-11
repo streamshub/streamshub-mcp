@@ -18,6 +18,7 @@ import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2LogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2PodsResponse;
@@ -224,8 +225,8 @@ public class KafkaMirrorMaker2DiagnosticService {
                                         final List<String> failed,
                                         final McpLog mcpLog) {
         try {
-            StrimziEventsResponse result = eventsService.getClusterEvents(
-                namespace, name, sinceMinutes);
+            StrimziEventsResponse result = eventsService.getEvents(
+                namespace, name, StrimziConstants.KindValues.KAFKA_MIRROR_MAKER_2, sinceMinutes);
             completed.add(STEP_EVENTS);
             DiagnosticHelper.sendClientNotification(mcpLog,
                 String.format("Found %d related events", result.totalEvents()));
