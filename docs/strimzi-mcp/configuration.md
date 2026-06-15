@@ -321,7 +321,7 @@ QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT=http://custom-collector:4317 \
   ./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:latest --ocp --otel
 ```
 
-**Manual configuration (in-cluster gRPC):**
+**Manual configuration (in-Kubernetes-cluster gRPC):**
 
 ```bash
 QUARKUS_OTEL_SDK_DISABLED=false
@@ -376,11 +376,17 @@ Tracing is disabled by default and enabled automatically in the `prod` profile.
 
 ### Resource watch configuration
 
-Control Kubernetes resource watches that send MCP notifications when resources change.
+Control Kubernetes resource watches that send MCP notifications when resources change. Resource subscriptions are **disabled by default** because most AI clients do not yet support MCP resource subscriptions. When disabled, resource templates still work for on-demand queries — only the automatic push notifications are turned off.
+
+To enable resource subscriptions, set:
+
+```bash
+MCP_RESOURCE_WATCHES_ENABLED=true
+```
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `mcp.resource-watches.enabled` | `true` | Enable resource subscriptions |
+| `mcp.resource-watches.enabled` | `false` | Enable resource subscriptions (automatic push notifications on Kubernetes resource changes) |
 | `mcp.watch.reconnect-initial-delay-ms` | `1000` | Initial delay (ms) before first reconnect attempt |
 | `mcp.watch.reconnect-max-delay-ms` | `60000` | Maximum delay (ms) between reconnect attempts |
 | `mcp.watch.reconnect-max-attempts` | `10` | Maximum reconnect attempts before giving up |
@@ -409,7 +415,7 @@ Control Kubernetes events collection behavior.
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `mcp.events.max-related-resources` | `50` | Maximum related resources (pods, PVCs) to query events for per cluster |
+| `mcp.events.max-related-resources` | `50` | Maximum related resources (pods, PVCs) to query events for per Kafka cluster |
 
 This limits the number of related resources for which events are collected when using [`get_strimzi_events`](tools/strimzi-operators.md#get_strimzi_events).
 

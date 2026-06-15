@@ -102,7 +102,7 @@ public class ResourceSubscriptionManager implements Closeable {
     @Inject
     ObjectMapper objectMapper;
 
-    @ConfigProperty(name = "mcp.resource-watches.enabled", defaultValue = "true")
+    @ConfigProperty(name = "mcp.resource-watches.enabled", defaultValue = "false")
     boolean watchesEnabled;
 
     private final List<Watch> activeWatches = new CopyOnWriteArrayList<>();

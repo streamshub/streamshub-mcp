@@ -14,7 +14,7 @@ StreamsHub MCP provides Model Context Protocol (MCP) servers for managing Kubern
 
 The MCP Server for Strimzi provides tools for managing and troubleshooting Apache Kafka clusters deployed with the Strimzi operator on Kubernetes.
 
-- Monitoring cluster health and status
+- Monitoring Kafka cluster health and status
 - Running diagnostic workflows with intelligent triage
 - Collecting and analyzing logs with filtering
 - Querying metrics from Kafka brokers and the Strimzi operator

@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Fleet overview tool** -- `get_kafka_fleet_overview` returns aggregated health across all Kafka clusters in a single call, including status distribution, total broker count, per-cluster summaries with cross-resource relationship counts (topics, users, active rebalances, connected KafkaConnect/Bridge/MirrorMaker2), and warnings for clusters that need attention
+- **AI agent best practices documentation** -- expanded usage examples and troubleshooting with guidance on response interpretation, script avoidance, pagination handling, diagnostic report structure, Sampling/Elicitation, and parameter optimization (#135)
 
 ### Changed
 
+- Resource subscriptions (`mcp.resource-watches.enabled`) are now **disabled by default** because most AI clients do not yet support MCP resource subscriptions; resource templates still work for on-demand queries
 - Renamed deployment and related resources from `streamshub-strimzi-mcp` to `streamshub-mcp-strimzi` for consistent naming
 - Unified `get_strimzi_events` event query: merged separate Kafka and non-Kafka code paths into a single method, renamed `clusterName` parameter to `resourceName`, made `resourceKind` required, added `Kafka`, `StrimziOperator`, and `DrainCleaner` as supported resource kinds
 

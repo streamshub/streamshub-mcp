@@ -32,7 +32,7 @@ This script performs the following steps:
 2. Waits for the operator to be ready
 3. Creates the `strimzi-kafka` namespace
 4. Deploys a sample Kafka cluster named `mcp-cluster`
-5. Waits for the cluster to be ready
+5. Waits for the Kafka cluster to be ready
 
 You can pass additional flags to deploy observability infrastructure alongside Strimzi:
 
