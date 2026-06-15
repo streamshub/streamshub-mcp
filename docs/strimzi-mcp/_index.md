@@ -12,7 +12,7 @@ The MCP Server for Strimzi provides AI assistants with tools to manage and troub
 ## Overview
 
 The MCP Server for Strimzi exposes Strimzi-managed Kafka resources through the Model Context Protocol.
-AI assistants use these tools to check cluster health, collect logs, query metrics, and troubleshoot issues.
+AI assistants use these tools to check Kafka cluster health, collect logs, query metrics, and troubleshoot issues.
 
 With the MCP Server for Strimzi, AI assistants can:
 
@@ -26,7 +26,7 @@ With the MCP Server for Strimzi, AI assistants can:
 - Manage and troubleshoot KafkaBridge HTTP endpoints
 - Monitor KafkaMirrorMaker2 cross-cluster replication
 - Check Strimzi Drain Cleaner readiness and webhook configuration
-- Track Kubernetes events for cluster resources
+- Track Kubernetes events for Kafka cluster resources
 - Compare configurations across Kafka clusters
 - Assess upgrade readiness with GO/NO-GO verdicts
 
@@ -36,7 +36,7 @@ With the MCP Server for Strimzi, AI assistants can:
 
 All tools support automatic namespace discovery.
 The namespace parameter is optional on every tool.
-When no namespace is specified, tools search across the entire cluster to find matching resources.
+When no namespace is specified, tools search across the entire Kubernetes cluster to find matching resources.
 Note that access to listing namespaces may be limited by RBAC configuration.
 
 ### Composite diagnostic tools
@@ -118,7 +118,7 @@ The server integrates with the following observability platforms:
 ### Required
 
 - A Kubernetes cluster with `kubectl` access
-- The Strimzi operator deployed to your cluster
+- The Strimzi operator deployed to your Kubernetes cluster
 - Java 21 or later and Maven 3.8 or later (for local development)
 - An AI assistant that supports MCP (Claude Desktop, Claude Code, or similar)
 

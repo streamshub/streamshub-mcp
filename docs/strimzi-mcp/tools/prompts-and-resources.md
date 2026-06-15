@@ -308,11 +308,17 @@ Resource templates expose Strimzi data as structured JSON that clients can attac
 
 ## Resource subscriptions
 
-The server watches Kubernetes resources and sends notifications when they change, enabling reactive LLM agents.
+Resource subscriptions watch Kubernetes resources and send push notifications when they change, enabling reactive LLM agents. This feature is **disabled by default** because most AI clients do not yet support MCP resource subscriptions.
+
+To enable, set `MCP_RESOURCE_WATCHES_ENABLED=true` (see [Configuration](../configuration.md#resource-watch-configuration)).
+
+Resource templates (above) still work for on-demand queries regardless of this setting — only the automatic push notifications require enabling watches.
 
 ### Supported resources
 
-- **Kafka clusters** -- Notifies when cluster status changes
+When enabled, the server watches:
+
+- **Kafka clusters** -- Notifies when Kafka cluster status changes
 - **KafkaNodePools** -- Notifies when node pool status changes
 - **KafkaUsers** -- Notifies when user ACLs, quotas, or status changes
 - **Strimzi operator Deployments** -- Notifies when operator status changes

@@ -8,7 +8,7 @@ This guide describes how to set up and start using StreamsHub MCP.
 ## What is StreamsHub MCP?
 
 StreamsHub MCP connects AI assistants to Kubernetes-based streaming infrastructure through the Model Context Protocol (MCP).
-AI assistants use MCP tools to query your cluster and provide answers based on real-time data.
+AI assistants use MCP tools to query your Kafka clusters and provide answers based on real-time data.
 
 ## Available MCP servers
 
@@ -84,7 +84,7 @@ Ask your AI assistant:
 - "What is the status of mcp-cluster?"
 - "Diagnose issues with mcp-cluster"
 
-The AI assistant uses the MCP tools to query your cluster and provide answers.
+The AI assistant uses the MCP tools to query your Kafka clusters and provide answers.
 
 ## Production deployment
 
