@@ -37,6 +37,12 @@ streaming platforms. Java 21, Quarkus 3.x, Strimzi API 1.0.x, Fabric8 Kubernetes
    - Changing release process or scripts (`RELEASING.md`)
    - Modifying development environment setup or tooling
 
+5. **MCP tool test plan** (`dev/test-plans/strimzi-mcp-tool-test-plan.md`) -- Update when:
+   - Adding, modifying, or removing MCP tools (add/update test cases for the tool)
+   - Changing tool parameters or behavior (update expected parameters and results)
+   - Modifying dev environment resources (`dev/`) such as Kafka clusters, topics, users, connectors, or other Strimzi resources (update expected values in test cases and the dev deployment reference section)
+   - Adding new optional dev components (add a new test phase or test cases)
+
 Documentation updates are mandatory and must be completed before the task is considered done.
 
 ## Modules
