@@ -121,6 +121,8 @@ class MetricsQueryServiceTest {
         assertNotNull(params.startTime());
         assertNotNull(params.endTime());
         assertEquals(30, params.stepSeconds());
+        assertEquals(1, params.podTargets().size());
+        assertEquals("pod", params.podTargets().get(0).podName());
     }
 
     @Test
