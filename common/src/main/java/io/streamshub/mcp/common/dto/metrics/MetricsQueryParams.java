@@ -52,6 +52,7 @@ public record MetricsQueryParams(
      *
      * @param metricNames   the metric names to retrieve
      * @param labelMatchers label matchers for Prometheus filtering
+     * @param podTargets    pod endpoints to scrape (used by pod-scraping provider)
      * @param startTime     the range start time
      * @param endTime       the range end time
      * @param stepSeconds   the step interval in seconds
@@ -60,11 +61,12 @@ public record MetricsQueryParams(
      */
     public static MetricsQueryParams range(final List<String> metricNames,
                                             final Map<String, String> labelMatchers,
+                                            final List<PodTarget> podTargets,
                                             final Instant startTime,
                                             final Instant endTime,
                                             final int stepSeconds,
                                             final int maxSamples) {
-        return new MetricsQueryParams(metricNames, labelMatchers, List.of(),
+        return new MetricsQueryParams(metricNames, labelMatchers, podTargets,
             startTime, endTime, stepSeconds, maxSamples);
     }
 
