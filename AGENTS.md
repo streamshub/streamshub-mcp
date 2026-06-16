@@ -216,6 +216,27 @@ All tools declare `@Tool.Annotations` with `readOnlyHint = true`, `destructiveHi
 When adding new tools, always include these annotations — MCP clients like ChatGPT default
 tools to "write" mode without them.
 
+### Tool metadata
+
+Every tool method is annotated with `@MetaField` annotations from `io.quarkiverse.mcp.server.MetaField`
+to provide structured metadata in the `_meta` object of `tools/list` responses.
+
+Three metadata fields are defined:
+
+- **`type`** — the tool action type: `list`, `get`, `overview`, `logs`, `events`, `metrics`, `diagnose`, `compare`, `assess`, `check`
+- **`resource`** — the Strimzi/Kubernetes resource: `kafka`, `kafkatopic`, `kafkauser`, `kafkanodepool`,
+  `kafkarebalance`, `strimzi-operator`, `strimzi-event`, `drain-cleaner`, `kafkaconnect`, `kafkaconnector`,
+  `kafkabridge`, `kafkamirrormaker2`
+- **`composite`** (boolean, only when `true`) — tool aggregates multiple internal API calls
+
+Use constants from `ToolMetaFields` (not string literals) when adding metadata to new tools:
+
+```java
+@MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
+@MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
+@Tool(name = "list_kafka_clusters", description = "...")
+```
+
 ### Tool naming
 
 - Use `snake_case`: `list_kafka_clusters`, `get_kafka_topic`, `get_kafka_bootstrap_servers`
@@ -592,8 +613,12 @@ Before adding a new constant, check if it already exists in `ResourceLabels`, `P
 1. Create or update the DTO record in `strimzi-mcp/src/.../strimzi/dto/`
 2. Add the service method to the appropriate domain service in `strimzi-mcp/src/.../strimzi/service/`
 3. Add the `@Tool` method to the corresponding tools class in `strimzi-mcp/src/.../strimzi/tool/`
-4. Run `./mvnw compile` to verify checkstyle + compilation
-5. Run `./mvnw test` to verify tests pass
+   - Include `@MetaField` annotations for `type` and `resource` using `ToolMetaFields` constants
+   - Add `@MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)` for composite tools
+4. Add the tool name to `McpDiscoveryTest.testToolDiscovery()` expected list
+5. Add expected metadata to `McpDiscoveryTest.testToolMetadata()` maps
+6. Run `./mvnw compile` to verify checkstyle + compilation
+7. Run `./mvnw test` to verify tests pass
 
 ## Adding a New Module
 

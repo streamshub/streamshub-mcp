@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.tool.kafkabridge;
 
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.McpLog;
+import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
@@ -15,6 +16,7 @@ import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.config.ToolMetaFields;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgePodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeResponse;
@@ -49,6 +51,8 @@ public class KafkaBridgeTools {
      * @param namespace optional namespace filter
      * @return list of KafkaBridge responses
      */
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_BRIDGE)
     @Tool(
         name = "list_kafka_bridges",
         description = "List KafkaBridge resources with status,"
@@ -77,6 +81,8 @@ public class KafkaBridgeTools {
      * @param namespace  optional namespace
      * @return the KafkaBridge response
      */
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_BRIDGE)
     @Tool(
         name = "get_kafka_bridge",
         description = "Get detailed information about a specific"
@@ -108,6 +114,8 @@ public class KafkaBridgeTools {
      * @param namespace  optional namespace
      * @return the bridge pods response
      */
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_BRIDGE)
     @Tool(
         name = "get_kafka_bridge_pods",
         description = "Get pod summaries for a KafkaBridge"
@@ -148,6 +156,8 @@ public class KafkaBridgeTools {
      * @param cancellation MCP cancellation checking
      * @return the bridge logs response with error analysis
      */
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LOGS)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_BRIDGE)
     @Tool(
         name = "get_kafka_bridge_logs",
         description = "Get logs from KafkaBridge pods with error analysis."

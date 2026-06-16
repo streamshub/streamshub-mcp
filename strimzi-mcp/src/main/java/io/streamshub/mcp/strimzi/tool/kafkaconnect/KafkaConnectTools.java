@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.tool.kafkaconnect;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.McpLog;
+import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
@@ -16,6 +17,7 @@ import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.config.ToolMetaFields;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectResponse;
@@ -51,6 +53,8 @@ public class KafkaConnectTools {
      * @return list of KafkaConnect responses
      */
     @WithSpan("tool.list_kafka_connects")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_CONNECT)
     @Tool(
         name = "list_kafka_connects",
         description = "List KafkaConnect clusters with status,"
@@ -80,6 +84,8 @@ public class KafkaConnectTools {
      * @return the KafkaConnect response
      */
     @WithSpan("tool.get_kafka_connect")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_CONNECT)
     @Tool(
         name = "get_kafka_connect",
         description = "Get detailed information about a specific"
@@ -112,6 +118,8 @@ public class KafkaConnectTools {
      * @return the Connect pods response
      */
     @WithSpan("tool.get_kafka_connect_pods")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_CONNECT)
     @Tool(
         name = "get_kafka_connect_pods",
         description = "Get pod summaries for a KafkaConnect cluster"
@@ -153,6 +161,8 @@ public class KafkaConnectTools {
      * @return the Connect logs response with error analysis
      */
     @WithSpan("tool.get_kafka_connect_logs")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LOGS)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_CONNECT)
     @Tool(
         name = "get_kafka_connect_logs",
         description = "Get logs from KafkaConnect pods with error analysis."

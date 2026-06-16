@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.tool;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.McpLog;
+import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
@@ -16,6 +17,7 @@ import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.config.ToolMetaFields;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerLogsResponse;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerReadinessResponse;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerResponse;
@@ -51,6 +53,8 @@ public class DrainCleanerTools {
      * @return list of drain cleaner responses
      */
     @WithSpan("tool.list_drain_cleaners")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.DRAIN_CLEANER)
     @Tool(
         name = "list_drain_cleaners",
         description = "List Strimzi Drain Cleaner deployments with status and webhook configuration."
@@ -79,6 +83,8 @@ public class DrainCleanerTools {
      * @return the drain cleaner response
      */
     @WithSpan("tool.get_drain_cleaner")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.DRAIN_CLEANER)
     @Tool(
         name = "get_drain_cleaner",
         description = "Get detailed information about a Strimzi Drain Cleaner deployment"
@@ -119,6 +125,8 @@ public class DrainCleanerTools {
      * @return the drain cleaner logs response
      */
     @WithSpan("tool.get_drain_cleaner_logs")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LOGS)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.DRAIN_CLEANER)
     @Tool(
         name = "get_drain_cleaner_logs",
         description = "Get logs from Strimzi Drain Cleaner pods."
@@ -196,6 +204,8 @@ public class DrainCleanerTools {
      * @return the readiness response
      */
     @WithSpan("tool.check_drain_cleaner_readiness")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.CHECK)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.DRAIN_CLEANER)
     @Tool(
         name = "check_drain_cleaner_readiness",
         description = "Check readiness of Strimzi Drain Cleaner."

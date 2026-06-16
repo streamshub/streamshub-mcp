@@ -5,11 +5,13 @@
 package io.streamshub.mcp.strimzi.tool;
 
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.config.ToolMetaFields;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
 import io.streamshub.mcp.strimzi.service.operator.StrimziEventsService;
 import jakarta.inject.Inject;
@@ -38,6 +40,8 @@ public class StrimziEventsTools {
      * @return events grouped by resource
      */
     @WithSpan("tool.get_strimzi_events")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.EVENTS)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.STRIMZI_EVENT)
     @Tool(
         name = "get_strimzi_events",
         description = "Get Kubernetes events for a Strimzi resource and all related pods."

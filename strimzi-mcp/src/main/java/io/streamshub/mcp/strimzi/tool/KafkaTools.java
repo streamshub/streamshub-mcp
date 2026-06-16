@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.tool;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.McpLog;
+import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
@@ -16,6 +17,7 @@ import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.config.ToolMetaFields;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterLogsResponse;
@@ -69,6 +71,8 @@ public class KafkaTools {
      * @return list of cluster responses
      */
     @WithSpan("tool.list_kafka_clusters")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
     @Tool(
         name = "list_kafka_clusters",
         description = "List Kafka clusters with status"
@@ -97,6 +101,9 @@ public class KafkaTools {
      * @return the fleet overview response
      */
     @WithSpan("tool.get_kafka_fleet_overview")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.OVERVIEW)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "get_kafka_fleet_overview",
         description = "Get aggregated health overview across all Kafka clusters."
@@ -126,6 +133,8 @@ public class KafkaTools {
      * @return the cluster response
      */
     @WithSpan("tool.get_kafka_cluster")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
     @Tool(
         name = "get_kafka_cluster",
         description = "Get detailed information about"
@@ -158,6 +167,9 @@ public class KafkaTools {
      * @return the cluster overview response
      */
     @WithSpan("tool.get_strimzi_kafka_cluster_overview")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.OVERVIEW)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "get_strimzi_kafka_cluster_overview",
         description = "Get a full overview of a Kafka cluster and all related resources."
@@ -189,6 +201,8 @@ public class KafkaTools {
      * @return the cluster pods response
      */
     @WithSpan("tool.get_kafka_cluster_pods")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
     @Tool(
         name = "get_kafka_cluster_pods",
         description = "Get pod summaries for a Kafka"
@@ -223,6 +237,8 @@ public class KafkaTools {
      * @return the bootstrap response with listener addresses
      */
     @WithSpan("tool.get_kafka_bootstrap_servers")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
     @Tool(
         name = "get_kafka_bootstrap_servers",
         description = "Get bootstrap server addresses for a Kafka cluster"
@@ -255,6 +271,8 @@ public class KafkaTools {
      * @return the certificate and authentication response
      */
     @WithSpan("tool.get_kafka_cluster_certificates")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
     @Tool(
         name = "get_kafka_cluster_certificates",
         description = "Returns TLS certificate metadata and listener authentication"
@@ -303,6 +321,8 @@ public class KafkaTools {
      * @return the cluster logs response with error analysis
      */
     @WithSpan("tool.get_kafka_cluster_logs")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LOGS)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
     @Tool(
         name = "get_kafka_cluster_logs",
         description = "Get logs from Kafka cluster pods with error analysis."
