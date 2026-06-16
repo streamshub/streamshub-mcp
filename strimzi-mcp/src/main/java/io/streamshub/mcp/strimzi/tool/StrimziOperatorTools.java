@@ -12,14 +12,15 @@ import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
+import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.config.ToolMetaFields;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorLogsResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorResponse;
 import io.streamshub.mcp.strimzi.service.operator.StrimziOperatorService;
@@ -58,7 +59,7 @@ public class StrimziOperatorTools {
      */
     @WithSpan("tool.list_strimzi_operators")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.STRIMZI_OPERATOR)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)
     @Tool(
         name = "list_strimzi_operators",
         description = "List Strimzi cluster operators with deployment status and health."
@@ -88,7 +89,7 @@ public class StrimziOperatorTools {
      */
     @WithSpan("tool.get_strimzi_operator")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.STRIMZI_OPERATOR)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)
     @Tool(
         name = "get_strimzi_operator",
         description = "Get detailed information about a specific Strimzi operator"
@@ -130,7 +131,7 @@ public class StrimziOperatorTools {
      */
     @WithSpan("tool.get_strimzi_operator_logs")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LOGS)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.STRIMZI_OPERATOR)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)
     @Tool(
         name = "get_strimzi_operator_logs",
         description = "Get logs from Strimzi operator pods with error analysis."
@@ -212,7 +213,7 @@ public class StrimziOperatorTools {
      */
     @WithSpan("tool.get_strimzi_operator_pod")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.STRIMZI_OPERATOR)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)
     @Tool(
         name = "get_strimzi_operator_pod",
         description = "Get detailed description of a Strimzi operator pod including"

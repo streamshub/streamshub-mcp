@@ -9,9 +9,10 @@ import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.Guarded;
+import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.config.ToolMetaFields;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaEffectiveConfigResponse;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaConfigService;
 import jakarta.inject.Inject;
@@ -39,7 +40,7 @@ public class ConfigurationTools {
      */
     @WithSpan("tool.get_kafka_cluster_config")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
     @Tool(
         name = "get_kafka_cluster_config",
         description = "Returns the effective configuration of a Kafka cluster"

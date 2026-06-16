@@ -9,10 +9,11 @@ import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.guardrail.Guarded;
+import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.config.ToolMetaFields;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
 import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
 import jakarta.inject.Inject;
@@ -42,7 +43,7 @@ public class KafkaNodePoolTools {
      */
     @WithSpan("tool.list_kafka_node_pools")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_NODE_POOL)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_NODE_POOL)
     @Tool(
         name = "list_kafka_node_pools",
         description = "List KafkaNodePools for a cluster showing roles, replicas, and storage configuration.",
@@ -75,7 +76,7 @@ public class KafkaNodePoolTools {
      */
     @WithSpan("tool.get_kafka_node_pool")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_NODE_POOL)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_NODE_POOL)
     @Tool(
         name = "get_kafka_node_pool",
         description = "Get detailed information about a specific KafkaNodePool including roles, replicas, and storage.",
@@ -111,7 +112,7 @@ public class KafkaNodePoolTools {
      */
     @WithSpan("tool.get_kafka_node_pool_pods")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_NODE_POOL)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_NODE_POOL)
     @Tool(
         name = "get_kafka_node_pool_pods",
         description = "Get pod summaries for a KafkaNodePool with phase, readiness, restarts, and age.",

@@ -9,10 +9,11 @@ import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.common.guardrail.RateCategory;
+import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.config.ToolMetaFields;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaBridgeMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaConnectMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaExporterMetricsResponse;
@@ -69,7 +70,7 @@ public class MetricsTools {
      */
     @WithSpan("tool.get_kafka_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.METRICS)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
     @Tool(
         name = "get_kafka_metrics",
         description = "Retrieves Prometheus metrics from Kafka cluster pods by category or explicit metric names."
@@ -144,7 +145,7 @@ public class MetricsTools {
      */
     @WithSpan("tool.get_kafka_exporter_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.METRICS)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
     @Tool(
         name = "get_kafka_exporter_metrics",
         description = "Retrieves Prometheus metrics from Kafka Exporter pods by category or explicit metric names."
@@ -213,7 +214,7 @@ public class MetricsTools {
      * @return the KafkaBridge metrics response
      */
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.METRICS)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_BRIDGE)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)
     @Tool(
         name = "get_kafka_bridge_metrics",
         description = "Retrieves Prometheus metrics from KafkaBridge pods by category or explicit metric names."
@@ -283,7 +284,7 @@ public class MetricsTools {
      */
     @WithSpan("tool.get_kafka_connect_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.METRICS)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_CONNECT)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)
     @Tool(
         name = "get_kafka_connect_metrics",
         description = "Retrieves Prometheus metrics from KafkaConnect pods by category or explicit metric names."
@@ -356,7 +357,7 @@ public class MetricsTools {
      */
     @WithSpan("tool.get_strimzi_operator_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.METRICS)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.STRIMZI_OPERATOR)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)
     @Tool(
         name = "get_strimzi_operator_metrics",
         description = "Retrieves Prometheus metrics from Strimzi operator pods by category or explicit metric names."

@@ -12,12 +12,13 @@ import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
+import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.config.ToolMetaFields;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectResponse;
@@ -54,7 +55,7 @@ public class KafkaConnectTools {
      */
     @WithSpan("tool.list_kafka_connects")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_CONNECT)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)
     @Tool(
         name = "list_kafka_connects",
         description = "List KafkaConnect clusters with status,"
@@ -85,7 +86,7 @@ public class KafkaConnectTools {
      */
     @WithSpan("tool.get_kafka_connect")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_CONNECT)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)
     @Tool(
         name = "get_kafka_connect",
         description = "Get detailed information about a specific"
@@ -119,7 +120,7 @@ public class KafkaConnectTools {
      */
     @WithSpan("tool.get_kafka_connect_pods")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_CONNECT)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)
     @Tool(
         name = "get_kafka_connect_pods",
         description = "Get pod summaries for a KafkaConnect cluster"
@@ -162,7 +163,7 @@ public class KafkaConnectTools {
      */
     @WithSpan("tool.get_kafka_connect_logs")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LOGS)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_CONNECT)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)
     @Tool(
         name = "get_kafka_connect_logs",
         description = "Get logs from KafkaConnect pods with error analysis."

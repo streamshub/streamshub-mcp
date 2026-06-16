@@ -14,9 +14,10 @@ import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.Guarded;
+import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.config.ToolMetaFields;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaConfigComparisonReport;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaConnectivityDiagnosticReport;
@@ -99,7 +100,7 @@ public class DiagnosticTools {
      */
     @WithSpan("tool.diagnose_kafka_connect")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_CONNECT)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)
     @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_kafka_connect",
@@ -145,7 +146,7 @@ public class DiagnosticTools {
      */
     @WithSpan("tool.diagnose_kafka_connector")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_CONNECTOR)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECTOR)
     @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_kafka_connector",
@@ -204,7 +205,7 @@ public class DiagnosticTools {
      */
     @WithSpan("tool.diagnose_kafka_cluster")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
     @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_kafka_cluster",
@@ -264,7 +265,7 @@ public class DiagnosticTools {
      */
     @WithSpan("tool.compare_kafka_clusters")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.COMPARE)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
     @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "compare_kafka_clusters",
@@ -321,7 +322,7 @@ public class DiagnosticTools {
      */
     @WithSpan("tool.diagnose_kafka_connectivity")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
     @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_kafka_connectivity",
@@ -379,7 +380,7 @@ public class DiagnosticTools {
      */
     @WithSpan("tool.diagnose_kafka_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
     @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_kafka_metrics",
@@ -454,7 +455,7 @@ public class DiagnosticTools {
      */
     @WithSpan("tool.diagnose_operator_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.STRIMZI_OPERATOR)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)
     @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_operator_metrics",
@@ -530,7 +531,7 @@ public class DiagnosticTools {
      */
     @WithSpan("tool.diagnose_kafka_topic")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_TOPIC)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_TOPIC)
     @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_kafka_topic",
@@ -588,7 +589,7 @@ public class DiagnosticTools {
      */
     @WithSpan("tool.assess_upgrade_readiness")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.ASSESS)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
     @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "assess_upgrade_readiness",
@@ -644,7 +645,7 @@ public class DiagnosticTools {
      */
     @WithSpan("tool.diagnose_kafka_mirror_maker")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_MIRROR_MAKER_2)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_MIRROR_MAKER_2)
     @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_kafka_mirror_maker",

@@ -2,21 +2,27 @@
  * Copyright StreamsHub authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package io.streamshub.mcp.strimzi.config;
+package io.streamshub.mcp.common.config;
 
 /**
  * Constants for MCP tool {@code _meta} fields.
  * Used with {@code @MetaField} annotations on tool methods.
+ *
+ * <p>Key names and tool action types are defined here in the common module
+ * so they can be reused across MCP server implementations.
+ * Resource-specific constants (e.g., Strimzi resource names) are defined
+ * in their respective modules.</p>
  */
 public final class ToolMetaFields {
 
     /**
-     * Metadata key: the tool action type (list, get, diagnose, etc.).
+     * Metadata key: the tool action types (list, get, diagnose, etc.).
+     * Value is a JSON array of strings.
      */
     public static final String TYPE = "type";
 
     /**
-     * Metadata key: the Kubernetes/Strimzi resource the tool targets.
+     * Metadata key: the Kubernetes/domain resource the tool targets.
      */
     public static final String RESOURCE = "resource";
 
@@ -29,7 +35,8 @@ public final class ToolMetaFields {
     }
 
     /**
-     * Tool action type values.
+     * Tool action type values. Each tool declares one or more types
+     * as a JSON array in the {@code _meta.type} field.
      */
     public static final class Types {
 
@@ -84,75 +91,6 @@ public final class ToolMetaFields {
         public static final String CHECK = "check";
 
         private Types() {
-        }
-    }
-
-    /**
-     * Strimzi/Kubernetes resource values.
-     */
-    public static final class Resources {
-
-        /**
-         * Kafka cluster resource.
-         */
-        public static final String KAFKA = "kafka";
-
-        /**
-         * KafkaTopic resource.
-         */
-        public static final String KAFKA_TOPIC = "kafkatopic";
-
-        /**
-         * KafkaUser resource.
-         */
-        public static final String KAFKA_USER = "kafkauser";
-
-        /**
-         * KafkaNodePool resource.
-         */
-        public static final String KAFKA_NODE_POOL = "kafkanodepool";
-
-        /**
-         * KafkaRebalance resource.
-         */
-        public static final String KAFKA_REBALANCE = "kafkarebalance";
-
-        /**
-         * KafkaConnect resource.
-         */
-        public static final String KAFKA_CONNECT = "kafkaconnect";
-
-        /**
-         * KafkaConnector resource.
-         */
-        public static final String KAFKA_CONNECTOR = "kafkaconnector";
-
-        /**
-         * KafkaBridge resource.
-         */
-        public static final String KAFKA_BRIDGE = "kafkabridge";
-
-        /**
-         * KafkaMirrorMaker2 resource.
-         */
-        public static final String KAFKA_MIRROR_MAKER_2 = "kafkamirrormaker2";
-
-        /**
-         * Strimzi cluster operator.
-         */
-        public static final String STRIMZI_OPERATOR = "strimzi-operator";
-
-        /**
-         * Strimzi Kubernetes events.
-         */
-        public static final String STRIMZI_EVENT = "strimzi-event";
-
-        /**
-         * Strimzi Drain Cleaner.
-         */
-        public static final String DRAIN_CLEANER = "drain-cleaner";
-
-        private Resources() {
         }
     }
 }

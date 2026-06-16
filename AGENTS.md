@@ -229,11 +229,12 @@ Three metadata fields are defined:
   `kafkabridge`, `kafkamirrormaker2`
 - **`composite`** (boolean, only when `true`) — tool aggregates multiple internal API calls
 
-Use constants from `ToolMetaFields` (not string literals) when adding metadata to new tools:
+Type constants are in `io.streamshub.mcp.common.config.ToolMetaFields` (common module).
+Resource constants are in `io.streamshub.mcp.strimzi.config.StrimziToolResources` (strimzi module).
 
 ```java
 @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
-@MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA)
+@MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
 @Tool(name = "list_kafka_clusters", description = "...")
 ```
 
@@ -613,7 +614,7 @@ Before adding a new constant, check if it already exists in `ResourceLabels`, `P
 1. Create or update the DTO record in `strimzi-mcp/src/.../strimzi/dto/`
 2. Add the service method to the appropriate domain service in `strimzi-mcp/src/.../strimzi/service/`
 3. Add the `@Tool` method to the corresponding tools class in `strimzi-mcp/src/.../strimzi/tool/`
-   - Include `@MetaField` annotations for `type` and `resource` using `ToolMetaFields` constants
+   - Include `@MetaField` annotations for `type` (from `ToolMetaFields`) and `resource` (from `StrimziToolResources`)
    - Add `@MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)` for composite tools
 4. Add the tool name to `McpDiscoveryTest.testToolDiscovery()` expected list
 5. Add expected metadata to `McpDiscoveryTest.testToolMetadata()` maps

@@ -9,9 +9,10 @@ import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.Guarded;
+import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
-import io.streamshub.mcp.strimzi.config.ToolMetaFields;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorResponse;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectorService;
 import jakarta.inject.Inject;
@@ -41,7 +42,7 @@ public class KafkaConnectorTools {
      */
     @WithSpan("tool.list_kafka_connectors")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_CONNECTOR)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECTOR)
     @Tool(
         name = "list_kafka_connectors",
         description = "List KafkaConnectors with class, state,"
@@ -76,7 +77,7 @@ public class KafkaConnectorTools {
      */
     @WithSpan("tool.get_kafka_connector")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
-    @MetaField(name = ToolMetaFields.RESOURCE, value = ToolMetaFields.Resources.KAFKA_CONNECTOR)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECTOR)
     @Tool(
         name = "get_kafka_connector",
         description = "Get detailed information about a specific"
