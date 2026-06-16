@@ -4,6 +4,10 @@ This test plan is designed to be executed by a code agent (Claude Code, GPT, Cop
 connected to the StreamsHub MCP server via MCP protocol. The server must be running against
 a dev Kubernetes cluster provisioned using the project's `dev/manifests/` and `dev/scripts/setup-strimzi.sh`.
 
+> **Note:** This test plan targets OpenShift. For plain Kubernetes, the same tests apply
+> except: omit `--ocp` from the deploy command, and skip checks related to `route` listeners
+> (routes are an OpenShift-only feature).
+
 ## Dev Deployment Reference
 
 The dev environment is deployed via:
@@ -12,7 +16,7 @@ The dev environment is deployed via:
 # Full deployment with all optional components
 ./dev/scripts/setup-strimzi.sh deploy \
   --drain-cleaner --connect --bridge --mirror-maker --loki --ocp \
-  --test-clients --jeager
+  --test-clients --jaeger
 ```
 
 ### Namespaces
@@ -254,7 +258,7 @@ Parameters: { "clusterName": "mcp-cluster" }
 
 **Expected:**
 - [ ] Returns cluster CA certificate info
-- [ ] Certificate expiration date is present and in the future
+- [ ] Certificate is not expired
 - [ ] No private key material exposed
 - [ ] TLS listeners (`tls`, `route`, `console`) have certificate data
 
@@ -276,13 +280,16 @@ Parameters: { "clusterName": "mcp-cluster" }
 ```
 
 **Expected:**
-- [ ] Returns exactly 9 pods:
+- [ ] Returns 12 pods:
   - 3 controller pods (from `controller-np`)
   - 3 broker pods (from `broker-np1`)
   - 3 broker pods (from `broker-np2`)
+  - 1 Entity Operator pod (contains topic-operator and user-operator containers)
+  - 1 Cruise Control pod
+  - 1 Kafka Exporter pod
 - [ ] All pods are in Running status
 - [ ] All pods are Ready
-- [ ] Pod names follow pattern `mcp-cluster-<pool>-<id>`
+- [ ] Kafka node pods follow naming pattern `mcp-cluster-<pool>-<id>`
 
 ### T2.9 - Get Cluster Config
 
@@ -1198,7 +1205,7 @@ Parameters: { "clusterName": "mcp-cluster" }
 
 **Expected:**
 - [ ] Returns multi-section diagnostic report
-- [ ] Sections include: cluster status, node pool health (3 pools), pod health (9 pods), operator status
+- [ ] Sections include: cluster status, node pool health (3 pools), pod health (12 pods), operator status
 - [ ] Includes: log analysis, event analysis, metrics summary
 - [ ] Steps completed/failed list present
 - [ ] Completes within 120 seconds
@@ -1230,7 +1237,7 @@ Parameters: { "clusterName": "mcp-cluster" }
 - [ ] Bootstrap servers listed
 - [ ] TLS certificates checked for tls/route/console listeners
 - [ ] KafkaUser ACLs reviewed (at least 3 users)
-- [ ] Pod health assessed (9 broker/controller pods)
+- [ ] Pod health assessed (12 cluster pods: 9 nodes + EO + CC + KE)
 
 ### T15.4 - Diagnose Connectivity (specific listener)
 
@@ -1433,12 +1440,12 @@ sequentially and verify cross-tool consistency.
 1. `get_kafka_fleet_overview` - note `mcp-cluster` status and broker count
 2. `get_strimzi_kafka_cluster_overview` for `mcp-cluster` - note component counts
 3. `get_kafka_cluster` for `mcp-cluster` - verify status matches fleet overview
-4. `get_kafka_cluster_pods` for `mcp-cluster` - verify 9 pods (3+3+3)
-5. `list_kafka_node_pools` for `mcp-cluster` - verify 3 pools, replicas sum to 9
+4. `get_kafka_cluster_pods` for `mcp-cluster` - verify 12 pods (3+3+3 nodes + EO + CC + KE)
+5. `list_kafka_node_pools` for `mcp-cluster` - verify 3 pools, node replicas sum to 9
 
 **Expected:**
 - [ ] Cluster status is consistent across fleet overview, cluster overview, and cluster detail
-- [ ] Pod count (9) = controller-np (3) + broker-np1 (3) + broker-np2 (3)
+- [ ] Pod count (12) = controller-np (3) + broker-np1 (3) + broker-np2 (3) + Entity Operator (1) + Cruise Control (1) + Kafka Exporter (1)
 - [ ] No contradictory information between tools
 
 ### E2E-2: Topic Investigation
@@ -1499,7 +1506,7 @@ sequentially and verify cross-tool consistency.
 ### E2E-6: Upgrade Readiness Assessment
 
 1. `get_kafka_cluster` for `mcp-cluster` - note version 4.2.0
-2. `get_kafka_cluster_pods` for `mcp-cluster` - verify all 9 pods healthy
+2. `get_kafka_cluster_pods` for `mcp-cluster` - verify all 12 pods healthy
 3. `get_kafka_metrics` with category `replication` - verify 0 offline partitions
 4. If `--drain-cleaner`: `check_drain_cleaner_readiness` - verify ready
 5. `get_kafka_cluster_certificates` for `mcp-cluster` - verify certs not expired
