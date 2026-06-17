@@ -79,7 +79,7 @@
         <!-- Allure reporting -->
         <dependency>
             <groupId>io.qameta.allure</groupId>
-            <artifactId>allure-junit5</artifactId>
+            <artifactId>allure-jupiter</artifactId>
             <version>${allure.junit.version}</version>
         </dependency>
 
