@@ -5,11 +5,14 @@
 package io.streamshub.mcp.strimzi.tool;
 
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.guardrail.Guarded;
+import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicService;
@@ -39,6 +42,8 @@ public class KafkaTopicTools {
      * @return paginated topic list response
      */
     @WithSpan("tool.list_kafka_topics")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_TOPIC)
     @Tool(
         name = "list_kafka_topics",
         description = "List Kafka topics for a cluster with partitions, replicas, and status."
@@ -79,6 +84,8 @@ public class KafkaTopicTools {
      * @return the topic response
      */
     @WithSpan("tool.get_kafka_topic")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_TOPIC)
     @Tool(
         name = "get_kafka_topic",
         description = "Get detailed information for a specific Kafka topic including"

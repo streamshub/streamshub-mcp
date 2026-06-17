@@ -7,14 +7,17 @@ package io.streamshub.mcp.strimzi.tool.kafkamirrormaker2;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.McpLog;
+import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
+import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2LogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2PodsResponse;
@@ -51,6 +54,8 @@ public class KafkaMirrorMaker2Tools {
      * @return list of MM2 summary responses
      */
     @WithSpan("tool.list_kafka_mirror_makers")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_MIRROR_MAKER_2)
     @Tool(
         name = "list_kafka_mirror_makers",
         description = "List KafkaMirrorMaker2 instances with status,"
@@ -80,6 +85,8 @@ public class KafkaMirrorMaker2Tools {
      * @return the detailed MM2 response
      */
     @WithSpan("tool.get_kafka_mirror_maker")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_MIRROR_MAKER_2)
     @Tool(
         name = "get_kafka_mirror_maker",
         description = "Get detailed KafkaMirrorMaker2 information including"
@@ -112,6 +119,8 @@ public class KafkaMirrorMaker2Tools {
      * @return the pods response
      */
     @WithSpan("tool.get_kafka_mirror_maker_pods")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_MIRROR_MAKER_2)
     @Tool(
         name = "get_kafka_mirror_maker_pods",
         description = "Get pod summaries for a KafkaMirrorMaker2 instance"
@@ -154,6 +163,8 @@ public class KafkaMirrorMaker2Tools {
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
     @WithSpan("tool.get_kafka_mirror_maker_logs")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LOGS)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_MIRROR_MAKER_2)
     @Tool(
         name = "get_kafka_mirror_maker_logs",
         description = "Get logs from KafkaMirrorMaker2 pods with error analysis."

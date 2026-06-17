@@ -5,10 +5,13 @@
 package io.streamshub.mcp.strimzi.tool;
 
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.Guarded;
+import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserResponse;
 import io.streamshub.mcp.strimzi.service.kafkauser.KafkaUserService;
@@ -38,6 +41,8 @@ public class KafkaUserTools {
      * @return list of user summary responses
      */
     @WithSpan("tool.list_kafka_users")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_USER)
     @Tool(
         name = "list_kafka_users",
         description = "List KafkaUsers with authentication type,"
@@ -71,6 +76,8 @@ public class KafkaUserTools {
      * @return the detailed user response
      */
     @WithSpan("tool.get_kafka_user")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_USER)
     @Tool(
         name = "get_kafka_user",
         description = "Get detailed KafkaUser information including"

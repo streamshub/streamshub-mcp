@@ -5,10 +5,13 @@
 package io.streamshub.mcp.strimzi.tool;
 
 import io.opentelemetry.instrumentation.annotations.WithSpan;
+import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.Guarded;
+import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.kafkarebalance.KafkaRebalanceResponse;
 import io.streamshub.mcp.strimzi.service.kafkarebalance.KafkaRebalanceService;
@@ -38,6 +41,8 @@ public class KafkaRebalanceTools {
      * @return list of rebalance summary responses
      */
     @WithSpan("tool.list_kafka_rebalances")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_REBALANCE)
     @Tool(
         name = "list_kafka_rebalances",
         description = "List KafkaRebalance resources with state, mode,"
@@ -71,6 +76,8 @@ public class KafkaRebalanceTools {
      * @return the detailed rebalance response
      */
     @WithSpan("tool.get_kafka_rebalance")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_REBALANCE)
     @Tool(
         name = "get_kafka_rebalance",
         description = "Get detailed KafkaRebalance information including"

@@ -6,15 +6,20 @@ package io.streamshub.mcp.strimzi.tool;
 
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.junit.QuarkusTest;
+import io.streamshub.mcp.common.config.ToolMetaFields;
+import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -116,6 +121,113 @@ class McpDiscoveryTest {
                 }
             })
             .thenAssertResults();
+    }
+
+    /**
+     * Verify all tools have correct _meta fields (type, resource, composite).
+     */
+    @Test
+    void testToolMetadata() {
+        client.when()
+            .toolsList(page -> {
+                Map<String, String[]> expected = expectedToolMetadata();
+                Set<String> compositeTools = compositeToolNames();
+
+                for (Map.Entry<String, String[]> entry : expected.entrySet()) {
+                    String toolName = entry.getKey();
+                    McpAssured.ToolInfo tool = page.findByName(toolName);
+                    assertNotNull(tool, "Tool '" + toolName + "' should be registered");
+                    assertNotNull(tool.meta(), "Tool '" + toolName + "' should have _meta");
+                    assertEquals(entry.getValue()[0], tool.meta().getString(ToolMetaFields.TYPE),
+                        "Tool '" + toolName + "' type mismatch");
+                    assertEquals(entry.getValue()[1], tool.meta().getString(ToolMetaFields.RESOURCE),
+                        "Tool '" + toolName + "' resource mismatch");
+                    if (compositeTools.contains(toolName)) {
+                        assertTrue(tool.meta().getBoolean(ToolMetaFields.COMPOSITE),
+                            "Tool '" + toolName + "' should be composite");
+                    }
+                }
+            })
+            .thenAssertResults();
+    }
+
+    @SuppressWarnings("checkstyle:MethodLength")
+    private static Map<String, String[]> expectedToolMetadata() {
+        Map<String, String[]> map = new HashMap<>();
+        map.put("list_kafka_clusters", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.KAFKA});
+        map.put("get_kafka_fleet_overview", new String[]{ToolMetaFields.Types.OVERVIEW, StrimziToolResources.KAFKA});
+        map.put("get_kafka_cluster", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA});
+        map.put("get_strimzi_kafka_cluster_overview", new String[]{ToolMetaFields.Types.OVERVIEW, StrimziToolResources.KAFKA});
+        map.put("get_kafka_cluster_pods", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA});
+        map.put("get_kafka_bootstrap_servers", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA});
+        map.put("get_kafka_cluster_certificates", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA});
+        map.put("get_kafka_cluster_logs", new String[]{ToolMetaFields.Types.LOGS, StrimziToolResources.KAFKA});
+        map.put("get_kafka_cluster_config", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA});
+        map.put("list_kafka_topics", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.KAFKA_TOPIC});
+        map.put("get_kafka_topic", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_TOPIC});
+        map.put("list_kafka_node_pools", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.KAFKA_NODE_POOL});
+        map.put("get_kafka_node_pool", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_NODE_POOL});
+        map.put("get_kafka_node_pool_pods", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_NODE_POOL});
+        map.put("list_kafka_users", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.KAFKA_USER});
+        map.put("get_kafka_user", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_USER});
+        map.put("list_kafka_rebalances", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.KAFKA_REBALANCE});
+        map.put("get_kafka_rebalance", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_REBALANCE});
+        map.put("list_strimzi_operators", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.STRIMZI_OPERATOR});
+        map.put("get_strimzi_operator", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.STRIMZI_OPERATOR});
+        map.put("get_strimzi_operator_logs", new String[]{ToolMetaFields.Types.LOGS, StrimziToolResources.STRIMZI_OPERATOR});
+        map.put("get_strimzi_operator_pod", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.STRIMZI_OPERATOR});
+        map.put("get_strimzi_events", new String[]{ToolMetaFields.Types.EVENTS, StrimziToolResources.STRIMZI_EVENT});
+        map.put("list_drain_cleaners", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.DRAIN_CLEANER});
+        map.put("get_drain_cleaner", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.DRAIN_CLEANER});
+        map.put("get_drain_cleaner_logs", new String[]{ToolMetaFields.Types.LOGS, StrimziToolResources.DRAIN_CLEANER});
+        map.put("check_drain_cleaner_readiness", new String[]{ToolMetaFields.Types.CHECK, StrimziToolResources.DRAIN_CLEANER});
+        map.put("list_kafka_connects", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.KAFKA_CONNECT});
+        map.put("get_kafka_connect", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_CONNECT});
+        map.put("get_kafka_connect_pods", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_CONNECT});
+        map.put("get_kafka_connect_logs", new String[]{ToolMetaFields.Types.LOGS, StrimziToolResources.KAFKA_CONNECT});
+        map.put("list_kafka_connectors", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.KAFKA_CONNECTOR});
+        map.put("get_kafka_connector", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_CONNECTOR});
+        map.put("list_kafka_bridges", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.KAFKA_BRIDGE});
+        map.put("get_kafka_bridge", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_BRIDGE});
+        map.put("get_kafka_bridge_pods", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_BRIDGE});
+        map.put("get_kafka_bridge_logs", new String[]{ToolMetaFields.Types.LOGS, StrimziToolResources.KAFKA_BRIDGE});
+        map.put("list_kafka_mirror_makers", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.KAFKA_MIRROR_MAKER_2});
+        map.put("get_kafka_mirror_maker", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_MIRROR_MAKER_2});
+        map.put("get_kafka_mirror_maker_pods", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_MIRROR_MAKER_2});
+        map.put("get_kafka_mirror_maker_logs", new String[]{ToolMetaFields.Types.LOGS, StrimziToolResources.KAFKA_MIRROR_MAKER_2});
+        map.put("get_kafka_metrics", new String[]{ToolMetaFields.Types.METRICS, StrimziToolResources.KAFKA});
+        map.put("get_kafka_exporter_metrics", new String[]{ToolMetaFields.Types.METRICS, StrimziToolResources.KAFKA});
+        map.put("get_kafka_bridge_metrics", new String[]{ToolMetaFields.Types.METRICS, StrimziToolResources.KAFKA_BRIDGE});
+        map.put("get_kafka_connect_metrics", new String[]{ToolMetaFields.Types.METRICS, StrimziToolResources.KAFKA_CONNECT});
+        map.put("get_strimzi_operator_metrics", new String[]{ToolMetaFields.Types.METRICS, StrimziToolResources.STRIMZI_OPERATOR});
+        map.put("diagnose_kafka_connect", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA_CONNECT});
+        map.put("diagnose_kafka_connector", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA_CONNECTOR});
+        map.put("diagnose_kafka_cluster", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA});
+        map.put("compare_kafka_clusters", new String[]{ToolMetaFields.Types.COMPARE, StrimziToolResources.KAFKA});
+        map.put("diagnose_kafka_connectivity", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA});
+        map.put("diagnose_kafka_metrics", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA});
+        map.put("diagnose_operator_metrics", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.STRIMZI_OPERATOR});
+        map.put("diagnose_kafka_topic", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA_TOPIC});
+        map.put("assess_upgrade_readiness", new String[]{ToolMetaFields.Types.ASSESS, StrimziToolResources.KAFKA});
+        map.put("diagnose_kafka_mirror_maker", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA_MIRROR_MAKER_2});
+        return map;
+    }
+
+    private static Set<String> compositeToolNames() {
+        return Set.of(
+            "get_kafka_fleet_overview",
+            "get_strimzi_kafka_cluster_overview",
+            "diagnose_kafka_connect",
+            "diagnose_kafka_connector",
+            "diagnose_kafka_cluster",
+            "compare_kafka_clusters",
+            "diagnose_kafka_connectivity",
+            "diagnose_kafka_metrics",
+            "diagnose_operator_metrics",
+            "diagnose_kafka_topic",
+            "assess_upgrade_readiness",
+            "diagnose_kafka_mirror_maker"
+        );
     }
 
     /**

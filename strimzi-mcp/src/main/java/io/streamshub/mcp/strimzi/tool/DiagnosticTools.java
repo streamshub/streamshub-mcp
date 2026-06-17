@@ -8,12 +8,15 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpLog;
+import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.Guarded;
+import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaConfigComparisonReport;
@@ -96,6 +99,9 @@ public class DiagnosticTools {
      * @return a consolidated Connect cluster diagnostic report
      */
     @WithSpan("tool.diagnose_kafka_connect")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_kafka_connect",
         description = "Multi-step diagnostic workflow for a KafkaConnect cluster."
@@ -139,6 +145,9 @@ public class DiagnosticTools {
      * @return a consolidated connector diagnostic report
      */
     @WithSpan("tool.diagnose_kafka_connector")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECTOR)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_kafka_connector",
         description = "Runs a multi-step diagnostic workflow for a KafkaConnector."
@@ -195,6 +204,9 @@ public class DiagnosticTools {
      * @return a consolidated diagnostic report
      */
     @WithSpan("tool.diagnose_kafka_cluster")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_kafka_cluster",
         description = "Runs a multi-step diagnostic workflow for a Kafka cluster."
@@ -252,6 +264,9 @@ public class DiagnosticTools {
      * @return a configuration comparison report
      */
     @WithSpan("tool.compare_kafka_clusters")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.COMPARE)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "compare_kafka_clusters",
         description = "Compares the effective configuration of two Kafka clusters."
@@ -306,6 +321,9 @@ public class DiagnosticTools {
      * @return a consolidated connectivity diagnostic report
      */
     @WithSpan("tool.diagnose_kafka_connectivity")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_kafka_connectivity",
         description = "Runs a multi-step connectivity diagnostic for a Kafka cluster."
@@ -361,6 +379,9 @@ public class DiagnosticTools {
      * @return a consolidated metrics diagnostic report
      */
     @WithSpan("tool.diagnose_kafka_metrics")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_kafka_metrics",
         description = "Runs a multi-step metrics diagnostic for a Kafka cluster."
@@ -433,6 +454,9 @@ public class DiagnosticTools {
      * @return a consolidated operator metrics diagnostic report
      */
     @WithSpan("tool.diagnose_operator_metrics")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_operator_metrics",
         description = "Runs a multi-step metrics diagnostic for a Strimzi operator."
@@ -506,6 +530,9 @@ public class DiagnosticTools {
      * @return a consolidated topic diagnostic report
      */
     @WithSpan("tool.diagnose_kafka_topic")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_TOPIC)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_kafka_topic",
         description = "Runs a multi-step diagnostic workflow for a KafkaTopic."
@@ -561,6 +588,9 @@ public class DiagnosticTools {
      * @return an upgrade readiness report with GO/NO-GO verdict
      */
     @WithSpan("tool.assess_upgrade_readiness")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.ASSESS)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "assess_upgrade_readiness",
         description = "Assesses whether a Kafka cluster is ready for a Strimzi or Kafka upgrade."
@@ -614,6 +644,9 @@ public class DiagnosticTools {
      * @return a consolidated MM2 diagnostic report
      */
     @WithSpan("tool.diagnose_kafka_mirror_maker")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_MIRROR_MAKER_2)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "diagnose_kafka_mirror_maker",
         description = "Multi-step diagnostic workflow for KafkaMirrorMaker2."

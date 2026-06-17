@@ -32,6 +32,16 @@ With the MCP Server for Strimzi, AI assistants can:
 
 ## Key features
 
+### Tool metadata for discovery
+
+Every tool includes structured metadata in its `_meta` object, enabling AI agents and clients to filter tools programmatically:
+
+- **`type`** -- action category: `list`, `get`, `overview`, `logs`, `events`, `metrics`, `diagnose`, `compare`, `assess`, `check`
+- **`resource`** -- target Strimzi resource: `kafka`, `kafkatopic`, `kafkauser`, `kafkanodepool`, `kafkarebalance`, `kafkaconnect`, `kafkaconnector`, `kafkabridge`, `kafkamirrormaker2`, `strimzi-operator`, `strimzi-event`, `drain-cleaner`
+- **`composite`** -- `true` when the tool aggregates multiple internal API calls (higher latency)
+
+Clients can use these fields in `tools/list` responses to select the right tool without parsing names.
+
 ### Automatic namespace discovery
 
 All tools support automatic namespace discovery.
