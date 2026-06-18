@@ -46,6 +46,24 @@ Override with a specific domain:
 QUARKUS_HTTP_CORS_ORIGINS=https://your-domain.com
 ```
 
+### Kubernetes API TLS
+
+When running inside a Kubernetes cluster, the MCP server automatically trusts the cluster CA certificate mounted at `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`.
+No additional TLS configuration is needed for standard in-cluster deployments.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `quarkus.kubernetes-client.trust-certs` | `false` | Skip Kubernetes API server certificate validation. Only set to `true` for development or clusters with untrusted CAs. |
+
+If your cluster uses a custom CA that is not covered by the mounted service account CA bundle, you can override this setting:
+
+```bash
+QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true
+```
+
+**Warning:** Setting `trust-certs=true` disables certificate validation for all Kubernetes API connections, exposing the server to man-in-the-middle attacks.
+Only use this in development or when you understand the security implications.
+
 ## Log configuration
 
 ### Log provider selection
@@ -784,6 +802,69 @@ kubectl -n streamshub-mcp logs -l app=streamshub-mcp-strimzi
 # Test metrics query through your AI assistant
 # Ask: "Query Kafka metrics for mcp-cluster"
 ```
+
+## Production deployment checklist
+
+Before deploying to production, review these security-relevant settings.
+Most defaults are tuned for development convenience and should be hardened for production use.
+
+### Authentication for external services
+
+Both Loki and Prometheus default to `auth-mode=none`.
+Configure authentication for production:
+
+```bash
+# Loki: use ServiceAccount token (recommended for Kubernetes)
+MCP_LOG_LOKI_AUTH_MODE=sa-token
+
+# Prometheus: use ServiceAccount token
+MCP_METRICS_PROMETHEUS_AUTH_MODE=sa-token
+```
+
+See [Loki authentication](#loki-authentication) and [Prometheus authentication](#prometheus-authentication) for all options.
+
+### Rate limiting
+
+All rate limits default to `0` (unlimited).
+Set per-category limits to prevent resource exhaustion:
+
+```bash
+MCP_GUARDRAIL_RATE_LIMIT_LOG_RPM=30
+MCP_GUARDRAIL_RATE_LIMIT_METRICS_RPM=60
+MCP_GUARDRAIL_RATE_LIMIT_GENERAL_RPM=120
+```
+
+See [Rate limiting](#rate-limiting) for details.
+
+### CORS origins
+
+The default allows `localhost` origins only.
+Override with your actual domain:
+
+```bash
+QUARKUS_HTTP_CORS_ORIGINS=https://your-domain.com
+```
+
+See [CORS configuration](#cors-configuration) for details.
+
+### TLS for external services
+
+Configure trust stores when Loki, Prometheus, or the OTEL collector use TLS:
+
+- [Loki TLS configuration](#loki-tls-configuration)
+- [Prometheus TLS configuration](#prometheus-tls-configuration)
+- [OTLP TLS configuration](#otlp-tls-configuration)
+
+### Log redaction
+
+Log redaction is enabled by default and redacts common credential patterns.
+Add custom patterns for organization-specific secrets:
+
+```bash
+MCP_GUARDRAIL_LOG_REDACTION_CUSTOM_PATTERNS_0='(?i)x-internal-token:\s*\S+'
+```
+
+See [Log redaction](#log-redaction) for built-in patterns and configuration.
 
 ## Configuration examples
 
