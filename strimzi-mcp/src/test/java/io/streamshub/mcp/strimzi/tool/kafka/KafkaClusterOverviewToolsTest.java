@@ -2,7 +2,7 @@
  * Copyright StreamsHub authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package io.streamshub.mcp.strimzi.tool;
+package io.streamshub.mcp.strimzi.tool.kafka;
 
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.InjectMock;

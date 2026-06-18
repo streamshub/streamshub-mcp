@@ -109,12 +109,17 @@ io.streamshub.mcp.loki.
 ```
 io.streamshub.mcp.strimzi.
 ├── tool/              → MCP tool definitions (thin wrappers, no logic)
-│                        KafkaTools, KafkaTopicTools, KafkaNodePoolTools,
-│                        StrimziOperatorTools, StrimziEventsTools, ConfigurationTools,
-│                        KafkaRebalanceTools,
-│                        DrainCleanerTools, DiagnosticTools (composite diagnostic tools)
+│   ├── kafka/         → KafkaTools, KafkaConfigurationTools
+│   ├── kafkatopic/    → KafkaTopicTools
+│   ├── kafkauser/     → KafkaUserTools
+│   ├── kafkanodepool/ → KafkaNodePoolTools
+│   ├── kafkarebalance/ → KafkaRebalanceTools
+│   ├── kafkabridge/   → KafkaBridgeTools
 │   ├── kafkaconnect/  → KafkaConnectTools, KafkaConnectorTools
 │   ├── kafkamirrormaker2/ → KafkaMirrorMaker2Tools
+│   ├── draincleaner/  → DrainCleanerTools
+│   ├── operator/      → StrimziOperatorTools, StrimziEventsTools
+│   ├── diagnostic/    → DiagnosticTools (composite diagnostic tools)
 │   └── metrics/       → MetricsTools
 ├── service/           → Business logic (KafkaService, KafkaTopicService, KafkaNodePoolService,
 │                        KafkaCertificateService, KafkaConfigService, KafkaConfigComparisonService,
