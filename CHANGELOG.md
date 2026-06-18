@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Extracted `BaseDiagnosticService` base class in the `common` module -- all 9 diagnostic services now inherit shared fields (`ObjectMapper`, sampling/log config) and reusable `performSampling()`, `performAnalysis()`, `performTriage()` utility methods
 - `quarkus.kubernetes-client.trust-certs` is now scoped to the `%dev` profile only -- production builds validate Kubernetes API server certificates by default using the in-cluster CA. Override with `QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true` if needed.
 - Reorganized tool classes into domain sub-packages (`kafka/`, `kafkatopic/`, `operator/`, `diagnostic/`, etc.) matching the existing service and DTO package structure
 - Resource subscriptions (`mcp.resource-watches.enabled`) are now **disabled by default** because most AI clients do not yet support MCP resource subscriptions; resource templates still work for on-demand queries
