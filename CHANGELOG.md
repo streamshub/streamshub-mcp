@@ -12,10 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tool metadata** -- tools now include `_meta` fields (`type`, `resource`, `composite`) in `tools/list` responses, enabling AI agents and clients to discover and filter tools by purpose and target resource (#151)
 - **Fleet overview tool** -- `get_kafka_fleet_overview` returns aggregated health across all Kafka clusters in a single call, including status distribution, total broker count, per-cluster summaries with cross-resource relationship counts (topics, users, active rebalances, connected KafkaConnect/Bridge/MirrorMaker2), and warnings for clusters that need attention
 - **AI agent best practices documentation** -- expanded usage examples and troubleshooting with guidance on response interpretation, script avoidance, pagination handling, diagnostic report structure, Sampling/Elicitation, and parameter optimization (#135)
+- **Production deployment checklist** in configuration docs covering authentication, rate limiting, CORS, TLS, and log redaction hardening
 
 ### Changed
 
 - Extracted `BaseDiagnosticService` base class in the `common` module -- all 9 diagnostic services now inherit shared fields (`ObjectMapper`, sampling/log config) and reusable `performSampling()`, `performAnalysis()`, `performTriage()` utility methods
+- `quarkus.kubernetes-client.trust-certs` is now scoped to the `%dev` profile only -- production builds validate Kubernetes API server certificates by default using the in-cluster CA. Override with `QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true` if needed.
 - Reorganized tool classes into domain sub-packages (`kafka/`, `kafkatopic/`, `operator/`, `diagnostic/`, etc.) matching the existing service and DTO package structure
 - Resource subscriptions (`mcp.resource-watches.enabled`) are now **disabled by default** because most AI clients do not yet support MCP resource subscriptions; resource templates still work for on-demand queries
 - Renamed deployment and related resources from `streamshub-strimzi-mcp` to `streamshub-mcp-strimzi` for consistent naming
