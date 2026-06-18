@@ -4,17 +4,15 @@
  */
 package io.streamshub.mcp.strimzi.service.kafka;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
-import io.quarkiverse.mcp.server.SamplingMessage;
-import io.quarkiverse.mcp.server.SamplingResponse;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
+import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
@@ -28,7 +26,6 @@ import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserResponse;
 import io.streamshub.mcp.strimzi.service.kafkauser.KafkaUserService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
@@ -46,7 +43,7 @@ import java.util.Map;
  * recorded and the report includes all data that was successfully gathered.</p>
  */
 @ApplicationScoped
-public class KafkaConnectivityDiagnosticService {
+public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(KafkaConnectivityDiagnosticService.class);
     private static final int PHASE1_STEPS = 2;
@@ -73,17 +70,10 @@ public class KafkaConnectivityDiagnosticService {
     @Inject
     KafkaUserService kafkaUserService;
 
-    @Inject
-    ObjectMapper objectMapper;
-
-    @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
-    int defaultTailLines;
-
-    @ConfigProperty(name = "mcp.sampling.triage-max-tokens", defaultValue = "200")
-    int triageMaxTokens;
-
-    @ConfigProperty(name = "mcp.sampling.analysis-max-tokens", defaultValue = "1500")
-    int analysisMaxTokens;
+    @Override
+    protected Logger getLogger() {
+        return LOG;
+    }
 
     KafkaConnectivityDiagnosticService() {
     }
@@ -320,27 +310,9 @@ public class KafkaConnectivityDiagnosticService {
     InvestigationAreas decideInvestigationAreas(final Sampling sampling,
                                                 final KafkaClusterResponse cluster,
                                                 final KafkaBootstrapResponse bootstrapServers) {
-        if (sampling == null || !sampling.isSupported()) {
-            return InvestigationAreas.all();
-        }
-
-        try {
-            Map<String, Object> summary = buildPhase1Summary(cluster, bootstrapServers);
-            String summaryJson = objectMapper.writeValueAsString(summary);
-
-            SamplingResponse response = sampling.requestBuilder()
-                .setSystemPrompt(TRIAGE_SYSTEM_PROMPT)
-                .addMessage(SamplingMessage.withUserRole(summaryJson))
-                .setMaxTokens(triageMaxTokens)
-                .build()
-                .sendAndAwait();
-
-            return parseInvestigationAreas(response);
-        } catch (Exception e) {
-            LOG.warnf("Sampling triage failed (investigating all areas): %s: %s",
-                e.getClass().getSimpleName(), e.getMessage());
-            return InvestigationAreas.all();
-        }
+        Map<String, Object> parsed = performTriage(sampling, TRIAGE_SYSTEM_PROMPT,
+            buildPhase1Summary(cluster, bootstrapServers));
+        return parsed != null ? parseInvestigationAreas(parsed) : InvestigationAreas.all();
     }
 
     @WithSpan("diagnose.connectivity.analysis")
@@ -353,27 +325,8 @@ public class KafkaConnectivityDiagnosticService {
                                    final KafkaClusterLogsResponse clusterLogs,
                                    final List<KafkaUserResponse> users,
                                    final String listenerName) {
-        if (sampling == null || !sampling.isSupported()) {
-            return null;
-        }
-
-        try {
-            Map<String, Object> fullData = buildFullSummary(
-                cluster, bootstrapServers, certificates, pods, clusterLogs, users, listenerName);
-            String dataJson = objectMapper.writeValueAsString(fullData);
-
-            SamplingResponse response = sampling.requestBuilder()
-                .setSystemPrompt(ANALYSIS_SYSTEM_PROMPT)
-                .addMessage(SamplingMessage.withUserRole(dataJson))
-                .setMaxTokens(analysisMaxTokens)
-                .build()
-                .sendAndAwait();
-
-            return DiagnosticHelper.extractSamplingText(response);
-        } catch (Exception e) {
-            LOG.warnf("Sampling analysis failed: %s: %s", e.getClass().getSimpleName(), e.getMessage());
-            return null;
-        }
+        return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
+            buildFullSummary(cluster, bootstrapServers, certificates, pods, clusterLogs, users, listenerName));
     }
 
     // ---- Helpers ----
@@ -409,20 +362,13 @@ public class KafkaConnectivityDiagnosticService {
         return data;
     }
 
-    private InvestigationAreas parseInvestigationAreas(final SamplingResponse response) {
-        try {
-            String text = DiagnosticHelper.extractSamplingText(response);
-            Map<String, Object> parsed = objectMapper.readValue(text, DiagnosticHelper.MAP_TYPE_REF);
-            return new InvestigationAreas(
-                Boolean.TRUE.equals(parsed.get(STEP_CERTIFICATES)),
-                Boolean.TRUE.equals(parsed.get(STEP_POD_HEALTH)),
-                Boolean.TRUE.equals(parsed.get(STEP_CLUSTER_LOGS)),
-                Boolean.TRUE.equals(parsed.getOrDefault(STEP_USERS, Boolean.TRUE))
-            );
-        } catch (Exception e) {
-            LOG.debugf("Could not parse triage response, investigating all: %s", e.getMessage());
-            return InvestigationAreas.all();
-        }
+    private InvestigationAreas parseInvestigationAreas(final Map<String, Object> parsed) {
+        return new InvestigationAreas(
+            Boolean.TRUE.equals(parsed.get(STEP_CERTIFICATES)),
+            Boolean.TRUE.equals(parsed.get(STEP_POD_HEALTH)),
+            Boolean.TRUE.equals(parsed.get(STEP_CLUSTER_LOGS)),
+            Boolean.TRUE.equals(parsed.getOrDefault(STEP_USERS, Boolean.TRUE))
+        );
     }
 
     /**

@@ -4,19 +4,17 @@
  */
 package io.streamshub.mcp.strimzi.service.kafka;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
-import io.quarkiverse.mcp.server.SamplingMessage;
-import io.quarkiverse.mcp.server.SamplingResponse;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
+import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
@@ -62,7 +60,7 @@ import java.util.stream.Collectors;
  * recorded and the report includes all data that was successfully gathered.</p>
  */
 @ApplicationScoped
-public class KafkaClusterDiagnosticService {
+public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(KafkaClusterDiagnosticService.class);
     private static final int SECONDS_PER_MINUTE = 60;
@@ -106,20 +104,13 @@ public class KafkaClusterDiagnosticService {
     @Inject
     DrainCleanerService drainCleanerService;
 
-    @Inject
-    ObjectMapper objectMapper;
-
-    @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
-    int defaultTailLines;
-
-    @ConfigProperty(name = "mcp.sampling.triage-max-tokens", defaultValue = "200")
-    int triageMaxTokens;
-
-    @ConfigProperty(name = "mcp.sampling.analysis-max-tokens", defaultValue = "1500")
-    int analysisMaxTokens;
-
     @ConfigProperty(name = "mcp.diagnostic.restart-threshold", defaultValue = "3")
     int restartThreshold;
+
+    @Override
+    protected Logger getLogger() {
+        return LOG;
+    }
 
     KafkaClusterDiagnosticService() {
     }
@@ -521,27 +512,9 @@ public class KafkaClusterDiagnosticService {
                                                 final KafkaClusterPodsResponse pods,
                                                 final DrainCleanerReadinessResponse drainCleaner,
                                                         final String symptom) {
-        if (sampling == null || !sampling.isSupported()) {
-            return InvestigationAreas.all();
-        }
-
-        try {
-            Map<String, Object> summary = buildPhase1Summary(cluster, nodePools, pods, drainCleaner, symptom);
-            String summaryJson = objectMapper.writeValueAsString(summary);
-
-            SamplingResponse response = sampling.requestBuilder()
-                .setSystemPrompt(TRIAGE_SYSTEM_PROMPT)
-                .addMessage(SamplingMessage.withUserRole(summaryJson))
-                .setMaxTokens(triageMaxTokens)
-                .build()
-                .sendAndAwait();
-
-            return parseInvestigationAreas(response);
-        } catch (Exception e) {
-            LOG.warnf("Sampling triage failed (investigating all areas): %s: %s",
-                e.getClass().getSimpleName(), e.getMessage());
-            return InvestigationAreas.all();
-        }
+        Map<String, Object> parsed = performTriage(sampling, TRIAGE_SYSTEM_PROMPT,
+            buildPhase1Summary(cluster, nodePools, pods, drainCleaner, symptom));
+        return parsed != null ? parseInvestigationAreas(parsed) : InvestigationAreas.all();
     }
 
     @WithSpan("diagnose.cluster.analysis")
@@ -559,28 +532,9 @@ public class KafkaClusterDiagnosticService {
                                    final DrainCleanerReadinessResponse drainCleaner,
                                    final DrainCleanerLogsResponse drainCleanerLogs,
                                    final String symptom) {
-        if (sampling == null || !sampling.isSupported()) {
-            return null;
-        }
-
-        try {
-            Map<String, Object> fullData = buildFullSummary(
-                cluster, nodePools, pods, operator, operatorLogs,
-                clusterLogs, events, users, metrics, drainCleaner, drainCleanerLogs, symptom);
-            String dataJson = objectMapper.writeValueAsString(fullData);
-
-            SamplingResponse response = sampling.requestBuilder()
-                .setSystemPrompt(ANALYSIS_SYSTEM_PROMPT)
-                .addMessage(SamplingMessage.withUserRole(dataJson))
-                .setMaxTokens(analysisMaxTokens)
-                .build()
-                .sendAndAwait();
-
-            return DiagnosticHelper.extractSamplingText(response);
-        } catch (Exception e) {
-            LOG.warnf("Sampling analysis failed: %s: %s", e.getClass().getSimpleName(), e.getMessage());
-            return null;
-        }
+        return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
+            buildFullSummary(cluster, nodePools, pods, operator, operatorLogs,
+                clusterLogs, events, users, metrics, drainCleaner, drainCleanerLogs, symptom));
     }
 
     // ---- Helpers ----
@@ -839,29 +793,21 @@ public class KafkaClusterDiagnosticService {
         return data;
     }
 
-    private InvestigationAreas parseInvestigationAreas(final SamplingResponse response) {
-        try {
-            String text = DiagnosticHelper.extractSamplingText(response);
-            Map<String, Object> parsed = objectMapper.readValue(text, DiagnosticHelper.MAP_TYPE_REF);
+    private InvestigationAreas parseInvestigationAreas(final Map<String, Object> parsed) {
+        Integer timeWindow = parsed.get("time_window_minutes") instanceof Number n
+            ? n.intValue() : null;
+        String startTime = parsed.get("window_start_time") instanceof String s ? s : null;
+        String endTime = parsed.get("window_end_time") instanceof String s ? s : null;
 
-            Integer timeWindow = parsed.get("time_window_minutes") instanceof Number n
-                ? n.intValue() : null;
-            String startTime = parsed.get("window_start_time") instanceof String s ? s : null;
-            String endTime = parsed.get("window_end_time") instanceof String s ? s : null;
-
-            return new InvestigationAreas(
-                Boolean.TRUE.equals(parsed.get(STEP_OPERATOR_LOGS)),
-                Boolean.TRUE.equals(parsed.get(STEP_CLUSTER_LOGS)),
-                Boolean.TRUE.equals(parsed.get(STEP_EVENTS)),
-                Boolean.TRUE.equals(parsed.getOrDefault(STEP_USERS, Boolean.TRUE)),
-                Boolean.TRUE.equals(parsed.get(STEP_METRICS)),
-                Boolean.TRUE.equals(parsed.get(STEP_DRAIN_CLEANER_LOGS)),
-                timeWindow, startTime, endTime
-            );
-        } catch (Exception e) {
-            LOG.debugf("Could not parse triage response, investigating all: %s", e.getMessage());
-            return InvestigationAreas.all();
-        }
+        return new InvestigationAreas(
+            Boolean.TRUE.equals(parsed.get(STEP_OPERATOR_LOGS)),
+            Boolean.TRUE.equals(parsed.get(STEP_CLUSTER_LOGS)),
+            Boolean.TRUE.equals(parsed.get(STEP_EVENTS)),
+            Boolean.TRUE.equals(parsed.getOrDefault(STEP_USERS, Boolean.TRUE)),
+            Boolean.TRUE.equals(parsed.get(STEP_METRICS)),
+            Boolean.TRUE.equals(parsed.get(STEP_DRAIN_CLEANER_LOGS)),
+            timeWindow, startTime, endTime
+        );
     }
 
     /**

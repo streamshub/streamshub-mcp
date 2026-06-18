@@ -4,17 +4,15 @@
  */
 package io.streamshub.mcp.strimzi.service.kafka;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
-import io.quarkiverse.mcp.server.SamplingMessage;
-import io.quarkiverse.mcp.server.SamplingResponse;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.metrics.AggregatedTimeSeries;
+import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
@@ -26,7 +24,6 @@ import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaMetricsService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
@@ -48,7 +45,7 @@ import java.util.stream.Collectors;
  * recorded and the report includes all data that was successfully gathered.</p>
  */
 @ApplicationScoped
-public class KafkaMetricsDiagnosticService {
+public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(KafkaMetricsDiagnosticService.class);
     private static final int TOTAL_STEPS = 3;
@@ -66,14 +63,10 @@ public class KafkaMetricsDiagnosticService {
     @Inject
     KafkaMetricsService kafkaMetricsService;
 
-    @Inject
-    ObjectMapper objectMapper;
-
-    @ConfigProperty(name = "mcp.sampling.triage-max-tokens", defaultValue = "200")
-    int triageMaxTokens;
-
-    @ConfigProperty(name = "mcp.sampling.analysis-max-tokens", defaultValue = "1500")
-    int analysisMaxTokens;
+    @Override
+    protected Logger getLogger() {
+        return LOG;
+    }
 
     KafkaMetricsDiagnosticService() {
     }
@@ -308,27 +301,9 @@ public class KafkaMetricsDiagnosticService {
                                                 final KafkaClusterResponse cluster,
                                                 final KafkaClusterPodsResponse pods,
                                                 final String concern) {
-        if (sampling == null || !sampling.isSupported()) {
-            return InvestigationAreas.all();
-        }
-
-        try {
-            Map<String, Object> summary = buildPhase1Summary(cluster, pods, concern);
-            String summaryJson = objectMapper.writeValueAsString(summary);
-
-            SamplingResponse response = sampling.requestBuilder()
-                .setSystemPrompt(TRIAGE_SYSTEM_PROMPT)
-                .addMessage(SamplingMessage.withUserRole(summaryJson))
-                .setMaxTokens(triageMaxTokens)
-                .build()
-                .sendAndAwait();
-
-            return parseInvestigationAreas(response);
-        } catch (Exception e) {
-            LOG.warnf("Sampling triage failed (investigating all areas): %s: %s",
-                e.getClass().getSimpleName(), e.getMessage());
-            return InvestigationAreas.all();
-        }
+        Map<String, Object> parsed = performTriage(sampling, TRIAGE_SYSTEM_PROMPT,
+            buildPhase1Summary(cluster, pods, concern));
+        return parsed != null ? parseInvestigationAreas(parsed) : InvestigationAreas.all();
     }
 
     @WithSpan("diagnose.metrics.analysis")
@@ -341,28 +316,9 @@ public class KafkaMetricsDiagnosticService {
                            final KafkaMetricsResponse resourceMetrics,
                            final KafkaMetricsResponse throughputMetrics,
                            final String concern) {
-        if (sampling == null || !sampling.isSupported()) {
-            return null;
-        }
-
-        try {
-            Map<String, Object> fullData = buildFullSummary(
-                cluster, pods, replicationMetrics, performanceMetrics,
-                resourceMetrics, throughputMetrics, concern);
-            String dataJson = objectMapper.writeValueAsString(fullData);
-
-            SamplingResponse response = sampling.requestBuilder()
-                .setSystemPrompt(ANALYSIS_SYSTEM_PROMPT)
-                .addMessage(SamplingMessage.withUserRole(dataJson))
-                .setMaxTokens(analysisMaxTokens)
-                .build()
-                .sendAndAwait();
-
-            return DiagnosticHelper.extractSamplingText(response);
-        } catch (Exception e) {
-            LOG.warnf("Sampling analysis failed: %s: %s", e.getClass().getSimpleName(), e.getMessage());
-            return null;
-        }
+        return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
+            buildFullSummary(cluster, pods, replicationMetrics, performanceMetrics,
+                resourceMetrics, throughputMetrics, concern));
     }
 
     // ---- Helpers ----
@@ -406,20 +362,13 @@ public class KafkaMetricsDiagnosticService {
         return data;
     }
 
-    private InvestigationAreas parseInvestigationAreas(final SamplingResponse response) {
-        try {
-            String text = DiagnosticHelper.extractSamplingText(response);
-            Map<String, Object> parsed = objectMapper.readValue(text, DiagnosticHelper.MAP_TYPE_REF);
-            return new InvestigationAreas(
-                Boolean.TRUE.equals(parsed.get(STEP_REPLICATION_METRICS)),
-                Boolean.TRUE.equals(parsed.get(STEP_PERFORMANCE_METRICS)),
-                Boolean.TRUE.equals(parsed.get(STEP_RESOURCE_METRICS)),
-                Boolean.TRUE.equals(parsed.get(STEP_THROUGHPUT_METRICS))
-            );
-        } catch (Exception e) {
-            LOG.debugf("Could not parse triage response, investigating all: %s", e.getMessage());
-            return InvestigationAreas.all();
-        }
+    private InvestigationAreas parseInvestigationAreas(final Map<String, Object> parsed) {
+        return new InvestigationAreas(
+            Boolean.TRUE.equals(parsed.get(STEP_REPLICATION_METRICS)),
+            Boolean.TRUE.equals(parsed.get(STEP_PERFORMANCE_METRICS)),
+            Boolean.TRUE.equals(parsed.get(STEP_RESOURCE_METRICS)),
+            Boolean.TRUE.equals(parsed.get(STEP_THROUGHPUT_METRICS))
+        );
     }
 
     /**
