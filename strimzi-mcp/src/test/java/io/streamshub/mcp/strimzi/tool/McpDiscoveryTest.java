@@ -488,6 +488,69 @@ class McpDiscoveryTest {
     }
 
     /**
+     * Verify troubleshoot-connectivity prompt generates correct instructions.
+     */
+    @Test
+    void testPromptGetTroubleshootConnectivity() {
+        client.when()
+            .promptsGet("troubleshoot-connectivity")
+            .withArguments(Map.of("cluster_name", "my-cluster", "namespace", "kafka-prod"))
+            .withAssert(response -> {
+                assertFalse(response.messages().isEmpty());
+                String content = response.messages().getFirst().content().asText().text();
+                assertTrue(content.contains("my-cluster"));
+                assertTrue(content.contains("kafka-prod"));
+                assertTrue(content.contains("get_kafka_cluster"));
+                assertTrue(content.contains("get_kafka_bootstrap_servers"));
+                assertTrue(content.contains("get_kafka_cluster_certificates"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify troubleshoot-connect prompt generates correct instructions.
+     */
+    @Test
+    void testPromptGetTroubleshootConnect() {
+        client.when()
+            .promptsGet("troubleshoot-connect")
+            .withArguments(Map.of("connect_cluster", "my-connect", "namespace", "kafka-prod"))
+            .withAssert(response -> {
+                assertFalse(response.messages().isEmpty());
+                String content = response.messages().getFirst().content().asText().text();
+                assertTrue(content.contains("my-connect"));
+                assertTrue(content.contains("kafka-prod"));
+                assertTrue(content.contains("get_kafka_connect"));
+                assertTrue(content.contains("get_kafka_connect_pods"));
+                assertTrue(content.contains("get_kafka_connect_logs"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify troubleshoot-mirror-maker prompt generates correct instructions.
+     */
+    @Test
+    void testPromptGetTroubleshootMirrorMaker() {
+        client.when()
+            .promptsGet("troubleshoot-mirror-maker")
+            .withArguments(Map.of("mirror_maker_name", "my-mm2", "namespace", "kafka-prod"))
+            .withAssert(response -> {
+                assertFalse(response.messages().isEmpty());
+                String content = response.messages().getFirst().content().asText().text();
+                assertTrue(content.contains("my-mm2"));
+                assertTrue(content.contains("kafka-prod"));
+                assertTrue(content.contains("get_kafka_mirror_maker"));
+                assertTrue(content.contains("get_kafka_mirror_maker_pods"));
+                assertTrue(content.contains("get_kafka_mirror_maker_logs"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
      * Verify analyze-strimzi-operator-metrics prompt generates correct instructions.
      */
     @Test

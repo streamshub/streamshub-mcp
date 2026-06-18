@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tool metadata** -- tools now include `_meta` fields (`type`, `resource`, `composite`) in `tools/list` responses, enabling AI agents and clients to discover and filter tools by purpose and target resource (#151)
 - **Fleet overview tool** -- `get_kafka_fleet_overview` returns aggregated health across all Kafka clusters in a single call, including status distribution, total broker count, per-cluster summaries with cross-resource relationship counts (topics, users, active rebalances, connected KafkaConnect/Bridge/MirrorMaker2), and warnings for clusters that need attention
 - **AI agent best practices documentation** -- expanded usage examples and troubleshooting with guidance on response interpretation, script avoidance, pagination handling, diagnostic report structure, Sampling/Elicitation, and parameter optimization (#135)
+- **Prompt template validation tests** -- unit tests for all 13 prompt templates covering null parameter safety, format validation (no unresolved `%s` placeholders or literal `null` injection), and `ERROR_HANDLING_INSTRUCTION` presence
 - **Production deployment checklist** in configuration docs covering authentication, rate limiting, CORS, TLS, and log redaction hardening
 
 ### Changed
