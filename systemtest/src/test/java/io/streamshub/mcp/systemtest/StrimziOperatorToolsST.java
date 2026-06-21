@@ -257,6 +257,175 @@ class StrimziOperatorToolsST extends AbstractST {
             .thenAssertResults();
     }
 
+    @Test
+    @DisplayName("get_strimzi_operator returns operator info when namespace is specified")
+    @Story("Get Strimzi Operator")
+    void testGetStrimziOperatorWithNamespace() {
+        Map<String, Object> args = Map.of(
+            "operatorName", "strimzi-cluster-operator",
+            "namespace", strimziNamespace.getMetadata().getName());
+        mcpClient.when()
+            .toolsCall("get_strimzi_operator", args, response -> {
+                assertFalse(response.isError(),
+                    "get_strimzi_operator should not return error");
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("get_strimzi_operator (with namespace) response:\n{}", json);
+
+                JsonNode operator = parseJson(json);
+
+                assertEquals("strimzi-cluster-operator", operator.path("name").asText(),
+                    "Operator name should match");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_strimzi_operator_logs returns logs filtered by ERROR level")
+    @Story("Get Strimzi Operator Logs")
+    void testGetStrimziOperatorLogsErrorFilter() {
+        Map<String, Object> args = Map.of("filter", "ERROR", "tailLines", 100);
+        mcpClient.when()
+            .toolsCall("get_strimzi_operator_logs", args, response -> {
+                assertFalse(response.isError(),
+                    "get_strimzi_operator_logs with ERROR filter should not return error");
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("get_strimzi_operator_logs (ERROR filter) response (length={}):\n{}",
+                    json.length(), json);
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_strimzi_events returns events for a Kafka resource")
+    @Story("Get Strimzi Events")
+    void testGetStrimziEventsKafka() {
+        Map<String, Object> args = Map.of(
+            "resourceName", Constants.KAFKA_CLUSTER_NAME,
+            "resourceKind", "Kafka",
+            "namespace", kafkaNamespace.getMetadata().getName());
+        mcpClient.when()
+            .toolsCall("get_strimzi_events", args, response -> {
+                assertFalse(response.isError(),
+                    "get_strimzi_events for Kafka should not return error");
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("get_strimzi_events (Kafka) response:\n{}", json);
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_strimzi_events returns time-scoped events for a Kafka resource")
+    @Story("Get Strimzi Events")
+    void testGetStrimziEventsTimeScoped() {
+        Map<String, Object> args = Map.of(
+            "resourceName", Constants.KAFKA_CLUSTER_NAME,
+            "resourceKind", "Kafka",
+            "namespace", kafkaNamespace.getMetadata().getName(),
+            "sinceMinutes", 60);
+        mcpClient.when()
+            .toolsCall("get_strimzi_events", args, response -> {
+                assertFalse(response.isError(),
+                    "get_strimzi_events with sinceMinutes should not return error");
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("get_strimzi_events (time-scoped) response:\n{}", json);
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_strimzi_events returns events for StrimziOperator resource")
+    @Story("Get Strimzi Events")
+    void testGetStrimziEventsOperator() {
+        Map<String, Object> args = Map.of(
+            "resourceName", "strimzi-cluster-operator",
+            "resourceKind", "StrimziOperator",
+            "namespace", strimziNamespace.getMetadata().getName());
+        mcpClient.when()
+            .toolsCall("get_strimzi_events", args, response -> {
+                assertFalse(response.isError(),
+                    "get_strimzi_events for StrimziOperator should not return error");
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("get_strimzi_events (StrimziOperator) response:\n{}", json);
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_strimzi_events returns error for non-existent resource")
+    @Story("Get Strimzi Events")
+    void testGetStrimziEventsNonexistent() {
+        Map<String, Object> args = Map.of(
+            "resourceName", "nonexistent-xyz",
+            "resourceKind", "Kafka",
+            "namespace", kafkaNamespace.getMetadata().getName());
+        mcpClient.when()
+            .toolsCall("get_strimzi_events", args, response -> {
+                assertTrue(response.isError(),
+                    "get_strimzi_events should return error for non-existent resource");
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_strimzi_events (nonexistent) error response: {}", text);
+                assertTrue(text.toLowerCase(Locale.ROOT).contains("not found"),
+                    "Error should mention 'not found'");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_strimzi_events returns error for invalid resource kind")
+    @Story("Get Strimzi Events")
+    void testGetStrimziEventsInvalidKind() {
+        Map<String, Object> args = Map.of(
+            "resourceName", Constants.KAFKA_CLUSTER_NAME,
+            "resourceKind", "InvalidKind");
+        mcpClient.when()
+            .toolsCall("get_strimzi_events", args, response -> {
+                assertTrue(response.isError(),
+                    "get_strimzi_events should return error for invalid resource kind");
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_strimzi_events (InvalidKind) error response: {}", text);
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_strimzi_operator_metrics returns operator metrics")
+    @Story("Get Strimzi Operator Metrics")
+    void testGetStrimziOperatorMetrics() {
+        Map<String, Object> args = Map.of();
+        mcpClient.when()
+            .toolsCall("get_strimzi_operator_metrics", args, response -> {
+                assertFalse(response.isError(),
+                    "get_strimzi_operator_metrics should not return error");
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("get_strimzi_operator_metrics response:\n{}", json);
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("diagnose_operator_metrics returns operator metrics diagnosis")
+    @Story("Diagnose Operator Metrics")
+    void testDiagnoseOperatorMetrics() {
+        Map<String, Object> args = Map.of();
+        mcpClient.when()
+            .toolsCall("diagnose_operator_metrics", args, response -> {
+                assertFalse(response.isError(),
+                    "diagnose_operator_metrics should not return error");
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("diagnose_operator_metrics response:\n{}", json);
+            })
+            .thenAssertResults();
+    }
+
     /**
      * Find a node by name in a JSON response (array or single object).
      *

@@ -174,6 +174,55 @@ class KafkaBridgeToolsST extends AbstractST {
             .thenAssertResults();
     }
 
+    @Test
+    @DisplayName("get_kafka_bridge_logs returns log output")
+    @Story("Get KafkaBridge Logs")
+    void testGetKafkaBridgeLogs() {
+        Map<String, Object> args = Map.of(
+            "bridgeName", BRIDGE_NAME,
+            "tailLines", 50);
+        mcpClient.when()
+            .toolsCall("get_kafka_bridge_logs", args, response -> {
+                assertFalse(response.isError(), "get_kafka_bridge_logs should not return error");
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_bridge_logs response:\n{}", text);
+                assertFalse(text.isEmpty(), "Log output should not be empty");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_strimzi_events returns events for KafkaBridge")
+    @Story("Get Strimzi Events KafkaBridge")
+    void testGetStrimziEventsKafkaBridge() {
+        Map<String, Object> args = Map.of(
+            "resourceName", BRIDGE_NAME,
+            "resourceKind", "KafkaBridge",
+            "namespace", kafkaNamespace.getMetadata().getName());
+        mcpClient.when()
+            .toolsCall("get_strimzi_events", args, response -> {
+                assertFalse(response.isError(), "get_strimzi_events should not return error");
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_strimzi_events (KafkaBridge) response:\n{}", text);
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_kafka_bridge_metrics returns metrics for Bridge")
+    @Story("Get KafkaBridge Metrics")
+    void testGetKafkaBridgeMetrics() {
+        Map<String, Object> args = Map.of(
+            "bridgeName", BRIDGE_NAME);
+        mcpClient.when()
+            .toolsCall("get_kafka_bridge_metrics", args, response -> {
+                assertFalse(response.isError(), "get_kafka_bridge_metrics should not return error");
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_bridge_metrics response:\n{}", text);
+            })
+            .thenAssertResults();
+    }
+
     /**
      * Find a node by name in a JSON array or single object.
      *

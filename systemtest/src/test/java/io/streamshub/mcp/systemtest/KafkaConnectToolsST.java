@@ -238,6 +238,85 @@ class KafkaConnectToolsST extends AbstractST {
             .thenAssertResults();
     }
 
+    @Test
+    @DisplayName("get_kafka_connect_logs returns log output")
+    @Story("Get KafkaConnect Logs")
+    void testGetKafkaConnectLogs() {
+        Map<String, Object> args = Map.of(
+            "connectName", CONNECT_CLUSTER_NAME,
+            "tailLines", 50);
+        mcpClient.when()
+            .toolsCall("get_kafka_connect_logs", args, response -> {
+                assertFalse(response.isError(), "get_kafka_connect_logs should not return error");
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_connect_logs response:\n{}", text);
+                assertFalse(text.isEmpty(), "Log output should not be empty");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_strimzi_events returns events for KafkaConnect")
+    @Story("Get Strimzi Events KafkaConnect")
+    void testGetStrimziEventsKafkaConnect() {
+        Map<String, Object> args = Map.of(
+            "resourceName", CONNECT_CLUSTER_NAME,
+            "resourceKind", "KafkaConnect",
+            "namespace", kafkaNamespace.getMetadata().getName());
+        mcpClient.when()
+            .toolsCall("get_strimzi_events", args, response -> {
+                assertFalse(response.isError(), "get_strimzi_events should not return error");
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_strimzi_events (KafkaConnect) response:\n{}", text);
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_kafka_connect_metrics returns metrics for Connect cluster")
+    @Story("Get KafkaConnect Metrics")
+    void testGetKafkaConnectMetrics() {
+        Map<String, Object> args = Map.of(
+            "connectName", CONNECT_CLUSTER_NAME);
+        mcpClient.when()
+            .toolsCall("get_kafka_connect_metrics", args, response -> {
+                assertFalse(response.isError(), "get_kafka_connect_metrics should not return error");
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_connect_metrics response:\n{}", text);
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("diagnose_kafka_connect returns diagnostic info")
+    @Story("Diagnose KafkaConnect")
+    void testDiagnoseKafkaConnect() {
+        Map<String, Object> args = Map.of(
+            "connectName", CONNECT_CLUSTER_NAME);
+        mcpClient.when()
+            .toolsCall("diagnose_kafka_connect", args, response -> {
+                assertFalse(response.isError(), "diagnose_kafka_connect should not return error");
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("diagnose_kafka_connect response:\n{}", text);
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("diagnose_kafka_connector returns diagnostic info")
+    @Story("Diagnose KafkaConnector")
+    void testDiagnoseKafkaConnector() {
+        Map<String, Object> args = Map.of(
+            "connectorName", CONNECTOR_NAME);
+        mcpClient.when()
+            .toolsCall("diagnose_kafka_connector", args, response -> {
+                assertFalse(response.isError(), "diagnose_kafka_connector should not return error");
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("diagnose_kafka_connector response:\n{}", text);
+            })
+            .thenAssertResults();
+    }
+
     /**
      * Find a node by name in a JSON array or single object.
      *
