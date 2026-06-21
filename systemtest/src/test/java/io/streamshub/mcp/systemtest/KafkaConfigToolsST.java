@@ -312,6 +312,23 @@ class KafkaConfigToolsST extends AbstractST {
             .thenAssertResults();
     }
 
+    @Test
+    @DisplayName("get_kafka_metrics returns metrics with short range")
+    @Story("Get Kafka Metrics")
+    void testGetKafkaMetricsShortRange() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "rangeMinutes", 1,
+            "stepSeconds", 10);
+        mcpClient.when()
+            .toolsCall("get_kafka_metrics", args, response -> {
+                assertFalse(response.isError(), "get_kafka_metrics should not return error");
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_metrics (short range) response:\n{}", text);
+            })
+            .thenAssertResults();
+    }
+
     /**
      * Build a second Kafka cluster with intentionally different configuration:
      * only a plain listener (no TLS) and custom broker config.
