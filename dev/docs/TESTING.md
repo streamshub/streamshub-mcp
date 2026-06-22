@@ -46,10 +46,10 @@ Enable them with the `systemtest` Maven profile:
 ./mvnw verify -Psystemtest
 
 # Using custom MCP image
-./mvnw verify -Psystemtest -DMCP_IMAGE=quay.io/myorg/strimzi-mcp:dev
+MCP_IMAGE=quay.io/myorg/strimzi-mcp:dev ./mvnw verify -Psystemtest
 
 # Use existing Strimzi installation on the cluster
-./mvnw verify -Psystemtest -DSKIP_STRIMZI_INSTALL=true
+SKIP_STRIMZI_INSTALL=true ./mvnw verify -Psystemtest
 ```
 
 ### Configuration
