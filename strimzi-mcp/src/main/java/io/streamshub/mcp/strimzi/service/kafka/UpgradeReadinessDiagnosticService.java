@@ -4,19 +4,18 @@
  */
 package io.streamshub.mcp.strimzi.service.kafka;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
-import io.quarkiverse.mcp.server.SamplingMessage;
-import io.quarkiverse.mcp.server.SamplingResponse;
 import io.quarkiverse.mcp.server.ToolCallException;
+import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerReadinessResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
@@ -35,7 +34,6 @@ import io.streamshub.mcp.strimzi.service.operator.StrimziEventsService;
 import io.streamshub.mcp.strimzi.service.operator.StrimziOperatorService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
@@ -53,7 +51,7 @@ import java.util.Map;
  * recorded and the report includes all data that was successfully gathered.</p>
  */
 @ApplicationScoped
-public class UpgradeReadinessDiagnosticService {
+public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(UpgradeReadinessDiagnosticService.class);
     private static final int PHASE1_STEPS = 5;
@@ -95,14 +93,10 @@ public class UpgradeReadinessDiagnosticService {
     @Inject
     KafkaRebalanceService rebalanceService;
 
-    @Inject
-    ObjectMapper objectMapper;
-
-    @ConfigProperty(name = "mcp.sampling.triage-max-tokens", defaultValue = "200")
-    int triageMaxTokens;
-
-    @ConfigProperty(name = "mcp.sampling.analysis-max-tokens", defaultValue = "1500")
-    int analysisMaxTokens;
+    @Override
+    protected Logger getLogger() {
+        return LOG;
+    }
 
     UpgradeReadinessDiagnosticService() {
     }
@@ -472,8 +466,8 @@ public class UpgradeReadinessDiagnosticService {
                                         final List<String> failed,
                                         final McpLog mcpLog) {
         try {
-            StrimziEventsResponse result = eventsService.getClusterEvents(
-                namespace, clusterName, null);
+            StrimziEventsResponse result = eventsService.getEvents(
+                namespace, clusterName, StrimziConstants.KindValues.KAFKA, null);
             completed.add(STEP_EVENTS);
             DiagnosticHelper.sendClientNotification(mcpLog,
                 String.format("Found %d cluster-related events", result.totalEvents()));
@@ -496,28 +490,9 @@ public class UpgradeReadinessDiagnosticService {
                                          final KafkaClusterPodsResponse pods,
                                          final KafkaMetricsResponse replicationMetrics,
                                          final String targetVersion) {
-        if (sampling == null || !sampling.isSupported()) {
-            return InvestigationAreas.all();
-        }
-
-        try {
-            Map<String, Object> summary = buildPhase1Summary(
-                cluster, operator, nodePools, pods, replicationMetrics, targetVersion);
-            String summaryJson = objectMapper.writeValueAsString(summary);
-
-            SamplingResponse response = sampling.requestBuilder()
-                .setSystemPrompt(TRIAGE_SYSTEM_PROMPT)
-                .addMessage(SamplingMessage.withUserRole(summaryJson))
-                .setMaxTokens(triageMaxTokens)
-                .build()
-                .sendAndAwait();
-
-            return parseInvestigationAreas(response);
-        } catch (Exception e) {
-            LOG.warnf("Sampling triage failed (investigating all areas): %s: %s",
-                e.getClass().getSimpleName(), e.getMessage());
-            return InvestigationAreas.all();
-        }
+        Map<String, Object> parsed = performTriage(sampling, TRIAGE_SYSTEM_PROMPT,
+            buildPhase1Summary(cluster, operator, nodePools, pods, replicationMetrics, targetVersion));
+        return parsed != null ? parseInvestigationAreas(parsed) : InvestigationAreas.all();
     }
 
     @WithSpan("diagnose.upgrade.analysis")
@@ -535,30 +510,10 @@ public class UpgradeReadinessDiagnosticService {
                            final KafkaCertificateResponse certificates,
                            final StrimziEventsResponse events,
                            final String targetVersion) {
-        if (sampling == null || !sampling.isSupported()) {
-            return null;
-        }
-
-        try {
-            Map<String, Object> fullData = buildFullSummary(
-                cluster, operator, nodePools, pods, replicationMetrics,
+        return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
+            buildFullSummary(cluster, operator, nodePools, pods, replicationMetrics,
                 activeRebalances, performanceMetrics, resourceMetrics,
-                drainCleaner, certificates, events, targetVersion);
-            String dataJson = objectMapper.writeValueAsString(fullData);
-
-            SamplingResponse response = sampling.requestBuilder()
-                .setSystemPrompt(ANALYSIS_SYSTEM_PROMPT)
-                .addMessage(SamplingMessage.withUserRole(dataJson))
-                .setMaxTokens(analysisMaxTokens)
-                .build()
-                .sendAndAwait();
-
-            return DiagnosticHelper.extractSamplingText(response);
-        } catch (Exception e) {
-            LOG.warnf("Sampling analysis failed: %s: %s",
-                e.getClass().getSimpleName(), e.getMessage());
-            return null;
-        }
+                drainCleaner, certificates, events, targetVersion));
     }
 
     // ---- Helpers ----
@@ -625,21 +580,14 @@ public class UpgradeReadinessDiagnosticService {
         return data;
     }
 
-    private InvestigationAreas parseInvestigationAreas(final SamplingResponse response) {
-        try {
-            String text = DiagnosticHelper.extractSamplingText(response);
-            Map<String, Object> parsed = objectMapper.readValue(text, DiagnosticHelper.MAP_TYPE_REF);
-            return new InvestigationAreas(
-                Boolean.TRUE.equals(parsed.get(STEP_PERFORMANCE_METRICS)),
-                Boolean.TRUE.equals(parsed.get(STEP_RESOURCE_METRICS)),
-                Boolean.TRUE.equals(parsed.get(STEP_DRAIN_CLEANER)),
-                Boolean.TRUE.equals(parsed.get(STEP_CERTIFICATES)),
-                Boolean.TRUE.equals(parsed.get(STEP_EVENTS))
-            );
-        } catch (Exception e) {
-            LOG.debugf("Could not parse triage response, investigating all: %s", e.getMessage());
-            return InvestigationAreas.all();
-        }
+    private InvestigationAreas parseInvestigationAreas(final Map<String, Object> parsed) {
+        return new InvestigationAreas(
+            Boolean.TRUE.equals(parsed.get(STEP_PERFORMANCE_METRICS)),
+            Boolean.TRUE.equals(parsed.get(STEP_RESOURCE_METRICS)),
+            Boolean.TRUE.equals(parsed.get(STEP_DRAIN_CLEANER)),
+            Boolean.TRUE.equals(parsed.get(STEP_CERTIFICATES)),
+            Boolean.TRUE.equals(parsed.get(STEP_EVENTS))
+        );
     }
 
     /**

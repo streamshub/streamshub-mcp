@@ -4,20 +4,19 @@
  */
 package io.streamshub.mcp.strimzi.service.kafkamirrormaker2;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
-import io.quarkiverse.mcp.server.SamplingMessage;
-import io.quarkiverse.mcp.server.SamplingResponse;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
+import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2LogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2PodsResponse;
@@ -26,7 +25,6 @@ import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
 import io.streamshub.mcp.strimzi.service.operator.StrimziEventsService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
@@ -41,7 +39,7 @@ import java.util.Map;
  * Phase 3 uses Sampling for root cause analysis.</p>
  */
 @ApplicationScoped
-public class KafkaMirrorMaker2DiagnosticService {
+public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(KafkaMirrorMaker2DiagnosticService.class);
     private static final int PHASE1_STEPS = 2;
@@ -59,17 +57,10 @@ public class KafkaMirrorMaker2DiagnosticService {
     @Inject
     StrimziEventsService eventsService;
 
-    @Inject
-    ObjectMapper objectMapper;
-
-    @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
-    int defaultTailLines;
-
-    @ConfigProperty(name = "mcp.sampling.triage-max-tokens", defaultValue = "200")
-    int triageMaxTokens;
-
-    @ConfigProperty(name = "mcp.sampling.analysis-max-tokens", defaultValue = "1500")
-    int analysisMaxTokens;
+    @Override
+    protected Logger getLogger() {
+        return LOG;
+    }
 
     KafkaMirrorMaker2DiagnosticService() {
     }
@@ -224,8 +215,8 @@ public class KafkaMirrorMaker2DiagnosticService {
                                         final List<String> failed,
                                         final McpLog mcpLog) {
         try {
-            StrimziEventsResponse result = eventsService.getClusterEvents(
-                namespace, name, sinceMinutes);
+            StrimziEventsResponse result = eventsService.getEvents(
+                namespace, name, StrimziConstants.KindValues.KAFKA_MIRROR_MAKER_2, sinceMinutes);
             completed.add(STEP_EVENTS);
             DiagnosticHelper.sendClientNotification(mcpLog,
                 String.format("Found %d related events", result.totalEvents()));
@@ -247,34 +238,24 @@ public class KafkaMirrorMaker2DiagnosticService {
                            final KafkaMirrorMaker2LogsResponse logs,
                            final StrimziEventsResponse events,
                            final String symptom) {
-        if (sampling == null || !sampling.isSupported()) {
-            return null;
+        return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
+            buildFullSummary(mm2Status, pods, logs, events, symptom));
+    }
+
+    private Map<String, Object> buildFullSummary(final KafkaMirrorMaker2Response mm2Status,
+                                                  final KafkaMirrorMaker2PodsResponse pods,
+                                                  final KafkaMirrorMaker2LogsResponse logs,
+                                                  final StrimziEventsResponse events,
+                                                  final String symptom) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        if (symptom != null) {
+            data.put("symptom", symptom);
         }
-
-        try {
-            Map<String, Object> data = new LinkedHashMap<>();
-            if (symptom != null) {
-                data.put("symptom", symptom);
-            }
-            DiagnosticHelper.putIfNotNull(data, STEP_MM2_STATUS, mm2Status);
-            DiagnosticHelper.putIfNotNull(data, STEP_MM2_PODS, pods);
-            DiagnosticHelper.putIfNotNull(data, STEP_MM2_LOGS, logs);
-            DiagnosticHelper.putIfNotNull(data, STEP_EVENTS, events);
-
-            String dataJson = objectMapper.writeValueAsString(data);
-            SamplingResponse response = sampling.requestBuilder()
-                .setSystemPrompt(ANALYSIS_SYSTEM_PROMPT)
-                .addMessage(SamplingMessage.withUserRole(dataJson))
-                .setMaxTokens(analysisMaxTokens)
-                .build()
-                .sendAndAwait();
-
-            return DiagnosticHelper.extractSamplingText(response);
-        } catch (Exception e) {
-            LOG.warnf("Sampling analysis failed: %s: %s",
-                e.getClass().getSimpleName(), e.getMessage());
-            return null;
-        }
+        DiagnosticHelper.putIfNotNull(data, STEP_MM2_STATUS, mm2Status);
+        DiagnosticHelper.putIfNotNull(data, STEP_MM2_PODS, pods);
+        DiagnosticHelper.putIfNotNull(data, STEP_MM2_LOGS, logs);
+        DiagnosticHelper.putIfNotNull(data, STEP_EVENTS, events);
+        return data;
     }
 
     static final String ANALYSIS_SYSTEM_PROMPT = """

@@ -9,21 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tool metadata** -- tools now include `_meta` fields (`type`, `resource`, `composite`) in `tools/list` responses, enabling AI agents and clients to discover and filter tools by purpose and target resource (#151)
 - **Fleet overview tool** -- `get_kafka_fleet_overview` returns aggregated health across all Kafka clusters in a single call, including status distribution, total broker count, per-cluster summaries with cross-resource relationship counts (topics, users, active rebalances, connected KafkaConnect/Bridge/MirrorMaker2), and warnings for clusters that need attention
 - **Helm chart full configurability** -- every `@ConfigProperty` is now exposed as a structured value in `values.yaml`: Loki labels/tenant/timeouts, Prometheus timeouts, OTEL protocol/propagators, topics pagination, events limits, diagnostic thresholds, watch reconnection, completion cache, guardrails (redaction/rate-limits/response-size), CORS origins, log level, and TLS trust-all. Added deployment features: `strategy`, `extraVolumes`/`extraVolumeMounts`, `topologySpreadConstraints`, `terminationGracePeriodSeconds`, `PodDisruptionBudget`, and monitoring RBAC bindings (`cluster-monitoring-view`/`cluster-reader`).
 - **Helm chart unit tests** -- 14 test suites covering all templates using helm-unittest: deployment env vars (default, Loki, Prometheus, tracing, TLS, guardrails), RBAC (ClusterRole, sensitive Roles, Loki, monitoring), service, ServiceAccount, PDB, Ingress, Route, and PodMonitor. Dedicated `helm-test.yml` CI workflow.
 - **Helm install system tests** -- `HelmInstallST` with 3 tests: Helm install + tool call verification, `helm upgrade` with `sensitive.namespaces` for RBAC, and config override validation (log level, tail lines). Uses `HelmSetup` helper with builder pattern for install/upgrade/uninstall.
 - **Release script Chart.yaml version update** -- `release.sh` now updates both `version` and `appVersion` in Chart.yaml.
-
+- **AI agent best practices documentation** -- expanded usage examples and troubleshooting with guidance on response interpretation, script avoidance, pagination handling, diagnostic report structure, Sampling/Elicitation, and parameter optimization (#135)
+- **Prompt template validation tests** -- unit tests for all 13 prompt templates covering null parameter safety, format validation (no unresolved `%s` placeholders or literal `null` injection), and `ERROR_HANDLING_INSTRUCTION` presence
+- **Production deployment checklist** in configuration docs covering authentication, rate limiting, CORS, TLS, and log redaction hardening
 
 ### Changed
 
+- Extracted `BaseDiagnosticService` base class in the `common` module -- all 9 diagnostic services now inherit shared fields (`ObjectMapper`, sampling/log config) and reusable `performSampling()`, `performAnalysis()`, `performTriage()` utility methods
+- `quarkus.kubernetes-client.trust-certs` is now scoped to the `%dev` profile only -- production builds validate Kubernetes API server certificates by default using the in-cluster CA. Override with `QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true` if needed.
+- Reorganized tool classes into domain sub-packages (`kafka/`, `kafkatopic/`, `operator/`, `diagnostic/`, etc.) matching the existing service and DTO package structure
+- Resource subscriptions (`mcp.resource-watches.enabled`) are now **disabled by default** because most AI clients do not yet support MCP resource subscriptions; resource templates still work for on-demand queries
 - Renamed deployment and related resources from `streamshub-strimzi-mcp` to `streamshub-mcp-strimzi` for consistent naming
+- Unified `get_strimzi_events` event query: merged separate Kafka and non-Kafka code paths into a single method, renamed `clusterName` parameter to `resourceName`, made `resourceKind` required, added `Kafka`, `StrimziOperator`, and `DrainCleaner` as supported resource kinds
 
 ### Fixed
 
 - Replaced deprecated `Elicitation.isSupported()` with `isFormModeSupported()` across all diagnostic services
 - Fixed `auth-mode` documentation to use correct values (`sa-token` and `bearer-token`) matching the actual implementation
+- Fixed diagnostic services and prompt templates incorrectly passing KafkaConnect/KafkaMirrorMaker2 names to `get_strimzi_events` as Kafka cluster names (#145)
+- Fixed cluster overview Drain Cleaner summary missing namespace, readiness, and replica count
+- Fixed diagnostic tools returning empty metrics when using the pod-scraping provider because range queries dropped pod targets
 
 ## [0.1.0] - 2026-06-02
 

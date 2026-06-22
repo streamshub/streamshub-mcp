@@ -143,7 +143,7 @@ public class MetricsQueryService {
             }
 
             int step = stepSeconds != null ? stepSeconds : defaultStepSeconds;
-            return MetricsQueryParams.range(metricNames, labelMatchers, start, end, step, maxSamples);
+            return MetricsQueryParams.range(metricNames, labelMatchers, podTargets, start, end, step, maxSamples);
         }
 
         // Relative time range
@@ -155,7 +155,7 @@ public class MetricsQueryService {
             Instant end = Instant.now();
             Instant start = end.minusSeconds((long) rangeMinutes * SECONDS_PER_MINUTE);
             int step = stepSeconds != null ? stepSeconds : defaultStepSeconds;
-            return MetricsQueryParams.range(metricNames, labelMatchers, start, end, step, maxSamples);
+            return MetricsQueryParams.range(metricNames, labelMatchers, podTargets, start, end, step, maxSamples);
         }
 
         // Instant query

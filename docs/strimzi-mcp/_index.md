@@ -12,7 +12,7 @@ The MCP Server for Strimzi provides AI assistants with tools to manage and troub
 ## Overview
 
 The MCP Server for Strimzi exposes Strimzi-managed Kafka resources through the Model Context Protocol.
-AI assistants use these tools to check cluster health, collect logs, query metrics, and troubleshoot issues.
+AI assistants use these tools to check Kafka cluster health, collect logs, query metrics, and troubleshoot issues.
 
 With the MCP Server for Strimzi, AI assistants can:
 
@@ -26,17 +26,27 @@ With the MCP Server for Strimzi, AI assistants can:
 - Manage and troubleshoot KafkaBridge HTTP endpoints
 - Monitor KafkaMirrorMaker2 cross-cluster replication
 - Check Strimzi Drain Cleaner readiness and webhook configuration
-- Track Kubernetes events for cluster resources
+- Track Kubernetes events for Kafka cluster resources
 - Compare configurations across Kafka clusters
 - Assess upgrade readiness with GO/NO-GO verdicts
 
 ## Key features
 
+### Tool metadata for discovery
+
+Every tool includes structured metadata in its `_meta` object, enabling AI agents and clients to filter tools programmatically:
+
+- **`type`** -- action category: `list`, `get`, `overview`, `logs`, `events`, `metrics`, `diagnose`, `compare`, `assess`, `check`
+- **`resource`** -- target Strimzi resource: `kafka`, `kafkatopic`, `kafkauser`, `kafkanodepool`, `kafkarebalance`, `kafkaconnect`, `kafkaconnector`, `kafkabridge`, `kafkamirrormaker2`, `strimzi-operator`, `strimzi-event`, `drain-cleaner`
+- **`composite`** -- `true` when the tool aggregates multiple internal API calls (higher latency)
+
+Clients can use these fields in `tools/list` responses to select the right tool without parsing names.
+
 ### Automatic namespace discovery
 
 All tools support automatic namespace discovery.
 The namespace parameter is optional on every tool.
-When no namespace is specified, tools search across the entire cluster to find matching resources.
+When no namespace is specified, tools search across the entire Kubernetes cluster to find matching resources.
 Note that access to listing namespaces may be limited by RBAC configuration.
 
 ### Composite diagnostic tools
@@ -118,7 +128,7 @@ The server integrates with the following observability platforms:
 ### Required
 
 - A Kubernetes cluster with `kubectl` access
-- The Strimzi operator deployed to your cluster
+- The Strimzi operator deployed to your Kubernetes cluster
 - Java 21 or later and Maven 3.8 or later (for local development)
 - An AI assistant that supports MCP (Claude Desktop, Claude Code, or similar)
 

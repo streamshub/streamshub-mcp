@@ -73,7 +73,7 @@ KafkaConnect and KafkaBridge resources are matched by comparing their `spec.boot
 - **KafkaConnects** -- connected clusters with connector counts
 - **KafkaMirrorMaker2** -- connected MM2 instances with mirror counts
 - **KafkaBridges** -- connected bridge instances
-- **Drain Cleaner** -- deployment and readiness status
+- **Drain Cleaner** -- name, namespace, readiness, and replica count
 
 **Example**:
 ```

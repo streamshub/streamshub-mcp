@@ -145,7 +145,7 @@ public class TroubleshootTopicPrompt {
             - "Conflict" or "already managed" -- multiple operators competing
 
             ## Step 5: Check Kubernetes events
-            Use `get_strimzi_events(%s%s)` to look for warning events \
+            Use `get_strimzi_events(%s%s, resource_kind='Kafka')` to look for warning events \
             related to the topic or its parent cluster.
 
             ## Step 6: Diagnose and recommend

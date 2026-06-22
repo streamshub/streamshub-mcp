@@ -46,6 +46,24 @@ Override with a specific domain:
 QUARKUS_HTTP_CORS_ORIGINS=https://your-domain.com
 ```
 
+### Kubernetes API TLS
+
+When running inside a Kubernetes cluster, the MCP server automatically trusts the cluster CA certificate mounted at `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`.
+No additional TLS configuration is needed for standard in-cluster deployments.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `quarkus.kubernetes-client.trust-certs` | `false` | Skip Kubernetes API server certificate validation. Only set to `true` for development or clusters with untrusted CAs. |
+
+If your cluster uses a custom CA that is not covered by the mounted service account CA bundle, you can override this setting:
+
+```bash
+QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true
+```
+
+**Warning:** Setting `trust-certs=true` disables certificate validation for all Kubernetes API connections, exposing the server to man-in-the-middle attacks.
+Only use this in development or when you understand the security implications.
+
 ## Log configuration
 
 ### Log provider selection
@@ -321,7 +339,7 @@ QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT=http://custom-collector:4317 \
   ./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:latest --ocp --otel
 ```
 
-**Manual configuration (in-cluster gRPC):**
+**Manual configuration (in-Kubernetes-cluster gRPC):**
 
 ```bash
 QUARKUS_OTEL_SDK_DISABLED=false
@@ -376,11 +394,17 @@ Tracing is disabled by default and enabled automatically in the `prod` profile.
 
 ### Resource watch configuration
 
-Control Kubernetes resource watches that send MCP notifications when resources change.
+Control Kubernetes resource watches that send MCP notifications when resources change. Resource subscriptions are **disabled by default** because most AI clients do not yet support MCP resource subscriptions. When disabled, resource templates still work for on-demand queries — only the automatic push notifications are turned off.
+
+To enable resource subscriptions, set:
+
+```bash
+MCP_RESOURCE_WATCHES_ENABLED=true
+```
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `mcp.resource-watches.enabled` | `true` | Enable resource subscriptions |
+| `mcp.resource-watches.enabled` | `false` | Enable resource subscriptions (automatic push notifications on Kubernetes resource changes) |
 | `mcp.watch.reconnect-initial-delay-ms` | `1000` | Initial delay (ms) before first reconnect attempt |
 | `mcp.watch.reconnect-max-delay-ms` | `60000` | Maximum delay (ms) between reconnect attempts |
 | `mcp.watch.reconnect-max-attempts` | `10` | Maximum reconnect attempts before giving up |
@@ -409,7 +433,7 @@ Control Kubernetes events collection behavior.
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `mcp.events.max-related-resources` | `50` | Maximum related resources (pods, PVCs) to query events for per cluster |
+| `mcp.events.max-related-resources` | `50` | Maximum related resources (pods, PVCs) to query events for per Kafka cluster |
 
 This limits the number of related resources for which events are collected when using [`get_strimzi_events`](tools/strimzi-operators.md#get_strimzi_events).
 
@@ -778,6 +802,69 @@ kubectl -n streamshub-mcp logs -l app=streamshub-mcp-strimzi
 # Test metrics query through your AI assistant
 # Ask: "Query Kafka metrics for mcp-cluster"
 ```
+
+## Production deployment checklist
+
+Before deploying to production, review these security-relevant settings.
+Most defaults are tuned for development convenience and should be hardened for production use.
+
+### Authentication for external services
+
+Both Loki and Prometheus default to `auth-mode=none`.
+Configure authentication for production:
+
+```bash
+# Loki: use ServiceAccount token (recommended for Kubernetes)
+MCP_LOG_LOKI_AUTH_MODE=sa-token
+
+# Prometheus: use ServiceAccount token
+MCP_METRICS_PROMETHEUS_AUTH_MODE=sa-token
+```
+
+See [Loki authentication](#loki-authentication) and [Prometheus authentication](#prometheus-authentication) for all options.
+
+### Rate limiting
+
+All rate limits default to `0` (unlimited).
+Set per-category limits to prevent resource exhaustion:
+
+```bash
+MCP_GUARDRAIL_RATE_LIMIT_LOG_RPM=30
+MCP_GUARDRAIL_RATE_LIMIT_METRICS_RPM=60
+MCP_GUARDRAIL_RATE_LIMIT_GENERAL_RPM=120
+```
+
+See [Rate limiting](#rate-limiting) for details.
+
+### CORS origins
+
+The default allows `localhost` origins only.
+Override with your actual domain:
+
+```bash
+QUARKUS_HTTP_CORS_ORIGINS=https://your-domain.com
+```
+
+See [CORS configuration](#cors-configuration) for details.
+
+### TLS for external services
+
+Configure trust stores when Loki, Prometheus, or the OTEL collector use TLS:
+
+- [Loki TLS configuration](#loki-tls-configuration)
+- [Prometheus TLS configuration](#prometheus-tls-configuration)
+- [OTLP TLS configuration](#otlp-tls-configuration)
+
+### Log redaction
+
+Log redaction is enabled by default and redacts common credential patterns.
+Add custom patterns for organization-specific secrets:
+
+```bash
+MCP_GUARDRAIL_LOG_REDACTION_CUSTOM_PATTERNS_0='(?i)x-internal-token:\s*\S+'
+```
+
+See [Log redaction](#log-redaction) for built-in patterns and configuration.
 
 ## Configuration examples
 

@@ -37,6 +37,12 @@ streaming platforms. Java 21, Quarkus 3.x, Strimzi API 1.0.x, Fabric8 Kubernetes
    - Changing release process or scripts (`RELEASING.md`)
    - Modifying development environment setup or tooling
 
+5. **MCP tool test plan** (`dev/test-plans/strimzi-mcp-tool-test-plan.md`) -- Update when:
+   - Adding, modifying, or removing MCP tools (add/update test cases for the tool)
+   - Changing tool parameters or behavior (update expected parameters and results)
+   - Modifying dev environment resources (`dev/`) such as Kafka clusters, topics, users, connectors, or other Strimzi resources (update expected values in test cases and the dev deployment reference section)
+   - Adding new optional dev components (add a new test phase or test cases)
+
 Documentation updates are mandatory and must be completed before the task is considered done.
 
 ## Modules
@@ -103,12 +109,17 @@ io.streamshub.mcp.loki.
 ```
 io.streamshub.mcp.strimzi.
 ├── tool/              → MCP tool definitions (thin wrappers, no logic)
-│                        KafkaTools, KafkaTopicTools, KafkaNodePoolTools,
-│                        StrimziOperatorTools, StrimziEventsTools, ConfigurationTools,
-│                        KafkaRebalanceTools,
-│                        DrainCleanerTools, DiagnosticTools (composite diagnostic tools)
+│   ├── kafka/         → KafkaTools, KafkaConfigurationTools
+│   ├── kafkatopic/    → KafkaTopicTools
+│   ├── kafkauser/     → KafkaUserTools
+│   ├── kafkanodepool/ → KafkaNodePoolTools
+│   ├── kafkarebalance/ → KafkaRebalanceTools
+│   ├── kafkabridge/   → KafkaBridgeTools
 │   ├── kafkaconnect/  → KafkaConnectTools, KafkaConnectorTools
 │   ├── kafkamirrormaker2/ → KafkaMirrorMaker2Tools
+│   ├── draincleaner/  → DrainCleanerTools
+│   ├── operator/      → StrimziOperatorTools, StrimziEventsTools
+│   ├── diagnostic/    → DiagnosticTools (composite diagnostic tools)
 │   └── metrics/       → MetricsTools
 ├── service/           → Business logic (KafkaService, KafkaTopicService, KafkaNodePoolService,
 │                        KafkaCertificateService, KafkaConfigService, KafkaConfigComparisonService,
@@ -209,6 +220,28 @@ All tools declare `@Tool.Annotations` with `readOnlyHint = true`, `destructiveHi
 `idempotentHint = true`, `openWorldHint = false` since all tools are read-only Kubernetes queries.
 When adding new tools, always include these annotations — MCP clients like ChatGPT default
 tools to "write" mode without them.
+
+### Tool metadata
+
+Every tool method is annotated with `@MetaField` annotations from `io.quarkiverse.mcp.server.MetaField`
+to provide structured metadata in the `_meta` object of `tools/list` responses.
+
+Three metadata fields are defined:
+
+- **`type`** — the tool action type: `list`, `get`, `overview`, `logs`, `events`, `metrics`, `diagnose`, `compare`, `assess`, `check`
+- **`resource`** — the Strimzi/Kubernetes resource: `kafka`, `kafkatopic`, `kafkauser`, `kafkanodepool`,
+  `kafkarebalance`, `strimzi-operator`, `strimzi-event`, `drain-cleaner`, `kafkaconnect`, `kafkaconnector`,
+  `kafkabridge`, `kafkamirrormaker2`
+- **`composite`** (boolean, only when `true`) — tool aggregates multiple internal API calls
+
+Type constants are in `io.streamshub.mcp.common.config.ToolMetaFields` (common module).
+Resource constants are in `io.streamshub.mcp.strimzi.config.StrimziToolResources` (strimzi module).
+
+```java
+@MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
+@MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
+@Tool(name = "list_kafka_clusters", description = "...")
+```
 
 ### Tool naming
 
@@ -586,8 +619,12 @@ Before adding a new constant, check if it already exists in `ResourceLabels`, `P
 1. Create or update the DTO record in `strimzi-mcp/src/.../strimzi/dto/`
 2. Add the service method to the appropriate domain service in `strimzi-mcp/src/.../strimzi/service/`
 3. Add the `@Tool` method to the corresponding tools class in `strimzi-mcp/src/.../strimzi/tool/`
-4. Run `./mvnw compile` to verify checkstyle + compilation
-5. Run `./mvnw test` to verify tests pass
+   - Include `@MetaField` annotations for `type` (from `ToolMetaFields`) and `resource` (from `StrimziToolResources`)
+   - Add `@MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)` for composite tools
+4. Add the tool name to `McpDiscoveryTest.testToolDiscovery()` expected list
+5. Add expected metadata to `McpDiscoveryTest.testToolMetadata()` maps
+6. Run `./mvnw compile` to verify checkstyle + compilation
+7. Run `./mvnw test` to verify tests pass
 
 ## Adding a New Module
 

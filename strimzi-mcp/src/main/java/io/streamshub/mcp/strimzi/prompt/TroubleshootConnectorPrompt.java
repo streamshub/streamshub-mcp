@@ -110,8 +110,9 @@ public class TroubleshootConnectorPrompt {
             `TaskAssignmentException`, `ConfigException`.
 
             ## Step 5: Check events
-            Use `get_strimzi_events` to look for Kubernetes events related to the \
-            Connect cluster and connector resources.
+            Use `get_strimzi_events` with the Connect cluster name from Step 1 as \
+            `resourceName` and `resource_kind='KafkaConnect'` to look for Kubernetes \
+            events related to the Connect cluster pods.
             Look for: Warning events, reconciliation failures, resource quota issues.
 
             ## Step 6: Correlate and diagnose

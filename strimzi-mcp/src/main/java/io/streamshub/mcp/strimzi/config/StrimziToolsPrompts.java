@@ -172,6 +172,13 @@ public final class StrimziToolsPrompts {
             + " Omit for all available events.";
 
     /**
+     * Resource kind parameter description for events tool.
+     */
+    public static final String RESOURCE_KIND_DESC =
+        "Strimzi resource kind. Supported values: 'Kafka', 'KafkaConnect',"
+            + " 'KafkaMirrorMaker2', 'KafkaBridge', 'StrimziOperator', 'DrainCleaner'.";
+
+    /**
      * Concern parameter description for metrics diagnostic tools.
      */
     public static final String CONCERN_DESC =

@@ -4,20 +4,19 @@
  */
 package io.streamshub.mcp.strimzi.service.kafkaconnect;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
-import io.quarkiverse.mcp.server.SamplingMessage;
-import io.quarkiverse.mcp.server.SamplingResponse;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
+import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectPodsResponse;
@@ -29,7 +28,6 @@ import io.streamshub.mcp.strimzi.service.metrics.KafkaConnectMetricsService;
 import io.streamshub.mcp.strimzi.service.operator.StrimziEventsService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
@@ -46,7 +44,7 @@ import java.util.Map;
  * individual connectors. This service diagnoses the Connect cluster platform.</p>
  */
 @ApplicationScoped
-public class KafkaConnectDiagnosticService {
+public class KafkaConnectDiagnosticService extends BaseDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(KafkaConnectDiagnosticService.class);
     private static final int PHASE1_STEPS = 2;
@@ -73,14 +71,10 @@ public class KafkaConnectDiagnosticService {
     @Inject
     StrimziEventsService eventsService;
 
-    @Inject
-    ObjectMapper objectMapper;
-
-    @ConfigProperty(name = "mcp.log.tail-lines", defaultValue = "200")
-    int defaultTailLines;
-
-    @ConfigProperty(name = "mcp.sampling.analysis-max-tokens", defaultValue = "1500")
-    int analysisMaxTokens;
+    @Override
+    protected Logger getLogger() {
+        return LOG;
+    }
 
     KafkaConnectDiagnosticService() {
     }
@@ -285,8 +279,8 @@ public class KafkaConnectDiagnosticService {
                                         final List<String> failed,
                                         final McpLog mcpLog) {
         try {
-            StrimziEventsResponse result = eventsService.getClusterEvents(
-                namespace, connectName, sinceMinutes);
+            StrimziEventsResponse result = eventsService.getEvents(
+                namespace, connectName, StrimziConstants.KindValues.KAFKA_CONNECT, sinceMinutes);
             completed.add(STEP_EVENTS);
             DiagnosticHelper.sendClientNotification(mcpLog,
                 String.format("Found %d KafkaConnect related events", result.totalEvents()));
@@ -310,36 +304,29 @@ public class KafkaConnectDiagnosticService {
                            final KafkaConnectMetricsResponse connectMetrics,
                            final StrimziEventsResponse events,
                            final String symptom) {
-        if (sampling == null || !sampling.isSupported()) {
-            return null;
+        return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
+            buildFullSummary(connectCluster, connectors, pods, logs, connectMetrics, events, symptom));
+    }
+
+    @SuppressWarnings("checkstyle:ParameterNumber")
+    private Map<String, Object> buildFullSummary(final KafkaConnectResponse connectCluster,
+                                                  final List<KafkaConnectorResponse> connectors,
+                                                  final KafkaConnectPodsResponse pods,
+                                                  final KafkaConnectLogsResponse logs,
+                                                  final KafkaConnectMetricsResponse connectMetrics,
+                                                  final StrimziEventsResponse events,
+                                                  final String symptom) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        if (symptom != null) {
+            data.put("symptom", symptom);
         }
-
-        try {
-            Map<String, Object> data = new LinkedHashMap<>();
-            if (symptom != null) {
-                data.put("symptom", symptom);
-            }
-            DiagnosticHelper.putIfNotNull(data, STEP_CONNECT_STATUS, connectCluster);
-            DiagnosticHelper.putIfNotNull(data, STEP_CONNECTORS, connectors);
-            DiagnosticHelper.putIfNotNull(data, STEP_CONNECT_PODS, pods);
-            DiagnosticHelper.putIfNotNull(data, STEP_CONNECT_LOGS, logs);
-            DiagnosticHelper.putIfNotNull(data, STEP_CONNECT_METRICS, connectMetrics);
-            DiagnosticHelper.putIfNotNull(data, STEP_EVENTS, events);
-
-            String dataJson = objectMapper.writeValueAsString(data);
-            SamplingResponse response = sampling.requestBuilder()
-                .setSystemPrompt(ANALYSIS_SYSTEM_PROMPT)
-                .addMessage(SamplingMessage.withUserRole(dataJson))
-                .setMaxTokens(analysisMaxTokens)
-                .build()
-                .sendAndAwait();
-
-            return DiagnosticHelper.extractSamplingText(response);
-        } catch (Exception e) {
-            LOG.warnf("Sampling analysis failed: %s: %s",
-                e.getClass().getSimpleName(), e.getMessage());
-            return null;
-        }
+        DiagnosticHelper.putIfNotNull(data, STEP_CONNECT_STATUS, connectCluster);
+        DiagnosticHelper.putIfNotNull(data, STEP_CONNECTORS, connectors);
+        DiagnosticHelper.putIfNotNull(data, STEP_CONNECT_PODS, pods);
+        DiagnosticHelper.putIfNotNull(data, STEP_CONNECT_LOGS, logs);
+        DiagnosticHelper.putIfNotNull(data, STEP_CONNECT_METRICS, connectMetrics);
+        DiagnosticHelper.putIfNotNull(data, STEP_EVENTS, events);
+        return data;
     }
 
     static final String ANALYSIS_SYSTEM_PROMPT = """

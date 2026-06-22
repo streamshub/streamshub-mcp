@@ -121,7 +121,7 @@ curl -X POST http://localhost:8080/mcp \
    # Check RBAC permissions
    kubectl auth can-i list kafkas --all-namespaces
    
-   # For in-cluster deployment, check ServiceAccount permissions
+   # For in-Kubernetes-cluster deployment, check ServiceAccount permissions
    kubectl describe clusterrole streamshub-mcp-reader
    ```
 
@@ -222,7 +222,7 @@ kubectl -n streamshub-mcp get svc streamshub-mcp-strimzi
 # Check endpoints
 kubectl -n streamshub-mcp get endpoints streamshub-mcp-strimzi
 
-# Test from within cluster
+# Test from within the Kubernetes cluster
 kubectl -n streamshub-mcp run test --rm -it --image=curlimages/curl -- \
   curl http://streamshub-mcp-strimzi:8080/q/health
 ```
@@ -301,7 +301,7 @@ kubectl -n streamshub-mcp run test --rm -it --image=curlimages/curl -- \
    ```
 
 2. **Slow Kubernetes API**
-   - Large cluster with many resources
+   - Large Kubernetes cluster with many resources
    - Network latency
 
    **Solution**: Use namespace filters
@@ -315,6 +315,76 @@ kubectl -n streamshub-mcp run test --rm -it --image=curlimages/curl -- \
    # Check service connectivity
    kubectl exec -it <mcp-pod> -- curl http://loki.monitoring:3100/ready
    ```
+
+## AI agent behavior issues
+
+### AI agent writes scripts to parse responses
+
+**Symptom**: The AI assistant writes Python, bash, or other scripts to parse JSON data returned by MCP tools, instead of interpreting the response directly.
+
+**Example**:
+```
+AI: "Let me write a Python script to analyze the metrics data..."
+
+import json
+data = json.loads(...)
+for ts in data['time_series']:
+    ...
+```
+
+**Cause**: Some AI models default to scripting when they encounter large or complex JSON payloads, especially metrics responses with many time series.
+
+**Solution**: Remind the AI that MCP responses are structured JSON with pre-computed summary statistics. Use one of these phrases:
+- *"Do not write scripts. Interpret the JSON response directly."*
+- *"The response already contains summary statistics — use the min, max, avg, and latest values."*
+- *"All MCP tool responses are structured data. Read the fields directly without scripting."*
+
+See [AI Agent Best Practices](ai-agent-best-practices.md) for more guidance.
+
+### AI agent re-analyzes diagnostic reports
+
+**Symptom**: The AI manually re-processes raw data sections of a diagnostic report (pods, logs, events, metrics) even though the report already contains a root cause analysis.
+
+**Cause**: The AI does not notice the `analysis` field in the diagnostic report, which contains LLM-generated root cause analysis produced via Sampling.
+
+**Solution**: Point out the analysis field:
+- *"Check the 'analysis' field in the diagnostic report — it already contains the root cause analysis."*
+- *"The diagnostic tool already analyzed the data. Present the analysis from the response."*
+
+If the `analysis` field is null, it means the AI client does not support Sampling, and the AI should analyze the raw data sections itself.
+
+### AI agent does not iterate paginated results
+
+**Symptom**: The AI shows only the first page of topics (typically 100) even though the Kafka cluster has more topics.
+
+**Cause**: The AI does not check the `has_more` flag in the paginated response from `list_kafka_topics`.
+
+**Solution**: Tell the AI to check for more pages:
+- *"Check has_more in the response. If true, call list_kafka_topics again with the next offset."*
+
+### Large responses cause AI confusion
+
+**Symptom**: The AI says it cannot process the data, seems overwhelmed by a large response, or produces incomplete analysis.
+
+**Common Causes**:
+
+1. **Large metrics time ranges**
+
+   **Solution**: Use shorter time ranges or higher aggregation levels
+   ```
+   Instead of: "Show me metrics from the last week"
+   Try: "Show me metrics from the last hour at cluster aggregation level"
+   ```
+
+2. **Response truncation**
+
+   When responses exceed 500 KB, the server truncates them with a notice: `[...response truncated to stay within size limit]`. The summary statistics and analysis fields are preserved, but some raw data may be cut. This is normal, not an error.
+
+   **Solution**: Use the summary statistics (`min`, `max`, `avg`, `latest`) instead of raw data points. Use narrower queries or specify `podNames` to reduce response size.
+
+3. **Many pods in log collection**
+
+   **Solution**: Use `podNames` to filter log collection to specific pods rather than collecting from all pods in a large Kafka cluster.
 
 ## Log collection issues
 
@@ -340,7 +410,7 @@ kubectl -n streamshub-mcp run test --rm -it --image=curlimages/curl -- \
 
 **Solutions**:
 
-1. **Pods not found**: Verify cluster name and namespace
+1. **Pods not found**: Verify Kafka cluster name and namespace
 2. **No logs in time range**: Expand time window
 3. **Container not specified**: Specify container name for multi-container pods
 
@@ -569,6 +639,7 @@ When reporting issues, include:
 
 ## Next steps
 
+- **[AI Agent Best Practices](ai-agent-best-practices.md)** — Tips and tricks for AI assistants
 - **[Installation](installation.md)** — Reinstall or reconfigure
 - **[Configuration](configuration.md)** — Adjust settings
 - **[Usage Examples](usage-examples.md)** — See working examples

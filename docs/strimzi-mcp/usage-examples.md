@@ -5,16 +5,16 @@ weight = 4
 
 Practical examples of using the MCP Server for Strimzi with AI assistants to manage and troubleshoot Kafka infrastructure.
 
-## Basic cluster operations
+## Basic Kafka cluster operations
 
-### Listing clusters
+### Listing Kafka clusters
 
 **Question**: "What Kafka clusters are running?"
 
 **What happens**:
 - AI calls `list_kafka_clusters` tool
 - Returns all Kafka clusters across namespaces
-- Shows cluster names, namespaces, and ready status
+- Shows Kafka cluster names, namespaces, and ready status
 
 **Example response**:
 ```
@@ -22,21 +22,21 @@ I found 2 Kafka clusters:
 
 1. mcp-cluster (namespace: strimzi-kafka)
    - Status: Ready
-   - Version: 3.9.0
+   - Version: 4.2.0
    - Nodes: 3 brokers
 
 2. dev-cluster (namespace: kafka-dev)
    - Status: Ready
-   - Version: 3.8.1
+   - Version: 4.2.0
    - Nodes: 1 broker
 ```
 
-### Checking cluster status
+### Checking Kafka cluster status
 
 **Question**: "What's the status of mcp-cluster?"
 
 **What happens**:
-- AI calls `get_kafka_cluster_status` with cluster name
+- AI calls `get_kafka_cluster` with Kafka cluster name
 - Returns detailed status including conditions, version, listeners
 
 **Example response**:
@@ -44,8 +44,7 @@ I found 2 Kafka clusters:
 The mcp-cluster is Ready and healthy:
 
 Status: Ready
-Version: 3.9.0
-Kafka Version: 3.9.0
+Kafka Version: 4.2.0
 
 Conditions:
 ✓ Ready: True - Kafka cluster is ready
@@ -60,12 +59,12 @@ Node Pools:
 - broker: 3/3 replicas ready (broker role)
 ```
 
-### Viewing cluster topology
+### Viewing Kafka cluster topology
 
 **Question**: "Show me the topology of mcp-cluster"
 
 **What happens**:
-- AI calls `get_kafka_cluster_topology`
+- AI calls `get_strimzi_kafka_cluster_overview`
 - Returns node pool configuration and roles
 
 **Example response**:
@@ -87,7 +86,7 @@ Node Pool: controller
 
 ## Diagnostic workflows
 
-### Comprehensive cluster diagnosis
+### Comprehensive Kafka cluster diagnosis
 
 **Question**: "Diagnose issues with mcp-cluster"
 
@@ -131,7 +130,7 @@ segments. Check retention policies.
 
 ### Connectivity troubleshooting
 
-**Question**: "Why can I not connect to mcp-cluster from outside the cluster?"
+**Question**: "Why can I not connect to mcp-cluster from outside the Kubernetes cluster?"
 
 **What happens**:
 - AI calls `diagnose_kafka_connectivity`
@@ -161,7 +160,7 @@ Testing connectivity:
 ✓ External LoadBalancer: OK
 ✓ DNS resolution: OK
 
-The cluster is properly configured for external access. You can connect using:
+The Kafka cluster is properly configured for external access. You can connect using:
 - Bootstrap server: 203.0.113.45:9094
 - Security protocol: SSL
 - Required: Client certificate for authentication
@@ -207,7 +206,7 @@ Resource Usage:
 ✓ Disk I/O: Normal
 
 Findings:
-The cluster is healthy overall, but showing signs of memory pressure:
+The Kafka cluster is healthy overall, but showing signs of memory pressure:
 - Request queue time is elevated (85ms vs typical 20-30ms)
 - Memory usage is at 85% across brokers
 
@@ -223,7 +222,7 @@ Recommendations:
 
 **What happens**:
 - AI calls `diagnose_kafka_connect` diagnostic tool
-- Gathers cluster status, connector inventory, pod health, logs, and events
+- Gathers KafkaConnect status, connector inventory, pod health, logs, and events
 - Uses Sampling to focus on problem areas
 
 **Example interaction**:
@@ -303,7 +302,7 @@ Recommendation:
 **What happens**:
 - AI calls `diagnose_kafka_topic` diagnostic tool
 - Checks topic status, related topics, cluster health, operator logs, events, Kafka Exporter metrics
-- Detects whether the issue is topic-specific or cluster-wide
+- Detects whether the issue is topic-specific or affects the entire Kafka cluster
 
 **Example interaction**:
 ```
@@ -317,7 +316,7 @@ Step 1: Checking topic status...
 Step 2: Scope detection...
 Checking related topics on cluster mcp-cluster:
   - 15 other topics are also NotReady with the same condition
-  → This is a cluster-wide issue, not specific to order-events
+  → This is a Kafka cluster-wide issue, not specific to order-events
 
 Step 3: Checking cluster health...
 ⚠ Cluster mcp-cluster: 2/3 brokers ready
@@ -394,8 +393,8 @@ Recommendation:
 Comparing configuration of dev-cluster and prod-cluster...
 
 Gathering configurations...
-✓ dev-cluster (namespace: kafka-dev): 1 broker, version 3.9.0
-✓ prod-cluster (namespace: kafka-prod): 3 brokers, version 3.9.0
+✓ dev-cluster (namespace: kafka-dev): 1 broker, version 4.2.0
+✓ prod-cluster (namespace: kafka-prod): 3 brokers, version 4.2.0
 
 Configuration Differences by Impact:
 
@@ -418,7 +417,7 @@ LOW:
 - Listeners: dev has plain only, prod has plain + tls + external
 
 Summary: The clusters have significant differences in resilience and
-capacity. The dev cluster is not suitable for production workloads due
+capacity. The dev Kafka cluster is not suitable for production workloads due
 to single-broker deployment and replication factor of 1.
 ```
 
@@ -428,7 +427,7 @@ to single-broker deployment and replication factor of 1.
 
 **What happens**:
 - AI calls `assess_upgrade_readiness` diagnostic tool
-- Runs pre-flight checks: cluster health, operator status, pods, replication, rebalances, certificates
+- Runs pre-flight checks: Kafka cluster health, operator status, pods, replication, rebalances, certificates
 - Issues GO/NO-GO/CONDITIONAL verdict
 
 **Example interaction**:
@@ -437,7 +436,7 @@ Assessing upgrade readiness for mcp-cluster (target: Kafka 4.2.0)...
 
 Pre-flight Checks:
 ✓ Cluster status: Ready
-✓ Operator status: Ready (version 0.45.0)
+✓ Operator status: Ready (version 1.0.0)
 ✓ All pods healthy: 3/3 brokers, 3/3 controllers
 ✓ Under-replicated partitions: 0
 ✓ No active KafkaRebalance in progress
@@ -453,7 +452,7 @@ Events:
 
 Verdict: CONDITIONAL GO
 
-The cluster is healthy and has sufficient resource headroom for a
+The Kafka cluster is healthy and has sufficient resource headroom for a
 rolling update. However, the cluster CA certificate expires in 12 days.
 
 Pre-upgrade checklist:
@@ -470,7 +469,7 @@ Pre-upgrade checklist:
 **Question**: "Show me errors from mcp-cluster in the last hour"
 
 **What happens**:
-- AI calls `collect_kafka_logs` with time filter
+- AI calls `get_kafka_cluster_logs` with time filter
 - Filters for ERROR level messages
 - Summarizes findings
 
@@ -503,7 +502,7 @@ user-events partition 5. Current ISR: [0,1], required: 3
 **Question**: "What's the Strimzi operator doing?"
 
 **What happens**:
-- AI calls `collect_operator_logs`
+- AI calls `get_strimzi_operator_logs`
 - Shows recent operator activity
 
 **Example response**:
@@ -564,7 +563,7 @@ Found 5 topics in mcp-cluster:
 **Question**: "What's the status of the user-events topic?"
 
 **What happens**:
-- AI calls `get_kafka_topic_status`
+- AI calls `get_kafka_topic`
 - Returns detailed topic configuration and status
 
 **Example response**:
@@ -592,7 +591,7 @@ All partitions are healthy with sufficient replicas.
 **Question**: "What's the current message rate for mcp-cluster?"
 
 **What happens**:
-- AI calls `query_kafka_metrics` with specific metric
+- AI calls `get_kafka_metrics` with specific metric
 - Returns current values
 
 **Example response**:
@@ -611,7 +610,7 @@ Messages Out:
 - mcp-cluster-kafka-2: 425 msg/sec
 - Total: 1,250 msg/sec
 
-The cluster is processing approximately 1,250 messages per second 
+The Kafka cluster is processing approximately 1,250 messages per second 
 with balanced load across all brokers.
 ```
 
@@ -631,7 +630,7 @@ Under-replicated Partitions: 0
 Offline Partitions: 0
 Preferred Replica Imbalance: 2%
 
-All partitions are fully replicated and healthy. The cluster has good 
+All partitions are fully replicated and healthy. The Kafka cluster has good 
 replication balance with only 2% imbalance in preferred replica 
 distribution.
 ```
@@ -643,7 +642,7 @@ distribution.
 **Question**: "Is the Strimzi operator healthy?"
 
 **What happens**:
-- AI calls `get_strimzi_operator_status`
+- AI calls `get_strimzi_operator`
 - Checks operator deployment and metrics
 
 **Example response**:
@@ -654,7 +653,7 @@ Deployment: strimzi-cluster-operator
 Namespace: strimzi
 Status: Ready
 Replicas: 1/1 ready
-Version: 0.51.0
+Version: 1.0.0
 Uptime: 5 days, 3 hours
 
 Recent Activity:
@@ -669,69 +668,9 @@ Resource Usage:
 The operator is healthy and functioning normally.
 ```
 
-## Best practices
-
-### Effective questions
-
-**Good**: "What's the status of mcp-cluster and are there any issues?"
-- Specific cluster name
-- Clear intent
-- Allows AI to choose appropriate tools
-
-**Better**: "Diagnose issues with mcp-cluster, focusing on recent errors"
-- Specific cluster and scope
-- Guides the diagnostic approach
-- More efficient tool usage
-
-### Iterative investigation
-
-Start broad, then narrow down:
-1. "What clusters are running?" → Get overview
-2. "What's the status of mcp-cluster?" → Check specific cluster
-3. "Show me errors from mcp-cluster" → Investigate issues
-4. "What's causing the connection errors?" → Root cause analysis
-
-### Using context
-
-Attach resources for faster responses:
-1. Attach cluster status resource
-2. Ask: "Based on this status, what should I check?"
-3. AI can analyze without additional tool calls
-
-## Using with different AI assistants
-
-### Claude Desktop
-
-Natural conversation style:
-- "What's wrong with my Kafka cluster?"
-- "Show me what's happening in the last hour"
-- "Help me troubleshoot connectivity issues"
-
-### Claude Code (VS Code)
-
-Code-focused queries:
-- "Generate a KafkaTopic manifest for a high-throughput topic"
-- "What configuration should I use for this use case?"
-- "Review this Kafka configuration"
-
-### Programmatic access
-
-Direct tool calls via MCP protocol:
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "get_kafka_cluster_status",
-    "arguments": {
-      "clusterName": "mcp-cluster",
-      "namespace": "strimzi-kafka"
-    }
-  }
-}
-```
-
 ## Next steps
 
+- **[AI Agent Best Practices](ai-agent-best-practices.md)** — Tips, tricks, and corner cases for AI assistants
 - **[Tools reference](tools/)** — Complete tool catalog
 - **[Troubleshooting](troubleshooting.md)** — Resolve common issues
 - **[Configuration](configuration.md)** — Configure integrations
