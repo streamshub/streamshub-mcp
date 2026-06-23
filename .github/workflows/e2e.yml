@@ -71,7 +71,9 @@ jobs:
         MCP_CONNECTIVITY: NODEPORT
       run: |
         ./mvnw verify -pl systemtest \
-          -Psystemtest
+          -Psystemtest \
+          -Dconnect.image.loader=kind \
+          -Dcontainer.engine=docker
 
     - name: Generate Allure report
       if: always()
