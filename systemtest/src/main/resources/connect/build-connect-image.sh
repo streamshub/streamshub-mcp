@@ -42,12 +42,17 @@ for arg in "$@"; do
     BUILD_ARGS+=("--build-arg" "$arg")
 done
 
+PULL_FLAG="--pull=always"
+if [ "$ENGINE" = "docker" ]; then
+    PULL_FLAG="--pull"
+fi
+
 if [ "$PUSH" = "false" ]; then
     echo "==> Building Connect image: $IMAGE (engine: $ENGINE, platform: $PLATFORMS, push: disabled)"
     "$ENGINE" build \
         -t "$IMAGE" \
         --platform "$PLATFORMS" \
-        --pull=always \
+        $PULL_FLAG \
         "${BUILD_ARGS[@]}" \
         -f "$SCRIPT_DIR/Dockerfile" "$SCRIPT_DIR"
 else
