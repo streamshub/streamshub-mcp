@@ -29,11 +29,11 @@
         <jacoco.skip>true</jacoco.skip>
         <!-- KafkaConnect image build configuration -->
         <exec-maven-plugin.version>3.5.0</exec-maven-plugin.version>
-        <connect.image>localhost/streamshub/strimzi-connect:test</connect.image>
-        <connect.image.loader/>
+        <connect.image>quay.io/streamshub/mcp-connect-test:latest</connect.image>
         <connect.kafka.version>4.2.0</connect.kafka.version>
         <container.engine>podman</container.engine>
         <container.platform/>
+        <connect.image.push>true</connect.image.push>
     </properties>
 
     <dependencies>
@@ -168,6 +168,9 @@
             <properties>
                 <skipITs>false</skipITs>
             </properties>
+        </profile>
+        <profile>
+            <id>build-connect-image</id>
             <build>
                 <plugins>
                     <plugin>
@@ -177,7 +180,7 @@
                         <executions>
                             <execution>
                                 <id>build-connect-image</id>
-                                <phase>pre-integration-test</phase>
+                                <phase>package</phase>
                                 <goals>
                                     <goal>exec</goal>
                                 </goals>
@@ -186,10 +189,10 @@
                                     <environmentVariables>
                                         <CONTAINER_ENGINE>${container.engine}</CONTAINER_ENGINE>
                                         <CONTAINER_PLATFORM>${container.platform}</CONTAINER_PLATFORM>
+                                        <CONNECT_IMAGE_PUSH>${connect.image.push}</CONNECT_IMAGE_PUSH>
                                     </environmentVariables>
                                     <arguments>
                                         <argument>${connect.image}</argument>
-                                        <argument>${connect.image.loader}</argument>
                                         <argument>STRIMZI_VERSION=${strimzi.version}</argument>
                                         <argument>KAFKA_VERSION=${connect.kafka.version}</argument>
                                     </arguments>
