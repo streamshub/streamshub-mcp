@@ -38,6 +38,9 @@ public final class Environment {
     /** Kafka namespace. */
     public static final String KAFKA_NAMESPACE = ENV_VARIABLES.getOrDefault("KAFKA_NAMESPACE", Constants.KAFKA_NAMESPACE);
 
+    /** KafkaConnect container image (pre-built with connector plugins). */
+    public static final String CONNECT_IMAGE = ENV_VARIABLES.getOrDefault("CONNECT_IMAGE", "localhost/streamshub/strimzi-connect:test");
+
     private Environment() {
     }
 }
