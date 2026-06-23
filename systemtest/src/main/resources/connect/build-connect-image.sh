@@ -34,14 +34,7 @@ if [ $# -lt 1 ]; then
 fi
 
 IMAGE="$1"
-LOADER="${2:-}"
 shift
-shift 2>/dev/null || true
-
-if [ -z "$LOADER" ]; then
-    echo "==> No loader specified, skipping Connect image build"
-    exit 0
-fi
 
 # Collect remaining args as --build-arg flags
 BUILD_ARGS=()
