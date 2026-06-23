@@ -15,6 +15,10 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRole;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBindingBuilder;
+import io.fabric8.kubernetes.api.model.rbac.Role;
+import io.fabric8.kubernetes.api.model.rbac.RoleBinding;
+import io.fabric8.kubernetes.api.model.rbac.RoleBindingBuilder;
+import io.fabric8.kubernetes.api.model.rbac.RoleBuilder;
 import io.qameta.allure.Step;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.skodjob.kubetest4j.utils.KubeTestUtils;
@@ -192,6 +196,31 @@ public final class McpServerSetup {
         }
     }
 
+    /**
+     * Deploy the optional sensitive RBAC (Role + RoleBinding) that grants
+     * Secret read access in the target namespace.
+     *
+     * @param mcpNamespace    namespace where the MCP ServiceAccount lives
+     * @param targetNamespace namespace where the Role should be created (e.g. Kafka namespace)
+     */
+    @Step("Deploy sensitive RBAC into namespace {targetNamespace}")
+    public static void deploySensitiveRbac(final String mcpNamespace, final String targetNamespace) {
+        LOGGER.info("Deploying sensitive RBAC into namespace {} for SA in {}", targetNamespace, mcpNamespace);
+
+        Role role = KubeTestUtils.configFromYaml(
+            optionalInstallFile("role-sensitive.yaml"), Role.class);
+        KubeResourceManager.get().createOrUpdateResourceWithoutWait(new RoleBuilder(role)
+            .editMetadata().withNamespace(targetNamespace).endMetadata()
+            .build());
+
+        RoleBinding rb = KubeTestUtils.configFromYaml(
+            optionalInstallFile("rolebinding-sensitive.yaml"), RoleBinding.class);
+        KubeResourceManager.get().createOrUpdateResourceWithoutWait(new RoleBindingBuilder(rb)
+            .editMetadata().withNamespace(targetNamespace).endMetadata()
+            .editFirstSubject().withNamespace(mcpNamespace).endSubject()
+            .build());
+    }
+
     // --- Internal deployment methods ---
 
     @Step("Deploy MCP server RBAC into namespace {namespace}")
@@ -243,5 +272,9 @@ public final class McpServerSetup {
 
     private static File installFile(final String filename) {
         return new File(Constants.INSTALL_DIR, filename);
+    }
+
+    private static File optionalInstallFile(final String filename) {
+        return new File(Constants.OPTIONAL_INSTALL_DIR, filename);
     }
 }

@@ -79,8 +79,16 @@ public final class Constants {
     /** Path to MCP server install directory. */
     public static final String INSTALL_DIR = PROJECT_ROOT + "/install/strimzi-mcp/base/";
 
+    /** Path to optional MCP server install directory (sensitive RBAC, etc.). */
+    public static final String OPTIONAL_INSTALL_DIR = PROJECT_ROOT + "/install/strimzi-mcp/optional/";
+
     /** Path to Strimzi manifests directory. */
     public static final String STRIMZI_MANIFESTS_DIR = PROJECT_ROOT + "/dev/manifests/strimzi/";
+
+    // --- Images ---
+
+    /** Pre-built Connect image used within e2e tests */
+    public static final String CONNECT_TEST_IMAGE = "quay.io/streamshub/mcp-connect-test:latest";
 
     private Constants() {
     }

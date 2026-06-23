@@ -139,6 +139,15 @@ class DiagnoseToolsST extends AbstractST {
                     "Should have 2 node pools (controller-np + broker-np)");
 
                 assertFalse(root.path("operator").isMissingNode(), "Should have operator section");
+
+                assertFalse(root.path("operator_logs").isMissingNode(),
+                    "Should have operator_logs section");
+                assertFalse(root.path("cluster_logs").isMissingNode(),
+                    "Should have cluster_logs section");
+                assertFalse(root.path("events").isMissingNode(),
+                    "Should have events section");
+                assertFalse(root.path("metrics").isMissingNode(),
+                    "Should have metrics section");
             })
             .thenAssertResults();
     }
@@ -168,6 +177,11 @@ class DiagnoseToolsST extends AbstractST {
                 assertFalse(root.path("bootstrap_servers").isMissingNode(),
                     "Should have bootstrap_servers section");
                 assertFalse(root.path("pods").isMissingNode(), "Should have pods section");
+
+                assertFalse(root.path("certificates").isMissingNode(),
+                    "Should have certificates section");
+                assertFalse(root.path("cluster_logs").isMissingNode(),
+                    "Should have cluster_logs section");
             })
             .thenAssertResults();
     }
@@ -194,6 +208,15 @@ class DiagnoseToolsST extends AbstractST {
                     root.path("cluster").path("name").asText(),
                     "Cluster name should match");
                 assertFalse(root.path("pods").isMissingNode(), "Should have pods section");
+
+                assertFalse(root.path("replication_metrics").isMissingNode(),
+                    "Should have replication_metrics section");
+                assertFalse(root.path("performance_metrics").isMissingNode(),
+                    "Should have performance_metrics section");
+                assertFalse(root.path("resource_metrics").isMissingNode(),
+                    "Should have resource_metrics section");
+                assertFalse(root.path("throughput_metrics").isMissingNode(),
+                    "Should have throughput_metrics section");
             })
             .thenAssertResults();
     }
@@ -228,6 +251,13 @@ class DiagnoseToolsST extends AbstractST {
                     "connectors should be an array");
 
                 assertFalse(root.path("pods").isMissingNode(), "Should have pods section");
+
+                assertFalse(root.path("logs").isMissingNode(),
+                    "Should have logs section");
+                assertFalse(root.path("connect_metrics").isMissingNode(),
+                    "Should have connect_metrics section");
+                assertFalse(root.path("events").isMissingNode(),
+                    "Should have events section");
             })
             .thenAssertResults();
     }
@@ -259,6 +289,13 @@ class DiagnoseToolsST extends AbstractST {
                     "Should have connect_cluster section");
                 assertEquals(CONNECT_CLUSTER_NAME, connectCluster.path("name").asText(),
                     "Connect cluster name should match");
+
+                assertFalse(root.path("connect_pods").isMissingNode(),
+                    "Should have connect_pods section");
+                assertFalse(root.path("connect_logs").isMissingNode(),
+                    "Should have connect_logs section");
+                assertFalse(root.path("events").isMissingNode(),
+                    "Should have events section");
             })
             .thenAssertResults();
     }
@@ -287,6 +324,13 @@ class DiagnoseToolsST extends AbstractST {
                     "Operator name should be non-empty");
                 assertFalse(root.path("operator_logs").isMissingNode(),
                     "Should have operator_logs section");
+
+                assertFalse(root.path("reconciliation_metrics").isMissingNode(),
+                    "Should have reconciliation_metrics section");
+                assertFalse(root.path("resource_metrics").isMissingNode(),
+                    "Should have resource_metrics section");
+                assertFalse(root.path("jvm_metrics").isMissingNode(),
+                    "Should have jvm_metrics section");
             })
             .thenAssertResults();
     }
