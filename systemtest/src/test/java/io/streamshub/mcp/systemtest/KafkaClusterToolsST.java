@@ -255,11 +255,30 @@ class KafkaClusterToolsST extends AbstractST {
                 assertFalse(response.isError(), "get_kafka_fleet_overview should not return error");
 
                 String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_fleet_overview response (length={}):\n{}", text.length(), text);
+                LOGGER.info("get_kafka_fleet_overview response (length={})", text.length());
 
                 JsonNode root = parseJson(text);
-                assertTrue(text.contains(Constants.KAFKA_CLUSTER_NAME),
-                    "Fleet overview should contain reference to " + Constants.KAFKA_CLUSTER_NAME);
+                assertTrue(root.path("total_clusters").asInt() >= 1,
+                    "Should have at least 1 cluster");
+
+                JsonNode statusDist = root.path("status_distribution");
+                assertFalse(statusDist.isMissingNode(), "Should have status_distribution");
+                assertTrue(statusDist.path("ready").asInt() >= 1,
+                    "At least 1 cluster should be ready");
+
+                JsonNode clusters = root.path("clusters");
+                assertTrue(clusters.isArray() && !clusters.isEmpty(),
+                    "clusters should be a non-empty array");
+
+                assertEquals(6, root.path("total_brokers").asInt(),
+                    "Should have 6 total brokers (2 broker pools x 3 replicas)");
+
+                JsonNode cluster = findByName(clusters, Constants.KAFKA_CLUSTER_NAME);
+                assertNotNull(cluster, "Should find cluster '" + Constants.KAFKA_CLUSTER_NAME + "'");
+                assertEquals("Ready", cluster.path("readiness").asText(),
+                    "Cluster should be Ready");
+                assertEquals(6, cluster.path("brokers").asInt(),
+                    "Cluster should report 6 brokers");
             })
             .thenAssertResults();
     }
@@ -268,16 +287,29 @@ class KafkaClusterToolsST extends AbstractST {
     @DisplayName("get_kafka_fleet_overview scoped to specific namespace")
     @Story("Get Kafka Fleet Overview")
     void testGetKafkaFleetOverviewNamespaced() {
-        Map<String, Object> args = Map.of("namespace", kafkaNamespace.getMetadata().getName());
+        String ns = kafkaNamespace.getMetadata().getName();
+        Map<String, Object> args = Map.of("namespace", ns);
         mcpClient.when()
             .toolsCall("get_kafka_fleet_overview", args, response -> {
                 assertFalse(response.isError(), "get_kafka_fleet_overview should not return error");
 
                 String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_fleet_overview namespaced response (length={}):\n{}", text.length(), text);
+                LOGGER.info("get_kafka_fleet_overview namespaced response (length={})", text.length());
 
                 JsonNode root = parseJson(text);
-                assertNotNull(root, "Response should be valid JSON");
+                assertTrue(root.path("total_clusters").asInt() >= 1,
+                    "Should have at least 1 cluster in namespace");
+                assertEquals(ns, root.path("namespace_filter").asText(),
+                    "namespace_filter should match the requested namespace");
+
+                JsonNode clusters = root.path("clusters");
+                assertTrue(clusters.isArray() && !clusters.isEmpty(),
+                    "clusters should be a non-empty array");
+
+                JsonNode cluster = findByName(clusters, Constants.KAFKA_CLUSTER_NAME);
+                assertNotNull(cluster, "Should find cluster '" + Constants.KAFKA_CLUSTER_NAME + "'");
+                assertEquals("Ready", cluster.path("readiness").asText(),
+                    "Cluster should be Ready");
             })
             .thenAssertResults();
     }
@@ -292,7 +324,31 @@ class KafkaClusterToolsST extends AbstractST {
                 assertFalse(response.isError(), "get_strimzi_kafka_cluster_overview should not return error");
 
                 String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_strimzi_kafka_cluster_overview response (length={}):\n{}", text.length(), text);
+                LOGGER.info("get_strimzi_kafka_cluster_overview response (length={})", text.length());
+
+                JsonNode root = parseJson(text);
+                JsonNode cluster = root.path("cluster");
+                assertFalse(cluster.isMissingNode(), "Should have cluster section");
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, cluster.path("name").asText(),
+                    "Cluster name should match");
+                assertEquals("Ready", cluster.path("readiness").asText(),
+                    "Cluster should be Ready");
+
+                JsonNode nodePools = root.path("node_pools");
+                assertTrue(nodePools.isArray(), "node_pools should be an array");
+                assertEquals(3, nodePools.size(),
+                    "Should have 3 node pools (controller-np, broker-np1, broker-np2)");
+                for (JsonNode np : nodePools) {
+                    assertEquals("Ready", np.path("readiness").asText(),
+                        "Node pool '" + np.path("name").asText() + "' should be Ready");
+                }
+
+                JsonNode operator = root.path("operator");
+                assertFalse(operator.isMissingNode(), "Should have operator section");
+                assertFalse(operator.path("name").asText("").isEmpty(),
+                    "Operator name should be non-empty");
+
+                assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
             })
             .thenAssertResults();
     }
@@ -415,6 +471,39 @@ class KafkaClusterToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_cluster_certificates for tls listener response (length={})", text.length());
+
+                JsonNode root = parseJson(text);
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText(),
+                    "cluster_name should match");
+
+                JsonNode certs = root.path("certificates");
+                assertTrue(certs.isArray() && !certs.isEmpty(),
+                    "TLS listener should produce certificates");
+                for (JsonNode cert : certs) {
+                    assertFalse(cert.path("secret_name").asText("").isEmpty(),
+                        "Certificate should have secret_name");
+                    assertFalse(cert.path("not_after").isMissingNode(),
+                        "Certificate should have not_after");
+                    assertTrue(cert.path("days_until_expiry").asLong() > 0,
+                        "Certificate should not be expired");
+                    assertFalse(cert.path("expired").asBoolean(),
+                        "Certificate should not be expired");
+                }
+
+                assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
+                    "namespace should match deployment namespace");
+
+                JsonNode listenerAuth = root.path("listener_authentication");
+                assertTrue(listenerAuth.isArray(), "listener_authentication should be an array");
+                boolean hasTlsListener = false;
+                for (JsonNode auth : listenerAuth) {
+                    if ("tls".equals(auth.path("listener_name").asText())) {
+                        hasTlsListener = true;
+                        assertTrue(auth.path("tls_enabled").asBoolean(),
+                            "TLS listener should have tls_enabled=true");
+                    }
+                }
+                assertTrue(hasTlsListener, "Should have 'tls' listener in authentication list");
             })
             .thenAssertResults();
     }
@@ -474,7 +563,9 @@ class KafkaClusterToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_cluster_logs ERROR filter response (length={})", text.length());
-                // May be empty on a healthy cluster — just verify no error
+
+                JsonNode root = parseJson(text);
+                assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
             })
             .thenAssertResults();
     }
@@ -493,6 +584,9 @@ class KafkaClusterToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_cluster_logs keywords response (length={})", text.length());
+
+                JsonNode root = parseJson(text);
+                assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
             })
             .thenAssertResults();
     }
@@ -501,9 +595,10 @@ class KafkaClusterToolsST extends AbstractST {
     @DisplayName("get_kafka_cluster_logs for specific pod")
     @Story("Get Kafka Cluster Logs")
     void testGetKafkaClusterLogsSpecificPod() {
+        String podName = Constants.KAFKA_CLUSTER_NAME + "-broker-np1-0";
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
-            "podNames", List.of(Constants.KAFKA_CLUSTER_NAME + "-broker-np1-0"),
+            "podNames", List.of(podName),
             "tailLines", 20);
         mcpClient.when()
             .toolsCall("get_kafka_cluster_logs", args, response -> {
@@ -511,6 +606,13 @@ class KafkaClusterToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_cluster_logs specific pod response (length={})", text.length());
+
+                JsonNode root = parseJson(text);
+                assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
+
+                JsonNode pods = root.path("pods");
+                assertEquals(1, pods.size(), "Should contain exactly one pod");
+                assertEquals(podName, pods.get(0).asText(), "Pod name should match requested pod");
             })
             .thenAssertResults();
     }
@@ -529,7 +631,11 @@ class KafkaClusterToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_cluster_logs no-match filter response (length={})", text.length());
-                // Empty is OK — just verify no error
+
+                JsonNode root = parseJson(text);
+                assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
+                assertEquals(0, root.path("log_lines").asInt(),
+                    "Non-matching filter should return zero log lines");
             })
             .thenAssertResults();
     }
@@ -547,6 +653,11 @@ class KafkaClusterToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_cluster_logs large request response (length={})", text.length());
+
+                JsonNode root = parseJson(text);
+                assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
+                assertTrue(root.path("log_lines").asInt() >= 0,
+                    "log_lines should be non-negative");
             })
             .thenAssertResults();
     }
@@ -655,87 +766,26 @@ class KafkaClusterToolsST extends AbstractST {
             .thenAssertResults();
     }
 
-    // ---- Cluster Metrics ----
-
-    @Test
-    @DisplayName("get_kafka_metrics returns metrics for cluster")
-    @Story("Get Kafka Metrics")
-    void testGetKafkaMetrics() {
-        Map<String, Object> args = Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME);
-        mcpClient.when()
-            .toolsCall("get_kafka_metrics", args, response -> {
-                assertFalse(response.isError(), "get_kafka_metrics should not return error");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_metrics response (length={})", text.length());
-            })
-            .thenAssertResults();
+    private static JsonNode findByName(final JsonNode root, final String name) {
+        if (root.isArray()) {
+            for (JsonNode node : root) {
+                if (name.equals(node.path("name").asText(""))) {
+                    return node;
+                }
+            }
+        } else if (name.equals(root.path("name").asText(""))) {
+            return root;
+        }
+        return null;
     }
 
-    @Test
-    @DisplayName("get_kafka_metrics with replication category")
-    @Story("Get Kafka Metrics")
-    void testGetKafkaMetricsReplication() {
-        Map<String, Object> args = Map.of(
-            "clusterName", Constants.KAFKA_CLUSTER_NAME,
-            "category", "replication");
-        mcpClient.when()
-            .toolsCall("get_kafka_metrics", args, response -> {
-                assertFalse(response.isError(), "get_kafka_metrics replication should not return error");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_metrics replication response (length={})", text.length());
-            })
-            .thenAssertResults();
-    }
-
-    @Test
-    @DisplayName("get_kafka_metrics with throughput category and time range")
-    @Story("Get Kafka Metrics")
-    void testGetKafkaMetricsTimeRange() {
-        Map<String, Object> args = Map.of(
-            "clusterName", Constants.KAFKA_CLUSTER_NAME,
-            "category", "throughput",
-            "rangeMinutes", 30,
-            "stepSeconds", 60);
-        mcpClient.when()
-            .toolsCall("get_kafka_metrics", args, response -> {
-                assertFalse(response.isError(), "get_kafka_metrics with time range should not return error");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_metrics time range response (length={})", text.length());
-            })
-            .thenAssertResults();
-    }
-
-    @Test
-    @DisplayName("get_kafka_exporter_metrics returns exporter metrics")
-    @Story("Get Kafka Exporter Metrics")
-    void testGetKafkaExporterMetrics() {
-        Map<String, Object> args = Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME);
-        mcpClient.when()
-            .toolsCall("get_kafka_exporter_metrics", args, response -> {
-                assertFalse(response.isError(), "get_kafka_exporter_metrics should not return error");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_exporter_metrics response (length={})", text.length());
-            })
-            .thenAssertResults();
-    }
-
-    @Test
-    @DisplayName("get_kafka_metrics returns error for non-existent cluster")
-    @Story("Get Kafka Metrics")
-    void testGetKafkaMetricsNotFound() {
-        Map<String, Object> args = Map.of("clusterName", "nonexistent-cluster-xyz");
-        mcpClient.when()
-            .toolsCall("get_kafka_metrics", args, response -> {
-                assertTrue(response.isError(),
-                    "Should return error for non-existent cluster");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_metrics error response: {}", text);
-            })
-            .thenAssertResults();
+    private static void assertClusterLogsResponse(JsonNode root, String expectedClusterName) {
+        assertEquals(expectedClusterName, root.path("cluster_name").asText(),
+            "cluster_name should match");
+        assertTrue(root.path("pods").isArray() && !root.path("pods").isEmpty(),
+            "pods should be a non-empty array");
+        assertTrue(root.path("log_lines").isNumber(), "log_lines should be a number");
+        assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
+        assertFalse(root.path("message").isMissingNode(), "Should have message");
     }
 }

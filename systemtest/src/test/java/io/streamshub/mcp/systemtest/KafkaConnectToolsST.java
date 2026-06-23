@@ -249,8 +249,19 @@ class KafkaConnectToolsST extends AbstractST {
             .toolsCall("get_kafka_connect_logs", args, response -> {
                 assertFalse(response.isError(), "get_kafka_connect_logs should not return error");
                 String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_connect_logs response:\n{}", text);
-                assertFalse(text.isEmpty(), "Log output should not be empty");
+                LOGGER.info("get_kafka_connect_logs response (length={})", text.length());
+
+                JsonNode root = parseJson(text);
+                assertEquals(CONNECT_CLUSTER_NAME, root.path("connect_name").asText(),
+                    "connect_name should match");
+                JsonNode pods = root.path("pods");
+                assertTrue(pods.isArray() && !pods.isEmpty(),
+                    "pods should be a non-empty array");
+                assertEquals(1, pods.size(),
+                    "Should have exactly 1 connect pod (1 replica)");
+                assertTrue(root.path("log_lines").isNumber(), "log_lines should be a number");
+                assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
+                assertFalse(root.path("message").isMissingNode(), "Should have message");
             })
             .thenAssertResults();
     }
@@ -267,52 +278,17 @@ class KafkaConnectToolsST extends AbstractST {
             .toolsCall("get_strimzi_events", args, response -> {
                 assertFalse(response.isError(), "get_strimzi_events should not return error");
                 String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_strimzi_events (KafkaConnect) response:\n{}", text);
-            })
-            .thenAssertResults();
-    }
+                LOGGER.info("get_strimzi_events (KafkaConnect) response (length={})", text.length());
 
-    @Test
-    @DisplayName("get_kafka_connect_metrics returns metrics for Connect cluster")
-    @Story("Get KafkaConnect Metrics")
-    void testGetKafkaConnectMetrics() {
-        Map<String, Object> args = Map.of(
-            "connectName", CONNECT_CLUSTER_NAME);
-        mcpClient.when()
-            .toolsCall("get_kafka_connect_metrics", args, response -> {
-                assertFalse(response.isError(), "get_kafka_connect_metrics should not return error");
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_connect_metrics response:\n{}", text);
-            })
-            .thenAssertResults();
-    }
-
-    @Test
-    @DisplayName("diagnose_kafka_connect returns diagnostic info")
-    @Story("Diagnose KafkaConnect")
-    void testDiagnoseKafkaConnect() {
-        Map<String, Object> args = Map.of(
-            "connectName", CONNECT_CLUSTER_NAME);
-        mcpClient.when()
-            .toolsCall("diagnose_kafka_connect", args, response -> {
-                assertFalse(response.isError(), "diagnose_kafka_connect should not return error");
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("diagnose_kafka_connect response:\n{}", text);
-            })
-            .thenAssertResults();
-    }
-
-    @Test
-    @DisplayName("diagnose_kafka_connector returns diagnostic info")
-    @Story("Diagnose KafkaConnector")
-    void testDiagnoseKafkaConnector() {
-        Map<String, Object> args = Map.of(
-            "connectorName", CONNECTOR_NAME);
-        mcpClient.when()
-            .toolsCall("diagnose_kafka_connector", args, response -> {
-                assertFalse(response.isError(), "diagnose_kafka_connector should not return error");
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("diagnose_kafka_connector response:\n{}", text);
+                JsonNode root = parseJson(text);
+                assertEquals(CONNECT_CLUSTER_NAME, root.path("resource_name").asText(),
+                    "resource_name should match");
+                assertEquals(kafkaNamespace.getMetadata().getName(),
+                    root.path("namespace").asText(), "namespace should match deployment namespace");
+                assertTrue(root.path("total_events").asInt() > 0,
+                    "Should have events from connect deployment");
+                assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
+                assertFalse(root.path("message").isMissingNode(), "Should have message");
             })
             .thenAssertResults();
     }

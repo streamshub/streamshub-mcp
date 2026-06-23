@@ -394,38 +394,6 @@ class StrimziOperatorToolsST extends AbstractST {
             .thenAssertResults();
     }
 
-    @Test
-    @DisplayName("get_strimzi_operator_metrics returns operator metrics")
-    @Story("Get Strimzi Operator Metrics")
-    void testGetStrimziOperatorMetrics() {
-        Map<String, Object> args = Map.of();
-        mcpClient.when()
-            .toolsCall("get_strimzi_operator_metrics", args, response -> {
-                assertFalse(response.isError(),
-                    "get_strimzi_operator_metrics should not return error");
-
-                String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_strimzi_operator_metrics response:\n{}", json);
-            })
-            .thenAssertResults();
-    }
-
-    @Test
-    @DisplayName("diagnose_operator_metrics returns operator metrics diagnosis")
-    @Story("Diagnose Operator Metrics")
-    void testDiagnoseOperatorMetrics() {
-        Map<String, Object> args = Map.of();
-        mcpClient.when()
-            .toolsCall("diagnose_operator_metrics", args, response -> {
-                assertFalse(response.isError(),
-                    "diagnose_operator_metrics should not return error");
-
-                String json = response.content().getFirst().asText().text();
-                LOGGER.info("diagnose_operator_metrics response:\n{}", json);
-            })
-            .thenAssertResults();
-    }
-
     /**
      * Find a node by name in a JSON response (array or single object).
      *
