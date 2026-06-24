@@ -23,6 +23,7 @@ import io.streamshub.mcp.systemtest.resources.strimzi.KafkaBridgeType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaConnectType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaConnectorType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaNodePoolType;
+import io.streamshub.mcp.systemtest.resources.strimzi.KafkaRebalanceType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaTopicType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaUserType;
@@ -57,7 +58,8 @@ public abstract class AbstractST {
             new KafkaBridgeType(),
             new KafkaConnectType(),
             new KafkaConnectorType(),
-            new KafkaUserType()
+            new KafkaUserType(),
+            new KafkaRebalanceType()
         );
     }
 

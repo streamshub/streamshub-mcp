@@ -14,6 +14,7 @@ import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.CleanupStrategy;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.annotations.KubernetesTest;
+import io.skodjob.kubetest4j.annotations.LogCollectionStrategy;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
@@ -25,6 +26,15 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectorTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTopicTemplates;
+import io.strimzi.api.kafka.model.bridge.KafkaBridge;
+import io.strimzi.api.kafka.model.connect.KafkaConnect;
+import io.strimzi.api.kafka.model.connector.KafkaConnector;
+import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.mirrormaker2.KafkaMirrorMaker2;
+import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
+import io.strimzi.api.kafka.model.rebalance.KafkaRebalance;
+import io.strimzi.api.kafka.model.topic.KafkaTopic;
+import io.strimzi.api.kafka.model.user.KafkaUser;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +46,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectorTemplates.CONNECTOR_NAME;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -46,7 +57,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * KafkaConnector, KafkaBridge, KafkaTopic) and verifies diagnostic tools
  * and multi-step investigation workflows.
  */
-@KubernetesTest(cleanup = CleanupStrategy.AUTOMATIC, collectLogs = true)
+@KubernetesTest(
+    cleanup = CleanupStrategy.AUTOMATIC,
+    collectLogs = true,
+    logCollectionStrategy = LogCollectionStrategy.ON_FAILURE,
+    collectPreviousLogs = true,
+    collectNamespacedResources = {
+        "pods", "services", "configmaps", "secrets", "deployments",
+        Kafka.RESOURCE_SINGULAR,
+        KafkaNodePool.RESOURCE_SINGULAR,
+        KafkaTopic.RESOURCE_SINGULAR,
+        KafkaUser.RESOURCE_SINGULAR,
+        KafkaConnect.RESOURCE_SINGULAR,
+        KafkaConnector.RESOURCE_SINGULAR,
+        KafkaBridge.RESOURCE_SINGULAR,
+        KafkaMirrorMaker2.RESOURCE_SINGULAR,
+        KafkaRebalance.RESOURCE_SINGULAR
+    }
+)
 @DisplayName("Complex Scenarios MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("Complex Scenarios")
@@ -218,8 +246,17 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_fleet_overview", Map.of("namespace", ns), response -> {
                 assertFalse(response.isError(), "Step 1: get_kafka_fleet_overview should not return error");
+                assertFalse(response.content().isEmpty(), "Fleet overview content should not be empty");
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Step 1 - get_kafka_fleet_overview response:\n{}", text);
+
+                JsonNode root = parseJson(text);
+                assertTrue(root.path("total_clusters").asInt() >= 1,
+                    "Should have at least 1 cluster");
+                JsonNode statusDist = root.path("status_distribution");
+                assertFalse(statusDist.isMissingNode(), "Should have status_distribution");
+                assertTrue(statusDist.path("ready").asInt() >= 1,
+                    "Should have at least 1 ready cluster");
             })
             .thenAssertResults();
 
@@ -246,6 +283,7 @@ class ComplexScenariosST extends AbstractST {
                 })
             .thenAssertResults();
         assertNotNull(readiness.get(), "Readiness should have been extracted from cluster info");
+        assertEquals("Ready", readiness.get(), "Cluster should be in Ready state");
 
         // Step 4: Cluster pods
         mcpClient.when()
@@ -265,6 +303,11 @@ class ComplexScenariosST extends AbstractST {
                     assertFalse(response.content().isEmpty(), "Node pools content should not be empty");
                     String text = response.content().getFirst().asText().text();
                     LOGGER.info("Step 5 - list_kafka_node_pools response:\n{}", text);
+
+                    JsonNode root = parseJson(text);
+                    assertTrue(root.isArray(), "Node pools should be a JSON array");
+                    assertEquals(2, root.size(),
+                        "Should have 2 node pools (controller-np and broker-np)");
                 })
             .thenAssertResults();
     }
@@ -314,8 +357,12 @@ class ComplexScenariosST extends AbstractST {
             .toolsCall("diagnose_kafka_topic",
                 Map.of("topicName", TOPIC_NAME, "namespace", ns), response -> {
                     assertFalse(response.isError(), "Step 4: diagnose_kafka_topic should not return error");
+                    assertFalse(response.content().isEmpty(),
+                        "diagnose_kafka_topic should return content");
                     String text = response.content().getFirst().asText().text();
                     LOGGER.info("Step 4 - diagnose_kafka_topic response:\n{}", text);
+                    assertTrue(text.contains(TOPIC_NAME),
+                        "Diagnostic response should reference the topic name");
                 })
             .thenAssertResults();
     }
@@ -405,6 +452,10 @@ class ComplexScenariosST extends AbstractST {
                     assertFalse(response.isError(), "Step 2: get_strimzi_operator should not return error");
                     String text = response.content().getFirst().asText().text();
                     LOGGER.info("Step 2 - get_strimzi_operator response:\n{}", text);
+
+                    JsonNode operator = parseJson(text);
+                    assertTrue(operator.path("name").asText().contains("strimzi-cluster-operator"),
+                        "Operator name should contain 'strimzi-cluster-operator'");
                 })
             .thenAssertResults();
 
@@ -463,6 +514,10 @@ class ComplexScenariosST extends AbstractST {
                     assertFalse(response.isError(), "Step 2: get_kafka_connect should not return error");
                     String text = response.content().getFirst().asText().text();
                     LOGGER.info("Step 2 - get_kafka_connect response:\n{}", text);
+
+                    JsonNode connect = parseJson(text);
+                    assertEquals(CONNECT_CLUSTER_NAME, connect.path("name").asText(),
+                        "Connect cluster name should match");
                 })
             .thenAssertResults();
 
@@ -494,6 +549,10 @@ class ComplexScenariosST extends AbstractST {
                     assertFalse(response.isError(), "Step 5: get_kafka_connector should not return error");
                     String text = response.content().getFirst().asText().text();
                     LOGGER.info("Step 5 - get_kafka_connector response:\n{}", text);
+
+                    JsonNode connector = parseJson(text);
+                    assertEquals(CONNECTOR_NAME, connector.path("name").asText(),
+                        "Connector name should match");
                 })
             .thenAssertResults();
 
@@ -521,6 +580,10 @@ class ComplexScenariosST extends AbstractST {
                     assertFalse(response.isError(), "Step 1: get_kafka_cluster should not return error");
                     String text = response.content().getFirst().asText().text();
                     LOGGER.info("Step 1 - get_kafka_cluster response:\n{}", text);
+
+                    JsonNode cluster = parseJson(text);
+                    assertEquals("Ready", cluster.path("readiness").asText(),
+                        "Cluster should be Ready before upgrade assessment");
                 })
             .thenAssertResults();
 
@@ -559,9 +622,113 @@ class ComplexScenariosST extends AbstractST {
             .toolsCall("assess_upgrade_readiness",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "namespace", ns), response -> {
                     assertFalse(response.isError(), "Step 5: assess_upgrade_readiness should not return error");
+                    assertFalse(response.content().isEmpty(),
+                        "assess_upgrade_readiness should return content");
                     String text = response.content().getFirst().asText().text();
                     LOGGER.info("Step 5 - assess_upgrade_readiness response:\n{}", text);
+                    assertFalse(text.isEmpty(), "Upgrade readiness response should not be empty");
                 })
+            .thenAssertResults();
+    }
+
+    // ---- Additional E2E Workflows ----
+
+    @Test
+    @DisplayName("E2E-7 - KafkaBridge investigation workflow")
+    @Story("KafkaBridge Investigation")
+    void testKafkaBridgeInvestigation() {
+        String ns = kafkaNamespace.getMetadata().getName();
+
+        // Step 1: List Bridge clusters
+        mcpClient.when()
+            .toolsCall("list_kafka_bridges",
+                Map.of("namespace", ns), response -> {
+                    assertFalse(response.isError(), "Step 1: list_kafka_bridges should not return error");
+                    assertFalse(response.content().isEmpty(), "Bridge list content should not be empty");
+                    String text = response.content().getFirst().asText().text();
+                    LOGGER.info("Step 1 - list_kafka_bridges response:\n{}", text);
+
+                    JsonNode root = parseJson(text);
+                    assertTrue(root.isArray() && root.size() >= 1,
+                        "Should have at least 1 KafkaBridge");
+                })
+            .thenAssertResults();
+
+        // Step 2: Get Bridge details
+        mcpClient.when()
+            .toolsCall("get_kafka_bridge",
+                Map.of("bridgeName", BRIDGE_NAME, "namespace", ns), response -> {
+                    assertFalse(response.isError(), "Step 2: get_kafka_bridge should not return error");
+                    String text = response.content().getFirst().asText().text();
+                    LOGGER.info("Step 2 - get_kafka_bridge response:\n{}", text);
+
+                    JsonNode bridge = parseJson(text);
+                    assertEquals(BRIDGE_NAME, bridge.path("name").asText(),
+                        "Bridge name should match");
+                })
+            .thenAssertResults();
+
+        // Step 3: Get Bridge pods
+        mcpClient.when()
+            .toolsCall("get_kafka_bridge_pods",
+                Map.of("bridgeName", BRIDGE_NAME, "namespace", ns), response -> {
+                    assertFalse(response.isError(), "Step 3: get_kafka_bridge_pods should not return error");
+                    String text = response.content().getFirst().asText().text();
+                    LOGGER.info("Step 3 - get_kafka_bridge_pods response:\n{}", text);
+                })
+            .thenAssertResults();
+
+        // Step 4: Get Bridge logs
+        mcpClient.when()
+            .toolsCall("get_kafka_bridge_logs",
+                Map.of("bridgeName", BRIDGE_NAME, "namespace", ns, "tailLines", 50), response -> {
+                    assertFalse(response.isError(), "Step 4: get_kafka_bridge_logs should not return error");
+                    assertFalse(response.content().isEmpty(),
+                        "Bridge logs content should not be empty");
+                    String text = response.content().getFirst().asText().text();
+                    LOGGER.info("Step 4 - get_kafka_bridge_logs response (length={})", text.length());
+                })
+            .thenAssertResults();
+    }
+
+    // ---- Additional Diagnostic Tests ----
+
+    @Test
+    @DisplayName("T15.5 - diagnose_kafka_connector returns diagnostic info")
+    @Story("Diagnose Kafka Connector")
+    void testDiagnoseKafkaConnector() {
+        Map<String, Object> args = Map.of(
+            "connectorName", CONNECTOR_NAME,
+            "namespace", kafkaNamespace.getMetadata().getName());
+        mcpClient.when()
+            .toolsCall("diagnose_kafka_connector", args, response -> {
+                assertFalse(response.isError(), "diagnose_kafka_connector should not return error");
+                assertFalse(response.content().isEmpty(),
+                    "diagnose_kafka_connector should return content");
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("diagnose_kafka_connector response:\n{}", text);
+                assertTrue(text.contains(CONNECTOR_NAME),
+                    "Diagnostic response should reference the connector name");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("T15.6 - diagnose_kafka_metrics returns metrics diagnostic info")
+    @Story("Diagnose Kafka Metrics")
+    void testDiagnoseKafkaMetrics() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "namespace", kafkaNamespace.getMetadata().getName(),
+            "concern", "replication");
+        mcpClient.when()
+            .toolsCall("diagnose_kafka_metrics", args, response -> {
+                assertFalse(response.isError(), "diagnose_kafka_metrics should not return error");
+                assertFalse(response.content().isEmpty(),
+                    "diagnose_kafka_metrics should return content");
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("diagnose_kafka_metrics response:\n{}", text);
+            })
             .thenAssertResults();
     }
 }

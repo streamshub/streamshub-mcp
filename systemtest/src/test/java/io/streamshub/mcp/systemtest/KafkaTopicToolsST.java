@@ -14,6 +14,7 @@ import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.CleanupStrategy;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.annotations.KubernetesTest;
+import io.skodjob.kubetest4j.annotations.LogCollectionStrategy;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
@@ -22,6 +23,15 @@ import io.streamshub.mcp.systemtest.setup.strimzi.StrimziSetup;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTopicTemplates;
+import io.strimzi.api.kafka.model.bridge.KafkaBridge;
+import io.strimzi.api.kafka.model.connect.KafkaConnect;
+import io.strimzi.api.kafka.model.connector.KafkaConnector;
+import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.mirrormaker2.KafkaMirrorMaker2;
+import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
+import io.strimzi.api.kafka.model.rebalance.KafkaRebalance;
+import io.strimzi.api.kafka.model.topic.KafkaTopic;
+import io.strimzi.api.kafka.model.user.KafkaUser;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -29,7 +39,9 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -40,7 +52,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Deploys the MCP server and KafkaTopics into a cluster
  * and verifies that the tools return correct data.
  */
-@KubernetesTest(cleanup = CleanupStrategy.AUTOMATIC, collectLogs = true)
+@KubernetesTest(
+    cleanup = CleanupStrategy.AUTOMATIC,
+    collectLogs = true,
+    logCollectionStrategy = LogCollectionStrategy.ON_FAILURE,
+    collectPreviousLogs = true,
+    collectNamespacedResources = {
+        "pods", "services", "configmaps", "secrets", "deployments",
+        Kafka.RESOURCE_SINGULAR,
+        KafkaNodePool.RESOURCE_SINGULAR,
+        KafkaTopic.RESOURCE_SINGULAR,
+        KafkaUser.RESOURCE_SINGULAR,
+        KafkaConnect.RESOURCE_SINGULAR,
+        KafkaConnector.RESOURCE_SINGULAR,
+        KafkaBridge.RESOURCE_SINGULAR,
+        KafkaMirrorMaker2.RESOURCE_SINGULAR,
+        KafkaRebalance.RESOURCE_SINGULAR
+    }
+)
 @DisplayName("KafkaTopic MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("KafkaTopic Tools")
@@ -61,6 +90,8 @@ class KafkaTopicToolsST extends AbstractST {
     static Namespace kafkaNamespace;
 
     private static McpAssured.McpStreamableTestClient mcpClient;
+
+    private final Set<String> page1TopicNames = new HashSet<>();
 
     KafkaTopicToolsST() {
     }
@@ -89,7 +120,9 @@ class KafkaTopicToolsST extends AbstractST {
                 KafkaTopicTemplates.topic(kafkaNs, "mcp-topic-beta",
                     Constants.KAFKA_CLUSTER_NAME, 3, 1).build(),
                 KafkaTopicTemplates.topic(kafkaNs, "mcp-topic-gamma",
-                    Constants.KAFKA_CLUSTER_NAME, 3, 1).build());
+                    Constants.KAFKA_CLUSTER_NAME, 3, 1).build(),
+                KafkaTopicTemplates.topic(kafkaNs, "mcp-topic-single",
+                    Constants.KAFKA_CLUSTER_NAME, 1, 1).build());
         }
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
 
@@ -121,6 +154,25 @@ class KafkaTopicToolsST extends AbstractST {
 
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("list_kafka_topics response:\n{}", json);
+
+                JsonNode root = parseJson(json);
+                assertTrue(root.isArray(), "Response should be a JSON array");
+                assertTrue(root.size() >= 3,
+                    "Should return at least 3 topics (alpha, beta, gamma) but got " + root.size());
+
+                Set<String> topicNames = new HashSet<>();
+                for (JsonNode topic : root) {
+                    assertTrue(topic.has("name"), "Each topic should have a 'name' field");
+                    assertTrue(topic.has("partitions"), "Each topic should have a 'partitions' field");
+                    assertTrue(topic.has("status"), "Each topic should have a 'status' field");
+                    topicNames.add(topic.path("name").asText());
+                }
+                assertTrue(topicNames.contains("mcp-topic-alpha"),
+                    "Response should contain mcp-topic-alpha");
+                assertTrue(topicNames.contains("mcp-topic-beta"),
+                    "Response should contain mcp-topic-beta");
+                assertTrue(topicNames.contains("mcp-topic-gamma"),
+                    "Response should contain mcp-topic-gamma");
             })
             .thenAssertResults();
     }
@@ -145,9 +197,18 @@ class KafkaTopicToolsST extends AbstractST {
                 LOGGER.info("list_kafka_topics paginated response:\n{}", json);
 
                 JsonNode root = parseJson(json);
-                if (root.isArray()) {
-                    assertTrue(root.size() <= 2,
-                        "Paginated response should have at most 2 entries but got " + root.size());
+                assertTrue(root.isArray(), "Paginated response should be a JSON array");
+                assertTrue(root.size() <= 2,
+                    "Paginated response should have at most 2 entries but got " + root.size());
+                assertTrue(root.size() > 0,
+                    "Paginated response should have at least 1 entry");
+                for (JsonNode topic : root) {
+                    assertFalse(topic.path("name").isMissingNode(),
+                        "Each paginated entry should have a 'name' field");
+                }
+                page1TopicNames.clear();
+                for (JsonNode topic : root) {
+                    page1TopicNames.add(topic.path("name").asText());
                 }
             })
             .thenAssertResults();
@@ -171,6 +232,17 @@ class KafkaTopicToolsST extends AbstractST {
 
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("list_kafka_topics page 2 response:\n{}", json);
+
+                JsonNode root = parseJson(json);
+                assertTrue(root.isArray(), "Page 2 response should be a JSON array");
+                assertTrue(root.size() >= 1,
+                    "Page 2 should have at least 1 remaining topic");
+
+                for (JsonNode topic : root) {
+                    String name = topic.path("name").asText();
+                    assertFalse(page1TopicNames.contains(name),
+                        "Page 2 topic '" + name + "' should not overlap with page 1 topics");
+                }
             })
             .thenAssertResults();
     }
@@ -198,6 +270,14 @@ class KafkaTopicToolsST extends AbstractST {
                     "Topic name should match");
                 assertEquals(3, topic.path("partitions").asInt(),
                     "Topic should have 3 partitions");
+                assertEquals(1, topic.path("replicas").asInt(),
+                    "Topic should have 1 replica");
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, topic.path("cluster").asText(),
+                    "Topic cluster should match");
+                assertFalse(topic.path("status").isMissingNode(),
+                    "Topic should have a status field");
+                assertEquals("Ready", topic.path("status").asText(),
+                    "Topic status should be Ready");
             })
             .thenAssertResults();
     }
@@ -220,6 +300,8 @@ class KafkaTopicToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_topic error response: {}", text);
+                assertTrue(text.contains("not found"),
+                    "Error message should mention 'not found'");
             })
             .thenAssertResults();
     }
@@ -237,9 +319,113 @@ class KafkaTopicToolsST extends AbstractST {
         mcpClient.when()
             .toolsCall("diagnose_kafka_topic", args, response -> {
                 assertFalse(response.isError(), "diagnose_kafka_topic should not return error");
+                assertFalse(response.content().isEmpty(),
+                    "diagnose_kafka_topic should return content");
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("diagnose_kafka_topic response:\n{}", text);
+                assertTrue(text.contains("mcp-topic-alpha"),
+                    "Diagnostic response should reference the topic name");
+            })
+            .thenAssertResults();
+    }
+
+    /**
+     * T3.6 - Verify get_kafka_topic returns correct values for a topic with different config.
+     */
+    @Test
+    @DisplayName("get_kafka_topic returns correct values for single-partition topic")
+    @Story("Get Kafka Topic")
+    void testGetKafkaTopicSinglePartition() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "topicName", "mcp-topic-single",
+            "namespace", kafkaNamespace.getMetadata().getName());
+        mcpClient.when()
+            .toolsCall("get_kafka_topic", args, response -> {
+                assertFalse(response.isError(), "get_kafka_topic should not return error");
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_topic single-partition response:\n{}", json);
+
+                JsonNode topic = parseJson(json);
+                assertEquals("mcp-topic-single", topic.path("name").asText(),
+                    "Topic name should match");
+                assertEquals(1, topic.path("partitions").asInt(),
+                    "Topic should have 1 partition");
+                assertEquals(1, topic.path("replicas").asInt(),
+                    "Topic should have 1 replica");
+            })
+            .thenAssertResults();
+    }
+
+    /**
+     * T3.7 - Verify list_kafka_topics returns empty for a non-existent cluster.
+     */
+    @Test
+    @DisplayName("list_kafka_topics returns empty for non-existent cluster")
+    @Story("List Kafka Topics")
+    void testListKafkaTopicsNonExistentCluster() {
+        Map<String, Object> args = Map.of(
+            "clusterName", "nonexistent-cluster",
+            "namespace", kafkaNamespace.getMetadata().getName());
+        mcpClient.when()
+            .toolsCall("list_kafka_topics", args, response -> {
+                assertFalse(response.isError(),
+                    "list_kafka_topics should not return error for non-existent cluster");
+                assertTrue(response.content().isEmpty(),
+                    "Should return empty response for non-existent cluster");
+                LOGGER.info("list_kafka_topics for non-existent cluster returned empty as expected");
+            })
+            .thenAssertResults();
+    }
+
+    /**
+     * T3.8 - Verify get_kafka_topic returns error for wrong namespace.
+     */
+    @Test
+    @DisplayName("get_kafka_topic returns error for wrong namespace")
+    @Story("Get Kafka Topic")
+    void testGetKafkaTopicWrongNamespace() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "topicName", "mcp-topic-alpha",
+            "namespace", "nonexistent-namespace");
+        mcpClient.when()
+            .toolsCall("get_kafka_topic", args, response -> {
+                assertTrue(response.isError(),
+                    "Should return error for wrong namespace");
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_topic wrong namespace error: {}", text);
+                assertTrue(text.contains("not found"),
+                    "Error message should mention 'not found'");
+            })
+            .thenAssertResults();
+    }
+
+    /**
+     * T15.8 - Verify diagnose_kafka_topic with optional clusterName parameter.
+     */
+    @Test
+    @DisplayName("diagnose_kafka_topic with clusterName parameter")
+    @Story("Diagnose Kafka Topic")
+    void testDiagnoseKafkaTopicWithClusterName() {
+        Map<String, Object> args = Map.of(
+            "topicName", "mcp-topic-alpha",
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "namespace", kafkaNamespace.getMetadata().getName());
+        mcpClient.when()
+            .toolsCall("diagnose_kafka_topic", args, response -> {
+                assertFalse(response.isError(),
+                    "diagnose_kafka_topic with clusterName should not return error");
+                assertFalse(response.content().isEmpty(),
+                    "diagnose_kafka_topic should return content");
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("diagnose_kafka_topic with clusterName response:\n{}", text);
+                assertTrue(text.contains("mcp-topic-alpha"),
+                    "Diagnostic response should reference the topic name");
             })
             .thenAssertResults();
     }

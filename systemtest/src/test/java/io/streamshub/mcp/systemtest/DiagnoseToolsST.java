@@ -14,6 +14,7 @@ import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.CleanupStrategy;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.annotations.KubernetesTest;
+import io.skodjob.kubetest4j.annotations.LogCollectionStrategy;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
@@ -23,6 +24,15 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectorTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
+import io.strimzi.api.kafka.model.bridge.KafkaBridge;
+import io.strimzi.api.kafka.model.connect.KafkaConnect;
+import io.strimzi.api.kafka.model.connector.KafkaConnector;
+import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.mirrormaker2.KafkaMirrorMaker2;
+import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
+import io.strimzi.api.kafka.model.rebalance.KafkaRebalance;
+import io.strimzi.api.kafka.model.topic.KafkaTopic;
+import io.strimzi.api.kafka.model.user.KafkaUser;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -42,7 +52,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Deploys a Kafka cluster with Connect and Connector, then verifies
  * that diagnostic tools return well-structured reports.
  */
-@KubernetesTest(cleanup = CleanupStrategy.AUTOMATIC, collectLogs = true)
+@KubernetesTest(
+    cleanup = CleanupStrategy.AUTOMATIC,
+    collectLogs = true,
+    logCollectionStrategy = LogCollectionStrategy.ON_FAILURE,
+    collectPreviousLogs = true,
+    collectNamespacedResources = {
+        "pods", "services", "configmaps", "secrets", "deployments",
+        Kafka.RESOURCE_SINGULAR,
+        KafkaNodePool.RESOURCE_SINGULAR,
+        KafkaTopic.RESOURCE_SINGULAR,
+        KafkaUser.RESOURCE_SINGULAR,
+        KafkaConnect.RESOURCE_SINGULAR,
+        KafkaConnector.RESOURCE_SINGULAR,
+        KafkaBridge.RESOURCE_SINGULAR,
+        KafkaMirrorMaker2.RESOURCE_SINGULAR,
+        KafkaRebalance.RESOURCE_SINGULAR
+    }
+)
 @DisplayName("Diagnose MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("Diagnose Tools")
