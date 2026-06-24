@@ -149,95 +149,10 @@ class ComplexScenariosST extends AbstractST {
         }
     }
 
-    // ---- Diagnostic Tools ----
-
-    @Test
-    @DisplayName("T15.1 - diagnose_kafka_cluster returns diagnostic info")
-    @Story("Diagnose Kafka Cluster")
-    void testDiagnoseKafkaCluster() {
-        Map<String, Object> args = Map.of(
-            "clusterName", Constants.KAFKA_CLUSTER_NAME,
-            "namespace", kafkaNamespace.getMetadata().getName());
-        mcpClient.when()
-            .toolsCall("diagnose_kafka_cluster", args, response -> {
-                assertFalse(response.isError(), "diagnose_kafka_cluster should not return error");
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("diagnose_kafka_cluster response:\n{}", text);
-            })
-            .thenAssertResults();
-    }
-
-    @Test
-    @DisplayName("T15.2 - diagnose_kafka_cluster with symptom returns diagnostic info")
-    @Story("Diagnose Kafka Cluster")
-    void testDiagnoseKafkaClusterWithSymptom() {
-        Map<String, Object> args = Map.of(
-            "clusterName", Constants.KAFKA_CLUSTER_NAME,
-            "namespace", kafkaNamespace.getMetadata().getName(),
-            "symptom", "high latency",
-            "sinceMinutes", 60);
-        mcpClient.when()
-            .toolsCall("diagnose_kafka_cluster", args, response -> {
-                assertFalse(response.isError(), "diagnose_kafka_cluster with symptom should not return error");
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("diagnose_kafka_cluster with symptom response:\n{}", text);
-            })
-            .thenAssertResults();
-    }
-
-    @Test
-    @DisplayName("T15.3 - diagnose_kafka_connectivity returns connectivity diagnostic info")
-    @Story("Diagnose Kafka Connectivity")
-    void testDiagnoseKafkaConnectivity() {
-        Map<String, Object> args = Map.of(
-            "clusterName", Constants.KAFKA_CLUSTER_NAME,
-            "namespace", kafkaNamespace.getMetadata().getName());
-        mcpClient.when()
-            .toolsCall("diagnose_kafka_connectivity", args, response -> {
-                assertFalse(response.isError(), "diagnose_kafka_connectivity should not return error");
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("diagnose_kafka_connectivity response:\n{}", text);
-            })
-            .thenAssertResults();
-    }
-
-    @Test
-    @DisplayName("T15.4 - diagnose_kafka_connectivity with listener filter")
-    @Story("Diagnose Kafka Connectivity")
-    void testDiagnoseKafkaConnectivityListener() {
-        Map<String, Object> args = Map.of(
-            "clusterName", Constants.KAFKA_CLUSTER_NAME,
-            "namespace", kafkaNamespace.getMetadata().getName(),
-            "listenerName", "tls");
-        mcpClient.when()
-            .toolsCall("diagnose_kafka_connectivity", args, response -> {
-                assertFalse(response.isError(), "diagnose_kafka_connectivity with listener should not return error");
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("diagnose_kafka_connectivity with listener response:\n{}", text);
-            })
-            .thenAssertResults();
-    }
-
-    @Test
-    @DisplayName("T15.12 - assess_upgrade_readiness returns upgrade assessment")
-    @Story("Assess Upgrade Readiness")
-    void testAssessUpgradeReadiness() {
-        Map<String, Object> args = Map.of(
-            "clusterName", Constants.KAFKA_CLUSTER_NAME,
-            "namespace", kafkaNamespace.getMetadata().getName());
-        mcpClient.when()
-            .toolsCall("assess_upgrade_readiness", args, response -> {
-                assertFalse(response.isError(), "assess_upgrade_readiness should not return error");
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("assess_upgrade_readiness response:\n{}", text);
-            })
-            .thenAssertResults();
-    }
-
     // ---- Multi-Step E2E Workflows ----
 
     @Test
-    @DisplayName("E2E-1 - Cluster health check workflow")
+    @DisplayName("Cluster health check workflow")
     @Story("Cluster Health Check")
     void testClusterHealthCheck() {
         String ns = kafkaNamespace.getMetadata().getName();
@@ -301,19 +216,16 @@ class ComplexScenariosST extends AbstractST {
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "namespace", ns), response -> {
                     assertFalse(response.isError(), "Step 5: list_kafka_node_pools should not return error");
                     assertFalse(response.content().isEmpty(), "Node pools content should not be empty");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 5 - list_kafka_node_pools response:\n{}", text);
-
-                    JsonNode root = parseJson(text);
-                    assertTrue(root.isArray(), "Node pools should be a JSON array");
-                    assertEquals(2, root.size(),
+                    LOGGER.info("Step 5 - list_kafka_node_pools ({} items):", response.content().size());
+                    response.content().forEach(c -> LOGGER.info("  {}", c.asText().text()));
+                    assertEquals(2, response.content().size(),
                         "Should have 2 node pools (controller-np and broker-np)");
                 })
             .thenAssertResults();
     }
 
     @Test
-    @DisplayName("E2E-2 - Topic investigation workflow")
+    @DisplayName("Topic investigation workflow")
     @Story("Topic Investigation")
     void testTopicInvestigation() {
         String ns = kafkaNamespace.getMetadata().getName();
@@ -368,7 +280,7 @@ class ComplexScenariosST extends AbstractST {
     }
 
     @Test
-    @DisplayName("E2E-3 - Connectivity troubleshooting workflow")
+    @DisplayName("Connectivity troubleshooting workflow")
     @Story("Connectivity Troubleshooting")
     void testConnectivityTroubleshooting() {
         String ns = kafkaNamespace.getMetadata().getName();
@@ -412,8 +324,8 @@ class ComplexScenariosST extends AbstractST {
             .toolsCall("list_kafka_users",
                 Map.of("namespace", ns), response -> {
                     assertFalse(response.isError(), "Step 4: list_kafka_users should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 4 - list_kafka_users response:\n{}", text);
+                    LOGGER.info("Step 4 - list_kafka_users ({} items):", response.content().size());
+                    response.content().forEach(c -> LOGGER.info("  {}", c.asText().text()));
                 })
             .thenAssertResults();
 
@@ -429,7 +341,7 @@ class ComplexScenariosST extends AbstractST {
     }
 
     @Test
-    @DisplayName("E2E-4 - Operator health workflow")
+    @DisplayName("Operator health workflow")
     @Story("Operator Health")
     void testOperatorHealth() {
         String strimziNs = strimziNamespace.getMetadata().getName();
@@ -491,7 +403,7 @@ class ComplexScenariosST extends AbstractST {
     }
 
     @Test
-    @DisplayName("E2E-5 - KafkaConnect pipeline workflow")
+    @DisplayName("KafkaConnect pipeline workflow")
     @Story("KafkaConnect Pipeline")
     void testKafkaConnectPipeline() {
         String ns = kafkaNamespace.getMetadata().getName();
@@ -568,7 +480,7 @@ class ComplexScenariosST extends AbstractST {
     }
 
     @Test
-    @DisplayName("E2E-6 - Upgrade readiness workflow")
+    @DisplayName("Upgrade readiness workflow")
     @Story("Upgrade Readiness")
     void testUpgradeReadiness() {
         String ns = kafkaNamespace.getMetadata().getName();
@@ -634,7 +546,7 @@ class ComplexScenariosST extends AbstractST {
     // ---- Additional E2E Workflows ----
 
     @Test
-    @DisplayName("E2E-7 - KafkaBridge investigation workflow")
+    @DisplayName("KafkaBridge investigation workflow")
     @Story("KafkaBridge Investigation")
     void testKafkaBridgeInvestigation() {
         String ns = kafkaNamespace.getMetadata().getName();
@@ -645,11 +557,9 @@ class ComplexScenariosST extends AbstractST {
                 Map.of("namespace", ns), response -> {
                     assertFalse(response.isError(), "Step 1: list_kafka_bridges should not return error");
                     assertFalse(response.content().isEmpty(), "Bridge list content should not be empty");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 1 - list_kafka_bridges response:\n{}", text);
-
-                    JsonNode root = parseJson(text);
-                    assertTrue(root.isArray() && root.size() >= 1,
+                    LOGGER.info("Step 1 - list_kafka_bridges ({} items):", response.content().size());
+                    response.content().forEach(c -> LOGGER.info("  {}", c.asText().text()));
+                    assertTrue(response.content().size() >= 1,
                         "Should have at least 1 KafkaBridge");
                 })
             .thenAssertResults();
@@ -691,44 +601,4 @@ class ComplexScenariosST extends AbstractST {
             .thenAssertResults();
     }
 
-    // ---- Additional Diagnostic Tests ----
-
-    @Test
-    @DisplayName("T15.5 - diagnose_kafka_connector returns diagnostic info")
-    @Story("Diagnose Kafka Connector")
-    void testDiagnoseKafkaConnector() {
-        Map<String, Object> args = Map.of(
-            "connectorName", CONNECTOR_NAME,
-            "namespace", kafkaNamespace.getMetadata().getName());
-        mcpClient.when()
-            .toolsCall("diagnose_kafka_connector", args, response -> {
-                assertFalse(response.isError(), "diagnose_kafka_connector should not return error");
-                assertFalse(response.content().isEmpty(),
-                    "diagnose_kafka_connector should return content");
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("diagnose_kafka_connector response:\n{}", text);
-                assertTrue(text.contains(CONNECTOR_NAME),
-                    "Diagnostic response should reference the connector name");
-            })
-            .thenAssertResults();
-    }
-
-    @Test
-    @DisplayName("T15.6 - diagnose_kafka_metrics returns metrics diagnostic info")
-    @Story("Diagnose Kafka Metrics")
-    void testDiagnoseKafkaMetrics() {
-        Map<String, Object> args = Map.of(
-            "clusterName", Constants.KAFKA_CLUSTER_NAME,
-            "namespace", kafkaNamespace.getMetadata().getName(),
-            "concern", "replication");
-        mcpClient.when()
-            .toolsCall("diagnose_kafka_metrics", args, response -> {
-                assertFalse(response.isError(), "diagnose_kafka_metrics should not return error");
-                assertFalse(response.content().isEmpty(),
-                    "diagnose_kafka_metrics should return content");
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("diagnose_kafka_metrics response:\n{}", text);
-            })
-            .thenAssertResults();
-    }
 }

@@ -138,7 +138,7 @@ class KafkaTopicToolsST extends AbstractST {
     }
 
     /**
-     * T3.1 - Verify list_kafka_topics returns topics for the cluster.
+     * Verify list_kafka_topics returns topics for the cluster.
      */
     @Test
     @DisplayName("list_kafka_topics returns deployed topics")
@@ -156,12 +156,14 @@ class KafkaTopicToolsST extends AbstractST {
                 LOGGER.info("list_kafka_topics response:\n{}", json);
 
                 JsonNode root = parseJson(json);
-                assertTrue(root.isArray(), "Response should be a JSON array");
-                assertTrue(root.size() >= 3,
-                    "Should return at least 3 topics (alpha, beta, gamma) but got " + root.size());
+                assertTrue(root.has("items"), "Response should have 'items' field");
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray(), "items should be a JSON array");
+                assertTrue(items.size() >= 3,
+                    "Should return at least 3 topics (alpha, beta, gamma) but got " + items.size());
 
                 Set<String> topicNames = new HashSet<>();
-                for (JsonNode topic : root) {
+                for (JsonNode topic : items) {
                     assertTrue(topic.has("name"), "Each topic should have a 'name' field");
                     assertTrue(topic.has("partitions"), "Each topic should have a 'partitions' field");
                     assertTrue(topic.has("status"), "Each topic should have a 'status' field");
@@ -178,7 +180,7 @@ class KafkaTopicToolsST extends AbstractST {
     }
 
     /**
-     * T3.2 - Verify list_kafka_topics with pagination returns at most 2 entries.
+     * Verify list_kafka_topics with pagination returns at most 2 entries.
      */
     @Test
     @DisplayName("list_kafka_topics with pagination returns at most 2 entries")
@@ -197,17 +199,19 @@ class KafkaTopicToolsST extends AbstractST {
                 LOGGER.info("list_kafka_topics paginated response:\n{}", json);
 
                 JsonNode root = parseJson(json);
-                assertTrue(root.isArray(), "Paginated response should be a JSON array");
-                assertTrue(root.size() <= 2,
-                    "Paginated response should have at most 2 entries but got " + root.size());
-                assertTrue(root.size() > 0,
+                assertTrue(root.has("items"), "Paginated response should have 'items' field");
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray(), "items should be a JSON array");
+                assertTrue(items.size() <= 2,
+                    "Paginated response should have at most 2 entries but got " + items.size());
+                assertTrue(items.size() > 0,
                     "Paginated response should have at least 1 entry");
-                for (JsonNode topic : root) {
+                for (JsonNode topic : items) {
                     assertFalse(topic.path("name").isMissingNode(),
                         "Each paginated entry should have a 'name' field");
                 }
                 page1TopicNames.clear();
-                for (JsonNode topic : root) {
+                for (JsonNode topic : items) {
                     page1TopicNames.add(topic.path("name").asText());
                 }
             })
@@ -215,7 +219,7 @@ class KafkaTopicToolsST extends AbstractST {
     }
 
     /**
-     * T3.3 - Verify list_kafka_topics page 2 returns remaining topics.
+     * Verify list_kafka_topics page 2 returns remaining topics.
      */
     @Test
     @DisplayName("list_kafka_topics page 2 returns remaining topics")
@@ -234,11 +238,13 @@ class KafkaTopicToolsST extends AbstractST {
                 LOGGER.info("list_kafka_topics page 2 response:\n{}", json);
 
                 JsonNode root = parseJson(json);
-                assertTrue(root.isArray(), "Page 2 response should be a JSON array");
-                assertTrue(root.size() >= 1,
+                assertTrue(root.has("items"), "Page 2 response should have 'items' field");
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray(), "items should be a JSON array");
+                assertTrue(items.size() >= 1,
                     "Page 2 should have at least 1 remaining topic");
 
-                for (JsonNode topic : root) {
+                for (JsonNode topic : items) {
                     String name = topic.path("name").asText();
                     assertFalse(page1TopicNames.contains(name),
                         "Page 2 topic '" + name + "' should not overlap with page 1 topics");
@@ -248,7 +254,7 @@ class KafkaTopicToolsST extends AbstractST {
     }
 
     /**
-     * T3.4 - Verify get_kafka_topic returns correct topic details.
+     * Verify get_kafka_topic returns correct topic details.
      */
     @Test
     @DisplayName("get_kafka_topic returns topic details")
@@ -283,7 +289,7 @@ class KafkaTopicToolsST extends AbstractST {
     }
 
     /**
-     * T3.5 - Verify get_kafka_topic returns error for non-existent topic.
+     * Verify get_kafka_topic returns error for non-existent topic.
      */
     @Test
     @DisplayName("get_kafka_topic returns error for non-existent topic")
@@ -307,7 +313,7 @@ class KafkaTopicToolsST extends AbstractST {
     }
 
     /**
-     * T15.7 - Verify diagnose_kafka_topic returns diagnostic info.
+     * Verify diagnose_kafka_topic returns diagnostic info.
      */
     @Test
     @DisplayName("diagnose_kafka_topic returns diagnostic info")
@@ -331,7 +337,7 @@ class KafkaTopicToolsST extends AbstractST {
     }
 
     /**
-     * T3.6 - Verify get_kafka_topic returns correct values for a topic with different config.
+     * Verify get_kafka_topic returns correct values for a topic with different config.
      */
     @Test
     @DisplayName("get_kafka_topic returns correct values for single-partition topic")
@@ -360,7 +366,7 @@ class KafkaTopicToolsST extends AbstractST {
     }
 
     /**
-     * T3.7 - Verify list_kafka_topics returns empty for a non-existent cluster.
+     * Verify list_kafka_topics returns empty for a non-existent cluster.
      */
     @Test
     @DisplayName("list_kafka_topics returns empty for non-existent cluster")
@@ -373,15 +379,26 @@ class KafkaTopicToolsST extends AbstractST {
             .toolsCall("list_kafka_topics", args, response -> {
                 assertFalse(response.isError(),
                     "list_kafka_topics should not return error for non-existent cluster");
-                assertTrue(response.content().isEmpty(),
-                    "Should return empty response for non-existent cluster");
-                LOGGER.info("list_kafka_topics for non-existent cluster returned empty as expected");
+                assertFalse(response.content().isEmpty(),
+                    "Should return a paginated response");
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("list_kafka_topics for non-existent cluster response:\n{}", json);
+
+                JsonNode root = parseJson(json);
+                assertTrue(root.has("items"), "Response should have 'items' field");
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray(), "items should be a JSON array");
+                assertEquals(0, items.size(),
+                    "Items should be empty for non-existent cluster");
+                assertEquals(0, root.path("total").asInt(),
+                    "Total should be 0 for non-existent cluster");
             })
             .thenAssertResults();
     }
 
     /**
-     * T3.8 - Verify get_kafka_topic returns error for wrong namespace.
+     * Verify get_kafka_topic returns error for wrong namespace.
      */
     @Test
     @DisplayName("get_kafka_topic returns error for wrong namespace")
@@ -405,12 +422,12 @@ class KafkaTopicToolsST extends AbstractST {
     }
 
     /**
-     * T15.8 - Verify diagnose_kafka_topic with optional clusterName parameter.
+     * Verify diagnose_kafka_topic with optional clusterName parameter.
      */
     @Test
     @DisplayName("diagnose_kafka_topic with clusterName parameter")
     @Story("Diagnose Kafka Topic")
-    void testDiagnoseKafkaTopicWithClusterName() {
+    void testDiagnoseKafkqaTopicWithClusterName() {
         Map<String, Object> args = Map.of(
             "topicName", "mcp-topic-alpha",
             "clusterName", Constants.KAFKA_CLUSTER_NAME,

@@ -213,6 +213,49 @@ class DiagnoseToolsST extends AbstractST {
             .thenAssertResults();
     }
 
+    @Test
+    @DisplayName("diagnose_kafka_cluster with symptom returns diagnostic info")
+    @Story("Diagnose Kafka Cluster")
+    void testDiagnoseKafkaClusterWithSymptom() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "symptom", "high latency",
+            "sinceMinutes", 60);
+        mcpClient.when()
+            .toolsCall("diagnose_kafka_cluster", args, response -> {
+                assertFalse(response.isError(),
+                    "diagnose_kafka_cluster with symptom should not return error");
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("diagnose_kafka_cluster with symptom response (length={})", text.length());
+
+                JsonNode root = parseJson(text);
+                assertDiagnosticReport(root);
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("diagnose_kafka_connectivity with listener filter")
+    @Story("Diagnose Kafka Connectivity")
+    void testDiagnoseKafkaConnectivityListener() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "listenerName", "tls");
+        mcpClient.when()
+            .toolsCall("diagnose_kafka_connectivity", args, response -> {
+                assertFalse(response.isError(),
+                    "diagnose_kafka_connectivity with listener should not return error");
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("diagnose_kafka_connectivity with listener response (length={})", text.length());
+
+                JsonNode root = parseJson(text);
+                assertDiagnosticReport(root);
+            })
+            .thenAssertResults();
+    }
+
     // ---- Kafka Metrics Diagnostics ----
 
     @Test
@@ -358,6 +401,27 @@ class DiagnoseToolsST extends AbstractST {
                     "Should have resource_metrics section");
                 assertFalse(root.path("jvm_metrics").isMissingNode(),
                     "Should have jvm_metrics section");
+            })
+            .thenAssertResults();
+    }
+
+    // ---- Upgrade Readiness ----
+
+    @Test
+    @DisplayName("assess_upgrade_readiness returns upgrade assessment")
+    @Story("Assess Upgrade Readiness")
+    void testAssessUpgradeReadiness() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME);
+        mcpClient.when()
+            .toolsCall("assess_upgrade_readiness", args, response -> {
+                assertFalse(response.isError(), "assess_upgrade_readiness should not return error");
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("assess_upgrade_readiness response (length={})", text.length());
+
+                JsonNode root = parseJson(text);
+                assertDiagnosticReport(root);
             })
             .thenAssertResults();
     }

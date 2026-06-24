@@ -16,6 +16,7 @@ import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.skodjob.kubetest4j.annotations.LogCollectionStrategy;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.skodjob.kubetest4j.wait.Wait;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaRebalanceType;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
@@ -43,7 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -80,7 +81,7 @@ class KafkaRebalanceToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRebalanceToolsST.class);
     private static final String REBALANCE_NAME = "mcp-rebalance";
-    private static final int INITIAL_BROKER_REPLICAS = 3;
+    private static final int INITIAL_BROKER_REPLICAS = 4;
 
     @InjectResourceManager
     KubeResourceManager krm;
@@ -134,13 +135,13 @@ class KafkaRebalanceToolsST extends AbstractST {
     // ---- Empty / Not-Found Tests ----
 
     /**
-     * T8.1 - Verify list_kafka_rebalances returns empty when no rebalances exist.
+     * Verify list_kafka_rebalances returns empty when no rebalances exist.
      */
     @Test
     @DisplayName("list_kafka_rebalances returns empty when no rebalances exist")
     @Story("List Kafka Rebalances")
     void testListKafkaRebalancesEmpty() {
-        cleanupExistingRebalances(kafkaNamespace.getMetadata().getName());
+        waitForNoRebalances(kafkaNamespace.getMetadata().getName());
 
         Map<String, Object> args = Map.of("namespace", kafkaNamespace.getMetadata().getName());
         mcpClient.when()
@@ -153,13 +154,13 @@ class KafkaRebalanceToolsST extends AbstractST {
     }
 
     /**
-     * T8.2 - Verify list_kafka_rebalances by cluster returns empty when no rebalances exist.
+     * Verify list_kafka_rebalances by cluster returns empty when no rebalances exist.
      */
     @Test
     @DisplayName("list_kafka_rebalances by cluster returns empty when no rebalances exist")
     @Story("List Kafka Rebalances")
     void testListKafkaRebalancesByCluster() {
-        cleanupExistingRebalances(kafkaNamespace.getMetadata().getName());
+        waitForNoRebalances(kafkaNamespace.getMetadata().getName());
 
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
@@ -174,7 +175,7 @@ class KafkaRebalanceToolsST extends AbstractST {
     }
 
     /**
-     * T8.3 - Verify get_kafka_rebalance returns error for nonexistent rebalance.
+     * Verify get_kafka_rebalance returns error for nonexistent rebalance.
      */
     @Test
     @DisplayName("get_kafka_rebalance returns error for nonexistent rebalance")
@@ -197,7 +198,7 @@ class KafkaRebalanceToolsST extends AbstractST {
     // ---- Manual KafkaRebalance CR Tests ----
 
     /**
-     * T8.4 - Verify list_kafka_rebalances returns the deployed rebalance resource.
+     * Verify list_kafka_rebalances returns the deployed rebalance resource.
      */
     @Test
     @DisplayName("list_kafka_rebalances returns deployed rebalance")
@@ -222,10 +223,14 @@ class KafkaRebalanceToolsST extends AbstractST {
                 LOGGER.info("list_kafka_rebalances response:\n{}", json);
 
                 JsonNode root = parseJson(json);
-                assertTrue(root.isArray(), "Response should be a JSON array");
-                assertTrue(root.size() >= 1, "Should have at least 1 rebalance");
 
-                JsonNode rebalance = root.get(0);
+                JsonNode rebalance;
+                if (root.isArray()) {
+                    assertTrue(root.size() >= 1, "Should have at least 1 rebalance");
+                    rebalance = root.get(0);
+                } else {
+                    rebalance = root;
+                }
                 assertFalse(rebalance.path("name").isMissingNode(),
                     "Rebalance should have 'name' field");
                 assertFalse(rebalance.path("state").isMissingNode(),
@@ -237,7 +242,7 @@ class KafkaRebalanceToolsST extends AbstractST {
     }
 
     /**
-     * T8.5 - Verify list_kafka_rebalances filtered by cluster returns the rebalance.
+     * Verify list_kafka_rebalances filtered by cluster returns the rebalance.
      */
     @Test
     @DisplayName("list_kafka_rebalances filtered by cluster returns rebalance")
@@ -264,11 +269,15 @@ class KafkaRebalanceToolsST extends AbstractST {
 
                 JsonNode root = parseJson(json);
                 boolean found = false;
-                for (JsonNode rebalance : root) {
-                    if (REBALANCE_NAME.equals(rebalance.path("name").asText())) {
-                        found = true;
-                        break;
+                if (root.isArray()) {
+                    for (JsonNode rebalance : root) {
+                        if (REBALANCE_NAME.equals(rebalance.path("name").asText())) {
+                            found = true;
+                            break;
+                        }
                     }
+                } else if (root.isObject()) {
+                    found = REBALANCE_NAME.equals(root.path("name").asText());
                 }
                 assertTrue(found, "Should find rebalance '" + REBALANCE_NAME + "' in filtered results");
             })
@@ -276,7 +285,7 @@ class KafkaRebalanceToolsST extends AbstractST {
     }
 
     /**
-     * T8.6 - Verify get_kafka_rebalance returns details for the deployed rebalance.
+     * Verify get_kafka_rebalance returns details for the deployed rebalance.
      */
     @Test
     @DisplayName("get_kafka_rebalance returns detailed rebalance info")
@@ -319,7 +328,7 @@ class KafkaRebalanceToolsST extends AbstractST {
     // ---- Auto-Rebalance Scale Tests ----
 
     /**
-     * T8.7 - Verify auto-rebalance on scale-up creates add-brokers rebalance.
+     * Verify auto-rebalance on scale-up creates add-brokers rebalance.
      */
     @Test
     @DisplayName("auto-rebalance on scale-up creates add-brokers rebalance")
@@ -331,7 +340,7 @@ class KafkaRebalanceToolsST extends AbstractST {
             KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
                 Constants.KAFKA_CLUSTER_NAME, INITIAL_BROKER_REPLICAS).build());
 
-        cleanupExistingRebalances(kafkaNs);
+        waitForNoRebalances(kafkaNs);
 
         int scaledUpReplicas = INITIAL_BROKER_REPLICAS + 1;
         LOGGER.info("Scaling broker pool from {} to {} replicas", INITIAL_BROKER_REPLICAS, scaledUpReplicas);
@@ -340,7 +349,9 @@ class KafkaRebalanceToolsST extends AbstractST {
             KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
                 Constants.KAFKA_CLUSTER_NAME, scaledUpReplicas).build());
 
-        waitForAutoRebalance(kafkaNs, "add-brokers");
+        Wait.until("MCP reports add-brokers auto-rebalance",
+            Constants.KAFKA_READY_POLL_MS, Constants.KAFKA_READY_TIMEOUT_MS,
+            () -> mcpReportsRebalanceWithMode(kafkaNs, "add-brokers"));
 
         Map<String, Object> args = Map.of("namespace", kafkaNs);
         mcpClient.when()
@@ -354,47 +365,66 @@ class KafkaRebalanceToolsST extends AbstractST {
 
                 JsonNode root = parseJson(json);
                 boolean foundAddBrokers = false;
-                for (JsonNode rebalance : root) {
-                    String mode = rebalance.path("mode").asText("");
-                    if ("add-brokers".equals(mode)) {
-                        foundAddBrokers = true;
-                        assertFalse(rebalance.path("state").isMissingNode(),
-                            "Auto-rebalance should have a state");
-                        assertFalse(rebalance.path("cluster").isMissingNode(),
-                            "Auto-rebalance should have cluster field");
-                        break;
+                if (root.isArray()) {
+                    for (JsonNode rebalance : root) {
+                        String mode = rebalance.path("mode").asText("");
+                        if ("add-brokers".equals(mode)) {
+                            foundAddBrokers = true;
+                            assertFalse(rebalance.path("state").isMissingNode(),
+                                "Auto-rebalance should have a state");
+                            assertFalse(rebalance.path("cluster").isMissingNode(),
+                                "Auto-rebalance should have cluster field");
+                            break;
+                        }
                     }
+                } else if (root.isObject() && "add-brokers".equals(root.path("mode").asText(""))) {
+                    foundAddBrokers = true;
+                    assertFalse(root.path("state").isMissingNode(),
+                        "Auto-rebalance should have a state");
+                    assertFalse(root.path("cluster").isMissingNode(),
+                        "Auto-rebalance should have cluster field");
                 }
                 assertTrue(foundAddBrokers,
                     "Should find auto-rebalance with mode 'add-brokers' after scale-up");
             })
             .thenAssertResults();
+
+        waitForNoRebalances(kafkaNs);
+
+        mcpClient.when()
+            .toolsCall("list_kafka_rebalances", args, response -> {
+                assertFalse(response.isError(), "list_kafka_rebalances should not return error after removal");
+                LOGGER.info("Auto-rebalance after removal: content empty={}", response.content().isEmpty());
+            })
+            .thenAssertResults();
     }
 
     /**
-     * T8.8 - Verify auto-rebalance on scale-down creates remove-brokers rebalance.
+     * Verify auto-rebalance on scale-down creates remove-brokers rebalance.
      */
     @Test
     @DisplayName("auto-rebalance on scale-down creates remove-brokers rebalance")
     @Story("Auto-Rebalance Scale Down")
     void testAutoRebalanceOnScaleDown() {
         String kafkaNs = kafkaNamespace.getMetadata().getName();
-
-        int scaledUpReplicas = INITIAL_BROKER_REPLICAS + 1;
-        krm.createOrUpdateResourceWithWait(
-            KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
-                Constants.KAFKA_CLUSTER_NAME, scaledUpReplicas).build());
-
-        cleanupExistingRebalances(kafkaNs);
-
-        LOGGER.info("Scaling broker pool from {} back to {} replicas",
-            scaledUpReplicas, INITIAL_BROKER_REPLICAS);
+        int scaledDownReplicas = INITIAL_BROKER_REPLICAS - 1;
 
         krm.createOrUpdateResourceWithWait(
             KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
                 Constants.KAFKA_CLUSTER_NAME, INITIAL_BROKER_REPLICAS).build());
 
-        waitForAutoRebalance(kafkaNs, "remove-brokers");
+        waitForNoRebalances(kafkaNs);
+
+        LOGGER.info("Scaling broker pool from {} to {} replicas",
+            INITIAL_BROKER_REPLICAS, scaledDownReplicas);
+
+        krm.createOrUpdateResourceWithWait(
+            KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
+                Constants.KAFKA_CLUSTER_NAME, scaledDownReplicas).build());
+
+        Wait.until("MCP reports remove-brokers auto-rebalance",
+            Constants.KAFKA_READY_POLL_MS, Constants.KAFKA_READY_TIMEOUT_MS,
+            () -> mcpReportsRebalanceWithMode(kafkaNs, "remove-brokers"));
 
         Map<String, Object> args = Map.of("namespace", kafkaNs);
         mcpClient.when()
@@ -408,17 +438,32 @@ class KafkaRebalanceToolsST extends AbstractST {
 
                 JsonNode root = parseJson(json);
                 boolean foundRemoveBrokers = false;
-                for (JsonNode rebalance : root) {
-                    String mode = rebalance.path("mode").asText("");
-                    if ("remove-brokers".equals(mode)) {
-                        foundRemoveBrokers = true;
-                        assertFalse(rebalance.path("state").isMissingNode(),
-                            "Auto-rebalance should have a state");
-                        break;
+                if (root.isArray()) {
+                    for (JsonNode rebalance : root) {
+                        String mode = rebalance.path("mode").asText("");
+                        if ("remove-brokers".equals(mode)) {
+                            foundRemoveBrokers = true;
+                            assertFalse(rebalance.path("state").isMissingNode(),
+                                "Auto-rebalance should have a state");
+                            break;
+                        }
                     }
+                } else if (root.isObject() && "remove-brokers".equals(root.path("mode").asText(""))) {
+                    foundRemoveBrokers = true;
+                    assertFalse(root.path("state").isMissingNode(),
+                        "Auto-rebalance should have a state");
                 }
                 assertTrue(foundRemoveBrokers,
                     "Should find auto-rebalance with mode 'remove-brokers' after scale-down");
+            })
+            .thenAssertResults();
+
+        waitForNoRebalances(kafkaNs);
+
+        mcpClient.when()
+            .toolsCall("list_kafka_rebalances", args, response -> {
+                assertFalse(response.isError(), "list_kafka_rebalances should not return error after removal");
+                LOGGER.info("Auto-rebalance after removal: content empty={}", response.content().isEmpty());
             })
             .thenAssertResults();
     }
@@ -441,36 +486,36 @@ class KafkaRebalanceToolsST extends AbstractST {
         }
     }
 
-    private void waitForAutoRebalance(final String namespace, final String expectedMode) {
-        LOGGER.info("Waiting for auto-created KafkaRebalance with mode '{}' in namespace '{}'",
-            expectedMode, namespace);
-        long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(10);
-        while (System.currentTimeMillis() < deadline) {
-            KafkaRebalanceList list = KafkaRebalanceType.kafkaRebalanceClient().inNamespace(namespace).list();
-            if (list.getItems() != null) {
-                for (KafkaRebalance kr : list.getItems()) {
-                    if (kr.getSpec() != null && kr.getSpec().getMode() != null
-                        && kr.getSpec().getMode().toValue().equals(expectedMode)) {
-                        LOGGER.info("Found auto-rebalance '{}' with mode '{}'",
-                            kr.getMetadata().getName(), expectedMode);
-                        return;
+    private boolean mcpReportsRebalanceWithMode(final String namespace, final String expectedMode) {
+        AtomicBoolean found = new AtomicBoolean(false);
+        mcpClient.when()
+            .toolsCall("list_kafka_rebalances", Map.of("namespace", namespace), response -> {
+                if (!response.isError() && !response.content().isEmpty()) {
+                    String json = response.content().getFirst().asText().text();
+                    JsonNode root = parseJson(json);
+                    if (root.isArray()) {
+                        for (JsonNode rebalance : root) {
+                            if (expectedMode.equals(rebalance.path("mode").asText(""))) {
+                                found.set(true);
+                                break;
+                            }
+                        }
+                    } else if (root.isObject()
+                        && expectedMode.equals(root.path("mode").asText(""))) {
+                        found.set(true);
                     }
                 }
-            }
-            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(Constants.KAFKA_READY_POLL_MS));
-        }
-        LOGGER.warn("Timeout waiting for auto-rebalance with mode '{}', proceeding with assertions",
-            expectedMode);
+            })
+            .thenAssertResults();
+        return found.get();
     }
 
-    private void cleanupExistingRebalances(final String namespace) {
-        KafkaRebalanceList list = KafkaRebalanceType.kafkaRebalanceClient().inNamespace(namespace).list();
-        if (list.getItems() != null) {
-            for (KafkaRebalance kr : list.getItems()) {
-                LOGGER.info("Cleaning up KafkaRebalance '{}'", kr.getMetadata().getName());
-                KafkaRebalanceType.kafkaRebalanceClient().inNamespace(namespace).withName(kr.getMetadata().getName()).delete();
-            }
-            LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(5));
-        }
+    private void waitForNoRebalances(final String namespace) {
+        Wait.until("no KafkaRebalances in namespace '" + namespace + "'",
+            Constants.KAFKA_READY_POLL_MS, Constants.KAFKA_READY_TIMEOUT_MS, () -> {
+                KafkaRebalanceList list = KafkaRebalanceType.kafkaRebalanceClient()
+                    .inNamespace(namespace).list();
+                return list.getItems() == null || list.getItems().isEmpty();
+            });
     }
 }
