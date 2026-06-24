@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.streamshub.mcp.systemtest.Constants;
+import io.strimzi.api.kafka.model.common.template.ContainerEnvVarBuilder;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
@@ -82,6 +83,19 @@ public final class KafkaTemplates {
                     .endUserOperator()
                     .editOrNewTopicOperator()
                     .endTopicOperator()
+                    .editOrNewTemplate()
+                        .editOrNewTopicOperatorContainer()
+                            // Finalizers ensure orderly and controlled deletion of KafkaTopic resources.
+                            // In this case we would delete them automatically via ResourceManager
+                            // And in case that we forget to delete some KafkaTopic in the test, we will anyway remove
+                            // whole Namespace with it -> otherwise the Namespace deletion would be blocked.
+                            .addToEnv(new ContainerEnvVarBuilder()
+                                .withName("STRIMZI_USE_FINALIZERS")
+                                .withValue("false")
+                                .build()
+                            )
+                        .endTopicOperatorContainer()
+                    .endTemplate()
                 .endEntityOperator()
             .endSpec();
     }

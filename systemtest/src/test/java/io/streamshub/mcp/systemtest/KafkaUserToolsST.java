@@ -123,7 +123,9 @@ class KafkaUserToolsST extends AbstractST {
                 KafkaUserTemplates.scramUserWithAcls(kafkaNs,
                     KafkaUserTemplates.SCRAM_USER_NAME, Constants.KAFKA_CLUSTER_NAME).build(),
                 KafkaUserTemplates.tlsUser(kafkaNs,
-                    KafkaUserTemplates.TLS_USER_NAME, Constants.KAFKA_CLUSTER_NAME).build());
+                    KafkaUserTemplates.TLS_USER_NAME, Constants.KAFKA_CLUSTER_NAME).build(),
+                KafkaUserTemplates.adminUser(kafkaNs,
+                    KafkaUserTemplates.ADMIN_USER_NAME, Constants.KAFKA_CLUSTER_NAME).build());
         }
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
 
@@ -317,6 +319,35 @@ class KafkaUserToolsST extends AbstractST {
                 LOGGER.info("get_kafka_user error response: {}", text);
                 assertTrue(text.toLowerCase(Locale.ROOT).contains("not found"),
                     "Error should mention 'not found'");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_kafka_user returns detailed admin user with ACLs")
+    @Story("Get KafkaUser detail")
+    void testGetKafkaUserAdmin() {
+        Map<String, Object> args = Map.of(
+            "userName", KafkaUserTemplates.ADMIN_USER_NAME,
+            "namespace", kafkaNamespace.getMetadata().getName());
+        mcpClient.when()
+            .toolsCall("get_kafka_user", args, response -> {
+                assertFalse(response.isError(), "get_kafka_user should not return error");
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_user (admin) response:\n{}", json);
+
+                JsonNode user = parseJson(json);
+                assertEquals("scram-sha-512", user.path("authentication").asText(),
+                    "Admin user should use scram-sha-512 authentication");
+
+                // ACL rules should be present
+                JsonNode aclRules = user.path("acl_rules");
+                assertTrue(aclRules.isArray() && !aclRules.isEmpty(),
+                    "Admin user should have ACL rules");
+
+                // CRITICAL: verify no secret data is exposed
+                assertFalse(json.contains("password"), "Must NOT contain password data");
+                assertFalse(json.contains("sasl.jaas.config"), "Must NOT contain JAAS config");
             })
             .thenAssertResults();
     }

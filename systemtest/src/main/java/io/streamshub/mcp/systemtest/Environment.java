@@ -38,6 +38,15 @@ public final class Environment {
     /** Kafka namespace. */
     public static final String KAFKA_NAMESPACE = ENV_VARIABLES.getOrDefault("KAFKA_NAMESPACE", Constants.KAFKA_NAMESPACE);
 
+    /** KafkaConnect container image (pre-built with connector plugins). */
+    public static final String CONNECT_IMAGE = ENV_VARIABLES.getOrDefault("CONNECT_IMAGE", Constants.CONNECT_TEST_IMAGE);
+
+    /** Prometheus URL override. When set, skips auto-discovery of Prometheus/Thanos services. */
+    public static final String PROMETHEUS_URL = ENV_VARIABLES.getOrDefault("PROMETHEUS_URL", null);
+
+    /** Prometheus auth mode override ({@code none}, {@code sa-token}, {@code basic}). Auto-detected if not set. */
+    public static final String PROMETHEUS_AUTH_MODE = ENV_VARIABLES.getOrDefault("PROMETHEUS_AUTH_MODE", null);
+
     private Environment() {
     }
 }

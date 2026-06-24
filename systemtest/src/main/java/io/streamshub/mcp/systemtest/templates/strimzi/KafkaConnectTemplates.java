@@ -4,18 +4,12 @@
  */
 package io.streamshub.mcp.systemtest.templates.strimzi;
 
-import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
+import io.streamshub.mcp.systemtest.Environment;
 import io.strimzi.api.kafka.model.common.CertSecretSourceBuilder;
 import io.strimzi.api.kafka.model.connect.KafkaConnectBuilder;
 import io.strimzi.api.kafka.model.connect.KafkaConnectResources;
-import io.strimzi.api.kafka.model.connect.build.DockerOutput;
-import io.strimzi.api.kafka.model.connect.build.DockerOutputBuilder;
-import io.strimzi.api.kafka.model.connect.build.Plugin;
-import io.strimzi.api.kafka.model.connect.build.PluginBuilder;
-import io.strimzi.api.kafka.model.connect.build.TgzArtifactBuilder;
 import io.strimzi.api.kafka.model.kafka.KafkaResources;
 
-import static io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup.isOpenShift;
 import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates.DEFAULT_KAFKA_VERSION;
 
 /**
@@ -29,15 +23,6 @@ public final class KafkaConnectTemplates {
     /** Fully qualified class name for the Camel Timer Source connector. */
     public static final String CAMEL_TIMER_SOURCE_CLASS_NAME =
         "org.apache.camel.kafkaconnector.timersource.CamelTimersourceSourceConnector";
-
-    private static final String CAMEL_TIMER_SOURCE_PLUGIN_NAME = "camel-timer-source";
-    private static final String CAMEL_TIMER_SOURCE_TGZ_URL =
-        "https://repo.maven.apache.org/maven2/org/apache/camel/kafkaconnector/"
-            + "camel-timer-source-kafka-connector/4.18.0/"
-            + "camel-timer-source-kafka-connector-4.18.0-package.tar.gz";
-    private static final String CAMEL_TIMER_SOURCE_TGZ_SHA512 =
-        "79fd69db4a99911d952630cd14cee4e2447c2dad1c47d59910c71218701535c09be4171ebd76f689695892b711a71553"
-            + "bb91ef6b33c52ee795a7c173a0f3a69e";
 
     private KafkaConnectTemplates() {
     }
@@ -54,15 +39,6 @@ public final class KafkaConnectTemplates {
     public static KafkaConnectBuilder kafkaConnect(final String namespace, final String name,
                                                     final String kafkaClusterName, final int replicas) {
 
-        Plugin plugin = new PluginBuilder()
-            .withName(CAMEL_TIMER_SOURCE_PLUGIN_NAME)
-            .withArtifacts(
-                new TgzArtifactBuilder()
-                    .withUrl(CAMEL_TIMER_SOURCE_TGZ_URL)
-                    .withSha512sum(CAMEL_TIMER_SOURCE_TGZ_SHA512)
-                    .build())
-            .build();
-
         return new KafkaConnectBuilder()
             .withNewMetadata()
                 .withName(name)
@@ -73,11 +49,7 @@ public final class KafkaConnectTemplates {
                 .withVersion(DEFAULT_KAFKA_VERSION)
                 .withReplicas(replicas)
                 .withBootstrapServers(KafkaResources.tlsBootstrapAddress(kafkaClusterName))
-                .withNewBuild()
-                    .withPlugins(plugin)
-                    .withOutput(KafkaConnectTemplates.dockerOutput(ConnectivitySetup.getImageOutputRegistry() + "/" + namespace + "/strimzi-sts-connect-build:dev"))
-                .endBuild()
-
+                .withImage(Environment.CONNECT_IMAGE)
                 .withNewTls()
                     .withTrustedCertificates(
                         new CertSecretSourceBuilder()
@@ -90,7 +62,6 @@ public final class KafkaConnectTemplates {
                 .withConfigStorageTopic(KafkaConnectResources.configMapName(name))
                 .withOffsetStorageTopic(KafkaConnectResources.configStorageTopicOffsets(name))
                 .withStatusStorageTopic(KafkaConnectResources.configStorageTopicStatus(name))
-                // Maybe not needed?
                 .addToConfig("key.converter", "org.apache.kafka.connect.storage.StringConverter")
                 .addToConfig("value.converter", "org.apache.kafka.connect.storage.StringConverter")
                 .addToConfig("config.storage.replication.factor", "-1")
@@ -113,22 +84,5 @@ public final class KafkaConnectTemplates {
     public static KafkaConnectBuilder kafkaConnect(final String namespace, final String name,
                                                     final String kafkaClusterName) {
         return kafkaConnect(namespace, name, kafkaClusterName, DEFAULT_REPLICAS);
-    }
-
-    /**
-     * Create a DockerOutput configuration, with TLS verification disabled on non-OpenShift clusters.
-     *
-     * @param imageName the target image name
-     * @return a configured DockerOutput
-     */
-    public static DockerOutput dockerOutput(final String imageName) {
-        DockerOutputBuilder dockerOutputBuilder = new DockerOutputBuilder().withImage(imageName);
-
-        if (!isOpenShift()) {
-            dockerOutputBuilder.withAdditionalBuildOptions("--tls-verify=false");
-            dockerOutputBuilder.withAdditionalPushOptions("--tls-verify=false");
-        }
-
-        return dockerOutputBuilder.build();
     }
 }

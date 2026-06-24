@@ -20,6 +20,9 @@ public final class KafkaUserTemplates {
     /** Default user name for TLS test user. */
     public static final String TLS_USER_NAME = "mcp-tls-user";
 
+    /** Default user name for admin test user (overpermissive). */
+    public static final String ADMIN_USER_NAME = "mcp-admin-user";
+
     private KafkaUserTemplates() {
     }
 
@@ -66,6 +69,48 @@ public final class KafkaUserTemplates {
                     .withConsumerByteRate(2097152)
                     .withRequestPercentage(55)
                 .endQuotas()
+            .endSpec();
+    }
+
+    /**
+     * Create a SCRAM-SHA-512 admin KafkaUser with all operations on all resources, no quotas.
+     *
+     * @param namespace   the namespace
+     * @param userName    the user name
+     * @param clusterName the Kafka cluster name
+     * @return a pre-configured KafkaUserBuilder
+     */
+    public static KafkaUserBuilder adminUser(final String namespace,
+                                              final String userName,
+                                              final String clusterName) {
+        return new KafkaUserBuilder()
+            .withNewMetadata()
+                .withName(userName)
+                .withNamespace(namespace)
+                .withLabels(Map.of(ResourceLabels.STRIMZI_CLUSTER_LABEL, clusterName))
+            .endMetadata()
+            .withNewSpec()
+                .withNewKafkaUserScramSha512ClientAuthentication()
+                .endKafkaUserScramSha512ClientAuthentication()
+                .withNewKafkaUserAuthorizationSimple()
+                    .addNewAcl()
+                        .withNewAclRuleTopicResource()
+                            .withName("*")
+                        .endAclRuleTopicResource()
+                        .withOperations(io.strimzi.api.kafka.model.user.acl.AclOperation.ALL)
+                    .endAcl()
+                    .addNewAcl()
+                        .withNewAclRuleGroupResource()
+                            .withName("*")
+                        .endAclRuleGroupResource()
+                        .withOperations(io.strimzi.api.kafka.model.user.acl.AclOperation.ALL)
+                    .endAcl()
+                    .addNewAcl()
+                        .withNewAclRuleClusterResource()
+                        .endAclRuleClusterResource()
+                        .withOperations(io.strimzi.api.kafka.model.user.acl.AclOperation.ALL)
+                    .endAcl()
+                .endKafkaUserAuthorizationSimple()
             .endSpec();
     }
 

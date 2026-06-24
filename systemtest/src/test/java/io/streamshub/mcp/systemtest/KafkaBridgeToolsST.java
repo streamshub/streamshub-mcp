@@ -174,6 +174,61 @@ class KafkaBridgeToolsST extends AbstractST {
             .thenAssertResults();
     }
 
+    @Test
+    @DisplayName("get_kafka_bridge_logs returns log output")
+    @Story("Get KafkaBridge Logs")
+    void testGetKafkaBridgeLogs() {
+        Map<String, Object> args = Map.of(
+            "bridgeName", BRIDGE_NAME,
+            "tailLines", 50);
+        mcpClient.when()
+            .toolsCall("get_kafka_bridge_logs", args, response -> {
+                assertFalse(response.isError(), "get_kafka_bridge_logs should not return error");
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_bridge_logs response (length={})", text.length());
+
+                JsonNode root = parseJson(text);
+                assertEquals(BRIDGE_NAME, root.path("bridge_name").asText(),
+                    "bridge_name should match");
+                JsonNode pods = root.path("pods");
+                assertTrue(pods.isArray() && !pods.isEmpty(),
+                    "pods should be a non-empty array");
+                assertEquals(1, pods.size(),
+                    "Should have exactly 1 bridge pod (1 replica)");
+                assertTrue(root.path("log_lines").isNumber(), "log_lines should be a number");
+                assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
+                assertFalse(root.path("message").isMissingNode(), "Should have message");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_strimzi_events returns events for KafkaBridge")
+    @Story("Get Strimzi Events KafkaBridge")
+    void testGetStrimziEventsKafkaBridge() {
+        Map<String, Object> args = Map.of(
+            "resourceName", BRIDGE_NAME,
+            "resourceKind", "KafkaBridge",
+            "namespace", kafkaNamespace.getMetadata().getName());
+        mcpClient.when()
+            .toolsCall("get_strimzi_events", args, response -> {
+                assertFalse(response.isError(), "get_strimzi_events should not return error");
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_strimzi_events (KafkaBridge) response (length={})", text.length());
+
+                JsonNode root = parseJson(text);
+                assertEquals(BRIDGE_NAME, root.path("resource_name").asText(),
+                    "resource_name should match");
+                assertEquals(kafkaNamespace.getMetadata().getName(),
+                    root.path("namespace").asText(), "namespace should match deployment namespace");
+                assertTrue(root.path("total_events").asInt() > 0,
+                    "Should have events from bridge deployment");
+                assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
+                assertFalse(root.path("message").isMissingNode(), "Should have message");
+            })
+            .thenAssertResults();
+    }
+
     /**
      * Find a node by name in a JSON array or single object.
      *

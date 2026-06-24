@@ -55,9 +55,19 @@ jobs:
           -Dquarkus.container-image.tag=test
         kind load docker-image quay.io/streamshub/strimzi-mcp:test --name kind-cluster
 
+    - name: Build Connect image and load into kind
+      run: |
+        ./mvnw package -pl systemtest -Pbuild-connect-image -DskipTests \
+          -Dconnect.image=quay.io/streamshub/mcp-connect-test:test \
+          -Dconnect.image.push=false \
+          -Dcontainer.engine=docker \
+          -Dcontainer.platform=linux/amd64
+        kind load docker-image quay.io/streamshub/mcp-connect-test:test --name kind-cluster
+
     - name: Run system tests
       env:
         MCP_IMAGE: quay.io/streamshub/strimzi-mcp:test
+        CONNECT_IMAGE: quay.io/streamshub/mcp-connect-test:test
         MCP_CONNECTIVITY: NODEPORT
       run: |
         ./mvnw verify -pl systemtest \
