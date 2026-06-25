@@ -11,6 +11,8 @@ import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.streamshub.mcp.systemtest.Constants;
 import io.strimzi.api.kafka.model.common.template.ContainerEnvVarBuilder;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
+import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceConfigurationBuilder;
+import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceMode;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 import org.slf4j.Logger;
@@ -97,6 +99,31 @@ public final class KafkaTemplates {
                         .endTopicOperatorContainer()
                     .endTemplate()
                 .endEntityOperator()
+            .endSpec();
+    }
+
+    /**
+     * Create a Kafka builder with CruiseControl and auto-rebalance enabled.
+     * Configures auto-rebalance for both add-brokers and remove-brokers modes.
+     *
+     * @param namespace    the namespace
+     * @param name         the cluster name
+     * @param replicas     the number of broker replicas
+     * @return a pre-configured KafkaBuilder with CruiseControl
+     */
+    public static KafkaBuilder kafkaWithCruiseControl(final String namespace, final String name,
+                                                       final int replicas) {
+        return kafka(namespace, name, replicas)
+            .editSpec()
+                .withNewCruiseControl()
+                    .withAutoRebalance(
+                        new KafkaAutoRebalanceConfigurationBuilder()
+                            .withMode(KafkaAutoRebalanceMode.ADD_BROKERS)
+                            .build(),
+                        new KafkaAutoRebalanceConfigurationBuilder()
+                            .withMode(KafkaAutoRebalanceMode.REMOVE_BROKERS)
+                            .build())
+                .endCruiseControl()
             .endSpec();
     }
 
