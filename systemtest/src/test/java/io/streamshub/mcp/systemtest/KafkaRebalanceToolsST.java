@@ -210,7 +210,7 @@ class KafkaRebalanceToolsST extends AbstractST {
             KafkaRebalanceTemplates.rebalance(kafkaNs, REBALANCE_NAME,
                 Constants.KAFKA_CLUSTER_NAME).build());
 
-        waitForRebalanceToAppear(kafkaNs, Constants.KAFKA_CLUSTER_NAME);
+        waitForRebalanceToAppear(kafkaNs);
 
         Map<String, Object> args = Map.of("namespace", kafkaNs);
         mcpClient.when()
@@ -253,7 +253,7 @@ class KafkaRebalanceToolsST extends AbstractST {
         krm.createOrUpdateResourceWithoutWait(
             KafkaRebalanceTemplates.rebalance(kafkaNs, REBALANCE_NAME,
                 Constants.KAFKA_CLUSTER_NAME).build());
-        waitForRebalanceToAppear(kafkaNs, Constants.KAFKA_CLUSTER_NAME);
+        waitForRebalanceToAppear(kafkaNs);
 
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
@@ -296,7 +296,7 @@ class KafkaRebalanceToolsST extends AbstractST {
         krm.createOrUpdateResourceWithoutWait(
             KafkaRebalanceTemplates.rebalance(kafkaNs, REBALANCE_NAME,
                 Constants.KAFKA_CLUSTER_NAME).build());
-        waitForRebalanceToAppear(kafkaNs, Constants.KAFKA_CLUSTER_NAME);
+        waitForRebalanceToAppear(kafkaNs);
 
         Map<String, Object> args = Map.of(
             "rebalanceName", REBALANCE_NAME,
@@ -470,7 +470,7 @@ class KafkaRebalanceToolsST extends AbstractST {
 
     // ---- Helpers ----
 
-    private void waitForRebalanceToAppear(final String namespace, final String clusterName) {
+    private void waitForRebalanceToAppear(final String namespace) {
         LOGGER.info("Waiting for KafkaRebalance '{}' to appear in namespace '{}'",
             REBALANCE_NAME, namespace);
         try {
