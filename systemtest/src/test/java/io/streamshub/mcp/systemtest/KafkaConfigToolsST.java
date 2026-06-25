@@ -54,24 +54,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * then verifies that configuration retrieval and comparison tools work
  * against real Strimzi resources.
  */
-@KubernetesTest(
-    cleanup = CleanupStrategy.AUTOMATIC,
-    collectLogs = true,
-    logCollectionStrategy = LogCollectionStrategy.ON_FAILURE,
-    collectPreviousLogs = true,
-    collectNamespacedResources = {
-        "pods", "services", "configmaps", "secrets", "deployments",
-        Kafka.RESOURCE_SINGULAR,
-        KafkaNodePool.RESOURCE_SINGULAR,
-        KafkaTopic.RESOURCE_SINGULAR,
-        KafkaUser.RESOURCE_SINGULAR,
-        KafkaConnect.RESOURCE_SINGULAR,
-        KafkaConnector.RESOURCE_SINGULAR,
-        KafkaBridge.RESOURCE_SINGULAR,
-        KafkaMirrorMaker2.RESOURCE_SINGULAR,
-        KafkaRebalance.RESOURCE_SINGULAR
-    }
-)
+@KubernetesTest
 @DisplayName("Kafka Config MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("Kafka Config Tools")

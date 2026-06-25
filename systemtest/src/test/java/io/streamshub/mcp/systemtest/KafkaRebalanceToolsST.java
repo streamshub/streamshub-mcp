@@ -55,24 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * KafkaRebalance scenarios correctly, including auto-rebalance
  * on scale-up and scale-down.
  */
-@KubernetesTest(
-    cleanup = CleanupStrategy.AUTOMATIC,
-    collectLogs = true,
-    logCollectionStrategy = LogCollectionStrategy.ON_FAILURE,
-    collectPreviousLogs = true,
-    collectNamespacedResources = {
-        "pods", "services", "configmaps", "secrets", "deployments",
-        Kafka.RESOURCE_SINGULAR,
-        KafkaNodePool.RESOURCE_SINGULAR,
-        KafkaTopic.RESOURCE_SINGULAR,
-        KafkaUser.RESOURCE_SINGULAR,
-        KafkaConnect.RESOURCE_SINGULAR,
-        KafkaConnector.RESOURCE_SINGULAR,
-        KafkaBridge.RESOURCE_SINGULAR,
-        KafkaMirrorMaker2.RESOURCE_SINGULAR,
-        KafkaRebalance.RESOURCE_SINGULAR
-    }
-)
+@KubernetesTest
 @DisplayName("KafkaRebalance MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("KafkaRebalance Tools")

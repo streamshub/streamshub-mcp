@@ -50,24 +50,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * System tests for Strimzi operator MCP tools.
  * Verifies operator discovery, status, and pod inspection against a real Strimzi deployment.
  */
-@KubernetesTest(
-    cleanup = CleanupStrategy.AUTOMATIC,
-    collectLogs = true,
-    logCollectionStrategy = LogCollectionStrategy.ON_FAILURE,
-    collectPreviousLogs = true,
-    collectNamespacedResources = {
-        "pods", "services", "configmaps", "secrets", "deployments",
-        Kafka.RESOURCE_SINGULAR,
-        KafkaNodePool.RESOURCE_SINGULAR,
-        KafkaTopic.RESOURCE_SINGULAR,
-        KafkaUser.RESOURCE_SINGULAR,
-        KafkaConnect.RESOURCE_SINGULAR,
-        KafkaConnector.RESOURCE_SINGULAR,
-        KafkaBridge.RESOURCE_SINGULAR,
-        KafkaMirrorMaker2.RESOURCE_SINGULAR,
-        KafkaRebalance.RESOURCE_SINGULAR
-    }
-)
+@KubernetesTest
 @DisplayName("Strimzi Operator MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("Strimzi Operator Tools")

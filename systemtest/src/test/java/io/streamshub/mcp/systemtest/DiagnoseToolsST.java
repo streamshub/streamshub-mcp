@@ -52,24 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Deploys a Kafka cluster with Connect and Connector, then verifies
  * that diagnostic tools return well-structured reports.
  */
-@KubernetesTest(
-    cleanup = CleanupStrategy.AUTOMATIC,
-    collectLogs = true,
-    logCollectionStrategy = LogCollectionStrategy.ON_FAILURE,
-    collectPreviousLogs = true,
-    collectNamespacedResources = {
-        "pods", "services", "configmaps", "secrets", "deployments",
-        Kafka.RESOURCE_SINGULAR,
-        KafkaNodePool.RESOURCE_SINGULAR,
-        KafkaTopic.RESOURCE_SINGULAR,
-        KafkaUser.RESOURCE_SINGULAR,
-        KafkaConnect.RESOURCE_SINGULAR,
-        KafkaConnector.RESOURCE_SINGULAR,
-        KafkaBridge.RESOURCE_SINGULAR,
-        KafkaMirrorMaker2.RESOURCE_SINGULAR,
-        KafkaRebalance.RESOURCE_SINGULAR
-    }
-)
+@KubernetesTest
 @DisplayName("Diagnose MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("Diagnose Tools")

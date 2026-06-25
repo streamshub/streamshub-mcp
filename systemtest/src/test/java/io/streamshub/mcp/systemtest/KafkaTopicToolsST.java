@@ -52,24 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Deploys the MCP server and KafkaTopics into a cluster
  * and verifies that the tools return correct data.
  */
-@KubernetesTest(
-    cleanup = CleanupStrategy.AUTOMATIC,
-    collectLogs = true,
-    logCollectionStrategy = LogCollectionStrategy.ON_FAILURE,
-    collectPreviousLogs = true,
-    collectNamespacedResources = {
-        "pods", "services", "configmaps", "secrets", "deployments",
-        Kafka.RESOURCE_SINGULAR,
-        KafkaNodePool.RESOURCE_SINGULAR,
-        KafkaTopic.RESOURCE_SINGULAR,
-        KafkaUser.RESOURCE_SINGULAR,
-        KafkaConnect.RESOURCE_SINGULAR,
-        KafkaConnector.RESOURCE_SINGULAR,
-        KafkaBridge.RESOURCE_SINGULAR,
-        KafkaMirrorMaker2.RESOURCE_SINGULAR,
-        KafkaRebalance.RESOURCE_SINGULAR
-    }
-)
+@KubernetesTest
 @DisplayName("KafkaTopic MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("KafkaTopic Tools")
