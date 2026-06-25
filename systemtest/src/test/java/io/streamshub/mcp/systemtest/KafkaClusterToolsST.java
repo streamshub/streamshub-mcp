@@ -120,19 +120,7 @@ class KafkaClusterToolsST extends AbstractST {
                 JsonNode root = parseJson(json);
 
                 // May be a single object or an array
-                JsonNode cluster = null;
-                if (root.isArray()) {
-                    for (JsonNode node : root) {
-                        if (Environment.KAFKA_CLUSTER_NAME.equals(
-                            node.path("name").asText(""))) {
-                            cluster = node;
-                            break;
-                        }
-                    }
-                } else if (Environment.KAFKA_CLUSTER_NAME.equals(
-                    root.path("name").asText(""))) {
-                    cluster = root;
-                }
+                JsonNode cluster = findByName(root, Environment.KAFKA_CLUSTER_NAME);
                 assertNotNull(cluster,
                     "Should find cluster '" + Environment.KAFKA_CLUSTER_NAME + "' in response");
 
@@ -762,19 +750,6 @@ class KafkaClusterToolsST extends AbstractST {
                 LOGGER.info("get_kafka_node_pool error response: {}", text);
             })
             .thenAssertResults();
-    }
-
-    private static JsonNode findByName(final JsonNode root, final String name) {
-        if (root.isArray()) {
-            for (JsonNode node : root) {
-                if (name.equals(node.path("name").asText(""))) {
-                    return node;
-                }
-            }
-        } else if (name.equals(root.path("name").asText(""))) {
-            return root;
-        }
-        return null;
     }
 
     private static void assertClusterLogsResponse(JsonNode root, String expectedClusterName) {
