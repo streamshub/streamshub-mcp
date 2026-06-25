@@ -8,34 +8,39 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.Namespaced;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
+import io.fabric8.kubernetes.api.model.admissionregistration.v1.ValidatingWebhookConfiguration;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
 import io.fabric8.kubernetes.api.model.rbac.RoleBinding;
 import io.qameta.allure.Step;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.skodjob.kubetest4j.security.CertAndKey;
+import io.skodjob.kubetest4j.security.CertAndKeyBuilder;
+import io.skodjob.kubetest4j.security.CertAndKeyFiles;
+import io.skodjob.kubetest4j.utils.SecurityUtils;
 import io.streamshub.mcp.systemtest.Constants;
+import org.bouncycastle.asn1.ASN1Encodable;
+import org.bouncycastle.asn1.x509.GeneralName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.KeyStore;
-import java.security.PrivateKey;
-import java.security.cert.X509Certificate;
 import java.util.Base64;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
  * Installs Strimzi Drain Cleaner from YAML manifests in
  * {@code dev/manifests/strimzi/drain-cleaner/certmanager/}.
  *
- * <p>Handles cert-manager availability gracefully: when cert-manager is not installed,
- * Issuer and Certificate resources are skipped and a self-signed TLS Secret is created
- * via {@code keytool} as a fallback so the Deployment can start.
+ * <p>Issuer and Certificate resources are skipped (cert-manager is not required).
+ * A self-signed TLS certificate is generated using kubetest4j's {@link CertAndKeyBuilder}
+ * and the webhook's {@code caBundle} is patched to trust it.
  */
 public final class DrainCleanerSetup {
 
@@ -61,12 +66,7 @@ public final class DrainCleanerSetup {
     public static void deploy(final String namespace) {
         LOGGER.info("Installing Strimzi Drain Cleaner into namespace {}", namespace);
 
-        boolean certManagerAvailable = isCertManagerAvailable();
-        if (!certManagerAvailable) {
-            LOGGER.warn("cert-manager not available — skipping Issuer/Certificate resources "
-                + "and creating self-signed TLS secret as fallback");
-            createSelfSignedTlsSecret(namespace);
-        }
+        String caBundle = createSelfSignedTlsSecret(namespace);
 
         List<HasMetadata> resources = loadManifests(MANIFESTS_DIR);
 
@@ -74,9 +74,9 @@ public final class DrainCleanerSetup {
             if (resource instanceof Namespace) {
                 continue;
             }
-            String kind = resource.getKind();
-            if (!certManagerAvailable && CERT_MANAGER_KINDS.contains(kind)) {
-                LOGGER.debug("Skipping {} resource (cert-manager not available)", kind);
+
+            if (CERT_MANAGER_KINDS.contains(resource.getKind())) {
+                LOGGER.debug("Skipping {} resource (using self-signed certificate)", resource.getKind());
                 continue;
             }
             if (resource instanceof Namespaced) {
@@ -86,6 +86,10 @@ public final class DrainCleanerSetup {
                 crb.getSubjects().forEach(sbj -> sbj.setNamespace(namespace));
             } else if (resource instanceof RoleBinding rb) {
                 rb.getSubjects().forEach(sbj -> sbj.setNamespace(namespace));
+            } else if (resource instanceof ValidatingWebhookConfiguration vwc) {
+                patchWebhookCaBundle(vwc, caBundle);
+                KubeResourceManager.get().createOrUpdateResourceWithoutWait(vwc);
+                continue;
             } else if (resource instanceof Deployment dep
                 && DEPLOYMENT_NAME.equals(dep.getMetadata().getName())) {
                 KubeResourceManager.get().createOrUpdateResourceWithWait(dep);
@@ -95,58 +99,31 @@ public final class DrainCleanerSetup {
         }
     }
 
-    private static boolean isCertManagerAvailable() {
-        try {
-            return KubeResourceManager.get().kubeClient().getClient()
-                .supports("cert-manager.io/v1", "Certificate");
-        } catch (Exception e) {
-            LOGGER.debug("Failed to check cert-manager availability", e);
-            return false;
-        }
-    }
-
     /**
-     * Generates a self-signed TLS certificate using {@code keytool} (ships with every JDK)
+     * Generates a self-signed TLS certificate using kubetest4j's {@link CertAndKeyBuilder}
      * and creates the Kubernetes Secret the Drain Cleaner Deployment expects.
+     *
+     * @param namespace the target namespace
+     * @return the base64-encoded certificate PEM for use as webhook {@code caBundle}
      */
     @Step("Create self-signed TLS secret for Drain Cleaner")
-    private static void createSelfSignedTlsSecret(final String namespace) {
-        Path tempDir = null;
+    private static String createSelfSignedTlsSecret(final String namespace) {
         try {
-            tempDir = Files.createTempDirectory("drain-cleaner-cert");
-            Path keystorePath = tempDir.resolve("keystore.p12");
-            String password = "changeit";
+            CertAndKey certAndKey = CertAndKeyBuilder.rootCaCertBuilder()
+                .withIssuerDn("CN=" + TLS_SECRET_NAME)
+                .withSubjectDn("CN=" + TLS_SECRET_NAME)
+                .withSanDnsNames(new ASN1Encodable[]{
+                    new GeneralName(GeneralName.dNSName, TLS_SECRET_NAME),
+                    new GeneralName(GeneralName.dNSName, TLS_SECRET_NAME + "." + namespace),
+                    new GeneralName(GeneralName.dNSName, TLS_SECRET_NAME + "." + namespace + ".svc"),
+                    new GeneralName(GeneralName.dNSName,
+                        TLS_SECRET_NAME + "." + namespace + ".svc.cluster.local")
+                })
+                .build();
 
-            Process keytool = new ProcessBuilder(
-                "keytool", "-genkeypair",
-                "-alias", "drain-cleaner",
-                "-keyalg", "RSA",
-                "-keysize", "2048",
-                "-validity", "3650",
-                "-dname", "CN=" + TLS_SECRET_NAME,
-                "-storetype", "PKCS12",
-                "-keystore", keystorePath.toString(),
-                "-storepass", password,
-                "-keypass", password)
-                .redirectErrorStream(true)
-                .start();
-
-            int exitCode = keytool.waitFor();
-            if (exitCode != 0) {
-                String output = new String(keytool.getInputStream().readAllBytes());
-                throw new IllegalStateException("keytool failed (exit " + exitCode + "): " + output);
-            }
-
-            KeyStore ks = KeyStore.getInstance("PKCS12");
-            try (InputStream fis = Files.newInputStream(keystorePath)) {
-                ks.load(fis, password.toCharArray());
-            }
-
-            X509Certificate cert = (X509Certificate) ks.getCertificate("drain-cleaner");
-            PrivateKey key = (PrivateKey) ks.getKey("drain-cleaner", password.toCharArray());
-
-            String certPem = toPem("CERTIFICATE", cert.getEncoded());
-            String keyPem = toPem("RSA PRIVATE KEY", key.getEncoded());
+            CertAndKeyFiles pemFiles = SecurityUtils.exportToPemFiles(certAndKey);
+            String certPem = Files.readString(Path.of(pemFiles.getCertPath()), StandardCharsets.UTF_8);
+            String keyPem = Files.readString(Path.of(pemFiles.getKeyPath()), StandardCharsets.UTF_8);
 
             KubeResourceManager.get().createOrUpdateResourceWithoutWait(new SecretBuilder()
                 .withNewMetadata()
@@ -160,37 +137,37 @@ public final class DrainCleanerSetup {
 
             LOGGER.info("Created self-signed TLS secret '{}' in namespace '{}'",
                 TLS_SECRET_NAME, namespace);
+
+            return Base64.getEncoder().encodeToString(certPem.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             throw new IllegalStateException(
                 "Failed to create self-signed TLS secret for Drain Cleaner", e);
-        } finally {
-            cleanupTempDir(tempDir);
         }
     }
 
-    private static String toPem(final String type, final byte[] der) {
-        String base64 = Base64.getMimeEncoder(64, "\n".getBytes()).encodeToString(der);
-        return "-----BEGIN " + type + "-----\n" + base64 + "\n-----END " + type + "-----\n";
+    /**
+     * Patches a {@link ValidatingWebhookConfiguration} to use the self-signed certificate.
+     * Removes the cert-manager CA injection annotation and sets the {@code caBundle} directly.
+     *
+     * @param vwc      the webhook configuration to patch
+     * @param caBundle base64-encoded certificate PEM
+     */
+    private static void patchWebhookCaBundle(final ValidatingWebhookConfiguration vwc,
+                                             final String caBundle) {
+        Map<String, String> annotations = vwc.getMetadata().getAnnotations();
+        if (annotations != null) {
+            annotations.remove("cert-manager.io/inject-ca-from");
+        }
+        vwc.getWebhooks().forEach(wh -> wh.getClientConfig().setCaBundle(caBundle));
+        LOGGER.debug("Patched webhook caBundle with self-signed certificate");
     }
 
-    private static void cleanupTempDir(final Path dir) {
-        if (dir == null) {
-            return;
-        }
-        try (var entries = Files.list(dir)) {
-            entries.forEach(f -> {
-                try {
-                    Files.deleteIfExists(f);
-                } catch (IOException ignored) {
-                    // best effort
-                }
-            });
-            Files.deleteIfExists(dir);
-        } catch (IOException ignored) {
-            // best effort
-        }
-    }
-
+    /**
+     * Load all YAML manifests from a directory.
+     *
+     * @param dir the directory containing YAML files
+     * @return list of parsed Kubernetes resources
+     */
     private static List<HasMetadata> loadManifests(final Path dir) {
         List<HasMetadata> resources = new LinkedList<>();
         try (var files = Files.list(dir)) {
