@@ -1534,6 +1534,188 @@ sequentially and verify cross-tool consistency.
 
 ---
 
+## Phase 18: Namespace-Scoped RBAC (App Developer)
+
+**Requires:** Two Kafka clusters in different namespaces, MCP deployed with namespace-scoped RoleBindings (not ClusterRoleBinding).
+
+**System test class:** `NamespaceScopedRbacST`
+
+**Setup:** MCP has RoleBinding access only to `strimzi-kafka` and `strimzi` namespaces. A second cluster exists in `strimzi-kafka-2` (inaccessible).
+
+This phase tests all three server-side error handling patterns under RBAC restriction:
+1. **Direct tools** — 403 propagated as tool error
+2. **Fleet overview** — graceful degradation
+3. **Diagnostic tools** — partial access
+
+### T18.1 — list_kafka_clusters (accessible namespace)
+- **Tool:** `list_kafka_clusters`
+- **Args:** `namespace: strimzi-kafka`
+- **Expected:** Returns `mcp-cluster`, no error
+
+### T18.2 — list_kafka_clusters (inaccessible namespace)
+- **Tool:** `list_kafka_clusters`
+- **Args:** `namespace: strimzi-kafka-2`
+- **Expected:** `isError=true`, message contains "403 Forbidden"
+
+### T18.3 — list_kafka_clusters (cluster-wide, no namespace)
+- **Tool:** `list_kafka_clusters`
+- **Args:** _(none)_
+- **Expected:** `isError=true` (no cluster-wide list permission)
+
+### T18.4 — get_kafka_cluster (accessible namespace)
+- **Tool:** `get_kafka_cluster`
+- **Args:** `clusterName: mcp-cluster, namespace: strimzi-kafka`
+- **Expected:** Returns cluster, Ready status
+
+### T18.5 — get_kafka_cluster (inaccessible namespace)
+- **Tool:** `get_kafka_cluster`
+- **Args:** `clusterName: mcp-cluster-2, namespace: strimzi-kafka-2`
+- **Expected:** `isError=true`
+
+### T18.6 — get_kafka_cluster (auto-discover, no namespace)
+- **Tool:** `get_kafka_cluster`
+- **Args:** `clusterName: mcp-cluster`
+- **Expected:** `isError=true` (auto-discover uses `.inAnyNamespace()`)
+
+### T18.7 — get_kafka_fleet_overview (accessible namespace)
+- **Tool:** `get_kafka_fleet_overview`
+- **Args:** `namespace: strimzi-kafka`
+- **Expected:** `total_clusters=1`, success
+
+### T18.8 — get_kafka_fleet_overview (inaccessible namespace)
+- **Tool:** `get_kafka_fleet_overview`
+- **Args:** `namespace: strimzi-kafka-2`
+- **Expected:** `isError=true`
+
+### T18.9 — get_kafka_fleet_overview (cluster-wide, no namespace)
+- **Tool:** `get_kafka_fleet_overview`
+- **Args:** _(none)_
+- **Expected:** `isError=true`
+
+### T18.10 — diagnose_kafka_cluster (accessible namespace)
+- **Tool:** `diagnose_kafka_cluster`
+- **Args:** `clusterName: mcp-cluster, namespace: strimzi-kafka`
+- **Expected:** Success, `steps_completed` non-empty
+
+### T18.11 — diagnose_kafka_cluster (inaccessible namespace)
+- **Tool:** `diagnose_kafka_cluster`
+- **Args:** `clusterName: mcp-cluster-2, namespace: strimzi-kafka-2`
+- **Expected:** `isError=true`
+
+### T18.12 — list_drain_cleaners (requires cluster-scope)
+- **Tool:** `list_drain_cleaners`
+- **Args:** _(none)_
+- **Expected:** `isError=true` (ValidatingWebhookConfigurations need cluster-scoped access)
+
+### T18.13 — get_kafka_cluster_certificates (no sensitive RBAC)
+- **Tool:** `get_kafka_cluster_certificates`
+- **Args:** `clusterName: mcp-cluster, namespace: strimzi-kafka`
+- **Expected:** `isError=true` (no secrets access)
+
+### T18.14 — get_kafka_cluster_certificates (with sensitive RBAC)
+- **Tool:** `get_kafka_cluster_certificates`
+- **Args:** Same as T18.13, after deploying sensitive Role+RoleBinding
+- **Expected:** Success, certificates array present, no private keys
+
+---
+
+## Phase 19: Multi-Cluster Same Namespace (Admin)
+
+**Requires:** Two differently-named Kafka clusters in the same namespace, MCP with ClusterRole.
+
+**System test class:** `MultiClusterST`
+
+**Setup:** `mcp-cluster` and `mcp-cluster-2` both in `strimzi-kafka`, MCP with full cluster-wide access.
+
+### T19.1 — get_kafka_fleet_overview (both clusters)
+- **Tool:** `get_kafka_fleet_overview`
+- **Expected:** `total_clusters >= 2`, both cluster names listed, `total_brokers` = sum
+
+### T19.2 — list_kafka_clusters (both in same namespace)
+- **Tool:** `list_kafka_clusters`
+- **Args:** `namespace: strimzi-kafka`
+- **Expected:** Array with >= 2 entries, both names present
+
+### T19.3 — get_kafka_cluster (cluster 1)
+- **Tool:** `get_kafka_cluster`
+- **Args:** `clusterName: mcp-cluster`
+- **Expected:** Correct name, Ready
+
+### T19.4 — get_kafka_cluster (cluster 2)
+- **Tool:** `get_kafka_cluster`
+- **Args:** `clusterName: mcp-cluster-2`
+- **Expected:** Correct name, Ready
+
+### T19.5 — get_kafka_bootstrap_servers (different per cluster)
+- **Tool:** `get_kafka_bootstrap_servers`
+- **Expected:** Different bootstrap addresses for each cluster
+
+### T19.6 — list_kafka_node_pools (per cluster)
+- **Tool:** `list_kafka_node_pools`
+- **Expected:** Each cluster has its own pools
+
+### T19.7 — get_strimzi_kafka_cluster_overview (per cluster)
+- **Tool:** `get_strimzi_kafka_cluster_overview`
+- **Expected:** Each returns its own node pools
+
+### T19.8 — compare_kafka_clusters
+- **Tool:** `compare_kafka_clusters`
+- **Args:** `clusterName1: mcp-cluster, clusterName2: mcp-cluster-2`
+- **Expected:** Side-by-side comparison, success
+
+---
+
+## Phase 20: Cross-Namespace Same-Name Disambiguation (Admin)
+
+**Requires:** Same-named Kafka cluster in two different namespaces, MCP with ClusterRole.
+
+**System test class:** `CrossNamespaceAdminST`
+
+**Setup:** `mcp-cluster` in both `strimzi-kafka` and `strimzi-kafka-2`, MCP with full cluster-wide access.
+
+### T20.1 — get_kafka_cluster (ambiguous, no namespace)
+- **Tool:** `get_kafka_cluster`
+- **Args:** `clusterName: mcp-cluster`
+- **Expected:** `isError=true`, message contains "Multiple clusters" and both namespace names
+
+### T20.2 — get_kafka_cluster (resolved via namespace 1)
+- **Tool:** `get_kafka_cluster`
+- **Args:** `clusterName: mcp-cluster, namespace: strimzi-kafka`
+- **Expected:** Returns cluster with `namespace: strimzi-kafka`
+
+### T20.3 — get_kafka_cluster (resolved via namespace 2)
+- **Tool:** `get_kafka_cluster`
+- **Args:** `clusterName: mcp-cluster, namespace: strimzi-kafka-2`
+- **Expected:** Returns cluster with `namespace: strimzi-kafka-2`
+
+### T20.4 — get_kafka_fleet_overview (all namespaces)
+- **Tool:** `get_kafka_fleet_overview`
+- **Expected:** `total_clusters >= 2`
+
+### T20.5 — get_kafka_fleet_overview (per namespace)
+- **Tool:** `get_kafka_fleet_overview`
+- **Expected:** Each namespace shows exactly 1 cluster
+
+### T20.6 — list_kafka_clusters (per namespace)
+- **Tool:** `list_kafka_clusters`
+- **Expected:** Each namespace returns 1 cluster with correct namespace field
+
+### T20.7 — compare_kafka_clusters (cross-namespace)
+- **Tool:** `compare_kafka_clusters`
+- **Args:** Same name with `namespace1: strimzi-kafka, namespace2: strimzi-kafka-2`
+- **Expected:** Success, side-by-side comparison
+
+### T20.8 — get_kafka_bootstrap_servers (per namespace)
+- **Tool:** `get_kafka_bootstrap_servers`
+- **Expected:** Different addresses for same-named cluster in different namespaces
+
+### T20.9 — diagnose_kafka_cluster (with namespace)
+- **Tool:** `diagnose_kafka_cluster`
+- **Args:** `clusterName: mcp-cluster, namespace: strimzi-kafka`
+- **Expected:** Success, targets correct cluster
+
+---
+
 ## Test Results Summary Template
 
 | Phase | Test ID | Tool | Requires | Result | Notes |
@@ -1646,3 +1828,34 @@ sequentially and verify cross-tool consistency.
 | 17    | E2E-5   | KafkaConnect Pipeline | --connect | | |
 | 17    | E2E-6   | Upgrade Readiness | core | | |
 | 17    | E2E-7   | Cross-Cluster Comparison | --mirror-maker | | |
+| 18    | T18.1   | list_kafka_clusters (accessible ns) | rbac-scoped | | |
+| 18    | T18.2   | list_kafka_clusters (inaccessible ns) | rbac-scoped | | |
+| 18    | T18.3   | list_kafka_clusters (cluster-wide) | rbac-scoped | | |
+| 18    | T18.4   | get_kafka_cluster (accessible ns) | rbac-scoped | | |
+| 18    | T18.5   | get_kafka_cluster (inaccessible ns) | rbac-scoped | | |
+| 18    | T18.6   | get_kafka_cluster (auto-discover) | rbac-scoped | | |
+| 18    | T18.7   | get_kafka_fleet_overview (accessible) | rbac-scoped | | |
+| 18    | T18.8   | get_kafka_fleet_overview (inaccessible) | rbac-scoped | | |
+| 18    | T18.9   | get_kafka_fleet_overview (cluster-wide) | rbac-scoped | | |
+| 18    | T18.10  | diagnose_kafka_cluster (accessible) | rbac-scoped | | |
+| 18    | T18.11  | diagnose_kafka_cluster (inaccessible) | rbac-scoped | | |
+| 18    | T18.12  | list_drain_cleaners (cluster-scope) | rbac-scoped | | |
+| 18    | T18.13  | certificates (no sensitive RBAC) | rbac-scoped | | |
+| 18    | T18.14  | certificates (with sensitive RBAC) | rbac-scoped | | |
+| 19    | T19.1   | fleet overview (both clusters) | multi-cluster | | |
+| 19    | T19.2   | list clusters (both in same ns) | multi-cluster | | |
+| 19    | T19.3   | get cluster 1 | multi-cluster | | |
+| 19    | T19.4   | get cluster 2 | multi-cluster | | |
+| 19    | T19.5   | bootstrap servers differ | multi-cluster | | |
+| 19    | T19.6   | node pools per cluster | multi-cluster | | |
+| 19    | T19.7   | cluster overview per cluster | multi-cluster | | |
+| 19    | T19.8   | compare clusters | multi-cluster | | |
+| 20    | T20.1   | get cluster (ambiguous) | cross-ns | | |
+| 20    | T20.2   | get cluster (resolved ns-1) | cross-ns | | |
+| 20    | T20.3   | get cluster (resolved ns-2) | cross-ns | | |
+| 20    | T20.4   | fleet overview (all) | cross-ns | | |
+| 20    | T20.5   | fleet overview (per ns) | cross-ns | | |
+| 20    | T20.6   | list clusters (per ns) | cross-ns | | |
+| 20    | T20.7   | compare (cross-ns) | cross-ns | | |
+| 20    | T20.8   | bootstrap servers (per ns) | cross-ns | | |
+| 20    | T20.9   | diagnose (with ns) | cross-ns | | |

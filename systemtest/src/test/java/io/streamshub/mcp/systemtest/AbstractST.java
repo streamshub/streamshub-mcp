@@ -7,6 +7,7 @@ package io.streamshub.mcp.systemtest;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkiverse.mcp.server.ToolResponse;
 import io.skodjob.kubetest4j.annotations.CleanupStrategy;
 import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.skodjob.kubetest4j.annotations.LogCollectionStrategy;
@@ -39,6 +40,11 @@ import io.strimzi.api.kafka.model.rebalance.KafkaRebalance;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import io.strimzi.api.kafka.model.user.KafkaUser;
 import org.junit.jupiter.api.TestInstance;
+
+import java.util.Locale;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Base class for all system tests. Registers kubetest4j resource types
@@ -102,7 +108,14 @@ public abstract class AbstractST {
         }
     }
 
-    static JsonNode findByName(final JsonNode root, final String name) {
+    /**
+     * Find a JSON node by its "name" field in a root that may be an array or single object.
+     *
+     * @param root JSON root (array or object)
+     * @param name value to match against the "name" field
+     * @return the matching node, or {@code null} if not found
+     */
+    protected static JsonNode findByName(final JsonNode root, final String name) {
         if (root.isArray()) {
             for (JsonNode node : root) {
                 if (name.equals(node.path("name").asText(""))) {
@@ -113,5 +126,35 @@ public abstract class AbstractST {
             return root;
         }
         return null;
+    }
+
+    /**
+     * Assert that an MCP tool call returned an error whose message contains all
+     * of the given substrings (case-insensitive).
+     *
+     * @param response           the MCP tool call response
+     * @param expectedSubstrings substrings that must appear in the error message
+     */
+    protected static void assertToolError(final ToolResponse response,
+                                          final String... expectedSubstrings) {
+        assertTrue(response.isError(), "Tool call should return error");
+        assertFalse(response.content().isEmpty(), "Error response should have content");
+        String text = response.content().getFirst().asText().text();
+        for (String sub : expectedSubstrings) {
+            assertTrue(text.toLowerCase(Locale.ROOT).contains(sub.toLowerCase(Locale.ROOT)),
+                "Error message should contain '" + sub + "', got: " + text);
+        }
+    }
+
+    /**
+     * Assert that an MCP tool call succeeded and return the parsed JSON body.
+     *
+     * @param response the MCP tool call response
+     * @return parsed JSON root node
+     */
+    protected static JsonNode assertToolSuccess(final ToolResponse response) {
+        assertFalse(response.isError(), "Tool call should not return error");
+        assertFalse(response.content().isEmpty(), "Response should have content");
+        return parseJson(response.content().getFirst().asText().text());
     }
 }

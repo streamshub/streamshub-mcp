@@ -350,5 +350,4 @@ class KafkaUserToolsST extends AbstractST {
             })
             .thenAssertResults();
     }
-
 }

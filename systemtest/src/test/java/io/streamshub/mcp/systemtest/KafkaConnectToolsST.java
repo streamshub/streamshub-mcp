@@ -291,5 +291,4 @@ class KafkaConnectToolsST extends AbstractST {
             })
             .thenAssertResults();
     }
-
 }
