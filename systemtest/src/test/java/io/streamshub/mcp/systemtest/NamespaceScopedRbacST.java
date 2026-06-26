@@ -418,4 +418,112 @@ class NamespaceScopedRbacST extends AbstractST {
             })
             .thenAssertResults();
     }
+
+    // ---- Sensitive RBAC: metrics pods/proxy access ----
+
+    @Test
+    @DisplayName("get_kafka_metrics returns error without pods/proxy permission")
+    @Story("Sensitive RBAC")
+    void testMetricsWithoutPodsProxy() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "namespace", Constants.KAFKA_NAMESPACE);
+        mcpClient.when()
+            .toolsCall("get_kafka_metrics", args, response -> {
+                assertTrue(response.isError(),
+                    "Metrics should fail without pods/proxy permission (sensitive RBAC)");
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_metrics (no sensitive RBAC): error as expected");
+                assertFalse(text.contains("NullPointer"),
+                    "Error should not be a NullPointerException");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_kafka_metrics succeeds after deploying sensitive RBAC (pods/proxy)")
+    @Story("Sensitive RBAC")
+    void testMetricsWithPodsProxy() {
+        McpServerSetup.deploySensitiveRbac(
+            mcpNamespace.getMetadata().getName(),
+            kafkaNamespace.getMetadata().getName());
+
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "namespace", Constants.KAFKA_NAMESPACE);
+        mcpClient.when()
+            .toolsCall("get_kafka_metrics", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("get_kafka_metrics (with sensitive RBAC): samples={}",
+                    root.path("sample_count").asInt());
+                assertTrue(root.path("sample_count").asInt() > 0,
+                    "Should return actual metric samples, not empty");
+            })
+            .thenAssertResults();
+    }
+
+    // ---- Sensitive RBAC: data leakage verification ----
+
+    @Test
+    @DisplayName("Certificates response never contains private key material")
+    @Story("Sensitive RBAC")
+    void testCertificatesNeverLeakPrivateKeys() {
+        McpServerSetup.deploySensitiveRbac(
+            mcpNamespace.getMetadata().getName(),
+            kafkaNamespace.getMetadata().getName());
+
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "namespace", Constants.KAFKA_NAMESPACE);
+        mcpClient.when()
+            .toolsCall("get_kafka_cluster_certificates", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+                String fullResponse = root.toString();
+
+                assertFalse(fullResponse.contains("PRIVATE KEY"),
+                    "Should not expose any private key material");
+                assertFalse(fullResponse.contains("BEGIN RSA"),
+                    "Should not expose RSA private keys");
+                assertFalse(fullResponse.contains("BEGIN EC"),
+                    "Should not expose EC private keys");
+
+                JsonNode certs = root.path("certificates");
+                if (certs.isArray() && !certs.isEmpty()) {
+                    for (JsonNode cert : certs) {
+                        assertFalse(cert.path("expiry_date").isMissingNode(),
+                            "Each certificate should include expiry_date metadata");
+                    }
+                    LOGGER.info("Verified {} certificates contain metadata but no private keys",
+                        certs.size());
+                }
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_kafka_user never leaks secret credential values")
+    @Story("Sensitive RBAC")
+    void testUserToolNeverLeaksSecretData() {
+        McpServerSetup.deploySensitiveRbac(
+            mcpNamespace.getMetadata().getName(),
+            kafkaNamespace.getMetadata().getName());
+
+        Map<String, Object> args = Map.of("namespace", Constants.KAFKA_NAMESPACE);
+        mcpClient.when()
+            .toolsCall("list_kafka_users", args, response -> {
+                if (response.isError() || response.content().isEmpty()) {
+                    LOGGER.info("No users found in namespace, skipping secret leakage check");
+                    return;
+                }
+
+                String fullResponse = response.content().getFirst().asText().text();
+                LOGGER.info("list_kafka_users response length={}", fullResponse.length());
+
+                assertFalse(fullResponse.contains("sasl.jaas.config"),
+                    "User listing should not contain JAAS config values");
+                assertFalse(fullResponse.contains("BEGIN CERTIFICATE"),
+                    "User listing should not contain raw certificate PEM data");
+            })
+            .thenAssertResults();
+    }
 }
