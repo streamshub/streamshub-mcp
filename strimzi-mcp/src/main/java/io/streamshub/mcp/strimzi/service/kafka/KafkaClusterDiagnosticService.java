@@ -746,9 +746,13 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
             summary.put("symptom", symptom);
         }
         summary.put("cluster_readiness", cluster.readiness());
-        if (cluster.replicas() != null) {
-            summary.put("expected_replicas", cluster.replicas().expected());
-            summary.put("ready_replicas", cluster.replicas().ready());
+        if (cluster.brokerReplicas() != null) {
+            summary.put("expected_broker_replicas", cluster.brokerReplicas().expected());
+            summary.put("ready_broker_replicas", cluster.brokerReplicas().ready());
+        }
+        if (cluster.controllerReplicas() != null) {
+            summary.put("expected_controller_replicas", cluster.controllerReplicas().expected());
+            summary.put("ready_controller_replicas", cluster.controllerReplicas().ready());
         }
         summary.put("node_pool_count", nodePools.size());
         if (pods != null) {

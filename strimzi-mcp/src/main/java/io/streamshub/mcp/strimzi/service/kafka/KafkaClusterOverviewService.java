@@ -134,10 +134,15 @@ public class KafkaClusterOverviewService {
     }
 
     private ClusterSummary buildClusterSummary(final KafkaClusterResponse cluster) {
-        Integer expected = cluster.replicas() != null ? cluster.replicas().expected() : null;
-        Integer ready = cluster.replicas() != null ? cluster.replicas().ready() : null;
+        Integer expectedBrokers = cluster.brokerReplicas() != null ? cluster.brokerReplicas().expected() : null;
+        Integer readyBrokers = cluster.brokerReplicas() != null ? cluster.brokerReplicas().ready() : null;
+        Integer expectedControllers = cluster.controllerReplicas() != null
+            ? cluster.controllerReplicas().expected() : null;
+        Integer readyControllers = cluster.controllerReplicas() != null
+            ? cluster.controllerReplicas().ready() : null;
         return new ClusterSummary(cluster.name(), cluster.namespace(),
-            cluster.kafkaVersion(), cluster.readiness(), expected, ready);
+            cluster.kafkaVersion(), cluster.readiness(),
+            expectedBrokers, readyBrokers, expectedControllers, readyControllers);
     }
 
     private KafkaClusterOverviewResponse.OperatorSummary gatherOperator(final String namespace) {
