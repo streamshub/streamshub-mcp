@@ -70,32 +70,36 @@ public final class DrainCleanerSetup {
 
         List<HasMetadata> resources = loadManifests(MANIFESTS_DIR);
 
-        for (HasMetadata resource : resources) {
-            if (resource instanceof Namespace) {
-                continue;
-            }
+        try (AutoCloseable ignored = KubeResourceManager.get().openBatch()) {
+            for (HasMetadata resource : resources) {
+                if (resource instanceof Namespace) {
+                    continue;
+                }
 
-            if (CERT_MANAGER_KINDS.contains(resource.getKind())) {
-                LOGGER.debug("Skipping {} resource (using self-signed certificate)", resource.getKind());
-                continue;
+                if (CERT_MANAGER_KINDS.contains(resource.getKind())) {
+                    LOGGER.debug("Skipping {} resource (using self-signed certificate)", resource.getKind());
+                    continue;
+                }
+                if (resource instanceof Namespaced) {
+                    resource.getMetadata().setNamespace(namespace);
+                }
+                if (resource instanceof ClusterRoleBinding crb) {
+                    crb.getSubjects().forEach(sbj -> sbj.setNamespace(namespace));
+                } else if (resource instanceof RoleBinding rb) {
+                    rb.getSubjects().forEach(sbj -> sbj.setNamespace(namespace));
+                } else if (resource instanceof ValidatingWebhookConfiguration vwc) {
+                    patchWebhookCaBundle(vwc, caBundle);
+                    KubeResourceManager.get().createOrUpdateResourceWithoutWait(vwc);
+                    continue;
+                } else if (resource instanceof Deployment dep
+                    && DEPLOYMENT_NAME.equals(dep.getMetadata().getName())) {
+                    KubeResourceManager.get().createOrUpdateResourceWithWait(dep);
+                    continue;
+                }
+                KubeResourceManager.get().createOrUpdateResourceWithoutWait(resource);
             }
-            if (resource instanceof Namespaced) {
-                resource.getMetadata().setNamespace(namespace);
-            }
-            if (resource instanceof ClusterRoleBinding crb) {
-                crb.getSubjects().forEach(sbj -> sbj.setNamespace(namespace));
-            } else if (resource instanceof RoleBinding rb) {
-                rb.getSubjects().forEach(sbj -> sbj.setNamespace(namespace));
-            } else if (resource instanceof ValidatingWebhookConfiguration vwc) {
-                patchWebhookCaBundle(vwc, caBundle);
-                KubeResourceManager.get().createOrUpdateResourceWithoutWait(vwc);
-                continue;
-            } else if (resource instanceof Deployment dep
-                && DEPLOYMENT_NAME.equals(dep.getMetadata().getName())) {
-                KubeResourceManager.get().createOrUpdateResourceWithWait(dep);
-                continue;
-            }
-            KubeResourceManager.get().createOrUpdateResourceWithoutWait(resource);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
