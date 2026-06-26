@@ -270,6 +270,121 @@ class MetricsToolsST extends AbstractST {
             .thenAssertResults();
     }
 
+    // ---- Aggregation Levels ----
+
+    @Test
+    @DisplayName("get_kafka_metrics with broker aggregation returns per-broker breakdown")
+    @Story("Get Kafka Metrics")
+    void testGetKafkaMetricsBrokerAggregation() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "aggregation", "broker");
+        mcpClient.when()
+            .toolsCall("get_kafka_metrics", args, response -> {
+                assertFalse(response.isError(), "Broker aggregation should not return error");
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_metrics broker aggregation response (length={})", text.length());
+
+                JsonNode root = parseJson(text);
+                assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
+
+                JsonNode timeSeries = root.path("time_series");
+                if (timeSeries.isArray() && !timeSeries.isEmpty()) {
+                    assertTrue(hasLabelWithKey(timeSeries, "pod")
+                            || hasLabelWithKey(timeSeries, "broker_id"),
+                        "Broker aggregation should include pod or broker_id labels");
+                }
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_kafka_exporter_metrics with topic aggregation returns per-topic data")
+    @Story("Get Kafka Exporter Metrics")
+    void testGetExporterMetricsTopicAggregation() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "category", "consumer_lag",
+            "aggregation", "topic");
+        mcpClient.when()
+            .toolsCall("get_kafka_exporter_metrics", args, response -> {
+                assertFalse(response.isError(), "Topic aggregation should not return error");
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_exporter_metrics topic aggregation response (length={})",
+                    text.length());
+
+                JsonNode root = parseJson(text);
+                assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
+
+                JsonNode timeSeries = root.path("time_series");
+                if (root.path("sample_count").asInt() > 0 && timeSeries.isArray()) {
+                    assertTrue(hasLabelWithKey(timeSeries, "topic"),
+                        "Topic aggregation should include topic labels when data is available");
+                }
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_kafka_metrics with performance category and requestTypes filter")
+    @Story("Get Kafka Metrics")
+    void testGetKafkaMetricsPerformanceWithRequestTypes() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "category", "performance",
+            "requestTypes", "Produce,Fetch");
+        mcpClient.when()
+            .toolsCall("get_kafka_metrics", args, response -> {
+                assertFalse(response.isError(), "Performance metrics with requestTypes should not error");
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_metrics performance+requestTypes response (length={})",
+                    text.length());
+
+                JsonNode root = parseJson(text);
+                assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
+
+                JsonNode timeSeries = root.path("time_series");
+                if (timeSeries.isArray()) {
+                    for (JsonNode series : timeSeries) {
+                        JsonNode requestLabel = series.path("labels").path("request");
+                        if (!requestLabel.isMissingNode() && !requestLabel.asText().isEmpty()) {
+                            String reqType = requestLabel.asText();
+                            assertTrue("Produce".equals(reqType) || "Fetch".equals(reqType),
+                                "Request type filter should only return Produce or Fetch, got: "
+                                    + reqType);
+                        }
+                    }
+                }
+            })
+            .thenAssertResults();
+    }
+
+    // ---- Time Range Validation ----
+
+    @Test
+    @DisplayName("get_kafka_metrics rejects conflicting rangeMinutes and startTime")
+    @Story("Get Kafka Metrics")
+    void testGetKafkaMetricsConflictingTimeParams() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "rangeMinutes", 30,
+            "startTime", "2025-01-01T00:00:00Z");
+        mcpClient.when()
+            .toolsCall("get_kafka_metrics", args, response -> {
+                assertTrue(response.isError(),
+                    "Conflicting rangeMinutes and startTime should return error");
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("Conflicting time params response: {}", text);
+            })
+            .thenAssertResults();
+    }
+
+    // ---- Helpers ----
+
     private static void assertMetricsResponse(JsonNode root, String nameField, String expectedName) {
         assertEquals(expectedName, root.path(nameField).asText(), nameField + " should match");
         assertFalse(root.path("namespace").isMissingNode(), "Should have namespace");
@@ -279,5 +394,15 @@ class MetricsToolsST extends AbstractST {
         assertTrue(root.path("sample_count").isNumber(), "sample_count should be a number");
         assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
         assertFalse(root.path("message").isMissingNode(), "Should have message");
+    }
+
+    private static boolean hasLabelWithKey(JsonNode timeSeries, String key) {
+        for (JsonNode series : timeSeries) {
+            JsonNode labels = series.path("labels");
+            if (labels.isObject() && !labels.path(key).isMissingNode()) {
+                return true;
+            }
+        }
+        return false;
     }
 }
