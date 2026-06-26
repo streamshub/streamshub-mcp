@@ -66,29 +66,33 @@ public final class StrimziSetup {
         List<HasMetadata> resources = loadManifests(OPERATOR_DIR);
 
         // Apply with namespace and RBAC modifications
-        for (HasMetadata resource : resources) {
-            if (resource instanceof Namespace) {
-                continue; // Already created above
-            }
-            if (resource instanceof Namespaced) {
-                resource.getMetadata().setNamespace(namespace);
-            }
-            if (resource instanceof ClusterRoleBinding crb) {
-                crb.getSubjects().forEach(sbj -> sbj.setNamespace(namespace));
-            } else if (resource instanceof RoleBinding rb) {
-                rb.getSubjects().forEach(sbj -> sbj.setNamespace(namespace));
-            } else if (resource instanceof Deployment dep
-                && DEPLOYMENT_NAME.equals(dep.getMetadata().getName())) {
-                if (deploymentModifier != null) {
-                    DeploymentBuilder db = new DeploymentBuilder(dep);
-                    deploymentModifier.accept(db);
-                    resource = db.build();
+        try (AutoCloseable ignored = KubeResourceManager.get().openBatch()) {
+            for (HasMetadata resource : resources) {
+                if (resource instanceof Namespace) {
+                    continue; // Already created above
                 }
-                // createResourceWithWait — DeploymentType handles readiness
-                KubeResourceManager.get().createOrUpdateResourceWithWait(resource);
-                continue;
+                if (resource instanceof Namespaced) {
+                    resource.getMetadata().setNamespace(namespace);
+                }
+                if (resource instanceof ClusterRoleBinding crb) {
+                    crb.getSubjects().forEach(sbj -> sbj.setNamespace(namespace));
+                } else if (resource instanceof RoleBinding rb) {
+                    rb.getSubjects().forEach(sbj -> sbj.setNamespace(namespace));
+                } else if (resource instanceof Deployment dep
+                    && DEPLOYMENT_NAME.equals(dep.getMetadata().getName())) {
+                    if (deploymentModifier != null) {
+                        DeploymentBuilder db = new DeploymentBuilder(dep);
+                        deploymentModifier.accept(db);
+                        resource = db.build();
+                    }
+                    // createResourceWithWait — DeploymentType handles readiness
+                    KubeResourceManager.get().createOrUpdateResourceWithWait(resource);
+                    continue;
+                }
+                KubeResourceManager.get().createOrUpdateResourceWithoutWait(resource);
             }
-            KubeResourceManager.get().createOrUpdateResourceWithoutWait(resource);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
