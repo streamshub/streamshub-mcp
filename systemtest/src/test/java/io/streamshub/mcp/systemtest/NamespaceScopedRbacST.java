@@ -28,10 +28,8 @@ import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import io.strimzi.api.kafka.model.user.KafkaUser;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,8 +54,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>Diagnostic tools — partial access behavior</li>
  * </ol>
  *
- * <p>Tests are ordered so that sensitive RBAC tests (which deploy additional
- * Role/RoleBinding mid-test) run last and do not affect earlier assertions.
  */
 @KubernetesTest(
     cleanup = CleanupStrategy.AUTOMATIC,
@@ -72,10 +68,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         KafkaUser.RESOURCE_SINGULAR
     }
 )
-//@DisplayName("Namespace-Scoped RBAC")
+@DisplayName("Namespace-Scoped RBAC")
 @Epic("Strimzi MCP E2E")
 @Feature("RBAC")
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class NamespaceScopedRbacST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NamespaceScopedRbacST.class);
@@ -147,8 +142,7 @@ class NamespaceScopedRbacST extends AbstractST {
     // ---- Pattern 1: Direct tools — RBAC boundary enforcement ----
 
     @Test
-    @Order(1)
-//    @DisplayName("list_kafka_clusters succeeds in accessible namespace")
+    @DisplayName("list_kafka_clusters succeeds in accessible namespace")
     @Story("Namespace Boundary")
     void testListClustersAccessibleNamespace() {
         Map<String, Object> args = Map.of("namespace", Constants.KAFKA_NAMESPACE);
@@ -166,8 +160,7 @@ class NamespaceScopedRbacST extends AbstractST {
     }
 
     @Test
-    @Order(2)
-//    @DisplayName("list_kafka_clusters returns error for inaccessible namespace")
+    @DisplayName("list_kafka_clusters returns error for inaccessible namespace")
     @Story("Namespace Boundary")
     void testListClustersInaccessibleNamespace() {
         Map<String, Object> args = Map.of("namespace", Constants.KAFKA_NAMESPACE_2);
@@ -180,8 +173,7 @@ class NamespaceScopedRbacST extends AbstractST {
     }
 
     @Test
-    @Order(3)
-//    @DisplayName("list_kafka_clusters returns error without namespace (cluster-wide)")
+    @DisplayName("list_kafka_clusters returns error without namespace (cluster-wide)")
     @Story("Namespace Boundary")
     void testListClustersClusterWide() {
         Map<String, Object> args = Map.of();
@@ -194,8 +186,7 @@ class NamespaceScopedRbacST extends AbstractST {
     }
 
     @Test
-    @Order(4)
-//    @DisplayName("get_kafka_cluster succeeds in accessible namespace")
+    @DisplayName("get_kafka_cluster succeeds in accessible namespace")
     @Story("Namespace Boundary")
     void testGetClusterAccessibleNamespace() {
         Map<String, Object> args = Map.of(
@@ -213,8 +204,7 @@ class NamespaceScopedRbacST extends AbstractST {
     }
 
     @Test
-    @Order(5)
-//    @DisplayName("get_kafka_cluster returns error for inaccessible namespace")
+    @DisplayName("get_kafka_cluster returns error for inaccessible namespace")
     @Story("Namespace Boundary")
     void testGetClusterInaccessibleNamespace() {
         Map<String, Object> args = Map.of(
@@ -229,8 +219,7 @@ class NamespaceScopedRbacST extends AbstractST {
     }
 
     @Test
-    @Order(6)
-//    @DisplayName("get_kafka_cluster returns error for auto-discover without namespace")
+    @DisplayName("get_kafka_cluster returns error for auto-discover without namespace")
     @Story("Namespace Boundary")
     void testGetClusterAutoDiscoverWithoutNamespace() {
         Map<String, Object> args = Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME);
@@ -244,8 +233,7 @@ class NamespaceScopedRbacST extends AbstractST {
     }
 
     @Test
-    @Order(7)
-//    @DisplayName("get_kafka_cluster_pods succeeds in accessible namespace")
+    @DisplayName("get_kafka_cluster_pods succeeds in accessible namespace")
     @Story("Namespace Boundary")
     void testGetClusterPodsAccessible() {
         Map<String, Object> args = Map.of(
@@ -261,8 +249,7 @@ class NamespaceScopedRbacST extends AbstractST {
     }
 
     @Test
-    @Order(8)
-//    @DisplayName("get_kafka_cluster_logs succeeds in accessible namespace")
+    @DisplayName("get_kafka_cluster_logs succeeds in accessible namespace")
     @Story("Namespace Boundary")
     void testGetClusterLogsAccessible() {
         Map<String, Object> args = Map.of(
@@ -282,8 +269,7 @@ class NamespaceScopedRbacST extends AbstractST {
     // ---- Pattern 2: Fleet overview degradation ----
 
     @Test
-    @Order(10)
-//    @DisplayName("get_kafka_fleet_overview succeeds with accessible namespace filter")
+    @DisplayName("get_kafka_fleet_overview succeeds with accessible namespace filter")
     @Story("Fleet Overview Degradation")
     void testFleetOverviewAccessibleNamespace() {
         Map<String, Object> args = Map.of("namespace", Constants.KAFKA_NAMESPACE);
@@ -300,8 +286,7 @@ class NamespaceScopedRbacST extends AbstractST {
     }
 
     @Test
-    @Order(11)
-//    @DisplayName("get_kafka_fleet_overview returns error for inaccessible namespace")
+    @DisplayName("get_kafka_fleet_overview returns error for inaccessible namespace")
     @Story("Fleet Overview Degradation")
     void testFleetOverviewInaccessibleNamespace() {
         Map<String, Object> args = Map.of("namespace", Constants.KAFKA_NAMESPACE_2);
@@ -315,8 +300,7 @@ class NamespaceScopedRbacST extends AbstractST {
     }
 
     @Test
-    @Order(12)
-//    @DisplayName("get_kafka_fleet_overview without namespace returns error (cluster-wide)")
+    @DisplayName("get_kafka_fleet_overview without namespace returns error (cluster-wide)")
     @Story("Fleet Overview Degradation")
     void testFleetOverviewClusterWide() {
         Map<String, Object> args = Map.of();
@@ -332,8 +316,7 @@ class NamespaceScopedRbacST extends AbstractST {
     // ---- Pattern 3: Diagnostic tools under partial access ----
 
     @Test
-    @Order(20)
-//    @DisplayName("diagnose_kafka_cluster succeeds in accessible namespace")
+    @DisplayName("diagnose_kafka_cluster succeeds in accessible namespace")
     @Story("Diagnostics Under Partial Access")
     void testDiagnoseClusterAccessible() {
         Map<String, Object> args = Map.of(
@@ -353,8 +336,7 @@ class NamespaceScopedRbacST extends AbstractST {
     }
 
     @Test
-    @Order(21)
-//    @DisplayName("diagnose_kafka_cluster returns error for inaccessible namespace")
+    @DisplayName("diagnose_kafka_cluster returns error for inaccessible namespace")
     @Story("Diagnostics Under Partial Access")
     void testDiagnoseClusterInaccessible() {
         Map<String, Object> args = Map.of(
@@ -372,8 +354,7 @@ class NamespaceScopedRbacST extends AbstractST {
     // ---- Cluster-scoped resources ----
 
     @Test
-    @Order(25)
-//    @DisplayName("list_drain_cleaners returns empty without cluster-scoped access")
+    @DisplayName("list_drain_cleaners returns empty without cluster-scoped access")
     @Story("Cluster-Scoped Resources")
     void testDrainCleanersRequireClusterScope() {
         Map<String, Object> args = Map.of();
@@ -392,13 +373,13 @@ class NamespaceScopedRbacST extends AbstractST {
     // ---- Sensitive RBAC (certificates / secrets) ----
 
     @Test
-    @Order(30)
-//    @DisplayName("get_kafka_cluster_certificates degrades without sensitive RBAC")
     @Story("Sensitive RBAC")
-    void testCertificatesWithoutSensitiveRbac() {
+    void testCertificatesSensitiveRbacLifecycle() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "namespace", Constants.KAFKA_NAMESPACE);
+
+        // Without sensitive RBAC: certificates should degrade gracefully
         mcpClient.when()
             .toolsCall("get_kafka_cluster_certificates", args, response -> {
                 JsonNode root = assertToolSuccess(response);
@@ -416,20 +397,13 @@ class NamespaceScopedRbacST extends AbstractST {
                     "Should report errors about secret access");
             })
             .thenAssertResults();
-    }
 
-    @Test
-    @Order(31)
-//    @DisplayName("get_kafka_cluster_certificates succeeds after deploying sensitive RBAC")
-    @Story("Sensitive RBAC")
-    void testCertificatesWithSensitiveRbac() {
+        // Deploy sensitive RBAC (grants secret read access)
         McpServerSetup.deploySensitiveRbac(
             mcpNamespace.getMetadata().getName(),
             kafkaNamespace.getMetadata().getName());
 
-        Map<String, Object> args = Map.of(
-            "clusterName", Constants.KAFKA_CLUSTER_NAME,
-            "namespace", Constants.KAFKA_NAMESPACE);
+        // With sensitive RBAC: certificates should be accessible
         mcpClient.when()
             .toolsCall("get_kafka_cluster_certificates", args, response -> {
                 JsonNode root = assertToolSuccess(response);
@@ -447,8 +421,7 @@ class NamespaceScopedRbacST extends AbstractST {
     // ---- Operator tools with scoped access ----
 
     @Test
-    @Order(15)
-//    @DisplayName("list_strimzi_operators succeeds in accessible Strimzi namespace")
+    @DisplayName("list_strimzi_operators succeeds in accessible Strimzi namespace")
     @Story("Namespace Boundary")
     void testListOperatorsAccessible() {
         Map<String, Object> args = Map.of("namespace", Constants.STRIMZI_NAMESPACE);
