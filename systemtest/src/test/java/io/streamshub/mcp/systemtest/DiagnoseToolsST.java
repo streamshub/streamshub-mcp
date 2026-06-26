@@ -41,8 +41,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Deploys a Kafka cluster with Connect and Connector, then verifies
  * that diagnostic tools return well-structured reports.
  */
-@KubernetesTest
-@DisplayName("Diagnose MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("Diagnose Tools")
 class DiagnoseToolsST extends AbstractST {

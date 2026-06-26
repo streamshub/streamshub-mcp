@@ -55,8 +55,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * </ol>
  *
  */
-@KubernetesTest
-@DisplayName("Namespace-Scoped RBAC")
 @Epic("Strimzi MCP E2E")
 @Feature("RBAC")
 class NamespaceScopedRbacST extends AbstractST {

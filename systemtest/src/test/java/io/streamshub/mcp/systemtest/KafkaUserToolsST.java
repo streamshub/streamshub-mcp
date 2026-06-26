@@ -44,8 +44,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * and ACL configurations, then verifies the tools return correct data
  * without exposing credential secrets.
  */
-@KubernetesTest
-@DisplayName("KafkaUser MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("KafkaUser Tools")
 class KafkaUserToolsST extends AbstractST {

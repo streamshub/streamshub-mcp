@@ -41,8 +41,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Deploys a Kafka cluster with Bridge and Connect, then verifies
  * that instant metrics retrieval tools return well-formed responses.
  */
-@KubernetesTest
-@DisplayName("Metrics MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("Metrics Tools")
 class MetricsToolsST extends AbstractST {

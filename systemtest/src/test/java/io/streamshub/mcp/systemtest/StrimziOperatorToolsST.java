@@ -39,8 +39,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * System tests for Strimzi operator MCP tools.
  * Verifies operator discovery, status, and pod inspection against a real Strimzi deployment.
  */
-@KubernetesTest
-@DisplayName("Strimzi Operator MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("Strimzi Operator Tools")
 class StrimziOperatorToolsST extends AbstractST {

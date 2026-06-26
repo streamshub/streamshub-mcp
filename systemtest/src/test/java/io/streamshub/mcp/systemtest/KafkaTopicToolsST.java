@@ -41,8 +41,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Deploys the MCP server and KafkaTopics into a cluster
  * and verifies that the tools return correct data.
  */
-@KubernetesTest
-@DisplayName("KafkaTopic MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("KafkaTopic Tools")
 class KafkaTopicToolsST extends AbstractST {
