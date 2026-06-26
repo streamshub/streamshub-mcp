@@ -46,12 +46,14 @@ public record KafkaClusterOverviewResponse(
     /**
      * Kafka cluster identity and health summary.
      *
-     * @param name            the cluster name
-     * @param namespace       the Kubernetes namespace
-     * @param kafkaVersion    the Kafka version
-     * @param readiness       the cluster readiness status
-     * @param expectedReplicas expected broker/controller replicas
-     * @param readyReplicas   ready broker/controller replicas
+     * @param name                the cluster name
+     * @param namespace           the Kubernetes namespace
+     * @param kafkaVersion        the Kafka version
+     * @param readiness           the cluster readiness status
+     * @param expectedBrokers     expected broker replicas
+     * @param readyBrokers        ready broker replicas
+     * @param expectedControllers expected controller replicas
+     * @param readyControllers    ready controller replicas
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record ClusterSummary(
@@ -59,8 +61,10 @@ public record KafkaClusterOverviewResponse(
         @JsonProperty("namespace") String namespace,
         @JsonProperty("kafka_version") String kafkaVersion,
         @JsonProperty("readiness") String readiness,
-        @JsonProperty("expected_replicas") Integer expectedReplicas,
-        @JsonProperty("ready_replicas") Integer readyReplicas
+        @JsonProperty("expected_brokers") Integer expectedBrokers,
+        @JsonProperty("ready_brokers") Integer readyBrokers,
+        @JsonProperty("expected_controllers") Integer expectedControllers,
+        @JsonProperty("ready_controllers") Integer readyControllers
     ) {
     }
 

@@ -10,12 +10,12 @@ import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
-import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.ListenerInfo;
+import io.streamshub.mcp.strimzi.dto.kafka.RoleReplicasInfo;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaCertificateService;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -76,8 +76,8 @@ class KafkaToolsTest {
                     "my-cluster-kafka-bootstrap.kafka.svc:9092"),
                     new ListenerInfo("tls", "internal",
                     "my-cluster-kafka-bootstrap.kafka.svc:9093")),
-                new ReplicasInfo(3, 3),
-                "jbod", "100Gi",
+                new RoleReplicasInfo(3, 3, "jbod", "100Gi"),
+                null,
                 false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi")
         ));
 
@@ -100,8 +100,8 @@ class KafkaToolsTest {
                 List.of(new ConditionInfo("Ready", "True", null, null, null)),
                 List.of(new ListenerInfo("plain", "internal",
                     "my-cluster-kafka-bootstrap.kafka.svc:9092")),
-                new ReplicasInfo(3, 3),
-                "jbod", "100Gi",
+                new RoleReplicasInfo(3, 3, "jbod", "100Gi"),
+                null,
                 false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi")
         );
 
@@ -235,8 +235,8 @@ class KafkaToolsTest {
                 List.of(new ConditionInfo("Ready", "True", null, null, null)),
                 List.of(new ListenerInfo("tls", "internal",
                     "prod-cluster-kafka-bootstrap.production.svc:9093")),
-                new ReplicasInfo(3, 3),
-                "jbod", "100Gi",
+                new RoleReplicasInfo(3, 3, "jbod", "100Gi"),
+                null,
                 false, true, true, Instant.parse("2025-01-01T00:00:00Z"), 120L, "strimzi")
         ));
 

@@ -7,7 +7,6 @@ package io.streamshub.mcp.strimzi.dto.kafka;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.ConditionInfo;
-import io.streamshub.mcp.common.dto.ReplicasInfo;
 
 import java.time.Instant;
 import java.util.List;
@@ -22,9 +21,8 @@ import java.util.List;
  * @param readiness             the cluster readiness status (Ready, NotReady, Error, Unknown)
  * @param conditions            the list of status conditions from the Kafka resource
  * @param listeners             the list of configured listeners with type and bootstrap address
- * @param replicas              the replica count information with expected and ready counts
- * @param storageType           the storage configuration type (ephemeral, persistent-claim, jbod)
- * @param storageSize           the total storage allocated (e.g., "100Gi")
+ * @param brokerReplicas        the broker replica and storage information
+ * @param controllerReplicas    the controller replica and storage information
  * @param externalAccess        whether external access is configured
  * @param authenticationEnabled whether authentication is configured
  * @param authorizationEnabled  whether authorization is configured
@@ -41,9 +39,8 @@ public record KafkaClusterResponse(
     @JsonProperty("readiness") String readiness,
     @JsonProperty("conditions") List<ConditionInfo> conditions,
     @JsonProperty("listeners") List<ListenerInfo> listeners,
-    @JsonProperty("replicas") ReplicasInfo replicas,
-    @JsonProperty("storage_type") String storageType,
-    @JsonProperty("storage_size") String storageSize,
+    @JsonProperty("broker_replicas") RoleReplicasInfo brokerReplicas,
+    @JsonProperty("controller_replicas") RoleReplicasInfo controllerReplicas,
     @JsonProperty("external_access") Boolean externalAccess,
     @JsonProperty("authentication_enabled") Boolean authenticationEnabled,
     @JsonProperty("authorization_enabled") Boolean authorizationEnabled,
@@ -61,9 +58,8 @@ public record KafkaClusterResponse(
      * @param readiness             the readiness status
      * @param conditions            the status conditions
      * @param listeners             the listener configurations
-     * @param replicas              the replica counts
-     * @param storageType           the storage type
-     * @param storageSize           the storage size
+     * @param brokerReplicas        the broker replica and storage info
+     * @param controllerReplicas    the controller replica and storage info
      * @param externalAccess        whether external access is configured
      * @param authenticationEnabled whether authentication is enabled
      * @param authorizationEnabled  whether authorization is enabled
@@ -76,12 +72,13 @@ public record KafkaClusterResponse(
     public static KafkaClusterResponse of(String name, String namespace, String kind,
                                            String kafkaVersion, String readiness,
                                            List<ConditionInfo> conditions, List<ListenerInfo> listeners,
-                                           ReplicasInfo replicas, String storageType, String storageSize,
+                                           RoleReplicasInfo brokerReplicas,
+                                           RoleReplicasInfo controllerReplicas,
                                            Boolean externalAccess, Boolean authenticationEnabled,
                                            Boolean authorizationEnabled, Instant creationTime,
                                            Long ageMinutes, String managedBy) {
         return new KafkaClusterResponse(name, namespace, kind, kafkaVersion, readiness,
-            conditions, listeners, replicas, storageType, storageSize,
+            conditions, listeners, brokerReplicas, controllerReplicas,
             externalAccess, authenticationEnabled, authorizationEnabled,
             creationTime, ageMinutes, managedBy);
     }

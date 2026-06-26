@@ -114,10 +114,10 @@ public class KafkaFleetOverviewService {
     }
 
     private int extractBrokerCount(final KafkaClusterResponse cluster, final boolean expected) {
-        if (cluster.replicas() == null) {
+        if (cluster.brokerReplicas() == null) {
             return 0;
         }
-        Integer value = expected ? cluster.replicas().expected() : cluster.replicas().ready();
+        Integer value = expected ? cluster.brokerReplicas().expected() : cluster.brokerReplicas().ready();
         return value != null ? value : 0;
     }
 

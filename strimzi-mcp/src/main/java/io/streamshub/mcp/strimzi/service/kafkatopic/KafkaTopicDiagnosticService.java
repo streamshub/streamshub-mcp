@@ -371,9 +371,13 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         }
         if (cluster != null) {
             summary.put("cluster_readiness", cluster.readiness());
-            if (cluster.replicas() != null) {
-                summary.put("cluster_expected_replicas", cluster.replicas().expected());
-                summary.put("cluster_ready_replicas", cluster.replicas().ready());
+            if (cluster.brokerReplicas() != null) {
+                summary.put("cluster_expected_broker_replicas", cluster.brokerReplicas().expected());
+                summary.put("cluster_ready_broker_replicas", cluster.brokerReplicas().ready());
+            }
+            if (cluster.controllerReplicas() != null) {
+                summary.put("cluster_expected_controller_replicas", cluster.controllerReplicas().expected());
+                summary.put("cluster_ready_controller_replicas", cluster.controllerReplicas().ready());
             }
         }
         return summary;

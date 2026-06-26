@@ -6,12 +6,12 @@ package io.streamshub.mcp.strimzi.service;
 
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaFleetOverviewResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaFleetOverviewResponse.ClusterSummary;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaFleetOverviewResponse.ClusterWarning;
+import io.streamshub.mcp.strimzi.dto.kafka.RoleReplicasInfo;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectResponse;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2Response;
@@ -186,7 +186,7 @@ class KafkaFleetOverviewServiceTest {
     void testNullReplicasHandled() {
         KafkaClusterResponse cluster = KafkaClusterResponse.of(
             "test", "ns", "Kafka", "4.2.0", "Ready",
-            null, null, null, null, null,
+            null, null, null, null,
             null, null, null, null, null, null);
         when(kafkaService.listClusters(null)).thenReturn(List.of(cluster));
 
@@ -372,8 +372,9 @@ class KafkaFleetOverviewServiceTest {
                                                       int expected, int ready) {
         return KafkaClusterResponse.of(
             name, namespace, "Kafka", version, readiness,
-            null, null, ReplicasInfo.of(expected, ready),
-            null, null, null, null, null, null, 1000L, null);
+            null, null, RoleReplicasInfo.of(expected, ready, null, null),
+            null,
+            null, null, null, null, 1000L, null);
     }
 
     private static KafkaRebalanceResponse buildRebalance(String name, String state) {

@@ -46,7 +46,7 @@ Get detailed information about a specific Kafka cluster including status, versio
 - `clusterName` (required) -- Name of the Kafka cluster
 - `namespace` (optional) -- Kubernetes namespace
 
-**Returns**: Comprehensive cluster details including status, conditions, version, listeners, node pools, and replica counts
+**Returns**: Comprehensive cluster details including status, conditions, version, listeners, and separate broker/controller replica counts with per-role storage information
 
 **Example**:
 ```
@@ -64,7 +64,7 @@ KafkaConnect and KafkaBridge resources are matched by comparing their `spec.boot
 - `namespace` (optional) -- Kubernetes namespace
 
 **Returns**: Structured overview including:
-- **Cluster summary** -- name, version, readiness, replica counts
+- **Cluster summary** -- name, version, readiness, separate broker and controller replica counts
 - **Operator** -- name, version, status
 - **Node pools** -- name, roles, replica counts per pool
 - **Topics** -- total count, ready/not-ready breakdown
