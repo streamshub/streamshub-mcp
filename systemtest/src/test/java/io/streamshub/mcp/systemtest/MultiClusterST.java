@@ -47,8 +47,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * same namespace. Verifies fleet-wide visibility, per-cluster isolation,
  * and cluster comparison tools.
  */
-@KubernetesTest
-@DisplayName("Multi-Cluster Same Namespace")
 @Epic("Strimzi MCP E2E")
 @Feature("Multi-Cluster")
 class MultiClusterST extends AbstractST {

@@ -44,8 +44,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * to use the Prometheus metrics provider, then verifies that range-query
  * metrics retrieval tools return well-formed responses.
  */
-@KubernetesTest
-@DisplayName("Prometheus Metrics MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("Prometheus Metrics Tools")
 class MetricsPrometheusToolsST extends AbstractST {

@@ -46,8 +46,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * KafkaConnector, KafkaBridge, KafkaTopic) and verifies diagnostic tools
  * and multi-step investigation workflows.
  */
-@KubernetesTest
-@DisplayName("Complex Scenarios MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("Complex Scenarios")
 class ComplexScenariosST extends AbstractST {

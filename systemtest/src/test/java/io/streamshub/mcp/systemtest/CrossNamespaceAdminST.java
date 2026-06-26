@@ -46,8 +46,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * different namespaces. Verifies disambiguation behavior when namespace
  * is omitted, and correct resolution when namespace is provided.
  */
-@KubernetesTest
-@DisplayName("Cross-Namespace Admin (Same-Name Disambiguation)")
 @Epic("Strimzi MCP E2E")
 @Feature("Cross-Namespace")
 class CrossNamespaceAdminST extends AbstractST {

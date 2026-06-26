@@ -44,8 +44,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * KafkaRebalance scenarios correctly, including auto-rebalance
  * on scale-up and scale-down.
  */
-@KubernetesTest
-@DisplayName("KafkaRebalance MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("KafkaRebalance Tools")
 class KafkaRebalanceToolsST extends AbstractST {

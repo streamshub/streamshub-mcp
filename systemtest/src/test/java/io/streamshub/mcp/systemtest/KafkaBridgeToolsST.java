@@ -40,8 +40,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Deploys the MCP server and a KafkaBridge into a cluster
  * and verifies that the tools return correct data.
  */
-@KubernetesTest
-@DisplayName("KafkaBridge MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("KafkaBridge Tools")
 class KafkaBridgeToolsST extends AbstractST {

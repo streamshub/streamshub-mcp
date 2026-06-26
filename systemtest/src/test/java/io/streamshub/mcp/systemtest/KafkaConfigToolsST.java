@@ -43,8 +43,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * then verifies that configuration retrieval and comparison tools work
  * against real Strimzi resources.
  */
-@KubernetesTest
-@DisplayName("Kafka Config MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("Kafka Config Tools")
 class KafkaConfigToolsST extends AbstractST {

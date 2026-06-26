@@ -41,8 +41,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Deploys the MCP server into a cluster and verifies that
  * cluster discovery tools work against real Strimzi resources.
  */
-@KubernetesTest
-@DisplayName("Kafka Cluster MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("Kafka Cluster Tools")
 class KafkaClusterToolsST extends AbstractST {
