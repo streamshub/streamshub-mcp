@@ -227,5 +227,4 @@ class KafkaBridgeToolsST extends AbstractST {
             })
             .thenAssertResults();
     }
-
 }

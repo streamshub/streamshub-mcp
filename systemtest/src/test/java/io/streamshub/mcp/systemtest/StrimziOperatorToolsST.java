@@ -392,5 +392,4 @@ class StrimziOperatorToolsST extends AbstractST {
             })
             .thenAssertResults();
     }
-
 }
