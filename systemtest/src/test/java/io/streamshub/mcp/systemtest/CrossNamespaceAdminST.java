@@ -46,19 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * different namespaces. Verifies disambiguation behavior when namespace
  * is omitted, and correct resolution when namespace is provided.
  */
-@KubernetesTest(
-    cleanup = CleanupStrategy.AUTOMATIC,
-    collectLogs = true,
-    logCollectionStrategy = LogCollectionStrategy.ON_FAILURE,
-    collectPreviousLogs = true,
-    collectNamespacedResources = {
-        "pods", "services", "configmaps", "secrets", "deployments",
-        Kafka.RESOURCE_SINGULAR,
-        KafkaNodePool.RESOURCE_SINGULAR,
-        KafkaTopic.RESOURCE_SINGULAR,
-        KafkaUser.RESOURCE_SINGULAR
-    }
-)
+@KubernetesTest
 @DisplayName("Cross-Namespace Admin (Same-Name Disambiguation)")
 @Epic("Strimzi MCP E2E")
 @Feature("Cross-Namespace")

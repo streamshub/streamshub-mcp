@@ -55,19 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * </ol>
  *
  */
-@KubernetesTest(
-    cleanup = CleanupStrategy.AUTOMATIC,
-    collectLogs = true,
-    logCollectionStrategy = LogCollectionStrategy.ON_FAILURE,
-    collectPreviousLogs = true,
-    collectNamespacedResources = {
-        "pods", "services", "configmaps", "secrets", "deployments",
-        Kafka.RESOURCE_SINGULAR,
-        KafkaNodePool.RESOURCE_SINGULAR,
-        KafkaTopic.RESOURCE_SINGULAR,
-        KafkaUser.RESOURCE_SINGULAR
-    }
-)
+@KubernetesTest
 @DisplayName("Namespace-Scoped RBAC")
 @Epic("Strimzi MCP E2E")
 @Feature("RBAC")
