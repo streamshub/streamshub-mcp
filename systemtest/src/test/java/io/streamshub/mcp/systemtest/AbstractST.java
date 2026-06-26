@@ -25,6 +25,7 @@ import io.skodjob.kubetest4j.resources.ServiceType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaBridgeType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaConnectType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaConnectorType;
+import io.streamshub.mcp.systemtest.resources.strimzi.KafkaMirrorMaker2Type;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaNodePoolType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaRebalanceType;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaTopicType;
@@ -87,6 +88,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         KafkaBridgeType.class,
         KafkaConnectType.class,
         KafkaConnectorType.class,
+        KafkaMirrorMaker2Type.class,
         KafkaUserType.class,
         KafkaRebalanceType.class
     }
