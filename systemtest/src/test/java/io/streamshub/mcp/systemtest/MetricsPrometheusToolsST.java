@@ -304,6 +304,77 @@ class MetricsPrometheusToolsST extends AbstractST {
             .thenAssertResults();
     }
 
+    // ---- Aggregation and Time Range ----
+
+    @Test
+    @DisplayName("get_kafka_metrics with broker aggregation via Prometheus")
+    @Story("Get Kafka Metrics")
+    void testBrokerAggregationPrometheus() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "category", "replication",
+            "aggregation", "broker",
+            "rangeMinutes", 30,
+            "stepSeconds", 60);
+        mcpClient.when()
+            .toolsCall("get_kafka_metrics", args, response -> {
+                assertFalse(response.isError(),
+                    "Broker aggregation via Prometheus should not return error");
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("Prometheus broker aggregation response (length={})", text.length());
+
+                JsonNode root = parseJson(text);
+                assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
+
+                JsonNode timeSeries = root.path("time_series");
+                if (timeSeries.isArray() && !timeSeries.isEmpty()) {
+                    boolean hasBrokerLabel = false;
+                    for (JsonNode series : timeSeries) {
+                        JsonNode labels = series.path("labels");
+                        if (labels.isObject()
+                                && (!labels.path("pod").isMissingNode()
+                                || !labels.path("broker_id").isMissingNode())) {
+                            hasBrokerLabel = true;
+                            break;
+                        }
+                    }
+                    assertTrue(hasBrokerLabel,
+                        "Broker aggregation should include pod or broker_id labels");
+                }
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @DisplayName("get_kafka_metrics with absolute startTime/endTime via Prometheus")
+    @Story("Get Kafka Metrics")
+    void testAbsoluteTimeRange() {
+        java.time.Instant now = java.time.Instant.now();
+        java.time.Instant thirtyMinAgo = now.minus(java.time.Duration.ofMinutes(30));
+
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "category", "replication",
+            "startTime", thirtyMinAgo.toString(),
+            "endTime", now.toString(),
+            "stepSeconds", 60);
+        mcpClient.when()
+            .toolsCall("get_kafka_metrics", args, response -> {
+                assertFalse(response.isError(),
+                    "Absolute time range should not return error");
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("Absolute time range response (length={})", text.length());
+
+                JsonNode root = parseJson(text);
+                assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
+                assertTrue(root.path("sample_count").asInt() > 0,
+                    "Should return data within the 30-minute window");
+            })
+            .thenAssertResults();
+    }
+
     // ---- Prometheus Discovery ----
 
     private static PrometheusConfig discoverPrometheus() {
