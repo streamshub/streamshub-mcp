@@ -11,12 +11,12 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
-import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.ListenerInfo;
+import io.streamshub.mcp.strimzi.dto.kafka.RoleReplicasInfo;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaBridgeMetricsResponse;
@@ -139,8 +139,8 @@ class MetricsToolsTest {
                     "my-cluster-kafka-bootstrap.kafka.svc:9092"),
                     new ListenerInfo("tls", "internal",
                     "my-cluster-kafka-bootstrap.kafka.svc:9093")),
-                new ReplicasInfo(3, 3),
-                "jbod", "100Gi",
+                new RoleReplicasInfo(3, 3, "jbod", "100Gi"),
+                null,
                 false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi")
         ));
 
@@ -163,8 +163,8 @@ class MetricsToolsTest {
                 List.of(new ConditionInfo("Ready", "True", null, null, null)),
                 List.of(new ListenerInfo("plain", "internal",
                     "my-cluster-kafka-bootstrap.kafka.svc:9092")),
-                new ReplicasInfo(3, 3),
-                "jbod", "100Gi",
+                new RoleReplicasInfo(3, 3, "jbod", "100Gi"),
+                null,
                 false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi")
         );
 
@@ -481,8 +481,8 @@ class MetricsToolsTest {
                 List.of(new ConditionInfo("Ready", "True", null, null, null)),
                 List.of(new ListenerInfo("tls", "internal",
                     "prod-cluster-kafka-bootstrap.production.svc:9093")),
-                new ReplicasInfo(3, 3),
-                "jbod", "100Gi",
+                new RoleReplicasInfo(3, 3, "jbod", "100Gi"),
+                null,
                 false, true, true, Instant.parse("2025-01-01T00:00:00Z"), 120L, "strimzi")
         ));
 

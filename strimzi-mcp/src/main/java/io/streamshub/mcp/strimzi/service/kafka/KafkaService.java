@@ -11,7 +11,6 @@ import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
-import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.service.log.LogCollectionService;
@@ -22,6 +21,7 @@ import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.ListenerInfo;
+import io.streamshub.mcp.strimzi.dto.kafka.RoleReplicasInfo;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
 import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
 import io.strimzi.api.ResourceLabels;
@@ -318,8 +318,12 @@ public class KafkaService {
         String version = extractVersion(kafka);
         List<ConditionInfo> conditions = extractConditions(kafka);
         List<ListenerInfo> listeners = extractListenerInfos(kafka);
-        ReplicasInfo replicasInfo = ReplicasInfo.of(
-            extractReplicas(kafka), extractReadyReplicas(kafka));
+
+        List<KafkaNodePoolResponse> nodePools = fetchNodePools(namespace, name);
+        List<Pod> kafkaPods = fetchKafkaPods(namespace, name);
+        RoleReplicasInfo brokerReplicas = buildRoleReplicas(nodePools, kafkaPods, ProcessRoles.BROKER);
+        RoleReplicasInfo controllerReplicas = buildRoleReplicas(nodePools, kafkaPods, ProcessRoles.CONTROLLER);
+
         Instant creationTime = extractCreationTime(kafka);
         Long ageMinutes = null;
         if (creationTime != null) {
@@ -328,8 +332,7 @@ public class KafkaService {
 
         return KafkaClusterResponse.of(
             name, namespace, kind, version, readiness,
-            conditions, listeners, replicasInfo,
-            extractStorageType(kafka), extractStorageSize(kafka),
+            conditions, listeners, brokerReplicas, controllerReplicas,
             extractExternalAccess(kafka),
             extractAuthenticationEnabled(kafka), extractAuthorizationEnabled(kafka),
             creationTime, ageMinutes, extractManagedBy(kafka));
@@ -376,82 +379,75 @@ public class KafkaService {
         return labels != null ? labels.get(KubernetesConstants.Labels.MANAGED_BY) : null;
     }
 
-    private Integer extractReplicas(final Kafka kafka) {
-        String clusterName = kafka.getMetadata().getName();
-        String namespace = kafka.getMetadata().getNamespace();
-
+    private List<KafkaNodePoolResponse> fetchNodePools(final String namespace, final String clusterName) {
         try {
-            List<KafkaNodePoolResponse> nodePools = nodePoolService.listNodePools(namespace, clusterName);
-            return nodePools.stream()
-                .mapToInt(pool -> pool.replicas() != null ? pool.replicas() : 0)
-                .sum();
+            return nodePoolService.listNodePools(namespace, clusterName);
         } catch (Exception e) {
-            LOG.debugf("Could not get replicas from NodePools for cluster %s: %s", clusterName, e.getMessage());
+            LOG.debugf("Could not get NodePools for cluster %s: %s", clusterName, e.getMessage());
+            return List.of();
         }
-        return null;
     }
 
-    private Integer extractReadyReplicas(final Kafka kafka) {
-        String clusterName = kafka.getMetadata().getName();
-        String namespace = kafka.getMetadata().getNamespace();
-
+    private List<Pod> fetchKafkaPods(final String namespace, final String clusterName) {
         try {
-            List<Pod> kafkaPods = k8sService.queryResourcesByLabel(
+            return k8sService.queryResourcesByLabel(
                     Pod.class, namespace, ResourceLabels.STRIMZI_CLUSTER_LABEL, clusterName)
                 .stream()
                 .filter(pod -> pod.getMetadata().getLabels() != null
                     && StrimziConstants.ComponentTypes.KAFKA.equals(
                     pod.getMetadata().getLabels().get(ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL)))
                 .toList();
-
-            return (int) kafkaPods.stream()
-                .filter(pod -> pod.getStatus() != null
-                    && KubernetesConstants.PodPhases.RUNNING.equals(pod.getStatus().getPhase())
-                    && pod.getStatus().getConditions() != null
-                    && pod.getStatus().getConditions().stream()
-                    .anyMatch(cond -> KubernetesConstants.Conditions.TYPE_READY.equals(cond.getType())
-                        && KubernetesConstants.Conditions.STATUS_TRUE.equals(cond.getStatus())))
-                .count();
         } catch (Exception e) {
-            LOG.debugf("Could not count ready replicas for cluster %s: %s", clusterName, e.getMessage());
+            LOG.debugf("Could not get pods for cluster %s: %s", clusterName, e.getMessage());
+            return List.of();
+        }
+    }
+
+    private RoleReplicasInfo buildRoleReplicas(final List<KafkaNodePoolResponse> nodePools,
+                                                final List<Pod> kafkaPods,
+                                                final ProcessRoles role) {
+        List<KafkaNodePoolResponse> rolePools = nodePools.stream()
+            .filter(pool -> pool.roles().contains(role.toValue()))
+            .toList();
+
+        if (rolePools.isEmpty()) {
             return null;
         }
-    }
 
-    private String extractStorageType(final Kafka kafka) {
-        String clusterName = kafka.getMetadata().getName();
-        String namespace = kafka.getMetadata().getNamespace();
+        int expected = rolePools.stream()
+            .mapToInt(pool -> pool.replicas() != null ? pool.replicas() : 0)
+            .sum();
 
-        try {
-            List<KafkaNodePoolResponse> nodePools = nodePoolService.listNodePools(namespace, clusterName);
-            return nodePools.stream()
-                .filter(pool -> pool.roles().contains(ProcessRoles.BROKER.toValue()))
-                .map(KafkaNodePoolResponse::storageType)
-                .filter(type -> type != null && !type.equals(KubernetesConstants.UNKNOWN))
-                .findFirst()
-                .orElse(null);
-        } catch (Exception e) {
-            LOG.debugf("Could not get storage type from NodePools for cluster %s: %s", clusterName, e.getMessage());
-        }
-        return null;
-    }
+        Set<String> poolNames = rolePools.stream()
+            .map(KafkaNodePoolResponse::name)
+            .collect(Collectors.toSet());
 
-    private String extractStorageSize(final Kafka kafka) {
-        String clusterName = kafka.getMetadata().getName();
-        String namespace = kafka.getMetadata().getNamespace();
+        int ready = (int) kafkaPods.stream()
+            .filter(pod -> {
+                String poolName = pod.getMetadata().getLabels().get(StrimziConstants.Labels.POOL_NAME);
+                return poolNames.contains(poolName);
+            })
+            .filter(pod -> pod.getStatus() != null
+                && KubernetesConstants.PodPhases.RUNNING.equals(pod.getStatus().getPhase())
+                && pod.getStatus().getConditions() != null
+                && pod.getStatus().getConditions().stream()
+                .anyMatch(cond -> KubernetesConstants.Conditions.TYPE_READY.equals(cond.getType())
+                    && KubernetesConstants.Conditions.STATUS_TRUE.equals(cond.getStatus())))
+            .count();
 
-        try {
-            List<KafkaNodePoolResponse> nodePools = nodePoolService.listNodePools(namespace, clusterName);
-            return nodePools.stream()
-                .filter(pool -> pool.roles().contains(ProcessRoles.BROKER.toValue()))
-                .map(KafkaNodePoolResponse::storageSize)
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElse(null);
-        } catch (Exception e) {
-            LOG.debugf("Could not get storage size from NodePools for cluster %s: %s", clusterName, e.getMessage());
-        }
-        return null;
+        String storageType = rolePools.stream()
+            .map(KafkaNodePoolResponse::storageType)
+            .filter(type -> type != null && !type.equals(KubernetesConstants.UNKNOWN))
+            .findFirst()
+            .orElse(null);
+
+        String storageSize = rolePools.stream()
+            .map(KafkaNodePoolResponse::storageSize)
+            .filter(Objects::nonNull)
+            .findFirst()
+            .orElse(null);
+
+        return RoleReplicasInfo.of(expected, ready, storageType, storageSize);
     }
 
     private List<ConditionInfo> extractConditions(final Kafka kafka) {

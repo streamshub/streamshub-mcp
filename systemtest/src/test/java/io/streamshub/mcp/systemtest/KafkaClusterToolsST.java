@@ -139,13 +139,22 @@ class KafkaClusterToolsST extends AbstractST {
                 assertTrue(cluster.path("listeners").size() >= 2,
                     "Should have at least 2 listeners (plain + tls)");
 
-                // Replicas
-                assertTrue(cluster.has("replicas"), "Should have replicas info");
-                assertTrue(cluster.path("replicas").path("expected").asInt() > 0,
-                    "Expected replicas should be > 0");
-                assertEquals(cluster.path("replicas").path("expected").asInt(),
-                    cluster.path("replicas").path("ready").asInt(),
-                    "All replicas should be ready");
+                // Broker replicas
+                assertTrue(cluster.has("broker_replicas"), "Should have broker replicas info");
+                assertTrue(cluster.path("broker_replicas").path("expected").asInt() > 0,
+                    "Expected broker replicas should be > 0");
+                assertEquals(cluster.path("broker_replicas").path("expected").asInt(),
+                    cluster.path("broker_replicas").path("ready").asInt(),
+                    "All broker replicas should be ready");
+
+                // Controller replicas
+                assertTrue(cluster.has("controller_replicas"),
+                    "Should have controller replicas info");
+                assertTrue(cluster.path("controller_replicas").path("expected").asInt() > 0,
+                    "Expected controller replicas should be > 0");
+                assertEquals(cluster.path("controller_replicas").path("expected").asInt(),
+                    cluster.path("controller_replicas").path("ready").asInt(),
+                    "All controller replicas should be ready");
             })
             .thenAssertResults();
     }
@@ -216,11 +225,18 @@ class KafkaClusterToolsST extends AbstractST {
                 assertTrue(hasPlain, "Should have 'plain' listener");
                 assertTrue(hasTls, "Should have 'tls' listener");
 
-                // Replicas
-                assertTrue(cluster.has("replicas"), "Should have replicas info");
-                assertEquals(cluster.path("replicas").path("expected").asInt(),
-                    cluster.path("replicas").path("ready").asInt(),
-                    "All replicas should be ready");
+                // Broker replicas
+                assertTrue(cluster.has("broker_replicas"), "Should have broker replicas info");
+                assertEquals(cluster.path("broker_replicas").path("expected").asInt(),
+                    cluster.path("broker_replicas").path("ready").asInt(),
+                    "All broker replicas should be ready");
+
+                // Controller replicas
+                assertTrue(cluster.has("controller_replicas"),
+                    "Should have controller replicas info");
+                assertEquals(cluster.path("controller_replicas").path("expected").asInt(),
+                    cluster.path("controller_replicas").path("ready").asInt(),
+                    "All controller replicas should be ready");
 
                 // Age
                 assertFalse(cluster.path("creation_time").isMissingNode(),
@@ -260,15 +276,15 @@ class KafkaClusterToolsST extends AbstractST {
                 assertTrue(clusters.isArray() && !clusters.isEmpty(),
                     "clusters should be a non-empty array");
 
-                assertEquals(9, root.path("total_brokers").asInt(),
-                    "Should have 9 total replicas (3 node pools x 3 replicas)");
+                assertEquals(6, root.path("total_brokers").asInt(),
+                    "Should have 6 total brokers (2 broker pools x 3 replicas)");
 
                 JsonNode cluster = findByName(clusters, Constants.KAFKA_CLUSTER_NAME);
                 assertNotNull(cluster, "Should find cluster '" + Constants.KAFKA_CLUSTER_NAME + "'");
                 assertEquals("Ready", cluster.path("readiness").asText(),
                     "Cluster should be Ready");
-                assertEquals(9, cluster.path("brokers").asInt(),
-                    "Cluster should report 9 replicas");
+                assertEquals(6, cluster.path("brokers").asInt(),
+                    "Cluster should report 6 broker replicas");
             })
             .thenAssertResults();
     }

@@ -65,7 +65,7 @@ class KafkaClusterOverviewToolsTest {
     void testGetOverview() {
         when(overviewService.getOverview(null, "my-cluster")).thenReturn(
             new KafkaClusterOverviewResponse(
-                new ClusterSummary("my-cluster", "kafka", "4.2.0", "Ready", 6, 6),
+                new ClusterSummary("my-cluster", "kafka", "4.2.0", "Ready", 3, 3, 3, 3),
                 new KafkaClusterOverviewResponse.OperatorSummary(
                     "strimzi-cluster-operator", "kafka", "0.45.0", "Available"),
                 List.of(
@@ -109,7 +109,7 @@ class KafkaClusterOverviewToolsTest {
     void testGetOverviewEmpty() {
         when(overviewService.getOverview(null, "empty-cluster")).thenReturn(
             new KafkaClusterOverviewResponse(
-                new ClusterSummary("empty-cluster", "kafka", "4.2.0", "Ready", 3, 3),
+                new ClusterSummary("empty-cluster", "kafka", "4.2.0", "Ready", 3, 3, null, null),
                 null,
                 List.of(),
                 ResourceCount.of(0, 0, 0),
@@ -140,7 +140,7 @@ class KafkaClusterOverviewToolsTest {
     void testGetOverviewWithNamespace() {
         when(overviewService.getOverview("kafka", "my-cluster")).thenReturn(
             new KafkaClusterOverviewResponse(
-                new ClusterSummary("my-cluster", "kafka", "4.2.0", "Ready", 3, 3),
+                new ClusterSummary("my-cluster", "kafka", "4.2.0", "Ready", 3, 3, null, null),
                 null, List.of(),
                 ResourceCount.of(10, 10, 0),
                 ResourceCount.of(2, 2, 0),
