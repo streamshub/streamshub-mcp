@@ -10,7 +10,6 @@ import io.qameta.allure.Feature;
 import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
-import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
@@ -32,8 +31,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * the server rejects them cleanly at the validation layer without crashing,
  * leaking stack traces, or making unvalidated K8s API calls.
  */
-@KubernetesTest
-@DisplayName("Input Validation")
 @Epic("Strimzi MCP E2E")
 @Feature("Input Validation")
 class InputValidationST extends AbstractST {

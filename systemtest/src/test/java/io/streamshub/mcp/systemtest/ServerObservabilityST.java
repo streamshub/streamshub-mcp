@@ -10,7 +10,6 @@ import io.qameta.allure.Feature;
 import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
-import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
@@ -36,8 +35,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Prometheus metrics exposure. Deploys only the MCP server (no Kafka)
  * and verifies that operational endpoints work correctly.
  */
-@KubernetesTest
-@DisplayName("Server Observability")
 @Epic("Strimzi MCP E2E")
 @Feature("Observability")
 class ServerObservabilityST extends AbstractST {

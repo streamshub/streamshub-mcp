@@ -12,7 +12,6 @@ import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
-import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
@@ -41,8 +40,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * KafkaMirrorMaker2 to verify that list, get, pods, logs, events,
  * and diagnostic tools return correct data.
  */
-@KubernetesTest
-@DisplayName("KafkaMirrorMaker2 MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("KafkaMirrorMaker2 Tools")
 class KafkaMirrorMaker2ToolsST extends AbstractST {
@@ -77,8 +74,6 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
 
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
-
-            KafkaTemplates.deployMetricsConfigMap(kafkaNs);
 
             // Source cluster
             krm.createOrUpdateResourceWithoutWait(

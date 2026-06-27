@@ -76,8 +76,6 @@ class KafkaConfigToolsST extends AbstractST {
 
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
 
-            KafkaTemplates.deployMetricsConfigMap(kafkaNs);
-
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build(),
