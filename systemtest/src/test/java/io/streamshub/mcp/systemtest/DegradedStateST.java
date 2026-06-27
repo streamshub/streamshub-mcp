@@ -12,7 +12,6 @@ import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
-import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
@@ -43,8 +42,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * connector configurations) to verify that MCP tools and diagnostics handle
  * unhealthy resources gracefully without crashing.
  */
-@KubernetesTest
-@DisplayName("Degraded State MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("Degraded State")
 class DegradedStateST extends AbstractST {
@@ -76,8 +73,6 @@ class DegradedStateST extends AbstractST {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
 
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
-
-            KafkaTemplates.deployMetricsConfigMap(kafkaNs);
 
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",

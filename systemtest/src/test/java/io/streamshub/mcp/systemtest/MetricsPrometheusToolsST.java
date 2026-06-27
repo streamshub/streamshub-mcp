@@ -80,6 +80,7 @@ class MetricsPrometheusToolsST extends AbstractST {
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
 
             KafkaTemplates.deployMetricsConfigMap(kafkaNs);
+            KafkaTemplates.deployPodMonitors(kafkaNs);
 
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
@@ -88,7 +89,7 @@ class MetricsPrometheusToolsST extends AbstractST {
                     Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
-                KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
+                KafkaTemplates.kafkaWithMetrics(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
                 KafkaBridgeTemplates.kafkaBridge(
@@ -330,13 +331,24 @@ class MetricsPrometheusToolsST extends AbstractST {
                 JsonNode timeSeries = root.path("time_series");
                 if (timeSeries.isArray() && !timeSeries.isEmpty()) {
                     boolean hasBrokerLabel = false;
-                    for (JsonNode series : timeSeries) {
-                        JsonNode labels = series.path("labels");
-                        if (labels.isObject()
-                                && (!labels.path("pod").isMissingNode()
-                                || !labels.path("broker_id").isMissingNode())) {
-                            hasBrokerLabel = true;
-                            break;
+
+                    // With a single broker, pod/broker_id may be factored into common_labels
+                    JsonNode commonLabels = root.path("common_labels");
+                    if (commonLabels.isObject()
+                            && (!commonLabels.path("pod").isMissingNode()
+                            || !commonLabels.path("broker_id").isMissingNode())) {
+                        hasBrokerLabel = true;
+                    }
+
+                    if (!hasBrokerLabel) {
+                        for (JsonNode series : timeSeries) {
+                            JsonNode labels = series.path("labels");
+                            if (labels.isObject()
+                                    && (!labels.path("pod").isMissingNode()
+                                    || !labels.path("broker_id").isMissingNode())) {
+                                hasBrokerLabel = true;
+                                break;
+                            }
                         }
                     }
                     assertTrue(hasBrokerLabel,

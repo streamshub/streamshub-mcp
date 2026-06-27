@@ -314,6 +314,9 @@ public final class McpServerSetup {
                 .editFirstContainer()
                     .withImage(image)
                     .withImagePullPolicy("IfNotPresent")
+                    .addToEnv(new EnvVarBuilder()
+                        .withName("QUARKUS_LOG_CATEGORY__IO_STREAMSHUB_MCP__LEVEL")
+                        .withValue("DEBUG").build())
                 .endContainer()
             .endSpec().endTemplate().endSpec();
 

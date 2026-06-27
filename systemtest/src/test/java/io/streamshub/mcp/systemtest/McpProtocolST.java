@@ -10,7 +10,6 @@ import io.qameta.allure.Feature;
 import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
-import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
@@ -35,8 +34,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * (no Strimzi or Kafka) and verifies tool discovery, prompt template
  * registration, and concurrent session handling.
  */
-@KubernetesTest
-@DisplayName("MCP Protocol")
 @Epic("Strimzi MCP E2E")
 @Feature("MCP Protocol")
 class McpProtocolST extends AbstractST {
