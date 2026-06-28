@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.systemtest;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
@@ -24,8 +25,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.Map;
 

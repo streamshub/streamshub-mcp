@@ -12,7 +12,6 @@ import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
-import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
@@ -282,12 +281,14 @@ class StrimziOperatorToolsST extends AbstractST {
         Map<String, Object> args = Map.of("filter", "ERROR", "tailLines", 100);
         mcpClient.when()
             .toolsCall("get_strimzi_operator_logs", args, response -> {
-                assertFalse(response.isError(),
-                    "get_strimzi_operator_logs with ERROR filter should not return error");
-
-                String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_strimzi_operator_logs (ERROR filter) response (length={}):\n{}",
-                    json.length(), json);
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("get_strimzi_operator_logs (ERROR filter) response (length={})",
+                    response.content().getFirst().asText().text().length());
+                assertTrue(root.path("operator_pods").isArray()
+                        && !root.path("operator_pods").isEmpty(),
+                    "operator_pods should be a non-empty array");
+                assertTrue(root.path("log_lines").isNumber(),
+                    "log_lines should be a number");
             })
             .thenAssertResults();
     }
@@ -296,17 +297,17 @@ class StrimziOperatorToolsST extends AbstractST {
     @DisplayName("get_strimzi_events returns events for a Kafka resource")
     @Story("Get Strimzi Events")
     void testGetStrimziEventsKafka() {
+        String kafkaNs = kafkaNamespace.getMetadata().getName();
         Map<String, Object> args = Map.of(
             "resourceName", Constants.KAFKA_CLUSTER_NAME,
             "resourceKind", "Kafka",
-            "namespace", kafkaNamespace.getMetadata().getName());
+            "namespace", kafkaNs);
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
-                assertFalse(response.isError(),
-                    "get_strimzi_events for Kafka should not return error");
-
-                String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_strimzi_events (Kafka) response:\n{}", json);
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("get_strimzi_events (Kafka) response:\n{}",
+                    response.content().getFirst().asText().text());
+                assertEventsResponse(root, Constants.KAFKA_CLUSTER_NAME, kafkaNs);
             })
             .thenAssertResults();
     }
@@ -315,18 +316,18 @@ class StrimziOperatorToolsST extends AbstractST {
     @DisplayName("get_strimzi_events returns time-scoped events for a Kafka resource")
     @Story("Get Strimzi Events")
     void testGetStrimziEventsTimeScoped() {
+        String kafkaNs = kafkaNamespace.getMetadata().getName();
         Map<String, Object> args = Map.of(
             "resourceName", Constants.KAFKA_CLUSTER_NAME,
             "resourceKind", "Kafka",
-            "namespace", kafkaNamespace.getMetadata().getName(),
+            "namespace", kafkaNs,
             "sinceMinutes", 60);
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
-                assertFalse(response.isError(),
-                    "get_strimzi_events with sinceMinutes should not return error");
-
-                String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_strimzi_events (time-scoped) response:\n{}", json);
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("get_strimzi_events (time-scoped) response:\n{}",
+                    response.content().getFirst().asText().text());
+                assertEventsResponse(root, Constants.KAFKA_CLUSTER_NAME, kafkaNs);
             })
             .thenAssertResults();
     }
@@ -335,17 +336,17 @@ class StrimziOperatorToolsST extends AbstractST {
     @DisplayName("get_strimzi_events returns events for StrimziOperator resource")
     @Story("Get Strimzi Events")
     void testGetStrimziEventsOperator() {
+        String strimziNs = strimziNamespace.getMetadata().getName();
         Map<String, Object> args = Map.of(
             "resourceName", "strimzi-cluster-operator",
             "resourceKind", "StrimziOperator",
-            "namespace", strimziNamespace.getMetadata().getName());
+            "namespace", strimziNs);
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
-                assertFalse(response.isError(),
-                    "get_strimzi_events for StrimziOperator should not return error");
-
-                String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_strimzi_events (StrimziOperator) response:\n{}", json);
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("get_strimzi_events (StrimziOperator) response:\n{}",
+                    response.content().getFirst().asText().text());
+                assertEventsResponse(root, "strimzi-cluster-operator", strimziNs);
             })
             .thenAssertResults();
     }
@@ -380,11 +381,9 @@ class StrimziOperatorToolsST extends AbstractST {
             "resourceKind", "InvalidKind");
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
-                assertTrue(response.isError(),
-                    "get_strimzi_events should return error for invalid resource kind");
-
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_strimzi_events (InvalidKind) error response: {}", text);
+                assertToolError(response, "resource_kind", "Supported values");
             })
             .thenAssertResults();
     }

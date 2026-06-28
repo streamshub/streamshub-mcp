@@ -12,7 +12,6 @@ import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
-import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
@@ -292,14 +291,13 @@ class KafkaTopicToolsST extends AbstractST {
             "namespace", kafkaNamespace.getMetadata().getName());
         mcpClient.when()
             .toolsCall("diagnose_kafka_topic", args, response -> {
-                assertFalse(response.isError(), "diagnose_kafka_topic should not return error");
-                assertFalse(response.content().isEmpty(),
-                    "diagnose_kafka_topic should return content");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("diagnose_kafka_topic response:\n{}", text);
-                assertTrue(text.contains("mcp-topic-alpha"),
-                    "Diagnostic response should reference the topic name");
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("diagnose_kafka_topic response:\n{}",
+                    response.content().getFirst().asText().text());
+                assertDiagnosticReport(root);
+                assertEquals("mcp-topic-alpha",
+                    root.path("topic").path("name").asText(),
+                    "Diagnostic topic name should match");
             })
             .thenAssertResults();
     }
@@ -402,15 +400,13 @@ class KafkaTopicToolsST extends AbstractST {
             "namespace", kafkaNamespace.getMetadata().getName());
         mcpClient.when()
             .toolsCall("diagnose_kafka_topic", args, response -> {
-                assertFalse(response.isError(),
-                    "diagnose_kafka_topic with clusterName should not return error");
-                assertFalse(response.content().isEmpty(),
-                    "diagnose_kafka_topic should return content");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("diagnose_kafka_topic with clusterName response:\n{}", text);
-                assertTrue(text.contains("mcp-topic-alpha"),
-                    "Diagnostic response should reference the topic name");
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("diagnose_kafka_topic with clusterName response:\n{}",
+                    response.content().getFirst().asText().text());
+                assertDiagnosticReport(root);
+                assertEquals("mcp-topic-alpha",
+                    root.path("topic").path("name").asText(),
+                    "Diagnostic topic name should match");
             })
             .thenAssertResults();
     }

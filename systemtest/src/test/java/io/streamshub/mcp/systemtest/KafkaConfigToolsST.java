@@ -12,7 +12,6 @@ import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
-import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;

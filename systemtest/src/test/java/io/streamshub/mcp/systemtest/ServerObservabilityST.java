@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.systemtest;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
@@ -74,7 +75,8 @@ class ServerObservabilityST extends AbstractST {
         String body = httpGet(mcpBaseUrl + "/q/health/live");
         LOGGER.info("Liveness response: {}", body);
 
-        assertTrue(body.contains("UP"),
+        JsonNode root = parseJson(body);
+        assertEquals("UP", root.path("status").asText(),
             "Liveness endpoint should report UP status");
     }
 
@@ -85,7 +87,8 @@ class ServerObservabilityST extends AbstractST {
         String body = httpGet(mcpBaseUrl + "/q/health/ready");
         LOGGER.info("Readiness response: {}", body);
 
-        assertTrue(body.contains("UP"),
+        JsonNode root = parseJson(body);
+        assertEquals("UP", root.path("status").asText(),
             "Readiness endpoint should report UP status");
     }
 
@@ -107,6 +110,8 @@ class ServerObservabilityST extends AbstractST {
 
         assertTrue(metrics.contains("mcp_tool_calls"),
             "Metrics should contain mcp_tool_calls counter");
+        assertTrue(metrics.contains("list_kafka_clusters"),
+            "Metrics should reference the tool name used");
     }
 
     @Test
@@ -121,6 +126,7 @@ class ServerObservabilityST extends AbstractST {
             .thenAssertResults();
 
         String metrics = httpGet(mcpBaseUrl + "/q/metrics");
+        LOGGER.info("Prometheus duration metrics response length={}", metrics.length());
 
         assertTrue(metrics.contains("mcp_tool_call_duration"),
             "Metrics should contain mcp_tool_call_duration timer");

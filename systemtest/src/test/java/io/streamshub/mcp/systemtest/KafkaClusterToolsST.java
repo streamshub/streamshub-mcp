@@ -12,7 +12,6 @@ import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
-import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
@@ -358,11 +357,9 @@ class KafkaClusterToolsST extends AbstractST {
         Map<String, Object> args = Map.of("clusterName", "nonexistent-cluster-xyz");
         mcpClient.when()
             .toolsCall("get_strimzi_kafka_cluster_overview", args, response -> {
-                assertTrue(response.isError(),
-                    "Should return error for non-existent cluster");
-
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_strimzi_kafka_cluster_overview error response: {}", text);
+                assertToolError(response, "not found");
             })
             .thenAssertResults();
     }
@@ -396,11 +393,9 @@ class KafkaClusterToolsST extends AbstractST {
             "namespace", "nonexistent-namespace");
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
-                assertTrue(response.isError(),
-                    "Should return error for wrong namespace");
-
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_cluster wrong namespace error response: {}", text);
+                assertToolError(response, "not found");
             })
             .thenAssertResults();
     }
@@ -513,15 +508,14 @@ class KafkaClusterToolsST extends AbstractST {
         Map<String, Object> args = Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME);
         mcpClient.when()
             .toolsCall("get_kafka_cluster_pods", args, response -> {
-                assertFalse(response.isError(), "get_kafka_cluster_pods should not return error");
-
-                String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_cluster_pods response (length={}):\n{}", json.length(), json);
-
-                JsonNode root = parseJson(json);
-                if (root.isArray()) {
-                    assertTrue(root.size() > 0, "Should have at least one pod entry");
-                }
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("get_kafka_cluster_pods response (length={}):\n{}",
+                    response.content().getFirst().asText().text().length(),
+                    response.content().getFirst().asText().text());
+                assertPodSummaryResponse(root.path("pod_summary"));
+                assertEquals(Environment.KAFKA_NAMESPACE,
+                    root.path("namespace").asText(),
+                    "namespace should match");
             })
             .thenAssertResults();
     }
@@ -537,11 +531,10 @@ class KafkaClusterToolsST extends AbstractST {
             "tailLines", 20);
         mcpClient.when()
             .toolsCall("get_kafka_cluster_logs", args, response -> {
-                assertFalse(response.isError(), "get_kafka_cluster_logs should not return error");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_cluster_logs response (length={})", text.length());
-                assertFalse(text.isEmpty(), "Logs response should not be empty");
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("get_kafka_cluster_logs response (length={})",
+                    response.content().getFirst().asText().text().length());
+                assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
             })
             .thenAssertResults();
     }
@@ -672,14 +665,23 @@ class KafkaClusterToolsST extends AbstractST {
         mcpClient.when()
             .toolsCall("list_kafka_node_pools", args, response -> {
                 assertFalse(response.isError(), "list_kafka_node_pools should not return error");
-                assertFalse(response.content().isEmpty(), "Should return at least one node pool");
+                assertEquals(3, response.content().size(),
+                    "Should have 3 node pools (controller-np, broker-np1, broker-np2)");
 
+                java.util.Set<String> poolNames = new java.util.HashSet<>();
                 for (var entry : response.content()) {
                     String json = entry.asText().text();
                     LOGGER.info("list_kafka_node_pools entry:\n{}", json);
                     JsonNode pool = parseJson(json);
                     assertFalse(pool.path("name").isMissingNode(), "Pool should have a name");
+                    poolNames.add(pool.path("name").asText());
                 }
+                assertTrue(poolNames.contains("controller-np"),
+                    "Should contain controller-np");
+                assertTrue(poolNames.contains("broker-np1"),
+                    "Should contain broker-np1");
+                assertTrue(poolNames.contains("broker-np2"),
+                    "Should contain broker-np2");
             })
             .thenAssertResults();
     }
@@ -693,14 +695,14 @@ class KafkaClusterToolsST extends AbstractST {
             "nodePoolName", "controller-np");
         mcpClient.when()
             .toolsCall("get_kafka_node_pool", args, response -> {
-                assertFalse(response.isError(), "get_kafka_node_pool should not return error");
-
-                String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_node_pool controller response:\n{}", json);
-
-                JsonNode pool = parseJson(json);
-                assertTrue(pool.path("roles").toString().contains("controller"),
-                    "Controller pool should have controller role");
+                JsonNode pool = assertToolSuccess(response);
+                LOGGER.info("get_kafka_node_pool controller response:\n{}",
+                    response.content().getFirst().asText().text());
+                assertEquals("controller-np", pool.path("name").asText(),
+                    "Pool name should match");
+                assertTrue(pool.path("roles").isArray(),
+                    "roles should be an array");
+                assertContainsRole(pool.path("roles"), "controller");
             })
             .thenAssertResults();
     }
@@ -714,16 +716,27 @@ class KafkaClusterToolsST extends AbstractST {
             "nodePoolName", "broker-np1");
         mcpClient.when()
             .toolsCall("get_kafka_node_pool", args, response -> {
-                assertFalse(response.isError(), "get_kafka_node_pool should not return error");
-
-                String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_node_pool broker response:\n{}", json);
-
-                JsonNode pool = parseJson(json);
-                assertTrue(pool.path("roles").toString().contains("broker"),
-                    "Broker pool should have broker role");
+                JsonNode pool = assertToolSuccess(response);
+                LOGGER.info("get_kafka_node_pool broker response:\n{}",
+                    response.content().getFirst().asText().text());
+                assertEquals("broker-np1", pool.path("name").asText(),
+                    "Pool name should match");
+                assertTrue(pool.path("roles").isArray(),
+                    "roles should be an array");
+                assertContainsRole(pool.path("roles"), "broker");
             })
             .thenAssertResults();
+    }
+
+    private static void assertContainsRole(final JsonNode roles, final String expectedRole) {
+        boolean found = false;
+        for (JsonNode role : roles) {
+            if (expectedRole.equals(role.asText())) {
+                found = true;
+                break;
+            }
+        }
+        assertTrue(found, "roles should contain '" + expectedRole + "', got: " + roles);
     }
 
     @Test
@@ -736,12 +749,11 @@ class KafkaClusterToolsST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_node_pool_pods", args, response -> {
                 assertFalse(response.isError(), "get_kafka_node_pool_pods should not return error");
-
-                String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_node_pool_pods response (length={}):\n{}", json.length(), json);
-
-                JsonNode root = parseJson(json);
-                assertNotNull(root, "Response should be valid JSON");
+                assertTrue(response.content().size() >= 1,
+                    "Should return at least one pod for broker-np1");
+                LOGGER.info("get_kafka_node_pool_pods returned {} pod(s)", response.content().size());
+                response.content().forEach(c ->
+                    LOGGER.debug("  pod: {}", c.asText().text()));
             })
             .thenAssertResults();
     }
@@ -755,11 +767,9 @@ class KafkaClusterToolsST extends AbstractST {
             "nodePoolName", "nonexistent-pool");
         mcpClient.when()
             .toolsCall("get_kafka_node_pool", args, response -> {
-                assertTrue(response.isError(),
-                    "Should return error for non-existent node pool");
-
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_node_pool error response: {}", text);
+                assertToolError(response, "not found");
             })
             .thenAssertResults();
     }

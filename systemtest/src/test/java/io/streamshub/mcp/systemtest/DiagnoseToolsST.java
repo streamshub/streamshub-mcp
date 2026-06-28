@@ -12,7 +12,6 @@ import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
-import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
@@ -191,14 +190,15 @@ class DiagnoseToolsST extends AbstractST {
             "sinceMinutes", 60);
         mcpClient.when()
             .toolsCall("diagnose_kafka_cluster", args, response -> {
-                assertFalse(response.isError(),
-                    "diagnose_kafka_cluster with symptom should not return error");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("diagnose_kafka_cluster with symptom response (length={})", text.length());
-
-                JsonNode root = parseJson(text);
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("diagnose_kafka_cluster with symptom response (length={})",
+                    response.content().getFirst().asText().text().length());
                 assertDiagnosticReport(root);
+                assertFalse(root.path("cluster").isMissingNode(),
+                    "Should have cluster section");
+                assertEquals(Constants.KAFKA_CLUSTER_NAME,
+                    root.path("cluster").path("name").asText(),
+                    "Cluster name should match");
             })
             .thenAssertResults();
     }
@@ -212,14 +212,16 @@ class DiagnoseToolsST extends AbstractST {
             "listenerName", "tls");
         mcpClient.when()
             .toolsCall("diagnose_kafka_connectivity", args, response -> {
-                assertFalse(response.isError(),
-                    "diagnose_kafka_connectivity with listener should not return error");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("diagnose_kafka_connectivity with listener response (length={})", text.length());
-
-                JsonNode root = parseJson(text);
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("diagnose_kafka_connectivity with listener response (length={})",
+                    response.content().getFirst().asText().text().length());
                 assertDiagnosticReport(root);
+                assertFalse(root.path("cluster").isMissingNode(),
+                    "Should have cluster section");
+                assertFalse(root.path("bootstrap_servers").isMissingNode(),
+                    "Should have bootstrap_servers section");
+                assertFalse(root.path("certificates").isMissingNode(),
+                    "Should have certificates section");
             })
             .thenAssertResults();
     }
@@ -383,22 +385,16 @@ class DiagnoseToolsST extends AbstractST {
             "clusterName", Constants.KAFKA_CLUSTER_NAME);
         mcpClient.when()
             .toolsCall("assess_upgrade_readiness", args, response -> {
-                assertFalse(response.isError(), "assess_upgrade_readiness should not return error");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("assess_upgrade_readiness response (length={})", text.length());
-
-                JsonNode root = parseJson(text);
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("assess_upgrade_readiness response (length={})",
+                    response.content().getFirst().asText().text().length());
                 assertDiagnosticReport(root);
+                assertFalse(root.path("cluster").isMissingNode(),
+                    "Should have cluster section");
+                assertEquals(Constants.KAFKA_CLUSTER_NAME,
+                    root.path("cluster").path("name").asText(),
+                    "Cluster name should match");
             })
             .thenAssertResults();
-    }
-
-    private static void assertDiagnosticReport(JsonNode root) {
-        JsonNode steps = root.path("steps_completed");
-        assertTrue(steps.isArray() && !steps.isEmpty(),
-            "steps_completed should be a non-empty array");
-        assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
-        assertFalse(root.path("message").isMissingNode(), "Should have message");
     }
 }

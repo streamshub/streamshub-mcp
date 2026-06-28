@@ -168,15 +168,14 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
             "namespace", Environment.KAFKA_NAMESPACE);
         mcpClient.when()
             .toolsCall("get_kafka_mirror_maker_pods", args, response -> {
-                assertFalse(response.isError(),
-                    "get_kafka_mirror_maker_pods should not return error");
-                String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_mirror_maker_pods response:\n{}", json);
-
-                JsonNode root = parseJson(json);
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("get_kafka_mirror_maker_pods response:\n{}",
+                    response.content().getFirst().asText().text());
                 assertTrue(root.has("pod_summary"), "Should have pod_summary");
                 assertTrue(root.path("pod_summary").path("total_pods").asInt() > 0,
                     "Should have at least one pod");
+                assertFalse(root.path("pod_summary").path("health_status").isMissingNode(),
+                    "Should have health_status");
             })
             .thenAssertResults();
     }
@@ -190,18 +189,10 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
             "tailLines", 50);
         mcpClient.when()
             .toolsCall("get_kafka_mirror_maker_logs", args, response -> {
-                assertFalse(response.isError(),
-                    "get_kafka_mirror_maker_logs should not return error");
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_mirror_maker_logs response (length={})", text.length());
-
-                JsonNode root = parseJson(text);
-                assertEquals(MM2_NAME, root.path("mirror_maker_name").asText(),
-                    "mirror_maker_name should match");
-                assertTrue(root.path("log_lines").isNumber(), "log_lines should be a number");
-                JsonNode pods = root.path("pods");
-                assertTrue(pods.isArray() && !pods.isEmpty(),
-                    "pods should be a non-empty array");
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("get_kafka_mirror_maker_logs response (length={})",
+                    response.content().getFirst().asText().text().length());
+                assertLogsResponse(root, "mirror_maker_name", MM2_NAME);
             })
             .thenAssertResults();
     }
@@ -244,10 +235,10 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("diagnose_kafka_mirror_maker: steps={}",
                     root.path("steps_completed").size());
-
-                JsonNode steps = root.path("steps_completed");
-                assertTrue(steps.isArray() && !steps.isEmpty(),
-                    "Diagnostic should complete at least some steps");
+                assertDiagnosticReport(root);
+                assertEquals(MM2_NAME,
+                    root.path("mirror_maker").path("name").asText(),
+                    "MirrorMaker2 name should match");
             })
             .thenAssertResults();
     }
