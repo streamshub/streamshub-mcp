@@ -33,6 +33,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -121,13 +122,15 @@ class DegradedStateST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_connector", args, response -> {
                 JsonNode root = assertToolSuccess(response);
-                LOGGER.info("get_kafka_connector (failed): state={}",
-                    root.path("state").asText());
+                LOGGER.info("get_kafka_connector (failed): readiness={}",
+                    root.path("readiness").asText());
+                assertEquals(FAILED_CONNECTOR_NAME, root.path("name").asText(),
+                    "Connector name should match");
 
-                String state = root.path("state").asText("").toLowerCase(Locale.ROOT);
-                assertTrue(state.contains("fail") || state.contains("unassign"),
-                    "Connector with invalid class should be in FAILED or UNASSIGNED state, "
-                        + "got: " + root.path("state").asText());
+                String readiness = root.path("readiness").asText("").toLowerCase(Locale.ROOT);
+                assertTrue(readiness.contains("notready") || readiness.contains("error"),
+                    "Connector with invalid class should not be Ready, "
+                        + "got readiness: " + root.path("readiness").asText());
             })
             .thenAssertResults();
     }

@@ -12,7 +12,6 @@ import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
-import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.skodjob.kubetest4j.wait.Wait;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
@@ -34,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -198,12 +198,13 @@ class KafkaRebalanceToolsST extends AbstractST {
                 } else {
                     rebalance = root;
                 }
-                assertFalse(rebalance.path("name").isMissingNode(),
-                    "Rebalance should have 'name' field");
+                assertEquals(REBALANCE_NAME, rebalance.path("name").asText(),
+                    "Rebalance name should match");
                 assertFalse(rebalance.path("state").isMissingNode(),
                     "Rebalance should have 'state' field");
-                assertFalse(rebalance.path("cluster").isMissingNode(),
-                    "Rebalance should have 'cluster' field");
+                assertEquals(Constants.KAFKA_CLUSTER_NAME,
+                    rebalance.path("cluster").asText(),
+                    "Rebalance cluster should match");
             })
             .thenAssertResults();
     }
@@ -276,12 +277,12 @@ class KafkaRebalanceToolsST extends AbstractST {
                 LOGGER.info("get_kafka_rebalance response:\n{}", json);
 
                 JsonNode rebalance = parseJson(json);
-                assertFalse(rebalance.path("name").isMissingNode(),
-                    "Should have 'name' field");
-                assertFalse(rebalance.path("namespace").isMissingNode(),
-                    "Should have 'namespace' field");
-                assertFalse(rebalance.path("cluster").isMissingNode(),
-                    "Should have 'cluster' field");
+                assertEquals(REBALANCE_NAME, rebalance.path("name").asText(),
+                    "Rebalance name should match");
+                assertEquals(kafkaNs, rebalance.path("namespace").asText(),
+                    "Namespace should match");
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, rebalance.path("cluster").asText(),
+                    "Cluster should match");
                 assertFalse(rebalance.path("state").isMissingNode(),
                     "Should have 'state' field");
                 assertFalse(rebalance.path("conditions").isMissingNode(),

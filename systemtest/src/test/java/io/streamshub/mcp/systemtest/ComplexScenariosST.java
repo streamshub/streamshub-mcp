@@ -12,7 +12,6 @@ import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
-import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
@@ -147,9 +146,18 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_strimzi_kafka_cluster_overview",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 2: get_strimzi_kafka_cluster_overview should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 2 - get_strimzi_kafka_cluster_overview response:\n{}", text);
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 2 - get_strimzi_kafka_cluster_overview response:\n{}",
+                        response.content().getFirst().asText().text());
+                    JsonNode cluster = root.path("cluster");
+                    assertFalse(cluster.isMissingNode(), "Should have cluster section");
+                    assertEquals(Constants.KAFKA_CLUSTER_NAME, cluster.path("name").asText(),
+                        "Cluster name should match");
+                    assertEquals("Ready", cluster.path("readiness").asText(),
+                        "Cluster should be Ready");
+                    assertTrue(root.path("node_pools").isArray()
+                            && !root.path("node_pools").isEmpty(),
+                        "node_pools should be a non-empty array");
                 })
             .thenAssertResults();
 
@@ -172,9 +180,10 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_cluster_pods",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 4: get_kafka_cluster_pods should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 4 - get_kafka_cluster_pods response:\n{}", text);
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 4 - get_kafka_cluster_pods response:\n{}",
+                        response.content().getFirst().asText().text());
+                    assertPodSummaryResponse(root.path("pod_summary"));
                 })
             .thenAssertResults();
 
@@ -202,10 +211,13 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("list_kafka_topics",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 1: list_kafka_topics should not return error");
-                    assertFalse(response.content().isEmpty(), "Topics content should not be empty");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 1 - list_kafka_topics response:\n{}", text);
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 1 - list_kafka_topics response:\n{}",
+                        response.content().getFirst().asText().text());
+                    assertTrue(root.has("items"), "Response should have 'items' field");
+                    assertTrue(root.path("items").isArray()
+                            && root.path("items").size() >= 1,
+                        "Should return at least 1 topic");
                 })
             .thenAssertResults();
 
@@ -213,12 +225,15 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_topic",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "topicName", TOPIC_NAME, "namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 2: get_kafka_topic should not return error");
-                    String json = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 2 - get_kafka_topic response:\n{}", json);
-                    JsonNode topic = parseJson(json);
-                    assertTrue(topic.path("name").asText().contains(TOPIC_NAME),
-                        "Topic name should contain '" + TOPIC_NAME + "'");
+                    JsonNode topic = assertToolSuccess(response);
+                    LOGGER.info("Step 2 - get_kafka_topic response:\n{}",
+                        response.content().getFirst().asText().text());
+                    assertEquals(TOPIC_NAME, topic.path("name").asText(),
+                        "Topic name should match");
+                    assertFalse(topic.path("status").isMissingNode(),
+                        "Topic should have a status field");
+                    assertFalse(topic.path("partitions").isMissingNode(),
+                        "Topic should have partitions field");
                 })
             .thenAssertResults();
 
@@ -226,9 +241,10 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_strimzi_events",
                 Map.of("resourceName", Constants.KAFKA_CLUSTER_NAME, "resourceKind", "Kafka", "namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 3: get_strimzi_events should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 3 - get_strimzi_events response:\n{}", text);
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 3 - get_strimzi_events response:\n{}",
+                        response.content().getFirst().asText().text());
+                    assertEventsResponse(root, Constants.KAFKA_CLUSTER_NAME, ns);
                 })
             .thenAssertResults();
 
@@ -236,13 +252,12 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("diagnose_kafka_topic",
                 Map.of("topicName", TOPIC_NAME, "namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 4: diagnose_kafka_topic should not return error");
-                    assertFalse(response.content().isEmpty(),
-                        "diagnose_kafka_topic should return content");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 4 - diagnose_kafka_topic response:\n{}", text);
-                    assertTrue(text.contains(TOPIC_NAME),
-                        "Diagnostic response should reference the topic name");
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 4 - diagnose_kafka_topic response:\n{}",
+                        response.content().getFirst().asText().text());
+                    assertDiagnosticReport(root);
+                    assertEquals(TOPIC_NAME, root.path("topic").path("name").asText(),
+                        "Diagnostic topic name should match");
                 })
             .thenAssertResults();
     }
@@ -257,9 +272,15 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_cluster",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 1: get_kafka_cluster should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 1 - get_kafka_cluster response:\n{}", text);
+                    JsonNode cluster = assertToolSuccess(response);
+                    LOGGER.info("Step 1 - get_kafka_cluster response:\n{}",
+                        response.content().getFirst().asText().text());
+                    assertEquals(Constants.KAFKA_CLUSTER_NAME, cluster.path("name").asText(),
+                        "Cluster name should match");
+                    assertEquals("Ready", cluster.path("readiness").asText(),
+                        "Cluster should be Ready");
+                    assertEquals(ns, cluster.path("namespace").asText(),
+                        "Namespace should match");
                 })
             .thenAssertResults();
 
@@ -301,9 +322,15 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("diagnose_kafka_connectivity",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 5: diagnose_kafka_connectivity should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 5 - diagnose_kafka_connectivity response:\n{}", text);
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 5 - diagnose_kafka_connectivity response:\n{}",
+                        response.content().getFirst().asText().text());
+                    assertDiagnosticReport(root);
+                    assertEquals(Constants.KAFKA_CLUSTER_NAME,
+                        root.path("cluster").path("name").asText(),
+                        "Cluster name should match");
+                    assertFalse(root.path("bootstrap_servers").isMissingNode(),
+                        "Should have bootstrap_servers section");
                 })
             .thenAssertResults();
     }
@@ -329,13 +356,13 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_strimzi_operator",
                 Map.of("operatorName", "strimzi-cluster-operator", "namespace", strimziNs), response -> {
-                    assertFalse(response.isError(), "Step 2: get_strimzi_operator should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 2 - get_strimzi_operator response:\n{}", text);
-
-                    JsonNode operator = parseJson(text);
-                    assertTrue(operator.path("name").asText().contains("strimzi-cluster-operator"),
-                        "Operator name should contain 'strimzi-cluster-operator'");
+                    JsonNode operator = assertToolSuccess(response);
+                    LOGGER.info("Step 2 - get_strimzi_operator response:\n{}",
+                        response.content().getFirst().asText().text());
+                    assertEquals("strimzi-cluster-operator", operator.path("name").asText(),
+                        "Operator name should match");
+                    assertTrue(operator.path("ready").asBoolean(),
+                        "Operator should be ready");
                 })
             .thenAssertResults();
 
@@ -343,9 +370,12 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_strimzi_operator_logs",
                 Map.of("namespace", strimziNs, "tailLines", 50), response -> {
-                    assertFalse(response.isError(), "Step 3: get_strimzi_operator_logs should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 3 - get_strimzi_operator_logs response (length={})", text.length());
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 3 - get_strimzi_operator_logs response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    assertTrue(root.path("operator_pods").isArray()
+                            && !root.path("operator_pods").isEmpty(),
+                        "operator_pods should be a non-empty array");
                 })
             .thenAssertResults();
 
@@ -353,9 +383,11 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_strimzi_operator_metrics",
                 Map.of("namespace", strimziNs), response -> {
-                    assertFalse(response.isError(), "Step 4: get_strimzi_operator_metrics should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 4 - get_strimzi_operator_metrics response:\n{}", text);
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 4 - get_strimzi_operator_metrics response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    assertFalse(root.path("timestamp").isMissingNode(),
+                        "Should have timestamp");
                 })
             .thenAssertResults();
 
@@ -363,9 +395,12 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("diagnose_operator_metrics",
                 Map.of("namespace", strimziNs), response -> {
-                    assertFalse(response.isError(), "Step 5: diagnose_operator_metrics should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 5 - diagnose_operator_metrics response:\n{}", text);
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 5 - diagnose_operator_metrics response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    assertDiagnosticReport(root);
+                    assertFalse(root.path("operator").isMissingNode(),
+                        "Should have operator section");
                 })
             .thenAssertResults();
     }
@@ -380,10 +415,14 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("list_kafka_connects",
                 Map.of("namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 1: list_kafka_connects should not return error");
-                    assertFalse(response.content().isEmpty(), "Connect clusters content should not be empty");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 1 - list_kafka_connects response:\n{}", text);
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 1 - list_kafka_connects response:\n{}",
+                        response.content().getFirst().asText().text());
+                    JsonNode connect = findByName(root, CONNECT_CLUSTER_NAME);
+                    assertNotNull(connect, "Should find Connect cluster '"
+                        + CONNECT_CLUSTER_NAME + "'");
+                    assertEquals("Ready", connect.path("readiness").asText(),
+                        "Connect should be Ready");
                 })
             .thenAssertResults();
 
@@ -391,13 +430,13 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_connect",
                 Map.of("connectName", CONNECT_CLUSTER_NAME, "namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 2: get_kafka_connect should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 2 - get_kafka_connect response:\n{}", text);
-
-                    JsonNode connect = parseJson(text);
+                    JsonNode connect = assertToolSuccess(response);
+                    LOGGER.info("Step 2 - get_kafka_connect response:\n{}",
+                        response.content().getFirst().asText().text());
                     assertEquals(CONNECT_CLUSTER_NAME, connect.path("name").asText(),
                         "Connect cluster name should match");
+                    assertEquals("Ready", connect.path("readiness").asText(),
+                        "Connect cluster should be Ready");
                 })
             .thenAssertResults();
 
@@ -405,9 +444,12 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_connect_pods",
                 Map.of("connectName", CONNECT_CLUSTER_NAME, "namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 3: get_kafka_connect_pods should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 3 - get_kafka_connect_pods response:\n{}", text);
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 3 - get_kafka_connect_pods response:\n{}",
+                        response.content().getFirst().asText().text());
+                    assertTrue(root.has("pod_summary"), "Should have pod_summary");
+                    assertTrue(root.path("pod_summary").path("total_pods").asInt() > 0,
+                        "Should have at least one pod");
                 })
             .thenAssertResults();
 
@@ -415,10 +457,12 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("list_kafka_connectors",
                 Map.of("namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 4: list_kafka_connectors should not return error");
-                    assertFalse(response.content().isEmpty(), "Connectors content should not be empty");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 4 - list_kafka_connectors response:\n{}", text);
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 4 - list_kafka_connectors response:\n{}",
+                        response.content().getFirst().asText().text());
+                    JsonNode connector = findByName(root, CONNECTOR_NAME);
+                    assertNotNull(connector, "Should find connector '"
+                        + CONNECTOR_NAME + "'");
                 })
             .thenAssertResults();
 
@@ -440,9 +484,13 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("diagnose_kafka_connect",
                 Map.of("connectName", CONNECT_CLUSTER_NAME, "namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 6: diagnose_kafka_connect should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 6 - diagnose_kafka_connect response:\n{}", text);
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 6 - diagnose_kafka_connect response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    assertDiagnosticReport(root);
+                    assertEquals(CONNECT_CLUSTER_NAME,
+                        root.path("connect_cluster").path("name").asText(),
+                        "Connect cluster name should match");
                 })
             .thenAssertResults();
     }
@@ -471,9 +519,10 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_cluster_pods",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 2: get_kafka_cluster_pods should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 2 - get_kafka_cluster_pods response:\n{}", text);
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 2 - get_kafka_cluster_pods response:\n{}",
+                        response.content().getFirst().asText().text());
+                    assertPodSummaryResponse(root.path("pod_summary"));
                 })
             .thenAssertResults();
 
@@ -481,9 +530,12 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_metrics",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "namespace", ns, "category", "replication"), response -> {
-                    assertFalse(response.isError(), "Step 3: get_kafka_metrics replication should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 3 - get_kafka_metrics replication response:\n{}", text);
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 3 - get_kafka_metrics replication response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    assertEquals(Constants.KAFKA_CLUSTER_NAME,
+                        root.path("cluster_name").asText(),
+                        "cluster_name should match");
                 })
             .thenAssertResults();
 
@@ -491,9 +543,14 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_cluster_certificates",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 4: get_kafka_cluster_certificates should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 4 - get_kafka_cluster_certificates response (length={})", text.length());
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 4 - get_kafka_cluster_certificates response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    assertEquals(Constants.KAFKA_CLUSTER_NAME,
+                        root.path("cluster_name").asText(),
+                        "cluster_name should match");
+                    assertTrue(root.path("certificates").isArray(),
+                        "certificates should be an array");
                 })
             .thenAssertResults();
 
@@ -501,12 +558,10 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("assess_upgrade_readiness",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 5: assess_upgrade_readiness should not return error");
-                    assertFalse(response.content().isEmpty(),
-                        "assess_upgrade_readiness should return content");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 5 - assess_upgrade_readiness response:\n{}", text);
-                    assertFalse(text.isEmpty(), "Upgrade readiness response should not be empty");
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 5 - assess_upgrade_readiness response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    assertDiagnosticReport(root);
                 })
             .thenAssertResults();
     }
@@ -550,9 +605,12 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_bridge_pods",
                 Map.of("bridgeName", BRIDGE_NAME, "namespace", ns), response -> {
-                    assertFalse(response.isError(), "Step 3: get_kafka_bridge_pods should not return error");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 3 - get_kafka_bridge_pods response:\n{}", text);
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 3 - get_kafka_bridge_pods response:\n{}",
+                        response.content().getFirst().asText().text());
+                    assertTrue(root.has("pod_summary"), "Should have pod_summary");
+                    assertTrue(root.path("pod_summary").path("total_pods").asInt() > 0,
+                        "Should have at least one pod");
                 })
             .thenAssertResults();
 
@@ -560,11 +618,10 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_bridge_logs",
                 Map.of("bridgeName", BRIDGE_NAME, "namespace", ns, "tailLines", 50), response -> {
-                    assertFalse(response.isError(), "Step 4: get_kafka_bridge_logs should not return error");
-                    assertFalse(response.content().isEmpty(),
-                        "Bridge logs content should not be empty");
-                    String text = response.content().getFirst().asText().text();
-                    LOGGER.info("Step 4 - get_kafka_bridge_logs response (length={})", text.length());
+                    JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Step 4 - get_kafka_bridge_logs response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    assertLogsResponse(root, "bridge_name", BRIDGE_NAME);
                 })
             .thenAssertResults();
     }

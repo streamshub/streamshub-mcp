@@ -44,6 +44,7 @@ import org.junit.jupiter.api.TestInstance;
 
 import java.util.Locale;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -158,5 +159,54 @@ public abstract class AbstractST {
         assertFalse(response.isError(), "Tool call should not return error");
         assertFalse(response.content().isEmpty(), "Response should have content");
         return parseJson(response.content().getFirst().asText().text());
+    }
+
+    protected static void assertDiagnosticReport(final JsonNode root) {
+        JsonNode steps = root.path("steps_completed");
+        assertTrue(steps.isArray() && !steps.isEmpty(),
+            "steps_completed should be a non-empty array");
+        assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
+        assertFalse(root.path("message").isMissingNode(), "Should have message");
+    }
+
+    protected static void assertPodSummaryResponse(final JsonNode root) {
+        assertTrue(root.path("total_pods").asInt() > 0,
+            "Should have at least one pod");
+        assertTrue(root.path("ready_pods").asInt() >= 0,
+            "ready_pods should be non-negative");
+        assertFalse(root.path("health_status").isMissingNode(),
+            "Should have health_status");
+        assertFalse(root.path("timestamp").isMissingNode(),
+            "Should have timestamp");
+    }
+
+    protected static void assertLogsResponse(final JsonNode root,
+                                             final String resourceNameField,
+                                             final String expectedName) {
+        assertEquals(expectedName, root.path(resourceNameField).asText(),
+            resourceNameField + " should match");
+        assertTrue(root.path("pods").isArray() && !root.path("pods").isEmpty(),
+            "pods should be a non-empty array");
+        assertTrue(root.path("log_lines").isNumber(),
+            "log_lines should be a number");
+        assertFalse(root.path("timestamp").isMissingNode(),
+            "Should have timestamp");
+        assertFalse(root.path("message").isMissingNode(),
+            "Should have message");
+    }
+
+    protected static void assertEventsResponse(final JsonNode root,
+                                               final String expectedResourceName,
+                                               final String expectedNamespace) {
+        assertEquals(expectedResourceName, root.path("resource_name").asText(),
+            "resource_name should match");
+        assertEquals(expectedNamespace, root.path("namespace").asText(),
+            "namespace should match");
+        assertTrue(root.path("total_events").asInt() >= 0,
+            "total_events should be non-negative");
+        assertFalse(root.path("timestamp").isMissingNode(),
+            "Should have timestamp");
+        assertFalse(root.path("message").isMissingNode(),
+            "Should have message");
     }
 }
