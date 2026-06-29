@@ -130,7 +130,8 @@ class ComplexScenariosST extends AbstractST {
                 assertFalse(response.isError(), "Step 1: get_kafka_fleet_overview should not return error");
                 assertFalse(response.content().isEmpty(), "Fleet overview content should not be empty");
                 String text = response.content().getFirst().asText().text();
-                LOGGER.info("Step 1 - get_kafka_fleet_overview response:\n{}", text);
+                LOGGER.info("Step 1 - get_kafka_fleet_overview response (length={})", text.length());
+                LOGGER.debug("Step 1 - get_kafka_fleet_overview response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertTrue(root.path("total_clusters").asInt() >= 1,
@@ -147,7 +148,9 @@ class ComplexScenariosST extends AbstractST {
             .toolsCall("get_strimzi_kafka_cluster_overview",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "namespace", ns), response -> {
                     JsonNode root = assertToolSuccess(response);
-                    LOGGER.info("Step 2 - get_strimzi_kafka_cluster_overview response:\n{}",
+                    LOGGER.info("Step 2 - get_strimzi_kafka_cluster_overview response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 2 - get_strimzi_kafka_cluster_overview response:\n{}",
                         response.content().getFirst().asText().text());
                     JsonNode cluster = root.path("cluster");
                     assertFalse(cluster.isMissingNode(), "Should have cluster section");
@@ -181,7 +184,9 @@ class ComplexScenariosST extends AbstractST {
             .toolsCall("get_kafka_cluster_pods",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "namespace", ns), response -> {
                     JsonNode root = assertToolSuccess(response);
-                    LOGGER.info("Step 4 - get_kafka_cluster_pods response:\n{}",
+                    LOGGER.info("Step 4 - get_kafka_cluster_pods response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 4 - get_kafka_cluster_pods response:\n{}",
                         response.content().getFirst().asText().text());
                     assertPodSummaryResponse(root.path("pod_summary"));
                 })
@@ -242,7 +247,9 @@ class ComplexScenariosST extends AbstractST {
             .toolsCall("get_strimzi_events",
                 Map.of("resourceName", Constants.KAFKA_CLUSTER_NAME, "resourceKind", "Kafka", "namespace", ns), response -> {
                     JsonNode root = assertToolSuccess(response);
-                    LOGGER.info("Step 3 - get_strimzi_events response:\n{}",
+                    LOGGER.info("Step 3 - get_strimzi_events response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 3 - get_strimzi_events response:\n{}",
                         response.content().getFirst().asText().text());
                     assertEventsResponse(root, Constants.KAFKA_CLUSTER_NAME, ns);
                 })
@@ -253,7 +260,9 @@ class ComplexScenariosST extends AbstractST {
             .toolsCall("diagnose_kafka_topic",
                 Map.of("topicName", TOPIC_NAME, "namespace", ns), response -> {
                     JsonNode root = assertToolSuccess(response);
-                    LOGGER.info("Step 4 - diagnose_kafka_topic response:\n{}",
+                    LOGGER.info("Step 4 - diagnose_kafka_topic response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 4 - diagnose_kafka_topic response:\n{}",
                         response.content().getFirst().asText().text());
                     assertDiagnosticReport(root);
                     assertEquals(TOPIC_NAME, root.path("topic").path("name").asText(),
@@ -323,7 +332,9 @@ class ComplexScenariosST extends AbstractST {
             .toolsCall("diagnose_kafka_connectivity",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "namespace", ns), response -> {
                     JsonNode root = assertToolSuccess(response);
-                    LOGGER.info("Step 5 - diagnose_kafka_connectivity response:\n{}",
+                    LOGGER.info("Step 5 - diagnose_kafka_connectivity response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 5 - diagnose_kafka_connectivity response:\n{}",
                         response.content().getFirst().asText().text());
                     assertDiagnosticReport(root);
                     assertEquals(Constants.KAFKA_CLUSTER_NAME,
@@ -373,6 +384,8 @@ class ComplexScenariosST extends AbstractST {
                     JsonNode root = assertToolSuccess(response);
                     LOGGER.info("Step 3 - get_strimzi_operator_logs response (length={})",
                         response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 3 - get_strimzi_operator_logs response:\n{}",
+                        response.content().getFirst().asText().text());
                     assertTrue(root.path("operator_pods").isArray()
                             && !root.path("operator_pods").isEmpty(),
                         "operator_pods should be a non-empty array");
@@ -386,6 +399,8 @@ class ComplexScenariosST extends AbstractST {
                     JsonNode root = assertToolSuccess(response);
                     LOGGER.info("Step 4 - get_strimzi_operator_metrics response (length={})",
                         response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 4 - get_strimzi_operator_metrics response:\n{}",
+                        response.content().getFirst().asText().text());
                     assertFalse(root.path("timestamp").isMissingNode(),
                         "Should have timestamp");
                 })
@@ -398,6 +413,8 @@ class ComplexScenariosST extends AbstractST {
                     JsonNode root = assertToolSuccess(response);
                     LOGGER.info("Step 5 - diagnose_operator_metrics response (length={})",
                         response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 5 - diagnose_operator_metrics response:\n{}",
+                        response.content().getFirst().asText().text());
                     assertDiagnosticReport(root);
                     assertFalse(root.path("operator").isMissingNode(),
                         "Should have operator section");
@@ -445,7 +462,9 @@ class ComplexScenariosST extends AbstractST {
             .toolsCall("get_kafka_connect_pods",
                 Map.of("connectName", CONNECT_CLUSTER_NAME, "namespace", ns), response -> {
                     JsonNode root = assertToolSuccess(response);
-                    LOGGER.info("Step 3 - get_kafka_connect_pods response:\n{}",
+                    LOGGER.info("Step 3 - get_kafka_connect_pods response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 3 - get_kafka_connect_pods response:\n{}",
                         response.content().getFirst().asText().text());
                     assertTrue(root.has("pod_summary"), "Should have pod_summary");
                     assertTrue(root.path("pod_summary").path("total_pods").asInt() > 0,
@@ -487,6 +506,8 @@ class ComplexScenariosST extends AbstractST {
                     JsonNode root = assertToolSuccess(response);
                     LOGGER.info("Step 6 - diagnose_kafka_connect response (length={})",
                         response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 6 - diagnose_kafka_connect response:\n{}",
+                        response.content().getFirst().asText().text());
                     assertDiagnosticReport(root);
                     assertEquals(CONNECT_CLUSTER_NAME,
                         root.path("connect_cluster").path("name").asText(),
@@ -520,7 +541,9 @@ class ComplexScenariosST extends AbstractST {
             .toolsCall("get_kafka_cluster_pods",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "namespace", ns), response -> {
                     JsonNode root = assertToolSuccess(response);
-                    LOGGER.info("Step 2 - get_kafka_cluster_pods response:\n{}",
+                    LOGGER.info("Step 2 - get_kafka_cluster_pods response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 2 - get_kafka_cluster_pods response:\n{}",
                         response.content().getFirst().asText().text());
                     assertPodSummaryResponse(root.path("pod_summary"));
                 })
@@ -533,6 +556,8 @@ class ComplexScenariosST extends AbstractST {
                     JsonNode root = assertToolSuccess(response);
                     LOGGER.info("Step 3 - get_kafka_metrics replication response (length={})",
                         response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 3 - get_kafka_metrics replication response:\n{}",
+                        response.content().getFirst().asText().text());
                     assertEquals(Constants.KAFKA_CLUSTER_NAME,
                         root.path("cluster_name").asText(),
                         "cluster_name should match");
@@ -546,6 +571,8 @@ class ComplexScenariosST extends AbstractST {
                     JsonNode root = assertToolSuccess(response);
                     LOGGER.info("Step 4 - get_kafka_cluster_certificates response (length={})",
                         response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 4 - get_kafka_cluster_certificates response:\n{}",
+                        response.content().getFirst().asText().text());
                     assertEquals(Constants.KAFKA_CLUSTER_NAME,
                         root.path("cluster_name").asText(),
                         "cluster_name should match");
@@ -561,6 +588,8 @@ class ComplexScenariosST extends AbstractST {
                     JsonNode root = assertToolSuccess(response);
                     LOGGER.info("Step 5 - assess_upgrade_readiness response (length={})",
                         response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 5 - assess_upgrade_readiness response:\n{}",
+                        response.content().getFirst().asText().text());
                     assertDiagnosticReport(root);
                 })
             .thenAssertResults();
@@ -606,7 +635,9 @@ class ComplexScenariosST extends AbstractST {
             .toolsCall("get_kafka_bridge_pods",
                 Map.of("bridgeName", BRIDGE_NAME, "namespace", ns), response -> {
                     JsonNode root = assertToolSuccess(response);
-                    LOGGER.info("Step 3 - get_kafka_bridge_pods response:\n{}",
+                    LOGGER.info("Step 3 - get_kafka_bridge_pods response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 3 - get_kafka_bridge_pods response:\n{}",
                         response.content().getFirst().asText().text());
                     assertTrue(root.has("pod_summary"), "Should have pod_summary");
                     assertTrue(root.path("pod_summary").path("total_pods").asInt() > 0,
@@ -621,6 +652,8 @@ class ComplexScenariosST extends AbstractST {
                     JsonNode root = assertToolSuccess(response);
                     LOGGER.info("Step 4 - get_kafka_bridge_logs response (length={})",
                         response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Step 4 - get_kafka_bridge_logs response:\n{}",
+                        response.content().getFirst().asText().text());
                     assertLogsResponse(root, "bridge_name", BRIDGE_NAME);
                 })
             .thenAssertResults();

@@ -244,6 +244,7 @@ class KafkaConnectToolsST extends AbstractST {
                 assertFalse(response.isError(), "get_kafka_connect_logs should not return error");
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_connect_logs response (length={})", text.length());
+                LOGGER.debug("get_kafka_connect_logs response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertEquals(CONNECT_CLUSTER_NAME, root.path("connect_name").asText(),
@@ -273,6 +274,7 @@ class KafkaConnectToolsST extends AbstractST {
                 assertFalse(response.isError(), "get_strimzi_events should not return error");
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_strimzi_events (KafkaConnect) response (length={})", text.length());
+                LOGGER.debug("get_strimzi_events (KafkaConnect) response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertEquals(CONNECT_CLUSTER_NAME, root.path("resource_name").asText(),

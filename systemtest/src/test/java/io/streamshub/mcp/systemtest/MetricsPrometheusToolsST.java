@@ -141,6 +141,7 @@ class MetricsPrometheusToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_metrics time range response (length={})", text.length());
+                LOGGER.debug("get_kafka_metrics time range response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
@@ -171,6 +172,7 @@ class MetricsPrometheusToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_metrics (short range) response (length={})", text.length());
+                LOGGER.debug("get_kafka_metrics (short range) response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
@@ -216,6 +218,7 @@ class MetricsPrometheusToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_exporter_metrics range response (length={})", text.length());
+                LOGGER.debug("get_kafka_exporter_metrics range response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
@@ -239,6 +242,7 @@ class MetricsPrometheusToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_bridge_metrics range response (length={})", text.length());
+                LOGGER.debug("get_kafka_bridge_metrics range response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "bridge_name", BRIDGE_NAME);
@@ -264,6 +268,7 @@ class MetricsPrometheusToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_connect_metrics range response (length={})", text.length());
+                LOGGER.debug("get_kafka_connect_metrics range response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "connect_name", CONNECT_CLUSTER_NAME);
@@ -289,6 +294,7 @@ class MetricsPrometheusToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_strimzi_operator_metrics range response (length={})", text.length());
+                LOGGER.debug("get_strimzi_operator_metrics range response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertFalse(root.path("operator_name").asText("").isEmpty(),
@@ -323,6 +329,7 @@ class MetricsPrometheusToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Prometheus broker aggregation response (length={})", text.length());
+                LOGGER.debug("Prometheus broker aggregation response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
@@ -377,6 +384,7 @@ class MetricsPrometheusToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Absolute time range response (length={})", text.length());
+                LOGGER.debug("Absolute time range response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
