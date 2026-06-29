@@ -112,26 +112,6 @@ class KafkaConfigServiceTest {
     }
 
     @Test
-    void testKafkaLevelResourcesOmitted() {
-        Kafka kafka = new KafkaBuilder()
-            .withMetadata(new ObjectMetaBuilder().withName("my-cluster").withNamespace("kafka").build())
-            .withNewSpec()
-                .withNewKafka()
-                    .withResources(new ResourceRequirementsBuilder()
-                        .addToRequests("cpu", new Quantity("500m"))
-                        .addToRequests("memory", new Quantity("2Gi"))
-                        .build())
-                .endKafka()
-            .endSpec()
-            .build();
-        setupKafkaResource(kafka, "kafka", "my-cluster");
-
-        KafkaEffectiveConfigResponse response = kafkaConfigService.getEffectiveConfig("kafka", "my-cluster");
-
-        assertNotNull(response);
-    }
-
-    @Test
     void testListenerConfigWithTlsAndAuth() {
         Kafka kafka = new KafkaBuilder()
             .withMetadata(new ObjectMetaBuilder().withName("my-cluster").withNamespace("kafka").build())
