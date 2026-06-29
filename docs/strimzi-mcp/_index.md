@@ -5,14 +5,17 @@ weight = 1
 
 The MCP Server for Strimzi provides AI assistants with tools to manage and troubleshoot Apache Kafka clusters deployed with the Strimzi operator on Kubernetes.
 
-> **Warning:**
-> This project is in early alpha version and under active development.
-> APIs, tool definitions, and configuration may change without notice.
+> **Early alpha:**
+> This project is under active development.
+> APIs, tool definitions, and configuration may change between releases without backwards compatibility guarantees.
+> We welcome feedback and bug reports via [GitHub Issues](https://github.com/streamshub/streamshub-mcp/issues).
 
 ## Overview
 
 The MCP Server for Strimzi exposes Strimzi-managed Kafka resources through the Model Context Protocol.
 AI assistants use these tools to check Kafka cluster health, collect logs, query metrics, and troubleshoot issues.
+
+See the [tools reference](tools/) for the complete catalog of 56 tools, 13 prompts, and 6 resource templates.
 
 With the MCP Server for Strimzi, AI assistants can:
 
@@ -106,14 +109,17 @@ The server includes built-in security features:
 - **Rate limiting** -- Per-category request throttling to prevent resource exhaustion
 - **Custom patterns** -- Support for organization-specific redaction rules
 
-### Observability integration
+### Observability integration (optional)
 
-The server integrates with the following observability platforms:
+The server works out of the box using Kubernetes API for logs and direct pod scraping for metrics.
+For enhanced capabilities, you can optionally integrate with external observability platforms:
 
-- **Grafana Loki** -- Centralized log collection with LogQL queries
-- **Prometheus** -- Centralized metrics with PromQL queries
+- **Grafana Loki** -- Centralized log collection with historical log queries (without Loki, logs come directly from Kubernetes pod logs)
+- **Prometheus** -- Centralized metrics with long-term retention and PromQL queries (without Prometheus, metrics are scraped directly from pod metrics endpoints)
 - **OpenShift Logging** -- Configurable label mapping for ClusterLogForwarder
-- **TLS and authentication** -- Secure connections using certificates or tokens
+- **OpenTelemetry/Jaeger** -- Distributed tracing for MCP tool performance
+
+See [configuration](configuration.md) for setup instructions.
 
 ## Documentation
 
@@ -130,7 +136,7 @@ The server integrates with the following observability platforms:
 - A Kubernetes cluster with `kubectl` access
 - The Strimzi operator deployed to your Kubernetes cluster
 - Java 21 or later and Maven 3.8 or later (for local development)
-- An AI assistant that supports MCP (Claude Desktop, Claude Code, or similar)
+- An AI assistant that supports MCP (see [MCP clients](https://modelcontextprotocol.io/clients))
 
 ### Optional
 
