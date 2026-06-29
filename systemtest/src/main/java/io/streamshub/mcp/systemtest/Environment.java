@@ -32,6 +32,10 @@ public final class Environment {
     public static final boolean SKIP_STRIMZI_INSTALL =
         Boolean.parseBoolean(ENV_VARIABLES.getOrDefault("SKIP_STRIMZI_INSTALL", "false"));
 
+    /** Skip Strimzi Drain Cleaner deployment (use existing infra). */
+    public static final boolean SKIP_DRAIN_CLEANER_INSTALL =
+        Boolean.parseBoolean(ENV_VARIABLES.getOrDefault("SKIP_DRAIN_CLEANER_INSTALL", "false"));
+
     /** Kafka cluster name to use in tests. */
     public static final String KAFKA_CLUSTER_NAME = ENV_VARIABLES.getOrDefault("KAFKA_CLUSTER_NAME", Constants.KAFKA_CLUSTER_NAME);
 
