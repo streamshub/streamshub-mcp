@@ -114,6 +114,7 @@ class DiagnoseToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("diagnose_kafka_cluster response (length={})", text.length());
+                LOGGER.debug("diagnose_kafka_cluster response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertDiagnosticReport(root);
@@ -157,6 +158,7 @@ class DiagnoseToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("diagnose_kafka_connectivity response (length={})", text.length());
+                LOGGER.debug("diagnose_kafka_connectivity response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertDiagnosticReport(root);
@@ -193,6 +195,7 @@ class DiagnoseToolsST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("diagnose_kafka_cluster with symptom response (length={})",
                     response.content().getFirst().asText().text().length());
+                LOGGER.debug("diagnose_kafka_cluster with symptom response:\n{}", response.content().getFirst().asText().text());
                 assertDiagnosticReport(root);
                 assertFalse(root.path("cluster").isMissingNode(),
                     "Should have cluster section");
@@ -215,6 +218,7 @@ class DiagnoseToolsST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("diagnose_kafka_connectivity with listener response (length={})",
                     response.content().getFirst().asText().text().length());
+                LOGGER.debug("diagnose_kafka_connectivity with listener response:\n{}", response.content().getFirst().asText().text());
                 assertDiagnosticReport(root);
                 assertFalse(root.path("cluster").isMissingNode(),
                     "Should have cluster section");
@@ -239,6 +243,7 @@ class DiagnoseToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("diagnose_kafka_metrics response (length={})", text.length());
+                LOGGER.debug("diagnose_kafka_metrics response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertDiagnosticReport(root);
@@ -275,6 +280,7 @@ class DiagnoseToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("diagnose_kafka_connect response (length={})", text.length());
+                LOGGER.debug("diagnose_kafka_connect response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertDiagnosticReport(root);
@@ -314,6 +320,7 @@ class DiagnoseToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("diagnose_kafka_connector response (length={})", text.length());
+                LOGGER.debug("diagnose_kafka_connector response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertDiagnosticReport(root);
@@ -354,6 +361,7 @@ class DiagnoseToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("diagnose_operator_metrics response (length={})", text.length());
+                LOGGER.debug("diagnose_operator_metrics response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertDiagnosticReport(root);
@@ -388,6 +396,7 @@ class DiagnoseToolsST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("assess_upgrade_readiness response (length={})",
                     response.content().getFirst().asText().text().length());
+                LOGGER.debug("assess_upgrade_readiness response:\n{}", response.content().getFirst().asText().text());
                 assertDiagnosticReport(root);
                 assertFalse(root.path("cluster").isMissingNode(),
                     "Should have cluster section");

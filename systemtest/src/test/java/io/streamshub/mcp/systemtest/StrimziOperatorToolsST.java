@@ -199,7 +199,8 @@ class StrimziOperatorToolsST extends AbstractST {
                 assertFalse(response.isError(), "get_strimzi_operator_logs should not return error");
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_strimzi_operator_logs response (length={}):\n{}", json.length(), json);
+                LOGGER.info("get_strimzi_operator_logs response (length={})", json.length());
+                LOGGER.debug("get_strimzi_operator_logs response:\n{}", json);
                 JsonNode root = parseJson(json);
 
                 // operator_pods is a string array of pod names
@@ -220,8 +221,10 @@ class StrimziOperatorToolsST extends AbstractST {
                                 "get_strimzi_operator_pod should not return error");
 
                             String podJson = podResponse.content().getFirst().asText().text();
-                            LOGGER.info("get_strimzi_operator_pod response (length={}):\n{}",
-                                podJson.length(), podJson);
+                            LOGGER.info("get_strimzi_operator_pod response (length={})",
+                                podJson.length());
+                            LOGGER.debug("get_strimzi_operator_pod response:\n{}",
+                                podJson);
 
                             JsonNode podResult = parseJson(podJson);
 
@@ -305,7 +308,9 @@ class StrimziOperatorToolsST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
                 JsonNode root = assertToolSuccess(response);
-                LOGGER.info("get_strimzi_events (Kafka) response:\n{}",
+                LOGGER.info("get_strimzi_events (Kafka) response (length={})",
+                    response.content().getFirst().asText().text().length());
+                LOGGER.debug("get_strimzi_events (Kafka) response:\n{}",
                     response.content().getFirst().asText().text());
                 assertEventsResponse(root, Constants.KAFKA_CLUSTER_NAME, kafkaNs);
             })
@@ -325,7 +330,9 @@ class StrimziOperatorToolsST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
                 JsonNode root = assertToolSuccess(response);
-                LOGGER.info("get_strimzi_events (time-scoped) response:\n{}",
+                LOGGER.info("get_strimzi_events (time-scoped) response (length={})",
+                    response.content().getFirst().asText().text().length());
+                LOGGER.debug("get_strimzi_events (time-scoped) response:\n{}",
                     response.content().getFirst().asText().text());
                 assertEventsResponse(root, Constants.KAFKA_CLUSTER_NAME, kafkaNs);
             })
@@ -344,7 +351,9 @@ class StrimziOperatorToolsST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
                 JsonNode root = assertToolSuccess(response);
-                LOGGER.info("get_strimzi_events (StrimziOperator) response:\n{}",
+                LOGGER.info("get_strimzi_events (StrimziOperator) response (length={})",
+                    response.content().getFirst().asText().text().length());
+                LOGGER.debug("get_strimzi_events (StrimziOperator) response:\n{}",
                     response.content().getFirst().asText().text());
                 assertEventsResponse(root, "strimzi-cluster-operator", strimziNs);
             })

@@ -292,7 +292,9 @@ class KafkaTopicToolsST extends AbstractST {
         mcpClient.when()
             .toolsCall("diagnose_kafka_topic", args, response -> {
                 JsonNode root = assertToolSuccess(response);
-                LOGGER.info("diagnose_kafka_topic response:\n{}",
+                LOGGER.info("diagnose_kafka_topic response (length={})",
+                    response.content().getFirst().asText().text().length());
+                LOGGER.debug("diagnose_kafka_topic response:\n{}",
                     response.content().getFirst().asText().text());
                 assertDiagnosticReport(root);
                 assertEquals("mcp-topic-alpha",
@@ -401,7 +403,9 @@ class KafkaTopicToolsST extends AbstractST {
         mcpClient.when()
             .toolsCall("diagnose_kafka_topic", args, response -> {
                 JsonNode root = assertToolSuccess(response);
-                LOGGER.info("diagnose_kafka_topic with clusterName response:\n{}",
+                LOGGER.info("diagnose_kafka_topic with clusterName response (length={})",
+                    response.content().getFirst().asText().text().length());
+                LOGGER.debug("diagnose_kafka_topic with clusterName response:\n{}",
                     response.content().getFirst().asText().text());
                 assertDiagnosticReport(root);
                 assertEquals("mcp-topic-alpha",

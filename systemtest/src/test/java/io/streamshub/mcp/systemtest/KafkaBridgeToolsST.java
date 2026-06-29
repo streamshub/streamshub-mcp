@@ -180,6 +180,7 @@ class KafkaBridgeToolsST extends AbstractST {
                 assertFalse(response.isError(), "get_kafka_bridge_logs should not return error");
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_bridge_logs response (length={})", text.length());
+                LOGGER.debug("get_kafka_bridge_logs response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertEquals(BRIDGE_NAME, root.path("bridge_name").asText(),
@@ -209,6 +210,7 @@ class KafkaBridgeToolsST extends AbstractST {
                 assertFalse(response.isError(), "get_strimzi_events should not return error");
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_strimzi_events (KafkaBridge) response (length={})", text.length());
+                LOGGER.debug("get_strimzi_events (KafkaBridge) response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertEquals(BRIDGE_NAME, root.path("resource_name").asText(),

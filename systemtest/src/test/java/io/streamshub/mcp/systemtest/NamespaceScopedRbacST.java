@@ -132,6 +132,7 @@ class NamespaceScopedRbacST extends AbstractST {
             .toolsCall("list_kafka_clusters", args, response -> {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("list_kafka_clusters (accessible ns): {}", root);
+                LOGGER.debug("list_kafka_clusters (accessible ns) response:\n{}", response.content().getFirst().asText().text());
 
                 JsonNode cluster = findByName(root, Constants.KAFKA_CLUSTER_NAME);
                 assertNotNull(cluster, "Should find cluster in accessible namespace");
@@ -178,6 +179,7 @@ class NamespaceScopedRbacST extends AbstractST {
             .toolsCall("get_kafka_cluster", args, response -> {
                 JsonNode cluster = assertToolSuccess(response);
                 LOGGER.info("get_kafka_cluster (accessible): {}", cluster.path("name"));
+                LOGGER.debug("get_kafka_cluster (accessible) response:\n{}", response.content().getFirst().asText().text());
 
                 assertEquals(Constants.KAFKA_CLUSTER_NAME, cluster.path("name").asText());
                 assertEquals("Ready", cluster.path("readiness").asText());
@@ -226,6 +228,7 @@ class NamespaceScopedRbacST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("get_kafka_cluster_pods (accessible): {} entries",
                     root.isArray() ? root.size() : 1);
+                LOGGER.debug("get_kafka_cluster_pods (accessible) response:\n{}", response.content().getFirst().asText().text());
             })
             .thenAssertResults();
     }
@@ -243,6 +246,7 @@ class NamespaceScopedRbacST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("get_kafka_cluster_logs (accessible): {} log lines",
                     root.path("log_lines").asInt());
+                LOGGER.debug("get_kafka_cluster_logs (accessible) response:\n{}", response.content().getFirst().asText().text());
                 assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText());
             })
             .thenAssertResults();
@@ -260,6 +264,7 @@ class NamespaceScopedRbacST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("get_kafka_fleet_overview (accessible ns): total_clusters={}",
                     root.path("total_clusters").asInt());
+                LOGGER.debug("get_kafka_fleet_overview (accessible ns) response:\n{}", response.content().getFirst().asText().text());
 
                 assertEquals(1, root.path("total_clusters").asInt(),
                     "Should see exactly 1 cluster in accessible namespace");
@@ -309,6 +314,7 @@ class NamespaceScopedRbacST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("diagnose_kafka_cluster (accessible): steps={}",
                     root.path("steps_completed").size());
+                LOGGER.debug("diagnose_kafka_cluster (accessible) response:\n{}", response.content().getFirst().asText().text());
 
                 JsonNode steps = root.path("steps_completed");
                 assertTrue(steps.isArray() && !steps.isEmpty(),
@@ -366,6 +372,7 @@ class NamespaceScopedRbacST extends AbstractST {
             .toolsCall("get_kafka_cluster_certificates", args, response -> {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("get_kafka_cluster_certificates (no sensitive RBAC): {}", root);
+                LOGGER.debug("get_kafka_cluster_certificates (no sensitive RBAC) response:\n{}", response.content().getFirst().asText().text());
 
                 assertTrue(root.has("listener_authentication"),
                     "Should include listener authentication info (from Kafka spec, no secrets needed)");
@@ -391,6 +398,7 @@ class NamespaceScopedRbacST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("get_kafka_cluster_certificates (with sensitive RBAC): certs={}",
                     root.path("certificates").size());
+                LOGGER.debug("get_kafka_cluster_certificates (with sensitive RBAC) response:\n{}", response.content().getFirst().asText().text());
 
                 assertTrue(root.path("certificates").isArray(),
                     "Should have certificates array");
@@ -411,6 +419,7 @@ class NamespaceScopedRbacST extends AbstractST {
             .toolsCall("list_strimzi_operators", args, response -> {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("list_strimzi_operators (accessible): {}", root);
+                LOGGER.debug("list_strimzi_operators (accessible) response:\n{}", response.content().getFirst().asText().text());
             })
             .thenAssertResults();
     }
@@ -428,6 +437,7 @@ class NamespaceScopedRbacST extends AbstractST {
             .toolsCall("get_kafka_metrics", args, response -> {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("get_kafka_metrics (no sensitive RBAC): {}", root);
+                LOGGER.debug("get_kafka_metrics (no sensitive RBAC) response:\n{}", response.content().getFirst().asText().text());
 
                 // TODO: should instead return info that MCP doesn't have access to metrics on pods?
                 assertEquals(0, root.path("metric_count").asInt(),
@@ -455,6 +465,7 @@ class NamespaceScopedRbacST extends AbstractST {
                     "Metrics call should succeed with pods/proxy permission");
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_metrics (with sensitive RBAC): response length={}", text.length());
+                LOGGER.debug("get_kafka_metrics (with sensitive RBAC) response:\n{}", text);
             })
             .thenAssertResults();
     }
@@ -517,6 +528,7 @@ class NamespaceScopedRbacST extends AbstractST {
 
                 String fullResponse = response.content().getFirst().asText().text();
                 LOGGER.info("list_kafka_users response length={}", fullResponse.length());
+                LOGGER.debug("list_kafka_users response:\n{}", fullResponse);
 
                 assertFalse(fullResponse.contains("sasl.jaas.config"),
                     "User listing should not contain JAAS config values");

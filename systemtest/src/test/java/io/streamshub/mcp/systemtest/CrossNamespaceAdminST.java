@@ -145,6 +145,7 @@ class CrossNamespaceAdminST extends AbstractST {
                 assertEquals("Ready", cluster.path("readiness").asText());
                 LOGGER.info("Resolved to ns-1: {}/{}", cluster.path("namespace").asText(),
                     cluster.path("name").asText());
+                LOGGER.debug("get_kafka_cluster (ns-1) response:\n{}", response.content().getFirst().asText().text());
             })
             .thenAssertResults();
     }
@@ -165,6 +166,7 @@ class CrossNamespaceAdminST extends AbstractST {
                 assertEquals("Ready", cluster.path("readiness").asText());
                 LOGGER.info("Resolved to ns-2: {}/{}", cluster.path("namespace").asText(),
                     cluster.path("name").asText());
+                LOGGER.debug("get_kafka_cluster (ns-2) response:\n{}", response.content().getFirst().asText().text());
             })
             .thenAssertResults();
     }
@@ -262,6 +264,7 @@ class CrossNamespaceAdminST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("compare_kafka_clusters (cross-ns): length={}",
                     root.toString().length());
+                LOGGER.debug("compare_kafka_clusters (cross-ns) response:\n{}", response.content().getFirst().asText().text());
             })
             .thenAssertResults();
     }
@@ -306,6 +309,7 @@ class CrossNamespaceAdminST extends AbstractST {
                     JsonNode root = assertToolSuccess(response);
                     LOGGER.info("Diagnose (ns-1): steps={}",
                         root.path("steps_completed").size());
+                    LOGGER.debug("diagnose_kafka_cluster (ns-1) response:\n{}", response.content().getFirst().asText().text());
                     assertTrue(root.path("steps_completed").isArray(),
                         "Should complete diagnostic steps");
                 })

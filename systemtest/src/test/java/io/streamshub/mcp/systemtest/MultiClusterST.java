@@ -117,6 +117,7 @@ class MultiClusterST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("Fleet overview: total_clusters={}, total_brokers={}",
                     root.path("total_clusters").asInt(), root.path("total_brokers").asInt());
+                LOGGER.debug("get_kafka_fleet_overview response:\n{}", response.content().getFirst().asText().text());
 
                 assertTrue(root.path("total_clusters").asInt() >= 2,
                     "Should have at least 2 clusters");
@@ -143,6 +144,7 @@ class MultiClusterST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("Fleet overview (ns filter): total_clusters={}",
                     root.path("total_clusters").asInt());
+                LOGGER.debug("get_kafka_fleet_overview (ns filter) response:\n{}", response.content().getFirst().asText().text());
 
                 assertTrue(root.path("total_clusters").asInt() >= 2,
                     "Both clusters are in same namespace — should see at least 2");
@@ -192,6 +194,7 @@ class MultiClusterST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
                 JsonNode cluster = assertToolSuccess(response);
+                LOGGER.info("get_kafka_cluster (cluster 1) response:\n{}", response.content().getFirst().asText().text());
                 assertEquals(Constants.KAFKA_CLUSTER_NAME, cluster.path("name").asText());
                 assertEquals("Ready", cluster.path("readiness").asText());
             })
@@ -206,6 +209,7 @@ class MultiClusterST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
                 JsonNode cluster = assertToolSuccess(response);
+                LOGGER.info("get_kafka_cluster (cluster 2) response:\n{}", response.content().getFirst().asText().text());
                 assertEquals(Constants.KAFKA_CLUSTER_NAME_2, cluster.path("name").asText());
                 assertEquals("Ready", cluster.path("readiness").asText());
             })
@@ -308,7 +312,8 @@ class MultiClusterST extends AbstractST {
             .toolsCall("compare_kafka_clusters", args, response -> {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("compare_kafka_clusters response (length={})",
-                    root.toString().length());
+                    response.content().getFirst().asText().text().length());
+                LOGGER.debug("compare_kafka_clusters response:\n{}", response.content().getFirst().asText().text());
             })
             .thenAssertResults();
     }

@@ -115,6 +115,7 @@ class MetricsToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_metrics response (length={})", text.length());
+                LOGGER.debug("get_kafka_metrics response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
@@ -137,6 +138,7 @@ class MetricsToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_metrics replication response (length={})", text.length());
+                LOGGER.debug("get_kafka_metrics replication response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
@@ -185,6 +187,7 @@ class MetricsToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_exporter_metrics response (length={})", text.length());
+                LOGGER.debug("get_kafka_exporter_metrics response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
@@ -206,6 +209,7 @@ class MetricsToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_bridge_metrics response (length={})", text.length());
+                LOGGER.debug("get_kafka_bridge_metrics response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "bridge_name", BRIDGE_NAME);
@@ -229,6 +233,7 @@ class MetricsToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_connect_metrics response (length={})", text.length());
+                LOGGER.debug("get_kafka_connect_metrics response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "connect_name", CONNECT_CLUSTER_NAME);
@@ -252,6 +257,7 @@ class MetricsToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_strimzi_operator_metrics response (length={})", text.length());
+                LOGGER.debug("get_strimzi_operator_metrics response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertFalse(root.path("operator_name").asText("").isEmpty(),
@@ -282,6 +288,7 @@ class MetricsToolsST extends AbstractST {
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_metrics broker aggregation response (length={})", text.length());
+                LOGGER.debug("get_kafka_metrics broker aggregation response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
@@ -311,6 +318,7 @@ class MetricsToolsST extends AbstractST {
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_exporter_metrics topic aggregation response (length={})",
                     text.length());
+                LOGGER.debug("get_kafka_exporter_metrics topic aggregation response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
@@ -339,6 +347,7 @@ class MetricsToolsST extends AbstractST {
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_metrics performance+requestTypes response (length={})",
                     text.length());
+                LOGGER.debug("get_kafka_metrics performance+requestTypes response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);

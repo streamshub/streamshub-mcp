@@ -124,6 +124,7 @@ class DegradedStateST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("get_kafka_connector (failed): readiness={}",
                     root.path("readiness").asText());
+                LOGGER.debug("get_kafka_connector (failed) response:\n{}", response.content().getFirst().asText().text());
                 assertEquals(FAILED_CONNECTOR_NAME, root.path("name").asText(),
                     "Connector name should match");
 
@@ -155,6 +156,7 @@ class DegradedStateST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("diagnose_kafka_connector (failed): steps={}",
                     root.path("steps_completed").size());
+                LOGGER.debug("diagnose_kafka_connector (failed) response:\n{}", response.content().getFirst().asText().text());
 
                 JsonNode steps = root.path("steps_completed");
                 assertTrue(steps.isArray() && !steps.isEmpty(),
@@ -183,6 +185,7 @@ class DegradedStateST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("diagnose_kafka_connect (mixed connectors): steps={}",
                     root.path("steps_completed").size());
+                LOGGER.debug("diagnose_kafka_connect (mixed connectors) response:\n{}", response.content().getFirst().asText().text());
 
                 JsonNode steps = root.path("steps_completed");
                 assertTrue(steps.isArray() && !steps.isEmpty(),

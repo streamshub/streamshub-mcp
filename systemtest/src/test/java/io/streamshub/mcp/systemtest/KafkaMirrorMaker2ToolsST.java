@@ -169,7 +169,9 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_mirror_maker_pods", args, response -> {
                 JsonNode root = assertToolSuccess(response);
-                LOGGER.info("get_kafka_mirror_maker_pods response:\n{}",
+                LOGGER.info("get_kafka_mirror_maker_pods response (length={})",
+                    response.content().getFirst().asText().text().length());
+                LOGGER.debug("get_kafka_mirror_maker_pods response:\n{}",
                     response.content().getFirst().asText().text());
                 assertTrue(root.has("pod_summary"), "Should have pod_summary");
                 assertTrue(root.path("pod_summary").path("total_pods").asInt() > 0,
@@ -192,6 +194,8 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("get_kafka_mirror_maker_logs response (length={})",
                     response.content().getFirst().asText().text().length());
+                LOGGER.debug("get_kafka_mirror_maker_logs response:\n{}",
+                    response.content().getFirst().asText().text());
                 assertLogsResponse(root, "mirror_maker_name", MM2_NAME);
             })
             .thenAssertResults();
@@ -210,6 +214,7 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
                 assertFalse(response.isError(), "get_strimzi_events should not return error");
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_strimzi_events (MM2) response (length={})", text.length());
+                LOGGER.debug("get_strimzi_events (MM2) response:\n{}", text);
 
                 JsonNode root = parseJson(text);
                 assertEquals(MM2_NAME, root.path("resource_name").asText(),
@@ -235,6 +240,8 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("diagnose_kafka_mirror_maker: steps={}",
                     root.path("steps_completed").size());
+                LOGGER.debug("diagnose_kafka_mirror_maker response:\n{}",
+                    response.content().getFirst().asText().text());
                 assertDiagnosticReport(root);
                 assertEquals(MM2_NAME,
                     root.path("mirror_maker").path("name").asText(),
