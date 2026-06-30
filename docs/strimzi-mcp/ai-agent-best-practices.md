@@ -5,31 +5,29 @@ weight = 3
 
 Tips, tricks, and corner cases for getting the best results when using the MCP Server for Strimzi with AI assistants.
 
-## Do not write scripts to parse tool responses
+## Why structured MCP responses are better than scripts
 
-All MCP tool responses are structured JSON with snake_case field names. The AI should interpret them directly without writing Python, bash, or other scripts to parse the data.
+All MCP tool responses are structured JSON with pre-computed summary statistics, interpretation guides, and (for diagnostics) automated root cause analysis.
+The AI assistant should read these fields directly rather than writing scripts to re-process the raw data.
 
-**Why this matters**: The MCP server already provides summary statistics, interpretation guides, and pre-analyzed diagnostic results. Writing a script to parse the same data adds latency, introduces errors, and wastes tokens on code that is not needed.
+**What the MCP server already provides**:
 
-**What to avoid**:
+- **Summary statistics** on metrics: `min`, `max`, `avg`, `latest`, `delta` — no need to compute these from raw data points
+- **Interpretation guides** with thresholds: the response tells the AI what values are healthy, warning, or critical
+- **Diagnostic analysis**: the `analysis` field in diagnostic reports contains LLM-generated root cause analysis
+- **Error categorization**: log collection responses group errors by category and frequency
+
+**Example**:
 ```
 User: "What are the current metrics for mcp-cluster?"
 
-Bad AI response: "Let me write a Python script to parse the metrics..."
-```
-
-**What to do instead**:
-```
-User: "What are the current metrics for mcp-cluster?"
-
-Good AI response: "I'll call get_kafka_metrics to retrieve the current metrics.
-Based on the response, here are the key findings:
+Good AI response: "Based on the metrics response:
 - Under-replicated partitions: 0 (healthy)
 - Messages in: 1,250/sec across all brokers
 - CPU usage: 45% average (within normal range)"
 ```
 
-If the AI assistant starts writing scripts, remind it: *"Interpret the JSON response directly. Do not write scripts to parse MCP tool data. The response already contains summary statistics and analysis."*
+If the AI assistant starts writing Python or bash scripts to parse MCP data, remind it: *"Interpret the JSON response directly — the response already contains summary statistics and analysis."*
 
 ## Choose the right investigation approach
 
@@ -209,12 +207,21 @@ MCP resource templates expose live Kubernetes state as structured JSON. Attach a
 
 ## Understand Sampling and Elicitation
 
-**Sampling** and **Elicitation** are server-driven MCP features. The AI agent does not call them directly; the MCP server uses them internally when running diagnostic tools.
+**Sampling** and **Elicitation** are optional MCP features that enhance diagnostic workflows.
+You do not need to call them directly — the MCP server uses them internally when running diagnostic tools.
 
-- **Sampling**: Diagnostic tools send Phase 1 data to the LLM for triage (deciding which areas to investigate further), then gather targeted data and produce root cause analysis. This happens automatically when the AI client supports Sampling.
-- **Elicitation**: When a tool needs user input (for example, choosing which namespace when multiple match), the server prompts the user directly through the AI client.
+**Sampling in plain language**: When you ask the MCP server to diagnose a Kafka cluster, it first collects basic data (status, pods, conditions).
+If your AI client supports Sampling, the server sends this initial data to the AI to ask "What areas should I investigate deeper?"
+The AI responds with a focus area (for example, "the broker with restarts"), and the server collects detailed data only for that area.
+This makes diagnostics faster and more focused.
+Without Sampling, the server collects everything and lets the AI analyze the full dataset afterward — this still works, but responses may be larger.
 
-If the client does not support Sampling, diagnostic tools still work but gather all data without selective investigation, which may produce larger responses.
+**Elicitation in plain language**: When a tool finds multiple matches (for example, two namespaces both contain a cluster named "my-cluster"), the server asks you to choose which one.
+If your AI client supports Elicitation, you see a prompt asking you to pick.
+Without Elicitation, the tool returns an error asking you to specify the namespace in your next message.
+
+Neither feature is required.
+All tools work without them — they just provide a smoother experience when available.
 
 ## MCP client compatibility
 
@@ -242,6 +249,40 @@ Direct tool calls via MCP protocol:
   }
 }
 ```
+
+## Getting started: progressive complexity
+
+If you are new to the MCP Server for Strimzi, follow this path to build familiarity:
+
+**Level 1 — Basic queries** (individual tools):
+```
+"List all Kafka clusters"
+"What's the status of mcp-cluster?"
+"List topics in mcp-cluster"
+```
+
+**Level 2 — Targeted investigation** (individual tools with parameters):
+```
+"Show me logs from mcp-cluster in the last 30 minutes, filtered to errors"
+"What are the replication metrics for prod-cluster?"
+"Show me Kubernetes events for mcp-cluster"
+```
+
+**Level 3 — Automated diagnostics** (diagnostic tools):
+```
+"Diagnose issues with mcp-cluster"
+"Check connectivity for prod-cluster"
+"Compare dev-cluster and prod-cluster configurations"
+```
+
+**Level 4 — Guided investigation** (prompt templates):
+```
+"Use the diagnose-cluster-issue prompt for mcp-cluster with symptom 'consumers lagging'"
+"Use the audit-security prompt to review mcp-cluster"
+"Use the analyze-capacity prompt for prod-cluster"
+```
+
+See [prompts and resources](tools/prompts-and-resources.md) for the full list of prompt templates and their parameters.
 
 ## Next steps
 
