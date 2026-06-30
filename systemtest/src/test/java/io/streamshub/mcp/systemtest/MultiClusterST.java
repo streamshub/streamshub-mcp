@@ -164,7 +164,8 @@ class MultiClusterST extends AbstractST {
                 assertFalse(response.isError(), "list_kafka_clusters should not return error");
 
                 // MCP framework returns one content block per list element
-                LOGGER.info("list_kafka_clusters: {} content entries", response.content().size());
+                LOGGER.info("list_kafka_clusters response ({} content entries)", response.content().size());
+                LOGGER.debug("list_kafka_clusters response:\n{}", response.content().getFirst().asText().text());
                 assertTrue(response.content().size() >= 2,
                     "Should have at least 2 content entries (one per cluster)");
 
@@ -194,7 +195,9 @@ class MultiClusterST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
                 JsonNode cluster = assertToolSuccess(response);
-                LOGGER.info("get_kafka_cluster (cluster 1) response:\n{}", response.content().getFirst().asText().text());
+                LOGGER.info("get_kafka_cluster (cluster 1) response (length={})",
+                    response.content().getFirst().asText().text().length());
+                LOGGER.debug("get_kafka_cluster (cluster 1) response:\n{}", response.content().getFirst().asText().text());
                 assertEquals(Constants.KAFKA_CLUSTER_NAME, cluster.path("name").asText());
                 assertEquals("Ready", cluster.path("readiness").asText());
             })
@@ -209,7 +212,9 @@ class MultiClusterST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
                 JsonNode cluster = assertToolSuccess(response);
-                LOGGER.info("get_kafka_cluster (cluster 2) response:\n{}", response.content().getFirst().asText().text());
+                LOGGER.info("get_kafka_cluster (cluster 2) response (length={})",
+                    response.content().getFirst().asText().text().length());
+                LOGGER.debug("get_kafka_cluster (cluster 2) response:\n{}", response.content().getFirst().asText().text());
                 assertEquals(Constants.KAFKA_CLUSTER_NAME_2, cluster.path("name").asText());
                 assertEquals("Ready", cluster.path("readiness").asText());
             })
@@ -229,8 +234,10 @@ class MultiClusterST extends AbstractST {
             .toolsCall("get_kafka_bootstrap_servers",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME), response -> {
                     JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Bootstrap servers (cluster 1) response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Bootstrap servers (cluster 1) response:\n{}", response.content().getFirst().asText().text());
                     bootstrap1.append(root.toString());
-                    LOGGER.info("Bootstrap servers (cluster 1): {}", bootstrap1);
                 })
             .thenAssertResults();
 
@@ -238,8 +245,10 @@ class MultiClusterST extends AbstractST {
             .toolsCall("get_kafka_bootstrap_servers",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME_2), response -> {
                     JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Bootstrap servers (cluster 2) response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Bootstrap servers (cluster 2) response:\n{}", response.content().getFirst().asText().text());
                     bootstrap2.append(root.toString());
-                    LOGGER.info("Bootstrap servers (cluster 2): {}", bootstrap2);
                 })
             .thenAssertResults();
 
@@ -258,6 +267,7 @@ class MultiClusterST extends AbstractST {
                     assertFalse(response.isError());
                     assertFalse(response.content().isEmpty(), "Cluster 1 should have node pools");
                     LOGGER.info("Node pools (cluster 1): {} entries", response.content().size());
+                    LOGGER.debug("Node pools (cluster 1) response:\n{}", response.content().getFirst().asText().text());
                 })
             .thenAssertResults();
 
@@ -268,6 +278,7 @@ class MultiClusterST extends AbstractST {
                     assertFalse(response.isError());
                     assertFalse(response.content().isEmpty(), "Cluster 2 should have node pools");
                     LOGGER.info("Node pools (cluster 2): {} entries", response.content().size());
+                    LOGGER.debug("Node pools (cluster 2) response:\n{}", response.content().getFirst().asText().text());
                 })
             .thenAssertResults();
     }
@@ -282,10 +293,11 @@ class MultiClusterST extends AbstractST {
             .toolsCall("get_strimzi_kafka_cluster_overview",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME), response -> {
                     JsonNode root = assertToolSuccess(response);
-                    assertEquals(Constants.KAFKA_CLUSTER_NAME,
-                        root.path("cluster").path("name").asText());
                     LOGGER.info("Cluster overview (1): pools={}",
                         root.path("node_pools").size());
+                    LOGGER.debug("get_strimzi_kafka_cluster_overview (1) response:\n{}", response.content().getFirst().asText().text());
+                    assertEquals(Constants.KAFKA_CLUSTER_NAME,
+                        root.path("cluster").path("name").asText());
                 })
             .thenAssertResults();
 
@@ -293,10 +305,11 @@ class MultiClusterST extends AbstractST {
             .toolsCall("get_strimzi_kafka_cluster_overview",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME_2), response -> {
                     JsonNode root = assertToolSuccess(response);
-                    assertEquals(Constants.KAFKA_CLUSTER_NAME_2,
-                        root.path("cluster").path("name").asText());
                     LOGGER.info("Cluster overview (2): pools={}",
                         root.path("node_pools").size());
+                    LOGGER.debug("get_strimzi_kafka_cluster_overview (2) response:\n{}", response.content().getFirst().asText().text());
+                    assertEquals(Constants.KAFKA_CLUSTER_NAME_2,
+                        root.path("cluster").path("name").asText());
                 })
             .thenAssertResults();
     }
@@ -314,6 +327,22 @@ class MultiClusterST extends AbstractST {
                 LOGGER.info("compare_kafka_clusters response (length={})",
                     response.content().getFirst().asText().text().length());
                 LOGGER.debug("compare_kafka_clusters response:\n{}", response.content().getFirst().asText().text());
+
+                assertEquals(Constants.KAFKA_CLUSTER_NAME,
+                    root.path("cluster1_config").path("name").asText(),
+                    "cluster1_config.name should match first cluster");
+                assertEquals(Constants.KAFKA_CLUSTER_NAME_2,
+                    root.path("cluster2_config").path("name").asText(),
+                    "cluster2_config.name should match second cluster");
+                assertFalse(root.path("steps_completed").isMissingNode(),
+                    "Should have steps_completed");
+                assertTrue(root.path("steps_completed").isArray()
+                        && !root.path("steps_completed").isEmpty(),
+                    "steps_completed should be a non-empty array");
+                assertFalse(root.path("timestamp").isMissingNode(),
+                    "Should have timestamp");
+                assertFalse(root.path("message").isMissingNode(),
+                    "Should have message");
             })
             .thenAssertResults();
     }

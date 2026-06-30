@@ -139,13 +139,13 @@ class CrossNamespaceAdminST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
                 JsonNode cluster = assertToolSuccess(response);
+                LOGGER.info("get_kafka_cluster (ns-1) response (length={})",
+                    response.content().getFirst().asText().text().length());
+                LOGGER.debug("get_kafka_cluster (ns-1) response:\n{}", response.content().getFirst().asText().text());
                 assertEquals(Constants.KAFKA_CLUSTER_NAME, cluster.path("name").asText());
                 assertEquals(Constants.KAFKA_NAMESPACE, cluster.path("namespace").asText(),
                     "Should resolve to namespace 1");
                 assertEquals("Ready", cluster.path("readiness").asText());
-                LOGGER.info("Resolved to ns-1: {}/{}", cluster.path("namespace").asText(),
-                    cluster.path("name").asText());
-                LOGGER.debug("get_kafka_cluster (ns-1) response:\n{}", response.content().getFirst().asText().text());
             })
             .thenAssertResults();
     }
@@ -160,13 +160,13 @@ class CrossNamespaceAdminST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
                 JsonNode cluster = assertToolSuccess(response);
+                LOGGER.info("get_kafka_cluster (ns-2) response (length={})",
+                    response.content().getFirst().asText().text().length());
+                LOGGER.debug("get_kafka_cluster (ns-2) response:\n{}", response.content().getFirst().asText().text());
                 assertEquals(Constants.KAFKA_CLUSTER_NAME, cluster.path("name").asText());
                 assertEquals(Constants.KAFKA_NAMESPACE_2, cluster.path("namespace").asText(),
                     "Should resolve to namespace 2");
                 assertEquals("Ready", cluster.path("readiness").asText());
-                LOGGER.info("Resolved to ns-2: {}/{}", cluster.path("namespace").asText(),
-                    cluster.path("name").asText());
-                LOGGER.debug("get_kafka_cluster (ns-2) response:\n{}", response.content().getFirst().asText().text());
             })
             .thenAssertResults();
     }
@@ -183,6 +183,7 @@ class CrossNamespaceAdminST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("Fleet overview (all): total_clusters={}",
                     root.path("total_clusters").asInt());
+                LOGGER.debug("get_kafka_fleet_overview (all) response:\n{}", response.content().getFirst().asText().text());
 
                 assertTrue(root.path("total_clusters").asInt() >= 2,
                     "Should count at least 2 clusters");
@@ -198,6 +199,9 @@ class CrossNamespaceAdminST extends AbstractST {
             .toolsCall("get_kafka_fleet_overview",
                 Map.of("namespace", Constants.KAFKA_NAMESPACE), response -> {
                     JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Fleet overview (ns-1): total_clusters={}",
+                        root.path("total_clusters").asInt());
+                    LOGGER.debug("get_kafka_fleet_overview (ns-1) response:\n{}", response.content().getFirst().asText().text());
                     assertEquals(1, root.path("total_clusters").asInt(),
                         "Namespace 1 should have exactly 1 cluster");
 
@@ -211,6 +215,9 @@ class CrossNamespaceAdminST extends AbstractST {
             .toolsCall("get_kafka_fleet_overview",
                 Map.of("namespace", Constants.KAFKA_NAMESPACE_2), response -> {
                     JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Fleet overview (ns-2): total_clusters={}",
+                        root.path("total_clusters").asInt());
+                    LOGGER.debug("get_kafka_fleet_overview (ns-2) response:\n{}", response.content().getFirst().asText().text());
                     assertEquals(1, root.path("total_clusters").asInt(),
                         "Namespace 2 should have exactly 1 cluster");
 
@@ -231,6 +238,9 @@ class CrossNamespaceAdminST extends AbstractST {
             .toolsCall("list_kafka_clusters",
                 Map.of("namespace", Constants.KAFKA_NAMESPACE), response -> {
                     JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("list_kafka_clusters (ns-1) response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    LOGGER.debug("list_kafka_clusters (ns-1) response:\n{}", response.content().getFirst().asText().text());
                     JsonNode cluster = findByName(root, Constants.KAFKA_CLUSTER_NAME);
                     assertNotNull(cluster, "Should find cluster in namespace 1");
                     assertEquals(Constants.KAFKA_NAMESPACE, cluster.path("namespace").asText());
@@ -241,6 +251,9 @@ class CrossNamespaceAdminST extends AbstractST {
             .toolsCall("list_kafka_clusters",
                 Map.of("namespace", Constants.KAFKA_NAMESPACE_2), response -> {
                     JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("list_kafka_clusters (ns-2) response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    LOGGER.debug("list_kafka_clusters (ns-2) response:\n{}", response.content().getFirst().asText().text());
                     JsonNode cluster = findByName(root, Constants.KAFKA_CLUSTER_NAME);
                     assertNotNull(cluster, "Should find cluster in namespace 2");
                     assertEquals(Constants.KAFKA_NAMESPACE_2, cluster.path("namespace").asText());
@@ -262,9 +275,26 @@ class CrossNamespaceAdminST extends AbstractST {
         mcpClient.when()
             .toolsCall("compare_kafka_clusters", args, response -> {
                 JsonNode root = assertToolSuccess(response);
-                LOGGER.info("compare_kafka_clusters (cross-ns): length={}",
-                    root.toString().length());
+                LOGGER.info("compare_kafka_clusters (cross-ns) response (length={})",
+                    response.content().getFirst().asText().text().length());
                 LOGGER.debug("compare_kafka_clusters (cross-ns) response:\n{}", response.content().getFirst().asText().text());
+
+                assertEquals(Constants.KAFKA_CLUSTER_NAME,
+                    root.path("cluster1_config").path("name").asText(),
+                    "cluster1_config.name should match");
+                assertEquals(Constants.KAFKA_CLUSTER_NAME,
+                    root.path("cluster2_config").path("name").asText(),
+                    "cluster2_config.name should match");
+                assertEquals(Constants.KAFKA_NAMESPACE,
+                    root.path("cluster1_config").path("namespace").asText(),
+                    "cluster1_config.namespace should be namespace 1");
+                assertEquals(Constants.KAFKA_NAMESPACE_2,
+                    root.path("cluster2_config").path("namespace").asText(),
+                    "cluster2_config.namespace should be namespace 2");
+                assertNotNull(root.path("steps_completed"),
+                    "Should have steps_completed");
+                assertNotNull(root.path("timestamp"),
+                    "Should have timestamp");
             })
             .thenAssertResults();
     }
@@ -281,6 +311,9 @@ class CrossNamespaceAdminST extends AbstractST {
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME,
                     "namespace", Constants.KAFKA_NAMESPACE), response -> {
                     JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Bootstrap servers (ns-1) response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Bootstrap servers (ns-1) response:\n{}", response.content().getFirst().asText().text());
                     bootstrap1.append(root.toString());
                 })
             .thenAssertResults();
@@ -290,6 +323,9 @@ class CrossNamespaceAdminST extends AbstractST {
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME,
                     "namespace", Constants.KAFKA_NAMESPACE_2), response -> {
                     JsonNode root = assertToolSuccess(response);
+                    LOGGER.info("Bootstrap servers (ns-2) response (length={})",
+                        response.content().getFirst().asText().text().length());
+                    LOGGER.debug("Bootstrap servers (ns-2) response:\n{}", response.content().getFirst().asText().text());
                     bootstrap2.append(root.toString());
                 })
             .thenAssertResults();

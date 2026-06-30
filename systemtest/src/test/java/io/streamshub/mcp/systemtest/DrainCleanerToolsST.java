@@ -96,7 +96,8 @@ class DrainCleanerToolsST extends AbstractST {
                 assertFalse(response.content().isEmpty(), "Should return at least one content entry");
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("list_drain_cleaners response:\n{}", json);
+                LOGGER.info("list_drain_cleaners response (length={})", json.length());
+                LOGGER.debug("list_drain_cleaners response:\n{}", json);
 
                 JsonNode root = parseJson(json);
 
@@ -130,7 +131,8 @@ class DrainCleanerToolsST extends AbstractST {
                 assertFalse(response.isError(), "list_drain_cleaners should not return error");
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("list_drain_cleaners (with namespace) response:\n{}", json);
+                LOGGER.info("list_drain_cleaners (with namespace) response (length={})", json.length());
+                LOGGER.debug("list_drain_cleaners (with namespace) response:\n{}", json);
 
                 JsonNode root = parseJson(json);
 
@@ -162,7 +164,8 @@ class DrainCleanerToolsST extends AbstractST {
                 assertFalse(response.isError(), "get_drain_cleaner should not return error");
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_drain_cleaner response:\n{}", json);
+                LOGGER.info("get_drain_cleaner response (length={})", json.length());
+                LOGGER.debug("get_drain_cleaner response:\n{}", json);
 
                 JsonNode dc = parseJson(json);
 
@@ -227,7 +230,8 @@ class DrainCleanerToolsST extends AbstractST {
                     "check_drain_cleaner_readiness should not return error");
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("check_drain_cleaner_readiness response:\n{}", json);
+                LOGGER.info("check_drain_cleaner_readiness response (length={})", json.length());
+                LOGGER.debug("check_drain_cleaner_readiness response:\n{}", json);
 
                 JsonNode root = parseJson(json);
 
@@ -275,6 +279,7 @@ class DrainCleanerToolsST extends AbstractST {
 
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("get_drain_cleaner_logs response (length={})", json.length());
+                LOGGER.debug("get_drain_cleaner_logs response:\n{}", json);
 
                 JsonNode root = parseJson(json);
 
@@ -304,8 +309,8 @@ class DrainCleanerToolsST extends AbstractST {
                     "get_drain_cleaner_logs with errors filter should not return error");
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_drain_cleaner_logs (errors filter) response (length={}):\n{}",
-                    json.length(), json);
+                LOGGER.info("get_drain_cleaner_logs (errors filter) response (length={})", json.length());
+                LOGGER.debug("get_drain_cleaner_logs (errors filter) response:\n{}", json);
             })
             .thenAssertResults();
     }
@@ -324,7 +329,8 @@ class DrainCleanerToolsST extends AbstractST {
                     "get_strimzi_events for DrainCleaner should not return error");
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_strimzi_events (DrainCleaner) response:\n{}", json);
+                LOGGER.info("get_strimzi_events (DrainCleaner) response (length={})", json.length());
+                LOGGER.debug("get_strimzi_events (DrainCleaner) response:\n{}", json);
             })
             .thenAssertResults();
     }

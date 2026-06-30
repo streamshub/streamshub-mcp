@@ -54,6 +54,15 @@ public final class Constants {
     /** Name of the Strimzi Drain Cleaner deployment. */
     public static final String DRAIN_CLEANER_NAME = "strimzi-drain-cleaner";
 
+    /** Name of the KafkaConnect cluster used in tests. */
+    public static final String CONNECT_CLUSTER_NAME = "mcp-connect";
+
+    /** Name of the KafkaBridge used in tests. */
+    public static final String BRIDGE_NAME = "mcp-bridge";
+
+    /** Name of the KafkaTopic used in tests. */
+    public static final String TOPIC_NAME = "mcp-test-topic";
+
     // --- Timeouts (milliseconds) ---
 
     /** Timeout for MCP server deployment readiness. */

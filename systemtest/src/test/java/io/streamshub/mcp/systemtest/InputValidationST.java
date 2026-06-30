@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -118,10 +117,10 @@ class InputValidationST extends AbstractST {
         Map<String, Object> args = Map.of("clusterName", " some-cluster ");
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
-                // Either trimmed+resolved (not found) or validation error — both acceptable
+                assertTrue(response.isError(),
+                    "Whitespace-padded name should result in an error (validation or not found)");
                 String text = response.content().getFirst().asText().text();
-                LOGGER.info("Whitespace-padded name response (isError={}): {}",
-                    response.isError(), text);
+                LOGGER.info("Whitespace-padded name response: {}", text);
                 assertNoStackTrace(text);
             })
             .thenAssertResults();
@@ -159,9 +158,10 @@ class InputValidationST extends AbstractST {
             "tailLines", -1);
         mcpClient.when()
             .toolsCall("get_kafka_cluster_logs", args, response -> {
+                assertTrue(response.isError(),
+                    "Negative tailLines should result in an error");
                 String text = response.content().getFirst().asText().text();
-                LOGGER.info("Negative tailLines response (isError={}): {}",
-                    response.isError(), text);
+                LOGGER.info("Negative tailLines response: {}", text);
                 assertNoStackTrace(text);
             })
             .thenAssertResults();
@@ -176,8 +176,10 @@ class InputValidationST extends AbstractST {
             "limit", 0);
         mcpClient.when()
             .toolsCall("list_kafka_topics", args, response -> {
+                assertTrue(response.isError(),
+                    "Zero limit should result in an error");
                 String text = response.content().getFirst().asText().text();
-                LOGGER.info("Zero limit response (isError={}): {}", response.isError(), text);
+                LOGGER.info("Zero limit response: {}", text);
                 assertNoStackTrace(text);
             })
             .thenAssertResults();
@@ -192,26 +194,13 @@ class InputValidationST extends AbstractST {
             "tailLines", 999999);
         mcpClient.when()
             .toolsCall("get_kafka_cluster_logs", args, response -> {
-                // Server should either reject, clamp, or return error (cluster not found)
-                // Key: no hang, no OOM, no stack trace
+                assertTrue(response.isError(),
+                    "Very large tailLines with non-existent cluster should result in an error");
                 String text = response.content().getFirst().asText().text();
-                LOGGER.info("Very large tailLines response (isError={}): {}",
-                    response.isError(), text);
+                LOGGER.info("Very large tailLines response: {}", text);
                 assertNoStackTrace(text);
             })
             .thenAssertResults();
     }
 
-    /**
-     * Assert that a response does not contain Java stack trace indicators,
-     * which would suggest an unhandled exception was leaked to the client.
-     */
-    private static void assertNoStackTrace(final String text) {
-        assertFalse(text.contains("java.lang."),
-            "Response should not contain Java package references");
-        assertFalse(text.contains("NullPointerException"),
-            "Response should not contain NullPointerException");
-        assertFalse(text.contains("\tat "),
-            "Response should not contain stack trace frames");
-    }
 }

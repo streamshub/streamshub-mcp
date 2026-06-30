@@ -268,13 +268,9 @@ class KafkaTopicToolsST extends AbstractST {
             "namespace", kafkaNamespace.getMetadata().getName());
         mcpClient.when()
             .toolsCall("get_kafka_topic", args, response -> {
-                assertTrue(response.isError(),
-                    "Should return error for non-existent topic");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_topic error response: {}", text);
-                assertTrue(text.contains("not found"),
-                    "Error message should mention 'not found'");
+                LOGGER.info("get_kafka_topic error response: {}",
+                    response.content().getFirst().asText().text());
+                assertToolError(response, "not found");
             })
             .thenAssertResults();
     }
@@ -378,13 +374,9 @@ class KafkaTopicToolsST extends AbstractST {
             "namespace", "nonexistent-namespace");
         mcpClient.when()
             .toolsCall("get_kafka_topic", args, response -> {
-                assertTrue(response.isError(),
-                    "Should return error for wrong namespace");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_topic wrong namespace error: {}", text);
-                assertTrue(text.contains("not found"),
-                    "Error message should mention 'not found'");
+                LOGGER.info("get_kafka_topic wrong namespace error: {}",
+                    response.content().getFirst().asText().text());
+                assertToolError(response, "not found");
             })
             .thenAssertResults();
     }
@@ -395,7 +387,7 @@ class KafkaTopicToolsST extends AbstractST {
     @Test
     @DisplayName("diagnose_kafka_topic with clusterName parameter")
     @Story("Diagnose Kafka Topic")
-    void testDiagnoseKafkqaTopicWithClusterName() {
+    void testDiagnoseKafkaTopicWithClusterName() {
         Map<String, Object> args = Map.of(
             "topicName", "mcp-topic-alpha",
             "clusterName", Constants.KAFKA_CLUSTER_NAME,

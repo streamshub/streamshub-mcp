@@ -15,6 +15,7 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.skodjob.kubetest4j.wait.Wait;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
@@ -30,8 +31,8 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -48,8 +49,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MetricsPrometheusToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsPrometheusToolsST.class);
-    private static final String BRIDGE_NAME = "mcp-bridge";
-    private static final String CONNECT_CLUSTER_NAME = "mcp-connect";
 
     @InjectResourceManager
     KubeResourceManager krm;
@@ -92,11 +91,11 @@ class MetricsPrometheusToolsST extends AbstractST {
 
             krm.createOrUpdateResourceWithWait(
                 KafkaBridgeTemplates.kafkaBridge(
-                    kafkaNs, BRIDGE_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
+                    kafkaNs, Constants.BRIDGE_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
                 KafkaConnectTemplates.kafkaConnect(
-                    kafkaNs, CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
+                    kafkaNs, Constants.CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
         }
 
         PrometheusConfig promConfig = discoverPrometheus();
@@ -190,14 +189,9 @@ class MetricsPrometheusToolsST extends AbstractST {
             "stepSeconds", 60);
         mcpClient.when()
             .toolsCall("get_kafka_metrics", args, response -> {
-                assertTrue(response.isError(),
-                    "Should return error for non-existent cluster");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_metrics error range response: {}", text);
-
-                assertTrue(text.toLowerCase(Locale.ROOT).contains("not found"),
-                    "Error should mention 'not found'");
+                LOGGER.info("get_kafka_metrics error range response: {}",
+                    response.content().getFirst().asText().text());
+                assertToolError(response, "not found");
             })
             .thenAssertResults();
     }
@@ -233,7 +227,7 @@ class MetricsPrometheusToolsST extends AbstractST {
     @Story("Get KafkaBridge Metrics")
     void testGetKafkaBridgeMetricsRange() {
         Map<String, Object> args = Map.of(
-            "bridgeName", BRIDGE_NAME,
+            "bridgeName", Constants.BRIDGE_NAME,
             "rangeMinutes", 30,
             "stepSeconds", 60);
         mcpClient.when()
@@ -245,7 +239,7 @@ class MetricsPrometheusToolsST extends AbstractST {
                 LOGGER.debug("get_kafka_bridge_metrics range response:\n{}", text);
 
                 JsonNode root = parseJson(text);
-                assertMetricsResponse(root, "bridge_name", BRIDGE_NAME);
+                assertMetricsResponse(root, "bridge_name", Constants.BRIDGE_NAME);
                 assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
                     "namespace should match deployment namespace");
             })
@@ -259,7 +253,7 @@ class MetricsPrometheusToolsST extends AbstractST {
     @Story("Get KafkaConnect Metrics")
     void testGetKafkaConnectMetricsRange() {
         Map<String, Object> args = Map.of(
-            "connectName", CONNECT_CLUSTER_NAME,
+            "connectName", Constants.CONNECT_CLUSTER_NAME,
             "rangeMinutes", 30,
             "stepSeconds", 60);
         mcpClient.when()
@@ -271,7 +265,7 @@ class MetricsPrometheusToolsST extends AbstractST {
                 LOGGER.debug("get_kafka_connect_metrics range response:\n{}", text);
 
                 JsonNode root = parseJson(text);
-                assertMetricsResponse(root, "connect_name", CONNECT_CLUSTER_NAME);
+                assertMetricsResponse(root, "connect_name", Constants.CONNECT_CLUSTER_NAME);
                 assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
                     "namespace should match deployment namespace");
             })
@@ -368,30 +362,49 @@ class MetricsPrometheusToolsST extends AbstractST {
     @DisplayName("get_kafka_metrics with absolute startTime/endTime via Prometheus")
     @Story("Get Kafka Metrics")
     void testAbsoluteTimeRange() {
-        java.time.Instant now = java.time.Instant.now();
-        java.time.Instant thirtyMinAgo = now.minus(java.time.Duration.ofMinutes(30));
+        AtomicReference<String> capturedJson = new AtomicReference<>();
 
-        Map<String, Object> args = Map.of(
-            "clusterName", Constants.KAFKA_CLUSTER_NAME,
-            "category", "replication",
-            "startTime", thirtyMinAgo.toString(),
-            "endTime", now.toString(),
-            "stepSeconds", 60);
-        mcpClient.when()
-            .toolsCall("get_kafka_metrics", args, response -> {
-                assertFalse(response.isError(),
-                    "Absolute time range should not return error");
+        Wait.until("Prometheus to return metric data for absolute time range",
+            Constants.KAFKA_READY_POLL_MS, Constants.MCP_READY_TIMEOUT_MS, () -> {
+                java.time.Instant now = java.time.Instant.now();
+                java.time.Instant thirtyMinAgo = now.minus(java.time.Duration.ofMinutes(30));
 
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("Absolute time range response (length={})", text.length());
-                LOGGER.debug("Absolute time range response:\n{}", text);
+                Map<String, Object> args = Map.of(
+                    "clusterName", Constants.KAFKA_CLUSTER_NAME,
+                    "category", "replication",
+                    "startTime", thirtyMinAgo.toString(),
+                    "endTime", now.toString(),
+                    "stepSeconds", 60);
+                try {
+                    mcpClient.when()
+                        .toolsCall("get_kafka_metrics", args, response -> {
+                            if (!response.isError()) {
+                                capturedJson.set(
+                                    response.content().getFirst().asText().text());
+                            }
+                        })
+                        .thenAssertResults();
+                } catch (Exception e) {
+                    LOGGER.debug("Tool call attempt failed, retrying: {}",
+                        e.getMessage());
+                    return false;
+                }
+                String json = capturedJson.get();
+                if (json == null) {
+                    return false;
+                }
+                JsonNode root = parseJson(json);
+                return root.path("sample_count").asInt() > 0;
+            });
 
-                JsonNode root = parseJson(text);
-                assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
-                assertTrue(root.path("sample_count").asInt() > 0,
-                    "Should return data within the 30-minute window");
-            })
-            .thenAssertResults();
+        String text = capturedJson.get();
+        LOGGER.info("Absolute time range response (length={})", text.length());
+        LOGGER.debug("Absolute time range response:\n{}", text);
+
+        JsonNode root = parseJson(text);
+        assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
+        assertTrue(root.path("sample_count").asInt() > 0,
+            "Should return data within the 30-minute window");
     }
 
     // ---- Prometheus Discovery ----
@@ -432,14 +445,4 @@ class MetricsPrometheusToolsST extends AbstractST {
                 + "or set PROMETHEUS_URL environment variable.");
     }
 
-    private static void assertMetricsResponse(JsonNode root, String nameField, String expectedName) {
-        assertEquals(expectedName, root.path(nameField).asText(), nameField + " should match");
-        assertFalse(root.path("namespace").isMissingNode(), "Should have namespace");
-        assertTrue(root.path("categories").isArray(), "categories should be an array");
-        assertTrue(root.path("time_series").isArray(), "time_series should be an array");
-        assertTrue(root.path("metric_count").isNumber(), "metric_count should be a number");
-        assertTrue(root.path("sample_count").isNumber(), "sample_count should be a number");
-        assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
-        assertFalse(root.path("message").isMissingNode(), "Should have message");
-    }
 }

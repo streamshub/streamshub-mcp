@@ -27,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -110,7 +109,8 @@ class KafkaClusterToolsST extends AbstractST {
                 assertFalse(response.content().isEmpty(), "Should return at least one content entry");
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("list_kafka_clusters response (length={}):\n{}", json.length(), json);
+                LOGGER.info("list_kafka_clusters response (length={})", json.length());
+                LOGGER.debug("list_kafka_clusters response:\n{}", json);
 
                 JsonNode root = parseJson(json);
 
@@ -377,13 +377,9 @@ class KafkaClusterToolsST extends AbstractST {
         Map<String, Object> args = Map.of("clusterName", "nonexistent-cluster-xyz");
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
-                assertTrue(response.isError(),
-                    "Should return error for non-existent cluster");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_cluster error response: {}", text);
-                assertTrue(text.toLowerCase(Locale.ROOT).contains("not found"),
-                    "Error should mention 'not found'");
+                LOGGER.info("get_kafka_cluster error response: {}",
+                    response.content().getFirst().asText().text());
+                assertToolError(response, "not found");
             })
             .thenAssertResults();
     }
@@ -515,8 +511,9 @@ class KafkaClusterToolsST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_cluster_pods", args, response -> {
                 JsonNode root = assertToolSuccess(response);
-                LOGGER.info("get_kafka_cluster_pods response (length={}):\n{}",
-                    response.content().getFirst().asText().text().length(),
+                LOGGER.info("get_kafka_cluster_pods response (length={})",
+                    response.content().getFirst().asText().text().length());
+                LOGGER.debug("get_kafka_cluster_pods response:\n{}",
                     response.content().getFirst().asText().text());
                 assertPodSummaryResponse(root.path("pod_summary"));
                 assertEquals(Environment.KAFKA_NAMESPACE,
@@ -660,8 +657,8 @@ class KafkaClusterToolsST extends AbstractST {
 
                 JsonNode root = parseJson(text);
                 assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
-                assertTrue(root.path("log_lines").asInt() >= 0,
-                    "log_lines should be non-negative");
+                assertTrue(root.path("log_lines").asInt() > 0,
+                    "log_lines should be positive for a large request against a running cluster");
             })
             .thenAssertResults();
     }
@@ -787,13 +784,4 @@ class KafkaClusterToolsST extends AbstractST {
             .thenAssertResults();
     }
 
-    private static void assertClusterLogsResponse(JsonNode root, String expectedClusterName) {
-        assertEquals(expectedClusterName, root.path("cluster_name").asText(),
-            "cluster_name should match");
-        assertTrue(root.path("pods").isArray() && !root.path("pods").isEmpty(),
-            "pods should be a non-empty array");
-        assertTrue(root.path("log_lines").isNumber(), "log_lines should be a number");
-        assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
-        assertFalse(root.path("message").isMissingNode(), "Should have message");
-    }
 }

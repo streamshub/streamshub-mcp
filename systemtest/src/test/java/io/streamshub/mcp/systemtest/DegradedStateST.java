@@ -48,7 +48,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DegradedStateST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DegradedStateST.class);
-    private static final String CONNECT_CLUSTER_NAME = "mcp-connect";
     private static final String FAILED_CONNECTOR_NAME = "mcp-failed-connector";
 
     @InjectResourceManager
@@ -86,7 +85,7 @@ class DegradedStateST extends AbstractST {
 
             krm.createOrUpdateResourceWithWait(
                 KafkaConnectTemplates.kafkaConnect(
-                    kafkaNs, CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
+                    kafkaNs, Constants.CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
         }
 
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
@@ -112,7 +111,7 @@ class DegradedStateST extends AbstractST {
 
         krm.createOrUpdateResourceWithoutWait(
             KafkaConnectorTemplates.connector(kafkaNs, FAILED_CONNECTOR_NAME,
-                CONNECT_CLUSTER_NAME, "org.apache.kafka.connect.NonExistentConnector", 1).build());
+                Constants.CONNECT_CLUSTER_NAME, "org.apache.kafka.connect.NonExistentConnector", 1).build());
 
         waitForConnectorCondition(kafkaNs);
 
@@ -144,7 +143,7 @@ class DegradedStateST extends AbstractST {
 
         krm.createOrUpdateResourceWithoutWait(
             KafkaConnectorTemplates.connector(kafkaNs, FAILED_CONNECTOR_NAME,
-                CONNECT_CLUSTER_NAME, "org.apache.kafka.connect.NonExistentConnector", 1).build());
+                Constants.CONNECT_CLUSTER_NAME, "org.apache.kafka.connect.NonExistentConnector", 1).build());
 
         waitForConnectorCondition(kafkaNs);
 
@@ -173,12 +172,12 @@ class DegradedStateST extends AbstractST {
 
         krm.createOrUpdateResourceWithoutWait(
             KafkaConnectorTemplates.connector(kafkaNs, FAILED_CONNECTOR_NAME,
-                CONNECT_CLUSTER_NAME, "org.apache.kafka.connect.NonExistentConnector", 1).build());
+                Constants.CONNECT_CLUSTER_NAME, "org.apache.kafka.connect.NonExistentConnector", 1).build());
 
         waitForConnectorCondition(kafkaNs);
 
         Map<String, Object> args = Map.of(
-            "connectName", CONNECT_CLUSTER_NAME,
+            "connectName", Constants.CONNECT_CLUSTER_NAME,
             "namespace", kafkaNs);
         mcpClient.when()
             .toolsCall("diagnose_kafka_connect", args, response -> {

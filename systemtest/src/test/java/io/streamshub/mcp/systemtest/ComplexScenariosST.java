@@ -50,9 +50,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ComplexScenariosST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ComplexScenariosST.class);
-    private static final String CONNECT_CLUSTER_NAME = "mcp-connect";
-    private static final String BRIDGE_NAME = "mcp-bridge";
-    private static final String TOPIC_NAME = "mcp-test-topic";
 
     @InjectResourceManager
     KubeResourceManager krm;
@@ -88,20 +85,20 @@ class ComplexScenariosST extends AbstractST {
                 KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
-                KafkaTopicTemplates.topic(kafkaNs, TOPIC_NAME,
+                KafkaTopicTemplates.topic(kafkaNs, Constants.TOPIC_NAME,
                     Constants.KAFKA_CLUSTER_NAME, 3, 1).build());
 
             krm.createOrUpdateResourceWithWait(
                 KafkaConnectTemplates.kafkaConnect(
-                    kafkaNs, CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
+                    kafkaNs, Constants.CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
                 KafkaConnectorTemplates.camelTimerSource(
-                    kafkaNs, CONNECTOR_NAME, CONNECT_CLUSTER_NAME, "test-topic").build());
+                    kafkaNs, CONNECTOR_NAME, Constants.CONNECT_CLUSTER_NAME, "test-topic").build());
 
             krm.createOrUpdateResourceWithWait(
                 KafkaBridgeTemplates.kafkaBridge(
-                    kafkaNs, BRIDGE_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
+                    kafkaNs, Constants.BRIDGE_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
         }
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
 
@@ -229,11 +226,11 @@ class ComplexScenariosST extends AbstractST {
         // Step 2: Get specific topic and verify name
         mcpClient.when()
             .toolsCall("get_kafka_topic",
-                Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "topicName", TOPIC_NAME, "namespace", ns), response -> {
+                Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME, "topicName", Constants.TOPIC_NAME, "namespace", ns), response -> {
                     JsonNode topic = assertToolSuccess(response);
                     LOGGER.info("Step 2 - get_kafka_topic response:\n{}",
                         response.content().getFirst().asText().text());
-                    assertEquals(TOPIC_NAME, topic.path("name").asText(),
+                    assertEquals(Constants.TOPIC_NAME, topic.path("name").asText(),
                         "Topic name should match");
                     assertFalse(topic.path("status").isMissingNode(),
                         "Topic should have a status field");
@@ -258,14 +255,14 @@ class ComplexScenariosST extends AbstractST {
         // Step 4: Diagnose the topic
         mcpClient.when()
             .toolsCall("diagnose_kafka_topic",
-                Map.of("topicName", TOPIC_NAME, "namespace", ns), response -> {
+                Map.of("topicName", Constants.TOPIC_NAME, "namespace", ns), response -> {
                     JsonNode root = assertToolSuccess(response);
                     LOGGER.info("Step 4 - diagnose_kafka_topic response (length={})",
                         response.content().getFirst().asText().text().length());
                     LOGGER.debug("Step 4 - diagnose_kafka_topic response:\n{}",
                         response.content().getFirst().asText().text());
                     assertDiagnosticReport(root);
-                    assertEquals(TOPIC_NAME, root.path("topic").path("name").asText(),
+                    assertEquals(Constants.TOPIC_NAME, root.path("topic").path("name").asText(),
                         "Diagnostic topic name should match");
                 })
             .thenAssertResults();
@@ -435,9 +432,9 @@ class ComplexScenariosST extends AbstractST {
                     JsonNode root = assertToolSuccess(response);
                     LOGGER.info("Step 1 - list_kafka_connects response:\n{}",
                         response.content().getFirst().asText().text());
-                    JsonNode connect = findByName(root, CONNECT_CLUSTER_NAME);
+                    JsonNode connect = findByName(root, Constants.CONNECT_CLUSTER_NAME);
                     assertNotNull(connect, "Should find Connect cluster '"
-                        + CONNECT_CLUSTER_NAME + "'");
+                        + Constants.CONNECT_CLUSTER_NAME + "'");
                     assertEquals("Ready", connect.path("readiness").asText(),
                         "Connect should be Ready");
                 })
@@ -446,11 +443,11 @@ class ComplexScenariosST extends AbstractST {
         // Step 2: Get Connect cluster details
         mcpClient.when()
             .toolsCall("get_kafka_connect",
-                Map.of("connectName", CONNECT_CLUSTER_NAME, "namespace", ns), response -> {
+                Map.of("connectName", Constants.CONNECT_CLUSTER_NAME, "namespace", ns), response -> {
                     JsonNode connect = assertToolSuccess(response);
                     LOGGER.info("Step 2 - get_kafka_connect response:\n{}",
                         response.content().getFirst().asText().text());
-                    assertEquals(CONNECT_CLUSTER_NAME, connect.path("name").asText(),
+                    assertEquals(Constants.CONNECT_CLUSTER_NAME, connect.path("name").asText(),
                         "Connect cluster name should match");
                     assertEquals("Ready", connect.path("readiness").asText(),
                         "Connect cluster should be Ready");
@@ -460,7 +457,7 @@ class ComplexScenariosST extends AbstractST {
         // Step 3: Get Connect pods
         mcpClient.when()
             .toolsCall("get_kafka_connect_pods",
-                Map.of("connectName", CONNECT_CLUSTER_NAME, "namespace", ns), response -> {
+                Map.of("connectName", Constants.CONNECT_CLUSTER_NAME, "namespace", ns), response -> {
                     JsonNode root = assertToolSuccess(response);
                     LOGGER.info("Step 3 - get_kafka_connect_pods response (length={})",
                         response.content().getFirst().asText().text().length());
@@ -502,14 +499,14 @@ class ComplexScenariosST extends AbstractST {
         // Step 6: Diagnose Connect cluster
         mcpClient.when()
             .toolsCall("diagnose_kafka_connect",
-                Map.of("connectName", CONNECT_CLUSTER_NAME, "namespace", ns), response -> {
+                Map.of("connectName", Constants.CONNECT_CLUSTER_NAME, "namespace", ns), response -> {
                     JsonNode root = assertToolSuccess(response);
                     LOGGER.info("Step 6 - diagnose_kafka_connect response (length={})",
                         response.content().getFirst().asText().text().length());
                     LOGGER.debug("Step 6 - diagnose_kafka_connect response:\n{}",
                         response.content().getFirst().asText().text());
                     assertDiagnosticReport(root);
-                    assertEquals(CONNECT_CLUSTER_NAME,
+                    assertEquals(Constants.CONNECT_CLUSTER_NAME,
                         root.path("connect_cluster").path("name").asText(),
                         "Connect cluster name should match");
                 })
@@ -619,13 +616,13 @@ class ComplexScenariosST extends AbstractST {
         // Step 2: Get Bridge details
         mcpClient.when()
             .toolsCall("get_kafka_bridge",
-                Map.of("bridgeName", BRIDGE_NAME, "namespace", ns), response -> {
+                Map.of("bridgeName", Constants.BRIDGE_NAME, "namespace", ns), response -> {
                     assertFalse(response.isError(), "Step 2: get_kafka_bridge should not return error");
                     String text = response.content().getFirst().asText().text();
                     LOGGER.info("Step 2 - get_kafka_bridge response:\n{}", text);
 
                     JsonNode bridge = parseJson(text);
-                    assertEquals(BRIDGE_NAME, bridge.path("name").asText(),
+                    assertEquals(Constants.BRIDGE_NAME, bridge.path("name").asText(),
                         "Bridge name should match");
                 })
             .thenAssertResults();
@@ -633,7 +630,7 @@ class ComplexScenariosST extends AbstractST {
         // Step 3: Get Bridge pods
         mcpClient.when()
             .toolsCall("get_kafka_bridge_pods",
-                Map.of("bridgeName", BRIDGE_NAME, "namespace", ns), response -> {
+                Map.of("bridgeName", Constants.BRIDGE_NAME, "namespace", ns), response -> {
                     JsonNode root = assertToolSuccess(response);
                     LOGGER.info("Step 3 - get_kafka_bridge_pods response (length={})",
                         response.content().getFirst().asText().text().length());
@@ -648,13 +645,13 @@ class ComplexScenariosST extends AbstractST {
         // Step 4: Get Bridge logs
         mcpClient.when()
             .toolsCall("get_kafka_bridge_logs",
-                Map.of("bridgeName", BRIDGE_NAME, "namespace", ns, "tailLines", 50), response -> {
+                Map.of("bridgeName", Constants.BRIDGE_NAME, "namespace", ns, "tailLines", 50), response -> {
                     JsonNode root = assertToolSuccess(response);
                     LOGGER.info("Step 4 - get_kafka_bridge_logs response (length={})",
                         response.content().getFirst().asText().text().length());
                     LOGGER.debug("Step 4 - get_kafka_bridge_logs response:\n{}",
                         response.content().getFirst().asText().text());
-                    assertLogsResponse(root, "bridge_name", BRIDGE_NAME);
+                    assertLogsResponse(root, "bridge_name", Constants.BRIDGE_NAME);
                 })
             .thenAssertResults();
     }

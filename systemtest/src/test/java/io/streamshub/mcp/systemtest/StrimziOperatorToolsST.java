@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Locale;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -103,7 +102,8 @@ class StrimziOperatorToolsST extends AbstractST {
                 assertFalse(response.content().isEmpty(), "Should return at least one content entry");
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("list_strimzi_operators response:\n{}", json);
+                LOGGER.info("list_strimzi_operators response (length={})", json.length());
+                LOGGER.debug("list_strimzi_operators response:\n{}", json);
 
                 JsonNode root = parseJson(json);
 
@@ -136,7 +136,8 @@ class StrimziOperatorToolsST extends AbstractST {
                 assertFalse(response.isError(), "get_strimzi_operator should not return error");
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_strimzi_operator response:\n{}", json);
+                LOGGER.info("get_strimzi_operator response (length={})", json.length());
+                LOGGER.debug("get_strimzi_operator response:\n{}", json);
 
                 JsonNode operator = parseJson(json);
 
@@ -177,13 +178,9 @@ class StrimziOperatorToolsST extends AbstractST {
             "namespace", Constants.STRIMZI_NAMESPACE);
         mcpClient.when()
             .toolsCall("get_strimzi_operator", args, response -> {
-                assertTrue(response.isError(),
-                    "Should return error for non-existent operator");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_strimzi_operator error response: {}", text);
-                assertTrue(text.toLowerCase(Locale.ROOT).contains("not found"),
-                    "Error should mention 'not found'");
+                LOGGER.info("get_strimzi_operator error response: {}",
+                    response.content().getFirst().asText().text());
+                assertToolError(response, "not found");
             })
             .thenAssertResults();
     }
@@ -267,7 +264,8 @@ class StrimziOperatorToolsST extends AbstractST {
                     "get_strimzi_operator should not return error");
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_strimzi_operator (with namespace) response:\n{}", json);
+                LOGGER.info("get_strimzi_operator (with namespace) response (length={})", json.length());
+                LOGGER.debug("get_strimzi_operator (with namespace) response:\n{}", json);
 
                 JsonNode operator = parseJson(json);
 
@@ -287,6 +285,8 @@ class StrimziOperatorToolsST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("get_strimzi_operator_logs (ERROR filter) response (length={})",
                     response.content().getFirst().asText().text().length());
+                LOGGER.debug("get_strimzi_operator_logs (ERROR filter) response:\n{}",
+                    response.content().getFirst().asText().text());
                 assertTrue(root.path("operator_pods").isArray()
                         && !root.path("operator_pods").isEmpty(),
                     "operator_pods should be a non-empty array");
@@ -370,13 +370,9 @@ class StrimziOperatorToolsST extends AbstractST {
             "namespace", kafkaNamespace.getMetadata().getName());
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
-                assertTrue(response.isError(),
-                    "get_strimzi_events should return error for non-existent resource");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_strimzi_events (nonexistent) error response: {}", text);
-                assertTrue(text.toLowerCase(Locale.ROOT).contains("not found"),
-                    "Error should mention 'not found'");
+                LOGGER.info("get_strimzi_events (nonexistent) error response: {}",
+                    response.content().getFirst().asText().text());
+                assertToolError(response, "not found");
             })
             .thenAssertResults();
     }
