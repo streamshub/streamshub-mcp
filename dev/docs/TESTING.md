@@ -62,6 +62,7 @@ SKIP_STRIMZI_INSTALL=true ./mvnw verify -Psystemtest
 | `MCP_INGRESS_PORT` | Localhost port for Ingress access | `9090` |
 | `MCP_INGRESS_HOST` | Hostname for Ingress rule | `""` (no host constraint) |
 | `SKIP_STRIMZI_INSTALL` | Skip Strimzi operator and Kafka deployment | `false` |
+| `SKIP_DRAIN_CLEANER_INSTALL` | Skip Strimzi Drain Cleaner deployment | `false` |
 | `KAFKA_CLUSTER_NAME` | Kafka cluster name | `mcp-cluster` |
 | `KAFKA_NAMESPACE` | Kafka namespace | `strimzi-kafka` |
 

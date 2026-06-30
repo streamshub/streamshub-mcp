@@ -101,4 +101,17 @@ public abstract class AbstractST {
             throw new AssertionError("Failed to parse JSON response: " + json, e);
         }
     }
+
+    static JsonNode findByName(final JsonNode root, final String name) {
+        if (root.isArray()) {
+            for (JsonNode node : root) {
+                if (name.equals(node.path("name").asText(""))) {
+                    return node;
+                }
+            }
+        } else if (name.equals(root.path("name").asText(""))) {
+            return root;
+        }
+        return null;
+    }
 }

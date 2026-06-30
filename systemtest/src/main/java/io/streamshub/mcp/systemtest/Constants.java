@@ -20,6 +20,9 @@ public final class Constants {
     /** Namespace where the Strimzi operator is deployed. */
     public static final String STRIMZI_NAMESPACE = "strimzi";
 
+    /** Namespace where the Strimzi Drain Cleaner is deployed. */
+    public static final String DRAIN_CLEANER_NAMESPACE = "strimzi-drain-cleaner";
+
     // --- MCP Server ---
 
     /** Name of the MCP server deployment, service, and related resources. */
@@ -41,6 +44,9 @@ public final class Constants {
 
     /** Name of the pre-deployed Kafka cluster. */
     public static final String KAFKA_CLUSTER_NAME = "mcp-cluster";
+
+    /** Name of the Strimzi Drain Cleaner deployment. */
+    public static final String DRAIN_CLEANER_NAME = "strimzi-drain-cleaner";
 
     // --- Timeouts (milliseconds) ---
 
@@ -68,6 +74,9 @@ public final class Constants {
     /** Timeout for KafkaUser CR readiness. */
     public static final long KAFKA_USER_READY_TIMEOUT_MS = 120_000L;
 
+    /** Timeout for Drain Cleaner deployment readiness. */
+    public static final long DRAIN_CLEANER_READY_TIMEOUT_MS = 120_000L;
+
     /** Poll interval for Kafka CR readiness checks. */
     public static final long KAFKA_READY_POLL_MS = 10_000L;
 
@@ -84,6 +93,9 @@ public final class Constants {
 
     /** Path to Strimzi manifests directory. */
     public static final String STRIMZI_MANIFESTS_DIR = PROJECT_ROOT + "/dev/manifests/strimzi/";
+
+    /** Path to Strimzi Drain Cleaner manifests directory (cert-manager variant). */
+    public static final String DRAIN_CLEANER_MANIFESTS_DIR = STRIMZI_MANIFESTS_DIR + "drain-cleaner/certmanager/";
 
     // --- Images ---
 

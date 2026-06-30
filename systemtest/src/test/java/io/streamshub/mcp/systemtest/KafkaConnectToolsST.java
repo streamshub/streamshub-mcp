@@ -292,23 +292,4 @@ class KafkaConnectToolsST extends AbstractST {
             .thenAssertResults();
     }
 
-    /**
-     * Find a node by name in a JSON array or single object.
-     *
-     * @param root the root JSON node
-     * @param name the name to search for
-     * @return the matching node, or null
-     */
-    private static JsonNode findByName(final JsonNode root, final String name) {
-        if (root.isArray()) {
-            for (JsonNode node : root) {
-                if (name.equals(node.path("name").asText(""))) {
-                    return node;
-                }
-            }
-        } else if (name.equals(root.path("name").asText(""))) {
-            return root;
-        }
-        return null;
-    }
 }
