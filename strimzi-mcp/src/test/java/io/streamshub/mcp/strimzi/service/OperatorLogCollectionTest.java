@@ -93,7 +93,7 @@ class OperatorLogCollectionTest {
         PodLogsResult logsResult = new PodLogsResult(
             List.of("strimzi-cluster-operator-abc123"),
             "=== Pod: strimzi-cluster-operator-abc123 ===\nINFO Reconciliation complete\n",
-            0, 5, 5, false);
+            0, 5, 5, false, 0, List.of());
 
         when(logCollectionService.collectLogs(eq("strimzi"), any(), any()))
             .thenReturn(logsResult);
@@ -122,7 +122,7 @@ class OperatorLogCollectionTest {
         PodLogsResult logsResult = new PodLogsResult(
             List.of("strimzi-cluster-operator-abc123"),
             "ERROR Reconciliation #5 failed\n",
-            3, 20, 3, false);
+            3, 20, 3, false, 0, List.of());
 
         when(logCollectionService.collectLogs(eq("strimzi"), any(), any()))
             .thenReturn(logsResult);
@@ -144,7 +144,7 @@ class OperatorLogCollectionTest {
             .thenReturn(List.of(pod));
 
         when(logCollectionService.collectLogs(any(), any(), any()))
-            .thenReturn(new PodLogsResult(List.of(), "", 0, 0, 0, false));
+            .thenReturn(new PodLogsResult(List.of(), "", 0, 0, 0, false, 0, List.of()));
 
         LogCollectionParams options = LogCollectionParams.builder(50)
             .filter("warnings")

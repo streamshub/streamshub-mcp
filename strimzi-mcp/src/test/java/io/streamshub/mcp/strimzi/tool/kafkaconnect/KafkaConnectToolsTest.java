@@ -136,8 +136,8 @@ class KafkaConnectToolsTest {
     void testGetKafkaConnectLogs() {
         when(connectService.getConnectLogs(any(), any(), any())).thenReturn(
             KafkaConnectLogsResponse.of("my-connect", "kafka",
-                List.of("my-connect-connect-0"), false, 0, 50, false,
-                "2025-01-01 INFO Connect started")
+                List.of("my-connect-connect-0"), false, 0, 0, 50, false,
+                "2025-01-01 INFO Connect started", List.of())
         );
 
         client.when()
