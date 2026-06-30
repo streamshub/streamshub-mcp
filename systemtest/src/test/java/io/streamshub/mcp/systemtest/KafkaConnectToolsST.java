@@ -47,7 +47,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class KafkaConnectToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaConnectToolsST.class);
-    private static final String CONNECT_CLUSTER_NAME = "mcp-connect";
 
     @InjectResourceManager
     KubeResourceManager krm;
@@ -84,11 +83,11 @@ class KafkaConnectToolsST extends AbstractST {
 
             krm.createOrUpdateResourceWithWait(
                 KafkaConnectTemplates.kafkaConnect(
-                    kafkaNs, CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
+                    kafkaNs, Constants.CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
                 KafkaConnectorTemplates.camelTimerSource(
-                    kafkaNs, CONNECTOR_NAME, CONNECT_CLUSTER_NAME, "test-topic").build());
+                    kafkaNs, CONNECTOR_NAME, Constants.CONNECT_CLUSTER_NAME, "test-topic").build());
         }
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
 
@@ -115,8 +114,8 @@ class KafkaConnectToolsST extends AbstractST {
                 LOGGER.info("list_kafka_connects response:\n{}", json);
 
                 JsonNode root = parseJson(json);
-                JsonNode connect = findByName(root, CONNECT_CLUSTER_NAME);
-                assertNotNull(connect, "Should find Connect cluster '" + CONNECT_CLUSTER_NAME + "'");
+                JsonNode connect = findByName(root, Constants.CONNECT_CLUSTER_NAME);
+                assertNotNull(connect, "Should find Connect cluster '" + Constants.CONNECT_CLUSTER_NAME + "'");
                 assertEquals("Ready", connect.path("readiness").asText(), "Connect should be Ready");
             })
             .thenAssertResults();
@@ -127,7 +126,7 @@ class KafkaConnectToolsST extends AbstractST {
     @Story("Get KafkaConnect")
     void testGetKafkaConnect() {
         Map<String, Object> args = Map.of(
-            "connectName", CONNECT_CLUSTER_NAME,
+            "connectName", Constants.CONNECT_CLUSTER_NAME,
             "namespace", Environment.KAFKA_NAMESPACE);
         mcpClient.when()
             .toolsCall("get_kafka_connect", args, response -> {
@@ -136,8 +135,10 @@ class KafkaConnectToolsST extends AbstractST {
                 LOGGER.info("get_kafka_connect response:\n{}", json);
 
                 JsonNode connect = parseJson(json);
-                assertEquals(CONNECT_CLUSTER_NAME, connect.path("name").asText());
-                assertEquals("Ready", connect.path("readiness").asText());
+                assertEquals(Constants.CONNECT_CLUSTER_NAME, connect.path("name").asText(),
+                    "Connect cluster name should match");
+                assertEquals("Ready", connect.path("readiness").asText(),
+                    "Connect cluster should be Ready");
                 assertFalse(connect.path("rest_api_url").isMissingNode(), "Should have REST API URL");
                 assertFalse(connect.path("bootstrap_servers").isMissingNode(), "Should have bootstrap servers");
                 assertTrue(connect.has("replicas"), "Should have replicas info");
@@ -150,7 +151,7 @@ class KafkaConnectToolsST extends AbstractST {
     @Story("Get KafkaConnect Pods")
     void testGetKafkaConnectPods() {
         Map<String, Object> args = Map.of(
-            "connectName", CONNECT_CLUSTER_NAME,
+            "connectName", Constants.CONNECT_CLUSTER_NAME,
             "namespace", Environment.KAFKA_NAMESPACE);
         mcpClient.when()
             .toolsCall("get_kafka_connect_pods", args, response -> {
@@ -192,7 +193,7 @@ class KafkaConnectToolsST extends AbstractST {
     void testListKafkaConnectorsFilteredByCluster() {
         Map<String, Object> args = Map.of(
             "namespace", Environment.KAFKA_NAMESPACE,
-            "connectCluster", CONNECT_CLUSTER_NAME);
+            "connectCluster", Constants.CONNECT_CLUSTER_NAME);
         mcpClient.when()
             .toolsCall("list_kafka_connectors", args, response -> {
                 assertFalse(response.isError(), "list_kafka_connectors should not return error");
@@ -202,7 +203,7 @@ class KafkaConnectToolsST extends AbstractST {
                 JsonNode root = parseJson(json);
                 JsonNode connector = findByName(root, CONNECTOR_NAME);
                 assertNotNull(connector, "Should find connector '" + CONNECTOR_NAME + "'");
-                assertEquals(CONNECT_CLUSTER_NAME, connector.path("connect_cluster").asText(),
+                assertEquals(Constants.CONNECT_CLUSTER_NAME, connector.path("connect_cluster").asText(),
                     "Connector should belong to the filtered Connect cluster");
             })
             .thenAssertResults();
@@ -222,11 +223,16 @@ class KafkaConnectToolsST extends AbstractST {
                 LOGGER.info("get_kafka_connector response:\n{}", json);
 
                 JsonNode connector = parseJson(json);
-                assertEquals(CONNECTOR_NAME, connector.path("name").asText());
-                assertEquals(CONNECT_CLUSTER_NAME, connector.path("connect_cluster").asText());
-                assertTrue(connector.path("class_name").asText().contains(CAMEL_TIMER_SOURCE_CLASS_NAME));
-                assertEquals(1, connector.path("tasks_max").asInt());
-                assertEquals("running", connector.path("state").asText());
+                assertEquals(CONNECTOR_NAME, connector.path("name").asText(),
+                    "Connector name should match");
+                assertEquals(Constants.CONNECT_CLUSTER_NAME, connector.path("connect_cluster").asText(),
+                    "Connect cluster should match");
+                assertTrue(connector.path("class_name").asText().contains(CAMEL_TIMER_SOURCE_CLASS_NAME),
+                    "Class name should contain the Camel Timer Source class");
+                assertEquals(1, connector.path("tasks_max").asInt(),
+                    "tasks_max should be 1");
+                assertEquals("running", connector.path("state").asText(),
+                    "Connector state should be running");
                 assertTrue(connector.has("config"), "Should have config for get operation");
             })
             .thenAssertResults();
@@ -237,7 +243,7 @@ class KafkaConnectToolsST extends AbstractST {
     @Story("Get KafkaConnect Logs")
     void testGetKafkaConnectLogs() {
         Map<String, Object> args = Map.of(
-            "connectName", CONNECT_CLUSTER_NAME,
+            "connectName", Constants.CONNECT_CLUSTER_NAME,
             "tailLines", 50);
         mcpClient.when()
             .toolsCall("get_kafka_connect_logs", args, response -> {
@@ -247,7 +253,7 @@ class KafkaConnectToolsST extends AbstractST {
                 LOGGER.debug("get_kafka_connect_logs response:\n{}", text);
 
                 JsonNode root = parseJson(text);
-                assertEquals(CONNECT_CLUSTER_NAME, root.path("connect_name").asText(),
+                assertEquals(Constants.CONNECT_CLUSTER_NAME, root.path("connect_name").asText(),
                     "connect_name should match");
                 JsonNode pods = root.path("pods");
                 assertTrue(pods.isArray() && !pods.isEmpty(),
@@ -266,7 +272,7 @@ class KafkaConnectToolsST extends AbstractST {
     @Story("Get Strimzi Events KafkaConnect")
     void testGetStrimziEventsKafkaConnect() {
         Map<String, Object> args = Map.of(
-            "resourceName", CONNECT_CLUSTER_NAME,
+            "resourceName", Constants.CONNECT_CLUSTER_NAME,
             "resourceKind", "KafkaConnect",
             "namespace", kafkaNamespace.getMetadata().getName());
         mcpClient.when()
@@ -277,7 +283,7 @@ class KafkaConnectToolsST extends AbstractST {
                 LOGGER.debug("get_strimzi_events (KafkaConnect) response:\n{}", text);
 
                 JsonNode root = parseJson(text);
-                assertEquals(CONNECT_CLUSTER_NAME, root.path("resource_name").asText(),
+                assertEquals(Constants.CONNECT_CLUSTER_NAME, root.path("resource_name").asText(),
                     "resource_name should match");
                 assertEquals(kafkaNamespace.getMetadata().getName(),
                     root.path("namespace").asText(), "namespace should match deployment namespace");

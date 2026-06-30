@@ -115,10 +115,7 @@ class ConfigValidationST extends AbstractST {
                     "Error should reference the unreachable Prometheus host, got: " + text);
                 assertFalse(text.contains("not found"),
                     "Error should be about unreachable Prometheus, not missing cluster");
-                assertFalse(text.contains("NullPointerException"),
-                    "Should not leak NullPointerException");
-                assertFalse(text.contains("\tat "),
-                    "Should not leak stack trace frames");
+                assertNoStackTrace(text);
             })
             .thenAssertResults();
     }
@@ -143,10 +140,7 @@ class ConfigValidationST extends AbstractST {
                     "Response should indicate Loki query failure, got: " + text);
                 assertTrue(text.contains("nonexistent-loki"),
                     "Response should reference the unreachable Loki host, got: " + text);
-                assertFalse(text.contains("NullPointerException"),
-                    "Should not leak NullPointerException");
-                assertFalse(text.contains("\tat "),
-                    "Should not leak stack trace frames");
+                assertNoStackTrace(text);
             })
             .thenAssertResults();
     }

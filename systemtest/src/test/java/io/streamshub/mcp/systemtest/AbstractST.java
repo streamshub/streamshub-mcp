@@ -172,8 +172,8 @@ public abstract class AbstractST {
     protected static void assertPodSummaryResponse(final JsonNode root) {
         assertTrue(root.path("total_pods").asInt() > 0,
             "Should have at least one pod");
-        assertTrue(root.path("ready_pods").asInt() >= 0,
-            "ready_pods should be non-negative");
+        assertTrue(root.path("ready_pods").asInt() > 0,
+            "Should have at least one ready pod");
         assertFalse(root.path("health_status").isMissingNode(),
             "Should have health_status");
         assertFalse(root.path("timestamp").isMissingNode(),
@@ -193,6 +193,39 @@ public abstract class AbstractST {
             "Should have timestamp");
         assertFalse(root.path("message").isMissingNode(),
             "Should have message");
+    }
+
+    protected static void assertMetricsResponse(final JsonNode root,
+                                                final String nameField,
+                                                final String expectedName) {
+        assertEquals(expectedName, root.path(nameField).asText(), nameField + " should match");
+        assertFalse(root.path("namespace").isMissingNode(), "Should have namespace");
+        assertTrue(root.path("categories").isArray(), "categories should be an array");
+        assertTrue(root.path("time_series").isArray(), "time_series should be an array");
+        assertTrue(root.path("metric_count").isNumber(), "metric_count should be a number");
+        assertTrue(root.path("sample_count").isNumber(), "sample_count should be a number");
+        assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
+        assertFalse(root.path("message").isMissingNode(), "Should have message");
+    }
+
+    protected static void assertNoStackTrace(final String text) {
+        assertFalse(text.contains("java.lang."),
+            "Response should not contain Java package references");
+        assertFalse(text.contains("NullPointerException"),
+            "Response should not contain NullPointerException");
+        assertFalse(text.contains("\tat "),
+            "Response should not contain stack trace frames");
+    }
+
+    protected static void assertClusterLogsResponse(final JsonNode root,
+                                                     final String expectedClusterName) {
+        assertEquals(expectedClusterName, root.path("cluster_name").asText(),
+            "cluster_name should match");
+        assertTrue(root.path("pods").isArray() && !root.path("pods").isEmpty(),
+            "pods should be a non-empty array");
+        assertTrue(root.path("log_lines").isNumber(), "log_lines should be a number");
+        assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
+        assertFalse(root.path("message").isMissingNode(), "Should have message");
     }
 
     protected static void assertEventsResponse(final JsonNode root,

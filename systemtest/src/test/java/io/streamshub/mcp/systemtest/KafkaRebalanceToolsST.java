@@ -187,7 +187,8 @@ class KafkaRebalanceToolsST extends AbstractST {
                     "list_kafka_rebalances should return at least one rebalance");
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("list_kafka_rebalances response:\n{}", json);
+                LOGGER.info("list_kafka_rebalances response (length={})", json.length());
+                LOGGER.debug("list_kafka_rebalances response:\n{}", json);
 
                 JsonNode root = parseJson(json);
 
@@ -233,7 +234,8 @@ class KafkaRebalanceToolsST extends AbstractST {
                     "Should find rebalance when filtering by cluster");
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("list_kafka_rebalances filtered response:\n{}", json);
+                LOGGER.info("list_kafka_rebalances filtered response (length={})", json.length());
+                LOGGER.debug("list_kafka_rebalances filtered response:\n{}", json);
 
                 JsonNode root = parseJson(json);
                 boolean found = false;
@@ -274,7 +276,8 @@ class KafkaRebalanceToolsST extends AbstractST {
                 assertFalse(response.isError(), "get_kafka_rebalance should not return error");
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_rebalance response:\n{}", json);
+                LOGGER.info("get_kafka_rebalance response (length={})", json.length());
+                LOGGER.debug("get_kafka_rebalance response:\n{}", json);
 
                 JsonNode rebalance = parseJson(json);
                 assertEquals(REBALANCE_NAME, rebalance.path("name").asText(),

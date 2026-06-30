@@ -342,18 +342,15 @@ class NamespaceScopedRbacST extends AbstractST {
     // ---- Cluster-scoped resources ----
 
     @Test
-    @DisplayName("list_drain_cleaners returns empty without cluster-scoped access")
+    @DisplayName("list_drain_cleaners returns 403 without cluster-scoped access")
     @Story("Cluster-Scoped Resources")
     void testDrainCleanersRequireClusterScope() {
         Map<String, Object> args = Map.of();
         mcpClient.when()
             .toolsCall("list_drain_cleaners", args, response -> {
-                assertFalse(response.isError(),
-                    "Drain cleaner list should succeed with partial namespace access");
-                assertTrue(response.content().isEmpty()
-                        || "[]".equals(response.content().getFirst().asText().text()),
-                    "Drain cleaner list should be empty (none deployed in accessible namespaces)");
-                LOGGER.info("list_drain_cleaners (namespace-scoped): empty as expected");
+                LOGGER.info("list_drain_cleaners (namespace-scoped) error response: {}",
+                    response.content().getFirst().asText().text());
+                assertToolError(response, "403");
             })
             .thenAssertResults();
     }

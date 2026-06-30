@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Locale;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -45,8 +44,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MetricsToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsToolsST.class);
-    private static final String BRIDGE_NAME = "mcp-bridge";
-    private static final String CONNECT_CLUSTER_NAME = "mcp-connect";
 
     @InjectResourceManager
     KubeResourceManager krm;
@@ -83,11 +80,11 @@ class MetricsToolsST extends AbstractST {
 
             krm.createOrUpdateResourceWithWait(
                 KafkaBridgeTemplates.kafkaBridge(
-                    kafkaNs, BRIDGE_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
+                    kafkaNs, Constants.BRIDGE_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
                 KafkaConnectTemplates.kafkaConnect(
-                    kafkaNs, CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
+                    kafkaNs, Constants.CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
         }
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
 
@@ -162,14 +159,9 @@ class MetricsToolsST extends AbstractST {
         Map<String, Object> args = Map.of("clusterName", "nonexistent-cluster-xyz");
         mcpClient.when()
             .toolsCall("get_kafka_metrics", args, response -> {
-                assertTrue(response.isError(),
-                    "Should return error for non-existent cluster");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_metrics error response: {}", text);
-
-                assertTrue(text.toLowerCase(Locale.ROOT).contains("not found"),
-                    "Error should mention 'not found'");
+                LOGGER.info("get_kafka_metrics error response: {}",
+                    response.content().getFirst().asText().text());
+                assertToolError(response, "not found");
             })
             .thenAssertResults();
     }
@@ -202,7 +194,7 @@ class MetricsToolsST extends AbstractST {
     @Story("Get KafkaBridge Metrics")
     void testGetKafkaBridgeMetrics() {
         Map<String, Object> args = Map.of(
-            "bridgeName", BRIDGE_NAME);
+            "bridgeName", Constants.BRIDGE_NAME);
         mcpClient.when()
             .toolsCall("get_kafka_bridge_metrics", args, response -> {
                 assertFalse(response.isError(), "get_kafka_bridge_metrics should not return error");
@@ -212,7 +204,7 @@ class MetricsToolsST extends AbstractST {
                 LOGGER.debug("get_kafka_bridge_metrics response:\n{}", text);
 
                 JsonNode root = parseJson(text);
-                assertMetricsResponse(root, "bridge_name", BRIDGE_NAME);
+                assertMetricsResponse(root, "bridge_name", Constants.BRIDGE_NAME);
                 assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
                     "namespace should match deployment namespace");
             })
@@ -226,7 +218,7 @@ class MetricsToolsST extends AbstractST {
     @Story("Get KafkaConnect Metrics")
     void testGetKafkaConnectMetrics() {
         Map<String, Object> args = Map.of(
-            "connectName", CONNECT_CLUSTER_NAME);
+            "connectName", Constants.CONNECT_CLUSTER_NAME);
         mcpClient.when()
             .toolsCall("get_kafka_connect_metrics", args, response -> {
                 assertFalse(response.isError(), "get_kafka_connect_metrics should not return error");
@@ -236,7 +228,7 @@ class MetricsToolsST extends AbstractST {
                 LOGGER.debug("get_kafka_connect_metrics response:\n{}", text);
 
                 JsonNode root = parseJson(text);
-                assertMetricsResponse(root, "connect_name", CONNECT_CLUSTER_NAME);
+                assertMetricsResponse(root, "connect_name", Constants.CONNECT_CLUSTER_NAME);
                 assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
                     "namespace should match deployment namespace");
             })
@@ -390,17 +382,6 @@ class MetricsToolsST extends AbstractST {
     }
 
     // ---- Helpers ----
-
-    private static void assertMetricsResponse(JsonNode root, String nameField, String expectedName) {
-        assertEquals(expectedName, root.path(nameField).asText(), nameField + " should match");
-        assertFalse(root.path("namespace").isMissingNode(), "Should have namespace");
-        assertTrue(root.path("categories").isArray(), "categories should be an array");
-        assertTrue(root.path("time_series").isArray(), "time_series should be an array");
-        assertTrue(root.path("metric_count").isNumber(), "metric_count should be a number");
-        assertTrue(root.path("sample_count").isNumber(), "sample_count should be a number");
-        assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
-        assertFalse(root.path("message").isMissingNode(), "Should have message");
-    }
 
     private static boolean hasLabelWithKey(JsonNode timeSeries, String key) {
         for (JsonNode series : timeSeries) {

@@ -44,7 +44,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class KafkaBridgeToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaBridgeToolsST.class);
-    private static final String BRIDGE_NAME = "mcp-bridge";
 
     @InjectResourceManager
     KubeResourceManager krm;
@@ -81,7 +80,7 @@ class KafkaBridgeToolsST extends AbstractST {
 
             krm.createOrUpdateResourceWithWait(
                 KafkaBridgeTemplates.kafkaBridge(
-                    kafkaNs, BRIDGE_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
+                    kafkaNs, Constants.BRIDGE_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
         }
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
 
@@ -108,11 +107,12 @@ class KafkaBridgeToolsST extends AbstractST {
             .toolsCall("list_kafka_bridges", args, response -> {
                 assertFalse(response.isError(), "list_kafka_bridges should not return error");
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("list_kafka_bridges response:\n{}", json);
+                LOGGER.info("list_kafka_bridges response (length={})", json.length());
+                LOGGER.debug("list_kafka_bridges response:\n{}", json);
 
                 JsonNode root = parseJson(json);
-                JsonNode bridge = findByName(root, BRIDGE_NAME);
-                assertNotNull(bridge, "Should find KafkaBridge '" + BRIDGE_NAME + "'");
+                JsonNode bridge = findByName(root, Constants.BRIDGE_NAME);
+                assertNotNull(bridge, "Should find KafkaBridge '" + Constants.BRIDGE_NAME + "'");
                 assertEquals("Ready", bridge.path("readiness").asText(), "Bridge should be Ready");
             })
             .thenAssertResults();
@@ -126,17 +126,20 @@ class KafkaBridgeToolsST extends AbstractST {
     @Story("Get KafkaBridge")
     void testGetKafkaBridge() {
         Map<String, Object> args = Map.of(
-            "bridgeName", BRIDGE_NAME,
+            "bridgeName", Constants.BRIDGE_NAME,
             "namespace", Environment.KAFKA_NAMESPACE);
         mcpClient.when()
             .toolsCall("get_kafka_bridge", args, response -> {
                 assertFalse(response.isError(), "get_kafka_bridge should not return error");
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_bridge response:\n{}", json);
+                LOGGER.info("get_kafka_bridge response (length={})", json.length());
+                LOGGER.debug("get_kafka_bridge response:\n{}", json);
 
                 JsonNode bridge = parseJson(json);
-                assertEquals(BRIDGE_NAME, bridge.path("name").asText());
-                assertEquals("Ready", bridge.path("readiness").asText());
+                assertEquals(Constants.BRIDGE_NAME, bridge.path("name").asText(),
+                    "Bridge name should match");
+                assertEquals("Ready", bridge.path("readiness").asText(),
+                    "Bridge should be Ready");
                 assertFalse(bridge.path("bootstrap_servers").isMissingNode(), "Should have bootstrap servers");
                 assertTrue(bridge.has("replicas"), "Should have replicas info");
                 assertTrue(bridge.has("http_port"), "Should have HTTP port");
@@ -152,13 +155,14 @@ class KafkaBridgeToolsST extends AbstractST {
     @Story("Get KafkaBridge Pods")
     void testGetKafkaBridgePods() {
         Map<String, Object> args = Map.of(
-            "bridgeName", BRIDGE_NAME,
+            "bridgeName", Constants.BRIDGE_NAME,
             "namespace", Environment.KAFKA_NAMESPACE);
         mcpClient.when()
             .toolsCall("get_kafka_bridge_pods", args, response -> {
                 assertFalse(response.isError(), "get_kafka_bridge_pods should not return error");
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_bridge_pods response:\n{}", json);
+                LOGGER.info("get_kafka_bridge_pods response (length={})", json.length());
+                LOGGER.debug("get_kafka_bridge_pods response:\n{}", json);
 
                 JsonNode root = parseJson(json);
                 assertTrue(root.has("pod_summary"), "Should have pod_summary");
@@ -173,7 +177,7 @@ class KafkaBridgeToolsST extends AbstractST {
     @Story("Get KafkaBridge Logs")
     void testGetKafkaBridgeLogs() {
         Map<String, Object> args = Map.of(
-            "bridgeName", BRIDGE_NAME,
+            "bridgeName", Constants.BRIDGE_NAME,
             "tailLines", 50);
         mcpClient.when()
             .toolsCall("get_kafka_bridge_logs", args, response -> {
@@ -183,7 +187,7 @@ class KafkaBridgeToolsST extends AbstractST {
                 LOGGER.debug("get_kafka_bridge_logs response:\n{}", text);
 
                 JsonNode root = parseJson(text);
-                assertEquals(BRIDGE_NAME, root.path("bridge_name").asText(),
+                assertEquals(Constants.BRIDGE_NAME, root.path("bridge_name").asText(),
                     "bridge_name should match");
                 JsonNode pods = root.path("pods");
                 assertTrue(pods.isArray() && !pods.isEmpty(),
@@ -202,7 +206,7 @@ class KafkaBridgeToolsST extends AbstractST {
     @Story("Get Strimzi Events KafkaBridge")
     void testGetStrimziEventsKafkaBridge() {
         Map<String, Object> args = Map.of(
-            "resourceName", BRIDGE_NAME,
+            "resourceName", Constants.BRIDGE_NAME,
             "resourceKind", "KafkaBridge",
             "namespace", kafkaNamespace.getMetadata().getName());
         mcpClient.when()
@@ -213,7 +217,7 @@ class KafkaBridgeToolsST extends AbstractST {
                 LOGGER.debug("get_strimzi_events (KafkaBridge) response:\n{}", text);
 
                 JsonNode root = parseJson(text);
-                assertEquals(BRIDGE_NAME, root.path("resource_name").asText(),
+                assertEquals(Constants.BRIDGE_NAME, root.path("resource_name").asText(),
                     "resource_name should match");
                 assertEquals(kafkaNamespace.getMetadata().getName(),
                     root.path("namespace").asText(), "namespace should match deployment namespace");

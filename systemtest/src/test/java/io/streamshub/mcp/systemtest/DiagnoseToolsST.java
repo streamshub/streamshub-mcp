@@ -45,7 +45,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DiagnoseToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DiagnoseToolsST.class);
-    private static final String CONNECT_CLUSTER_NAME = "mcp-connect";
 
     @InjectResourceManager
     KubeResourceManager krm;
@@ -82,11 +81,11 @@ class DiagnoseToolsST extends AbstractST {
 
             krm.createOrUpdateResourceWithWait(
                 KafkaConnectTemplates.kafkaConnect(
-                    kafkaNs, CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
+                    kafkaNs, Constants.CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
                 KafkaConnectorTemplates.camelTimerSource(
-                    kafkaNs, CONNECTOR_NAME, CONNECT_CLUSTER_NAME, "test-topic").build());
+                    kafkaNs, CONNECTOR_NAME, Constants.CONNECT_CLUSTER_NAME, "test-topic").build());
         }
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
 
@@ -273,7 +272,7 @@ class DiagnoseToolsST extends AbstractST {
     @Story("Diagnose KafkaConnect")
     void testDiagnoseKafkaConnect() {
         Map<String, Object> args = Map.of(
-            "connectName", CONNECT_CLUSTER_NAME);
+            "connectName", Constants.CONNECT_CLUSTER_NAME);
         mcpClient.when()
             .toolsCall("diagnose_kafka_connect", args, response -> {
                 assertFalse(response.isError(), "diagnose_kafka_connect should not return error");
@@ -288,7 +287,7 @@ class DiagnoseToolsST extends AbstractST {
                 JsonNode connectCluster = root.path("connect_cluster");
                 assertFalse(connectCluster.isMissingNode(),
                     "Should have connect_cluster section");
-                assertEquals(CONNECT_CLUSTER_NAME, connectCluster.path("name").asText(),
+                assertEquals(Constants.CONNECT_CLUSTER_NAME, connectCluster.path("name").asText(),
                     "Connect cluster name should match");
                 assertEquals("Ready", connectCluster.path("readiness").asText(),
                     "Connect cluster should be Ready");
@@ -334,7 +333,7 @@ class DiagnoseToolsST extends AbstractST {
                 JsonNode connectCluster = root.path("connect_cluster");
                 assertFalse(connectCluster.isMissingNode(),
                     "Should have connect_cluster section");
-                assertEquals(CONNECT_CLUSTER_NAME, connectCluster.path("name").asText(),
+                assertEquals(Constants.CONNECT_CLUSTER_NAME, connectCluster.path("name").asText(),
                     "Connect cluster name should match");
 
                 assertFalse(root.path("connect_pods").isMissingNode(),
