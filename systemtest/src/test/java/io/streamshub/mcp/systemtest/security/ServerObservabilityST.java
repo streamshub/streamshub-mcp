@@ -2,7 +2,7 @@
  * Copyright StreamsHub authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package io.streamshub.mcp.systemtest;
+package io.streamshub.mcp.systemtest.security;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -11,12 +11,13 @@ import io.qameta.allure.Feature;
 import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
+import io.streamshub.mcp.systemtest.AbstractST;
+import io.streamshub.mcp.systemtest.Constants;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * and verifies that operational endpoints work correctly.
  */
 @Epic("Strimzi MCP E2E")
-@Feature("Observability")
+@Feature("MCP Observability")
 class ServerObservabilityST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerObservabilityST.class);
@@ -47,14 +48,14 @@ class ServerObservabilityST extends AbstractST {
 
     private static McpAssured.McpStreamableTestClient mcpClient;
     private static String mcpBaseUrl;
-
+    
     ServerObservabilityST() {
     }
 
     @BeforeAll
     void setup() {
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
-
+        
         mcpBaseUrl = ConnectivitySetup.expose(mcpNamespace.getMetadata().getName());
         mcpClient = McpClientFactory.create(mcpBaseUrl);
     }
@@ -69,24 +70,22 @@ class ServerObservabilityST extends AbstractST {
     // ---- Health Endpoints ----
 
     @Test
-    @DisplayName("Liveness endpoint returns UP")
-    @Story("Health Endpoints")
+    @Story("Liveness endpoint returns UP")
     void testHealthLiveness() throws Exception {
         String body = httpGet(mcpBaseUrl + "/q/health/live");
-        LOGGER.info("Liveness response: {}", body);
 
+        LOGGER.info("Liveness response: {}", body);
         JsonNode root = parseJson(body);
         assertEquals("UP", root.path("status").asText(),
             "Liveness endpoint should report UP status");
     }
 
     @Test
-    @DisplayName("Readiness endpoint returns UP")
-    @Story("Health Endpoints")
+    @Story("Readiness endpoint returns UP")
     void testHealthReadiness() throws Exception {
         String body = httpGet(mcpBaseUrl + "/q/health/ready");
-        LOGGER.info("Readiness response: {}", body);
 
+        LOGGER.info("Readiness response: {}", body);
         JsonNode root = parseJson(body);
         assertEquals("UP", root.path("status").asText(),
             "Readiness endpoint should report UP status");
@@ -95,8 +94,7 @@ class ServerObservabilityST extends AbstractST {
     // ---- Prometheus Metrics ----
 
     @Test
-    @DisplayName("MCP tool call metrics are recorded after tool invocation")
-    @Story("Prometheus Metrics")
+    @Story("MCP tool call metrics are recorded after tool invocation")
     void testMcpToolCallMetrics() throws Exception {
         // Make a tool call to generate metrics
         mcpClient.when()
@@ -107,7 +105,6 @@ class ServerObservabilityST extends AbstractST {
 
         String metrics = httpGet(mcpBaseUrl + "/q/metrics");
         LOGGER.info("Prometheus metrics response length={}", metrics.length());
-
         assertTrue(metrics.contains("mcp_tool_calls"),
             "Metrics should contain mcp_tool_calls counter");
         assertTrue(metrics.contains("list_kafka_clusters"),
@@ -115,8 +112,7 @@ class ServerObservabilityST extends AbstractST {
     }
 
     @Test
-    @DisplayName("MCP tool call duration metrics are recorded")
-    @Story("Prometheus Metrics")
+    @Story("MCP tool call duration metrics are recorded")
     void testMcpToolCallDuration() throws Exception {
         // Make a tool call to generate duration metrics
         mcpClient.when()
@@ -127,7 +123,6 @@ class ServerObservabilityST extends AbstractST {
 
         String metrics = httpGet(mcpBaseUrl + "/q/metrics");
         LOGGER.info("Prometheus duration metrics response length={}", metrics.length());
-
         assertTrue(metrics.contains("mcp_tool_call_duration"),
             "Metrics should contain mcp_tool_call_duration timer");
     }

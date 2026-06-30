@@ -2,7 +2,7 @@
  * Copyright StreamsHub authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package io.streamshub.mcp.systemtest;
+package io.streamshub.mcp.systemtest.scenarios;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -13,6 +13,9 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.streamshub.mcp.systemtest.AbstractST;
+import io.streamshub.mcp.systemtest.Constants;
+import io.streamshub.mcp.systemtest.Environment;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
@@ -21,7 +24,6 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,24 +69,26 @@ class MultiClusterST extends AbstractST {
     void setup() {
         if (!Environment.SKIP_STRIMZI_INSTALL) {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
-
+            
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
-
+            
             // Cluster 1
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build(),
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build());
+            
             krm.createOrUpdateResourceWithWait(
                 KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
-
+            
             // Cluster 2 in same namespace
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np-2",
                     Constants.KAFKA_CLUSTER_NAME_2, 1).build(),
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np-2",
                     Constants.KAFKA_CLUSTER_NAME_2, 1).build());
+            
             krm.createOrUpdateResourceWithWait(
                 KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME_2, 1).build());
         }
@@ -108,7 +112,7 @@ class MultiClusterST extends AbstractST {
     // ---- Fleet Overview ----
 
     @Test
-    @DisplayName("get_kafka_fleet_overview shows both clusters")
+    @Story("get_kafka_fleet_overview shows both clusters")
     @Story("Fleet Overview")
     void testFleetOverviewBothClusters() {
         Map<String, Object> args = Map.of();
@@ -118,12 +122,10 @@ class MultiClusterST extends AbstractST {
                 LOGGER.info("Fleet overview: total_clusters={}, total_brokers={}",
                     root.path("total_clusters").asInt(), root.path("total_brokers").asInt());
                 LOGGER.debug("get_kafka_fleet_overview response:\n{}", response.content().getFirst().asText().text());
-
                 assertTrue(root.path("total_clusters").asInt() >= 2,
                     "Should have at least 2 clusters");
                 assertTrue(root.path("total_brokers").asInt() >= 2,
                     "Should have at least 2 total brokers (1 per cluster)");
-
                 JsonNode clusters = root.path("clusters");
                 assertTrue(clusters.isArray(), "clusters should be an array");
                 assertNotNull(findByName(clusters, Constants.KAFKA_CLUSTER_NAME),
@@ -135,17 +137,16 @@ class MultiClusterST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_kafka_fleet_overview with namespace filter shows both clusters")
-    @Story("Fleet Overview")
+    @Story("get_kafka_fleet_overview with namespace filter shows both clusters")
     void testFleetOverviewNamespaceFilter() {
         Map<String, Object> args = Map.of("namespace", Constants.KAFKA_NAMESPACE);
+
         mcpClient.when()
             .toolsCall("get_kafka_fleet_overview", args, response -> {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("Fleet overview (ns filter): total_clusters={}",
                     root.path("total_clusters").asInt());
                 LOGGER.debug("get_kafka_fleet_overview (ns filter) response:\n{}", response.content().getFirst().asText().text());
-
                 assertTrue(root.path("total_clusters").asInt() >= 2,
                     "Both clusters are in same namespace — should see at least 2");
             })
@@ -155,24 +156,21 @@ class MultiClusterST extends AbstractST {
     // ---- List / Get Clusters ----
 
     @Test
-    @DisplayName("list_kafka_clusters returns both clusters in same namespace")
-    @Story("List Clusters")
+    @Story("list_kafka_clusters returns both clusters in same namespace")
     void testListClustersReturnsBoth() {
         Map<String, Object> args = Map.of("namespace", Constants.KAFKA_NAMESPACE);
+
         mcpClient.when()
             .toolsCall("list_kafka_clusters", args, response -> {
-                assertFalse(response.isError(), "list_kafka_clusters should not return error");
-
+                assertToolSuccess(response);
                 // MCP framework returns one content block per list element
                 LOGGER.info("list_kafka_clusters response ({} content entries)", response.content().size());
                 LOGGER.debug("list_kafka_clusters response:\n{}", response.content().getFirst().asText().text());
                 assertTrue(response.content().size() >= 2,
                     "Should have at least 2 content entries (one per cluster)");
-
                 List<JsonNode> clusters = response.content().stream()
                     .map(c -> parseJson(c.asText().text()))
                     .toList();
-
                 assertNotNull(
                     clusters.stream()
                         .filter(c -> Constants.KAFKA_CLUSTER_NAME.equals(c.path("name").asText()))
@@ -188,10 +186,10 @@ class MultiClusterST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_kafka_cluster returns correct cluster by name (cluster 1)")
-    @Story("Get Cluster")
+    @Story("get_kafka_cluster returns correct cluster by name (cluster 1)")
     void testGetCluster1() {
         Map<String, Object> args = Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME);
+
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
                 JsonNode cluster = assertToolSuccess(response);
@@ -205,10 +203,10 @@ class MultiClusterST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_kafka_cluster returns correct cluster by name (cluster 2)")
-    @Story("Get Cluster")
+    @Story("get_kafka_cluster returns correct cluster by name (cluster 2)")
     void testGetCluster2() {
         Map<String, Object> args = Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME_2);
+
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
                 JsonNode cluster = assertToolSuccess(response);
@@ -224,8 +222,7 @@ class MultiClusterST extends AbstractST {
     // ---- Bootstrap & Node Pools ----
 
     @Test
-    @DisplayName("get_kafka_bootstrap_servers returns different addresses per cluster")
-    @Story("Bootstrap Servers")
+    @Story("get_kafka_bootstrap_servers returns different addresses per cluster")
     void testBootstrapServersDiffer() {
         StringBuilder bootstrap1 = new StringBuilder();
         StringBuilder bootstrap2 = new StringBuilder();
@@ -257,14 +254,15 @@ class MultiClusterST extends AbstractST {
     }
 
     @Test
-    @DisplayName("list_kafka_node_pools returns per-cluster pools")
-    @Story("Node Pools")
+    @Story("list_kafka_node_pools returns per-cluster pools")
     void testNodePoolsPerCluster() {
+        // TODO - assert that nodepools are to different clusters
+
         mcpClient.when()
             .toolsCall("list_kafka_node_pools",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME,
                     "namespace", Constants.KAFKA_NAMESPACE), response -> {
-                    assertFalse(response.isError());
+                    assertToolSuccess(response);
                     assertFalse(response.content().isEmpty(), "Cluster 1 should have node pools");
                     LOGGER.info("Node pools (cluster 1): {} entries", response.content().size());
                     LOGGER.debug("Node pools (cluster 1) response:\n{}", response.content().getFirst().asText().text());
@@ -275,7 +273,7 @@ class MultiClusterST extends AbstractST {
             .toolsCall("list_kafka_node_pools",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME_2,
                     "namespace", Constants.KAFKA_NAMESPACE), response -> {
-                    assertFalse(response.isError());
+                    assertToolSuccess(response);
                     assertFalse(response.content().isEmpty(), "Cluster 2 should have node pools");
                     LOGGER.info("Node pools (cluster 2): {} entries", response.content().size());
                     LOGGER.debug("Node pools (cluster 2) response:\n{}", response.content().getFirst().asText().text());
@@ -286,9 +284,9 @@ class MultiClusterST extends AbstractST {
     // ---- Cluster Overview & Comparison ----
 
     @Test
-    @DisplayName("get_strimzi_kafka_cluster_overview returns per-cluster details")
-    @Story("Cluster Overview")
+    @Story("get_strimzi_kafka_cluster_overview returns per-cluster details")
     void testClusterOverviewPerCluster() {
+        // TODO - assert that clusters are different and also assert specific configs
         mcpClient.when()
             .toolsCall("get_strimzi_kafka_cluster_overview",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME), response -> {
@@ -315,19 +313,18 @@ class MultiClusterST extends AbstractST {
     }
 
     @Test
-    @DisplayName("compare_kafka_clusters compares both clusters in same namespace")
-    @Story("Cluster Comparison")
+    @Story("compare_kafka_clusters compares both clusters in same namespace")
     void testCompareClusters() {
         Map<String, Object> args = Map.of(
             "clusterName1", Constants.KAFKA_CLUSTER_NAME,
             "clusterName2", Constants.KAFKA_CLUSTER_NAME_2);
+
         mcpClient.when()
             .toolsCall("compare_kafka_clusters", args, response -> {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("compare_kafka_clusters response (length={})",
                     response.content().getFirst().asText().text().length());
                 LOGGER.debug("compare_kafka_clusters response:\n{}", response.content().getFirst().asText().text());
-
                 assertEquals(Constants.KAFKA_CLUSTER_NAME,
                     root.path("cluster1_config").path("name").asText(),
                     "cluster1_config.name should match first cluster");

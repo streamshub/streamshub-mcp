@@ -2,7 +2,7 @@
  * Copyright StreamsHub authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package io.streamshub.mcp.systemtest;
+package io.streamshub.mcp.systemtest.resilience;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -13,6 +13,9 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.streamshub.mcp.systemtest.AbstractST;
+import io.streamshub.mcp.systemtest.Constants;
+import io.streamshub.mcp.systemtest.Environment;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
@@ -21,7 +24,6 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * unreachable.
  */
 @Epic("Strimzi MCP E2E")
-@Feature("Config Validation")
+@Feature("MCP Server Config Validation")
 class ConfigValidationST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ConfigValidationST.class);
@@ -66,7 +68,6 @@ class ConfigValidationST extends AbstractST {
     void setup() {
         if (!Environment.SKIP_STRIMZI_INSTALL) {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
-
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
 
             krm.createOrUpdateResourceWithoutWait(
@@ -98,17 +99,17 @@ class ConfigValidationST extends AbstractST {
     }
 
     @Test
-    @DisplayName("Metrics tool returns clean error with invalid Prometheus URL")
-    @Story("Invalid Prometheus Config")
+    @Story("Metrics tool returns clean error with invalid Prometheus URL")
     void testInvalidPrometheusUrl() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "namespace", kafkaNamespace.getMetadata().getName());
+
         mcpClient.when()
             .toolsCall("get_kafka_metrics", args, response -> {
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("Invalid Prometheus URL response (isError={}): {}", response.isError(), text);
+                assertToolError(response, "nonexistent-prometheus");
 
+                String text = response.content().getFirst().asText().text();
                 assertTrue(response.isError(),
                     "Metrics should fail with unreachable Prometheus");
                 assertTrue(text.contains("nonexistent-prometheus"),
@@ -121,18 +122,18 @@ class ConfigValidationST extends AbstractST {
     }
 
     @Test
-    @DisplayName("Log tool returns clean error with invalid Loki URL")
-    @Story("Invalid Loki Config")
+    @Story("Log tool returns clean error with invalid Loki URL")
     void testInvalidLokiUrl() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "namespace", kafkaNamespace.getMetadata().getName(),
             "tailLines", 10);
+
         mcpClient.when()
             .toolsCall("get_kafka_cluster_logs", args, response -> {
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("Invalid Loki URL response (isError={}): {}", response.isError(), text);
+                assertToolError(response, "Loki query failed");
 
+                String text = response.content().getFirst().asText().text();
                 JsonNode root = parseJson(text);
                 assertEquals(0, root.path("log_lines").asInt(),
                     "No log lines should be retrieved with invalid Loki URL");
@@ -146,8 +147,7 @@ class ConfigValidationST extends AbstractST {
     }
 
     @Test
-    @DisplayName("Non-provider tools still work despite bad provider config")
-    @Story("Invalid Provider Config Isolation")
+    @Story("Non-provider tools still work despite bad provider config")
     void testNonProviderToolsStillWork() {
         mcpClient.when()
             .toolsList(page -> {

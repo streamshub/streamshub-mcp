@@ -41,6 +41,8 @@ import io.strimzi.api.kafka.model.rebalance.KafkaRebalance;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import io.strimzi.api.kafka.model.user.KafkaUser;
 import org.junit.jupiter.api.TestInstance;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
 
@@ -96,13 +98,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 )
 public abstract class AbstractST {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractST.class);
+
     /**
      * Helper method to jet json object from json string
      *
      * @param json json string
      * @return json object
      */
-    static JsonNode parseJson(final String json) {
+    protected static JsonNode parseJson(final String json) {
         final ObjectMapper mapper = new ObjectMapper();
         try {
             return mapper.readTree(json);
@@ -132,6 +136,28 @@ public abstract class AbstractST {
     }
 
     /**
+     * Core response assertion: logs the response, verifies isError matches
+     * expectation (logging at INFO on mismatch), and returns parsed JSON
+     * content or {@code null} if the response has no content.
+     */
+    private static JsonNode assertToolResponse(final ToolResponse response,
+                                               final boolean expectError) {
+        LOGGER.debug("Tool response: {}", response);
+        if (response.isError() != expectError) {
+            String content = response.content().isEmpty()
+                ? "<empty>" : response.content().getFirst().asText().text();
+            LOGGER.info("Unexpected tool response (expected {}): {}",
+                expectError ? "error" : "success", content);
+        }
+        assertEquals(expectError, response.isError(),
+            expectError ? "Tool call should return error" : "Tool call should not return error");
+        if (response.content().isEmpty() || expectError) {
+            return null;
+        }
+        return parseJson(response.content().getFirst().asText().text());
+    }
+
+    /**
      * Assert that an MCP tool call returned an error whose message contains all
      * of the given substrings (case-insensitive).
      *
@@ -140,7 +166,7 @@ public abstract class AbstractST {
      */
     protected static void assertToolError(final ToolResponse response,
                                           final String... expectedSubstrings) {
-        assertTrue(response.isError(), "Tool call should return error");
+        assertToolResponse(response, true);
         assertFalse(response.content().isEmpty(), "Error response should have content");
         String text = response.content().getFirst().asText().text();
         for (String sub : expectedSubstrings) {
@@ -151,14 +177,13 @@ public abstract class AbstractST {
 
     /**
      * Assert that an MCP tool call succeeded and return the parsed JSON body.
+     * Returns {@code null} if the response has no content.
      *
      * @param response the MCP tool call response
-     * @return parsed JSON root node
+     * @return parsed JSON root node, or {@code null} if content is empty
      */
     protected static JsonNode assertToolSuccess(final ToolResponse response) {
-        assertFalse(response.isError(), "Tool call should not return error");
-        assertFalse(response.content().isEmpty(), "Response should have content");
-        return parseJson(response.content().getFirst().asText().text());
+        return assertToolResponse(response, false);
     }
 
     protected static void assertDiagnosticReport(final JsonNode root) {
@@ -202,7 +227,9 @@ public abstract class AbstractST {
         assertFalse(root.path("namespace").isMissingNode(), "Should have namespace");
         assertTrue(root.path("categories").isArray(), "categories should be an array");
         assertTrue(root.path("time_series").isArray(), "time_series should be an array");
+        assertTrue(root.path("time_series").size() > 0, "time_series should not be empty");
         assertTrue(root.path("metric_count").isNumber(), "metric_count should be a number");
+        assertTrue(root.path("metric_count").asInt() > 0, "metric_count should be greater than 0");
         assertTrue(root.path("sample_count").isNumber(), "sample_count should be a number");
         assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
         assertFalse(root.path("message").isMissingNode(), "Should have message");

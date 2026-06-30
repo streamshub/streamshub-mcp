@@ -211,6 +211,35 @@ public final class McpServerSetup {
     }
 
     /**
+     * Deploy a ClusterRoleBinding that grants the MCP ServiceAccount the
+     * {@code cluster-monitoring-view} ClusterRole, allowing it to query
+     * the OpenShift Thanos querier for Prometheus metrics.
+     *
+     * @param mcpNamespace namespace where the MCP ServiceAccount lives
+     */
+    @Step("Deploy monitoring RBAC for MCP server in namespace {mcpNamespace}")
+    public static void deployMonitoringRbac(final String mcpNamespace) {
+        LOGGER.info("Deploying cluster-monitoring-view ClusterRoleBinding for SA in {}", mcpNamespace);
+        ClusterRoleBinding crb = new ClusterRoleBindingBuilder()
+            .withNewMetadata()
+                .withName(Constants.MCP_NAME + "-monitoring-view")
+                .addToLabels(Constants.MCP_APP_LABEL_KEY, Constants.MCP_APP_LABEL)
+            .endMetadata()
+            .withNewRoleRef()
+                .withApiGroup("rbac.authorization.k8s.io")
+                .withKind("ClusterRole")
+                .withName("cluster-monitoring-view")
+            .endRoleRef()
+            .addNewSubject()
+                .withKind("ServiceAccount")
+                .withName(Constants.MCP_NAME)
+                .withNamespace(mcpNamespace)
+            .endSubject()
+            .build();
+        KubeResourceManager.get().createOrUpdateResourceWithoutWait(crb);
+    }
+
+    /**
      * Deploy the optional sensitive RBAC (Role + RoleBinding) that grants
      * Secret read access in the target namespace.
      *
@@ -224,14 +253,20 @@ public final class McpServerSetup {
         Role role = KubeTestUtils.configFromYaml(
             optionalInstallFile("role-sensitive.yaml"), Role.class);
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(new RoleBuilder(role)
-            .editMetadata().withNamespace(targetNamespace).endMetadata()
+            .editMetadata()
+                .withNamespace(targetNamespace)
+            .endMetadata()
             .build());
 
         RoleBinding rb = KubeTestUtils.configFromYaml(
             optionalInstallFile("rolebinding-sensitive.yaml"), RoleBinding.class);
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(new RoleBindingBuilder(rb)
-            .editMetadata().withNamespace(targetNamespace).endMetadata()
-            .editFirstSubject().withNamespace(mcpNamespace).endSubject()
+            .editMetadata()
+                .withNamespace(targetNamespace)
+            .endMetadata()
+            .editFirstSubject()
+                .withNamespace(mcpNamespace)
+            .endSubject()
             .build());
     }
 
@@ -298,7 +333,9 @@ public final class McpServerSetup {
         ClusterRoleBinding crb = KubeTestUtils.configFromYaml(
             installFile("clusterrolebinding.yaml"), ClusterRoleBinding.class);
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(new ClusterRoleBindingBuilder(crb)
-            .editFirstSubject().withNamespace(namespace).endSubject()
+            .editFirstSubject()
+                .withNamespace(namespace)
+            .endSubject()
             .build());
     }
 
@@ -309,16 +346,22 @@ public final class McpServerSetup {
             installFile("deployment.yaml"), Deployment.class);
 
         DeploymentBuilder db = new DeploymentBuilder(deployment)
-            .editMetadata().withNamespace(namespace).endMetadata()
-            .editSpec().editTemplate().editSpec()
-                .editFirstContainer()
-                    .withImage(image)
-                    .withImagePullPolicy("IfNotPresent")
-                    .addToEnv(new EnvVarBuilder()
-                        .withName("QUARKUS_LOG_CATEGORY__IO_STREAMSHUB_MCP__LEVEL")
-                        .withValue("DEBUG").build())
-                .endContainer()
-            .endSpec().endTemplate().endSpec();
+            .editMetadata()
+                .withNamespace(namespace)
+            .endMetadata()
+            .editSpec()
+                .editTemplate()
+                    .editSpec()
+                        .editFirstContainer()
+                            .withImage(image)
+                            .withImagePullPolicy("Always")
+                            .addToEnv(new EnvVarBuilder()
+                                .withName("QUARKUS_LOG_CATEGORY__IO_STREAMSHUB_MCP__LEVEL")
+                                .withValue("DEBUG").build())
+                        .endContainer()
+                    .endSpec()
+                .endTemplate()
+            .endSpec();
 
         if (modifier != null) {
             modifier.accept(db);
@@ -329,7 +372,9 @@ public final class McpServerSetup {
         Service service = KubeTestUtils.configFromYaml(
             installFile("service.yaml"), Service.class);
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(new ServiceBuilder(service)
-            .editMetadata().withNamespace(namespace).endMetadata()
+            .editMetadata()
+                .withNamespace(namespace)
+            .endMetadata()
             .build());
     }
 
