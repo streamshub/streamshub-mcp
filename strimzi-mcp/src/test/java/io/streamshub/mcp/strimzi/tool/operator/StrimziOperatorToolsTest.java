@@ -98,7 +98,7 @@ class StrimziOperatorToolsTest {
         when(operatorService.getOperatorLogs(any(), any(), any()))
             .thenReturn(StrimziOperatorLogsResponse.of("kafka-system",
                 "INFO: Operator running normally", List.of("strimzi-operator-abc123"),
-                false, 0, 1, false));
+                false, 0, 0, 1, false, List.of()));
 
         client.when()
             .toolsCall("get_strimzi_operator_logs", Map.of(), response -> {

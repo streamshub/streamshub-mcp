@@ -8,6 +8,7 @@ import io.quarkus.arc.lookup.LookupIfProperty;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.dto.metrics.MetricsQueryParams;
 import io.streamshub.mcp.common.service.metrics.MetricsProvider;
+import io.streamshub.mcp.common.service.metrics.MetricsQueryException;
 import io.streamshub.mcp.common.util.metrics.MetricLabelFilter;
 import io.streamshub.mcp.metrics.prometheus.dto.PrometheusResponse;
 import io.streamshub.mcp.metrics.prometheus.util.PromQLSanitizer;
@@ -192,12 +193,9 @@ public class PrometheusMetricsProvider implements MetricsProvider {
     private List<MetricSample> convertResponseWithName(final PrometheusResponse response,
                                                        final int maxSamples,
                                                        final String metricName) {
-        if (response == null || response.data() == null || response.data().result() == null) {
-            return List.of();
-        }
+        validateResponse(response);
 
-        if (!"success".equals(response.status())) {
-            LOG.warnf("Prometheus query returned non-success status: %s", response.status());
+        if (response.data().result() == null || response.data().result().isEmpty()) {
             return List.of();
         }
 
@@ -229,12 +227,9 @@ public class PrometheusMetricsProvider implements MetricsProvider {
 
     private List<MetricSample> convertResponse(final PrometheusResponse response,
                                                 final int maxSamples) {
-        if (response == null || response.data() == null || response.data().result() == null) {
-            return List.of();
-        }
+        validateResponse(response);
 
-        if (!"success".equals(response.status())) {
-            LOG.warnf("Prometheus query returned non-success status: %s", response.status());
+        if (response.data().result() == null || response.data().result().isEmpty()) {
             return List.of();
         }
 
@@ -265,6 +260,17 @@ public class PrometheusMetricsProvider implements MetricsProvider {
         }
 
         return samples;
+    }
+
+    private void validateResponse(final PrometheusResponse response) {
+        if (response == null || response.data() == null) {
+            throw new MetricsQueryException("Prometheus returned no response data. "
+                + "Check Prometheus URL configuration and connectivity.");
+        }
+        if (!"success".equals(response.status())) {
+            throw new MetricsQueryException(
+                String.format("Prometheus query failed with status '%s'", response.status()));
+        }
     }
 
     private void addSample(final List<MetricSample> samples, final String metricName,

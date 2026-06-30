@@ -104,7 +104,7 @@ class KafkaLogCollectionTest {
         PodLogsResult logsResult = new PodLogsResult(
             List.of("my-cluster-kafka-0"),
             "=== Pod: my-cluster-kafka-0 ===\nERROR Something failed\n",
-            1, 10, 1, false);
+            1, 10, 1, false, 0, List.of());
 
         when(logCollectionService.collectLogs(eq("kafka"), any(), any()))
             .thenReturn(logsResult);
@@ -136,7 +136,7 @@ class KafkaLogCollectionTest {
 
         PodLogsResult logsResult = new PodLogsResult(
             List.of("my-cluster-kafka-0", "my-cluster-kafka-1", "my-cluster-kafka-2"),
-            "logs from 3 pods", 0, 30, 30, false);
+            "logs from 3 pods", 0, 30, 30, false, 0, List.of());
 
         when(logCollectionService.collectLogs(eq("kafka"), any(), any()))
             .thenReturn(logsResult);
@@ -161,7 +161,7 @@ class KafkaLogCollectionTest {
 
         PodLogsResult logsResult = new PodLogsResult(
             List.of("my-cluster-kafka-0"),
-            "truncated logs", 0, 200, 200, true);
+            "truncated logs", 0, 200, 200, true, 0, List.of());
 
         when(logCollectionService.collectLogs(eq("kafka"), any(), any()))
             .thenReturn(logsResult);
@@ -182,7 +182,7 @@ class KafkaLogCollectionTest {
             .thenReturn(List.of(pod));
 
         when(logCollectionService.collectLogs(any(), any(), any()))
-            .thenReturn(new PodLogsResult(List.of(), "", 0, 0, 0, false));
+            .thenReturn(new PodLogsResult(List.of(), "", 0, 0, 0, false, 0, List.of()));
 
         LogCollectionParams options = LogCollectionParams.builder(100)
             .filter("errors")

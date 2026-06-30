@@ -49,6 +49,7 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
     }
 
     @Override
+    @SuppressWarnings("checkstyle:NPathComplexity")
     public List<MetricSample> queryMetrics(final MetricsQueryParams params) {
         if (params.isRangeQuery()) {
             LOG.warn("Pod scraping provider does not support range queries."
@@ -69,6 +70,7 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
             metricFilter != null ? metricFilter : "none");
 
         List<MetricSample> allSamples = new ArrayList<>();
+        List<String> failedTargets = new ArrayList<>();
         int maxSamples = params.maxSamples();
         boolean limitEnabled = maxSamples > 0;
 
@@ -105,9 +107,20 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
                         target.namespace(), target.podName());
                 }
             } catch (Exception e) {
-                LOG.debugf("Error scraping metrics from pod %s/%s: %s",
+                LOG.warnf("Error scraping metrics from pod %s/%s: %s",
                     target.namespace(), target.podName(), e.getMessage());
+                failedTargets.add(String.format("%s/%s: %s",
+                    target.namespace(), target.podName(), e.getMessage()));
             }
+        }
+
+        if (!failedTargets.isEmpty() && failedTargets.size() == targets.size()) {
+            throw new MetricsQueryException(
+                "All pod scraping targets failed: " + failedTargets);
+        }
+        if (!failedTargets.isEmpty()) {
+            LOG.warnf("Pod scraping partially failed: %d of %d targets failed: %s",
+                failedTargets.size(), targets.size(), failedTargets);
         }
 
         LOG.debugf("Scraping complete: collected %d total sample(s) from %d target(s)",
@@ -158,8 +171,8 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
                 }
             }
         } catch (Exception e) {
-            LOG.debugf("Could not auto-detect metrics port for pod %s/%s: %s",
-                target.namespace(), target.podName(), e.getMessage());
+            LOG.warnf("Could not auto-detect metrics port for pod %s/%s, falling back to %d: %s",
+                target.namespace(), target.podName(), DEFAULT_METRICS_PORT, e.getMessage());
         }
 
         return DEFAULT_METRICS_PORT;

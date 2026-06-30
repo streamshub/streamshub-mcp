@@ -71,8 +71,14 @@ public record KafkaMetricsResponse(
             .distinct()
             .count();
 
-        String msg = String.format("Retrieved %d samples across %d metrics from cluster '%s'",
-            samples.size(), metricCount, clusterName);
+        String msg;
+        if (samples.isEmpty()) {
+            msg = String.format("No metrics data available for cluster '%s' (provider: %s, categories: %s)",
+                clusterName, provider, categories);
+        } else {
+            msg = String.format("Retrieved %d samples across %d metrics from cluster '%s'",
+                samples.size(), metricCount, clusterName);
+        }
 
         List<AggregatedTimeSeries> series = samples.isEmpty()
             ? List.of() : AggregatedTimeSeries.fromSamples(samples, level);

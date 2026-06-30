@@ -10,6 +10,7 @@ import io.streamshub.mcp.common.dto.ConditionInfo;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 /**
  * Response containing comprehensive Kafka cluster resource information.
  * Avoids naming conflicts with Kubernetes API classes.
@@ -29,6 +30,7 @@ import java.util.List;
  * @param creationTime          when the cluster was created
  * @param ageMinutes            the age of the cluster in minutes
  * @param managedBy             the Strimzi operator version managing this cluster
+ * @param warnings              data gathering issues (omitted when empty)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record KafkaClusterResponse(
@@ -46,7 +48,8 @@ public record KafkaClusterResponse(
     @JsonProperty("authorization_enabled") Boolean authorizationEnabled,
     @JsonProperty("creation_time") Instant creationTime,
     @JsonProperty("age_minutes") Long ageMinutes,
-    @JsonProperty("managed_by") String managedBy
+    @JsonProperty("managed_by") String managedBy,
+    @JsonInclude(JsonInclude.Include.NON_EMPTY) @JsonProperty("warnings") List<String> warnings
 ) {
     /**
      * Creates a cluster response with the given fields.
@@ -66,6 +69,7 @@ public record KafkaClusterResponse(
      * @param creationTime          the creation time
      * @param ageMinutes            the age in minutes
      * @param managedBy             the managing operator
+     * @param warnings              data gathering issues (may be null or empty)
      * @return a new cluster response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -76,11 +80,13 @@ public record KafkaClusterResponse(
                                            RoleReplicasInfo controllerReplicas,
                                            Boolean externalAccess, Boolean authenticationEnabled,
                                            Boolean authorizationEnabled, Instant creationTime,
-                                           Long ageMinutes, String managedBy) {
+                                           Long ageMinutes, String managedBy,
+                                           List<String> warnings) {
         return new KafkaClusterResponse(name, namespace, kind, kafkaVersion, readiness,
             conditions, listeners, brokerReplicas, controllerReplicas,
             externalAccess, authenticationEnabled, authorizationEnabled,
-            creationTime, ageMinutes, managedBy);
+            creationTime, ageMinutes, managedBy,
+            warnings != null ? warnings.stream().filter(Objects::nonNull).toList() : List.of());
     }
 
     /**

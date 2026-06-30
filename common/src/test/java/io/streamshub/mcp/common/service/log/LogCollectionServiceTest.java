@@ -66,7 +66,8 @@ class LogCollectionServiceTest {
             .progressCallback((completed, total) -> progressCalls.add(new int[]{completed, total}))
             .build();
 
-        logCollectionService.collectLogs("kafka", List.of(pod1, pod2, pod3), options);
+        assertThrows(LogQueryException.class, () ->
+            logCollectionService.collectLogs("kafka", List.of(pod1, pod2, pod3), options));
 
         assertEquals(3, progressCalls.size());
         assertEquals(1, progressCalls.get(0)[0]);
@@ -85,7 +86,8 @@ class LogCollectionServiceTest {
             .notifier(notifications::add)
             .build();
 
-        logCollectionService.collectLogs("kafka", List.of(pod), options);
+        assertThrows(LogQueryException.class, () ->
+            logCollectionService.collectLogs("kafka", List.of(pod), options));
 
         assertEquals(1, notifications.size());
         assertTrue(notifications.getFirst().contains("test-pod (1/1)"));

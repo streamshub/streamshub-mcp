@@ -15,6 +15,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -66,7 +67,7 @@ public class LogCollectionService {
      * @param options   log collection params (filter, keywords, pagination, callbacks)
      * @return the aggregated, deduplicated log result
      */
-    @SuppressWarnings("checkstyle:CyclomaticComplexity")
+    @SuppressWarnings({"checkstyle:CyclomaticComplexity", "checkstyle:NPathComplexity"})
     public PodLogsResult collectLogs(final String namespace, final List<Pod> pods,
                                      final LogCollectionParams options) {
         if (options.tailLines() <= 0) {
@@ -82,6 +83,8 @@ public class LogCollectionService {
         int totalLines = 0;
         int filteredLines = 0;
         boolean hasMore = false;
+        int failedPods = 0;
+        List<String> warnings = new ArrayList<>();
 
         int podIndex = 0;
         for (Pod pod : pods) {
@@ -122,7 +125,9 @@ public class LogCollectionService {
                     }
                 }
             } catch (Exception e) {
-                LOG.debugf("Could not retrieve logs from pod %s: %s", podName, e.getMessage());
+                failedPods++;
+                LOG.warnf("Could not retrieve logs from pod %s: %s", podName, e.getMessage());
+                warnings.add(String.format("Failed to retrieve logs from pod %s: %s", podName, e.getMessage()));
                 allLogs.append("=== Pod: ").append(podName)
                     .append(" === (logs unavailable: ").append(e.getMessage()).append(")\n");
             }
@@ -131,7 +136,13 @@ public class LogCollectionService {
             }
         }
 
-        return new PodLogsResult(podNames, allLogs.toString(), errorCount, totalLines, filteredLines, hasMore);
+        if (failedPods > 0 && failedPods == pods.size() && totalLines == 0) {
+            throw new LogQueryException(
+                String.format("Failed to retrieve logs from all %d pods: %s", pods.size(), warnings), null);
+        }
+
+        return new PodLogsResult(podNames, allLogs.toString(), errorCount, totalLines, filteredLines, hasMore,
+            failedPods, warnings.isEmpty() ? Collections.emptyList() : warnings);
     }
 
     /**
