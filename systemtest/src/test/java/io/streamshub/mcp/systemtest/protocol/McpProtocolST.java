@@ -2,7 +2,7 @@
  * Copyright StreamsHub authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package io.streamshub.mcp.systemtest;
+package io.streamshub.mcp.systemtest.protocol;
 
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.qameta.allure.Epic;
@@ -10,12 +10,13 @@ import io.qameta.allure.Feature;
 import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
+import io.streamshub.mcp.systemtest.AbstractST;
+import io.streamshub.mcp.systemtest.Constants;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,11 +36,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * registration, and concurrent session handling.
  */
 @Epic("Strimzi MCP E2E")
-@Feature("MCP Protocol")
+@Feature("MCP Protocol discovery")
 class McpProtocolST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(McpProtocolST.class);
-
     private static final int MIN_EXPECTED_TOOLS = 50;
     private static final int MIN_EXPECTED_PROMPTS = 8;
 
@@ -69,8 +69,7 @@ class McpProtocolST extends AbstractST {
     // ---- Tool Discovery ----
 
     @Test
-    @DisplayName("MCP server registers all expected tools with schemas")
-    @Story("Tool Discovery")
+    @Story("MCP server registers all expected tools with schemas")
     void testToolDiscovery() {
         mcpClient.when()
             .toolsList(page -> {
@@ -78,7 +77,6 @@ class McpProtocolST extends AbstractST {
                 assertTrue(page.size() >= MIN_EXPECTED_TOOLS,
                     "Server should register at least " + MIN_EXPECTED_TOOLS
                         + " tools, got " + page.size());
-
                 // Spot-check critical tools exist
                 assertNotNull(page.findByName("list_kafka_clusters"),
                     "Should register list_kafka_clusters");
@@ -90,7 +88,6 @@ class McpProtocolST extends AbstractST {
                     "Should register get_kafka_metrics");
                 assertNotNull(page.findByName("get_kafka_fleet_overview"),
                     "Should register get_kafka_fleet_overview");
-
                 // Verify each tool has a description and input schema
                 page.tools().forEach(tool -> {
                     assertFalse(tool.description() == null || tool.description().isBlank(),
@@ -105,8 +102,7 @@ class McpProtocolST extends AbstractST {
     // ---- Prompt Template Discovery ----
 
     @Test
-    @DisplayName("MCP server registers all expected prompt templates")
-    @Story("Prompt Discovery")
+    @Story("MCP server registers all expected prompt templates")
     void testPromptTemplatesDiscovery() {
         mcpClient.when()
             .promptsList(page -> {
@@ -114,7 +110,6 @@ class McpProtocolST extends AbstractST {
                 assertTrue(page.size() >= MIN_EXPECTED_PROMPTS,
                     "Server should register at least " + MIN_EXPECTED_PROMPTS
                         + " prompts, got " + page.size());
-
                 // Verify each prompt has a description
                 page.prompts().forEach(prompt -> {
                     assertFalse(prompt.description() == null || prompt.description().isBlank(),
@@ -128,13 +123,11 @@ class McpProtocolST extends AbstractST {
     // ---- Concurrent Sessions ----
 
     @Test
-    @DisplayName("Concurrent MCP tool calls do not crash or leak data")
-    @Story("Concurrent Sessions")
+    @Story("Concurrent MCP tool calls do not crash or leak data")
     void testConcurrentToolCalls() throws InterruptedException {
         AtomicBoolean call1Ok = new AtomicBoolean(false);
         AtomicBoolean call2Ok = new AtomicBoolean(false);
         CountDownLatch latch = new CountDownLatch(2);
-
         Thread t1 = new Thread(() -> {
             try {
                 mcpClient.when()
@@ -150,7 +143,6 @@ class McpProtocolST extends AbstractST {
                 latch.countDown();
             }
         });
-
         Thread t2 = new Thread(() -> {
             try {
                 mcpClient.when()
@@ -165,10 +157,8 @@ class McpProtocolST extends AbstractST {
                 latch.countDown();
             }
         });
-
         t1.start();
         t2.start();
-
         assertTrue(latch.await(60, TimeUnit.SECONDS),
             "Both concurrent calls should complete within 60 seconds");
         assertTrue(call1Ok.get(), "Concurrent call 1 should have completed");

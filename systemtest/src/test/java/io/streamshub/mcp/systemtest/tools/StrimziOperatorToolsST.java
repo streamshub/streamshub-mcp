@@ -2,7 +2,7 @@
  * Copyright StreamsHub authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package io.streamshub.mcp.systemtest;
+package io.streamshub.mcp.systemtest.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -13,6 +13,9 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.streamshub.mcp.systemtest.AbstractST;
+import io.streamshub.mcp.systemtest.Constants;
+import io.streamshub.mcp.systemtest.Environment;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
@@ -21,7 +24,6 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,9 +66,9 @@ class StrimziOperatorToolsST extends AbstractST {
     void setup() {
         if (!Environment.SKIP_STRIMZI_INSTALL) {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
-
+            
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
-
+            
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
                     Constants.KAFKA_CLUSTER_NAME, 3).build(),
@@ -74,10 +76,11 @@ class StrimziOperatorToolsST extends AbstractST {
                     Constants.KAFKA_CLUSTER_NAME, 3).build(),
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np2",
                     Constants.KAFKA_CLUSTER_NAME, 3).build());
-
+            
             krm.createOrUpdateResourceWithWait(
                 KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 3).build());
         }
+
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
 
         String mcpUrl = ConnectivitySetup.expose(mcpNamespace.getMetadata().getName());
@@ -92,24 +95,19 @@ class StrimziOperatorToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("list_strimzi_operators discovers the deployed operator")
-    @Story("List Strimzi Operators")
+    @Story("list_strimzi_operators discovers the deployed operator")
     void testListStrimziOperators() {
         Map<String, Object> args = Map.of("namespace", Constants.STRIMZI_NAMESPACE);
+
         mcpClient.when()
             .toolsCall("list_strimzi_operators", args, response -> {
-                assertFalse(response.isError(), "list_strimzi_operators should not return error");
-                assertFalse(response.content().isEmpty(), "Should return at least one content entry");
+                JsonNode root = assertToolSuccess(response);
 
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("list_strimzi_operators response (length={})", json.length());
                 LOGGER.debug("list_strimzi_operators response:\n{}", json);
-
-                JsonNode root = parseJson(json);
-
                 JsonNode operator = findByName(root, "strimzi-cluster-operator");
                 assertNotNull(operator, "Should find 'strimzi-cluster-operator' in response");
-
                 assertEquals(Constants.STRIMZI_NAMESPACE, operator.path("namespace").asText(),
                     "Namespace should match");
                 assertTrue(operator.path("ready").asBoolean(), "Operator should be ready");
@@ -125,22 +123,19 @@ class StrimziOperatorToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_strimzi_operator returns detailed operator info")
-    @Story("Get Strimzi Operator")
+    @Story("get_strimzi_operator returns detailed operator info")
     void testGetStrimziOperator() {
         Map<String, Object> args = Map.of(
             "operatorName", "strimzi-cluster-operator",
             "namespace", Constants.STRIMZI_NAMESPACE);
+
         mcpClient.when()
             .toolsCall("get_strimzi_operator", args, response -> {
-                assertFalse(response.isError(), "get_strimzi_operator should not return error");
+                JsonNode operator = assertToolSuccess(response);
 
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("get_strimzi_operator response (length={})", json.length());
                 LOGGER.debug("get_strimzi_operator response:\n{}", json);
-
-                JsonNode operator = parseJson(json);
-
                 assertEquals("strimzi-cluster-operator", operator.path("name").asText(),
                     "Operator name should match");
                 assertEquals(Constants.STRIMZI_NAMESPACE, operator.path("namespace").asText(),
@@ -148,20 +143,16 @@ class StrimziOperatorToolsST extends AbstractST {
                 assertTrue(operator.path("ready").asBoolean(), "Operator should be ready");
                 assertEquals("HEALTHY", operator.path("status").asText(),
                     "Operator should be HEALTHY");
-
                 assertFalse(operator.path("version").isMissingNode(),
                     "Should have version");
                 assertFalse(operator.path("version").asText().isEmpty(),
                     "Version should not be empty");
-
                 assertFalse(operator.path("image").isMissingNode(),
                     "Should have image");
                 assertTrue(operator.path("image").asText().contains("strimzi"),
                     "Image should contain 'strimzi'");
-
                 assertFalse(operator.path("uptime_hours").isMissingNode(),
                     "Should have uptime_hours");
-
                 assertEquals(operator.path("replicas").asInt(),
                     operator.path("ready_replicas").asInt(),
                     "All replicas should be ready");
@@ -170,61 +161,51 @@ class StrimziOperatorToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_strimzi_operator returns error for non-existent operator")
-    @Story("Get Strimzi Operator")
+    @Story("get_strimzi_operator returns error for non-existent operator")
     void testGetStrimziOperatorNotFound() {
         Map<String, Object> args = Map.of(
             "operatorName", "non-existent-operator",
             "namespace", Constants.STRIMZI_NAMESPACE);
+
         mcpClient.when()
             .toolsCall("get_strimzi_operator", args, response -> {
-                LOGGER.info("get_strimzi_operator error response: {}",
-                    response.content().getFirst().asText().text());
+                // TODO - improve string for asserts
                 assertToolError(response, "not found");
             })
             .thenAssertResults();
     }
 
     @Test
-    @DisplayName("get_strimzi_operator_pod returns pod details")
-    @Story("Get Strimzi Operator Pod")
+    @Story("get_strimzi_operator_pod returns pod details")
     void testGetStrimziOperatorPod() {
         // First discover the operator pod name via operator logs
         Map<String, Object> logsArgs = Map.of("namespace", Constants.STRIMZI_NAMESPACE);
+
         mcpClient.when()
             .toolsCall("get_strimzi_operator_logs", logsArgs, response -> {
-                assertFalse(response.isError(), "get_strimzi_operator_logs should not return error");
+                JsonNode root = assertToolSuccess(response);
 
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("get_strimzi_operator_logs response (length={})", json.length());
                 LOGGER.debug("get_strimzi_operator_logs response:\n{}", json);
-                JsonNode root = parseJson(json);
-
                 // operator_pods is a string array of pod names
                 JsonNode operatorPods = root.path("operator_pods");
                 assertTrue(operatorPods.isArray() && !operatorPods.isEmpty(),
                     "Should have at least one operator pod name");
                 String podName = operatorPods.get(0).asText();
                 assertFalse(podName.isEmpty(), "Pod name should not be empty");
-
                 LOGGER.info("Discovered operator pod: {}", podName);
-
                 // Now call get_strimzi_operator_pod with the discovered pod name
                 mcpClient.when()
                     .toolsCall("get_strimzi_operator_pod",
                         Map.of("namespace", Constants.STRIMZI_NAMESPACE, "podName", podName),
                         podResponse -> {
-                            assertFalse(podResponse.isError(),
-                                "get_strimzi_operator_pod should not return error");
-
+                            JsonNode podResult = assertToolSuccess(podResponse);
                             String podJson = podResponse.content().getFirst().asText().text();
                             LOGGER.info("get_strimzi_operator_pod response (length={})",
                                 podJson.length());
                             LOGGER.debug("get_strimzi_operator_pod response:\n{}",
                                 podJson);
-
-                            JsonNode podResult = parseJson(podJson);
-
                             assertTrue(podResult.path("total_pods").asInt() > 0,
                                 "Should have at least one pod");
                             assertTrue(podResult.path("ready_pods").asInt() > 0,
@@ -233,11 +214,9 @@ class StrimziOperatorToolsST extends AbstractST {
                                 "Should have no failed pods");
                             assertEquals("HEALTHY", podResult.path("health_status").asText(),
                                 "Pod health should be HEALTHY");
-
                             JsonNode podsList = podResult.path("pods");
                             assertTrue(podsList.isArray() && !podsList.isEmpty(),
                                 "Should have pod details");
-
                             JsonNode pod = podsList.get(0);
                             assertEquals("Running", pod.path("phase").asText(),
                                 "Pod should be Running");
@@ -252,37 +231,16 @@ class StrimziOperatorToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_strimzi_operator returns operator info when namespace is specified")
-    @Story("Get Strimzi Operator")
-    void testGetStrimziOperatorWithNamespace() {
-        Map<String, Object> args = Map.of(
-            "operatorName", "strimzi-cluster-operator",
-            "namespace", strimziNamespace.getMetadata().getName());
-        mcpClient.when()
-            .toolsCall("get_strimzi_operator", args, response -> {
-                assertFalse(response.isError(),
-                    "get_strimzi_operator should not return error");
-
-                String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_strimzi_operator (with namespace) response (length={})", json.length());
-                LOGGER.debug("get_strimzi_operator (with namespace) response:\n{}", json);
-
-                JsonNode operator = parseJson(json);
-
-                assertEquals("strimzi-cluster-operator", operator.path("name").asText(),
-                    "Operator name should match");
-            })
-            .thenAssertResults();
-    }
-
-    @Test
-    @DisplayName("get_strimzi_operator_logs returns logs filtered by ERROR level")
-    @Story("Get Strimzi Operator Logs")
+    @Story("get_strimzi_operator_logs returns logs filtered by ERROR level")
     void testGetStrimziOperatorLogsErrorFilter() {
         Map<String, Object> args = Map.of("filter", "ERROR", "tailLines", 100);
+
         mcpClient.when()
             .toolsCall("get_strimzi_operator_logs", args, response -> {
                 JsonNode root = assertToolSuccess(response);
+
+                // TODO - assert log details
+
                 LOGGER.info("get_strimzi_operator_logs (ERROR filter) response (length={})",
                     response.content().getFirst().asText().text().length());
                 LOGGER.debug("get_strimzi_operator_logs (ERROR filter) response:\n{}",
@@ -297,17 +255,20 @@ class StrimziOperatorToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_strimzi_events returns events for a Kafka resource")
-    @Story("Get Strimzi Events")
+    @Story("get_strimzi_events returns events for a Kafka resource")
     void testGetStrimziEventsKafka() {
         String kafkaNs = kafkaNamespace.getMetadata().getName();
         Map<String, Object> args = Map.of(
             "resourceName", Constants.KAFKA_CLUSTER_NAME,
             "resourceKind", "Kafka",
             "namespace", kafkaNs);
+
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
                 JsonNode root = assertToolSuccess(response);
+
+                // TODO - assert event details
+
                 LOGGER.info("get_strimzi_events (Kafka) response (length={})",
                     response.content().getFirst().asText().text().length());
                 LOGGER.debug("get_strimzi_events (Kafka) response:\n{}",
@@ -318,8 +279,7 @@ class StrimziOperatorToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_strimzi_events returns time-scoped events for a Kafka resource")
-    @Story("Get Strimzi Events")
+    @Story("get_strimzi_events returns time-scoped events for a Kafka resource")
     void testGetStrimziEventsTimeScoped() {
         String kafkaNs = kafkaNamespace.getMetadata().getName();
         Map<String, Object> args = Map.of(
@@ -327,9 +287,13 @@ class StrimziOperatorToolsST extends AbstractST {
             "resourceKind", "Kafka",
             "namespace", kafkaNs,
             "sinceMinutes", 60);
+
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
                 JsonNode root = assertToolSuccess(response);
+
+                // TODO - assert event details
+
                 LOGGER.info("get_strimzi_events (time-scoped) response (length={})",
                     response.content().getFirst().asText().text().length());
                 LOGGER.debug("get_strimzi_events (time-scoped) response:\n{}",
@@ -340,17 +304,20 @@ class StrimziOperatorToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_strimzi_events returns events for StrimziOperator resource")
-    @Story("Get Strimzi Events")
+    @Story("get_strimzi_events returns events for StrimziOperator resource")
     void testGetStrimziEventsOperator() {
         String strimziNs = strimziNamespace.getMetadata().getName();
         Map<String, Object> args = Map.of(
             "resourceName", "strimzi-cluster-operator",
             "resourceKind", "StrimziOperator",
             "namespace", strimziNs);
+
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
                 JsonNode root = assertToolSuccess(response);
+
+                // TODO - assert event details
+
                 LOGGER.info("get_strimzi_events (StrimziOperator) response (length={})",
                     response.content().getFirst().asText().text().length());
                 LOGGER.debug("get_strimzi_events (StrimziOperator) response:\n{}",
@@ -361,33 +328,30 @@ class StrimziOperatorToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_strimzi_events returns error for non-existent resource")
-    @Story("Get Strimzi Events")
+    @Story("get_strimzi_events returns error for non-existent resource")
     void testGetStrimziEventsNonexistent() {
         Map<String, Object> args = Map.of(
             "resourceName", "nonexistent-xyz",
             "resourceKind", "Kafka",
             "namespace", kafkaNamespace.getMetadata().getName());
+
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
-                LOGGER.info("get_strimzi_events (nonexistent) error response: {}",
-                    response.content().getFirst().asText().text());
+                // TODO - improve string for asserts
                 assertToolError(response, "not found");
             })
             .thenAssertResults();
     }
 
     @Test
-    @DisplayName("get_strimzi_events returns error for invalid resource kind")
-    @Story("Get Strimzi Events")
+    @Story("get_strimzi_events returns error for invalid resource kind")
     void testGetStrimziEventsInvalidKind() {
         Map<String, Object> args = Map.of(
             "resourceName", Constants.KAFKA_CLUSTER_NAME,
             "resourceKind", "InvalidKind");
+
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_strimzi_events (InvalidKind) error response: {}", text);
                 assertToolError(response, "resource_kind", "Supported values");
             })
             .thenAssertResults();

@@ -2,7 +2,7 @@
  * Copyright StreamsHub authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package io.streamshub.mcp.systemtest;
+package io.streamshub.mcp.systemtest.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -13,6 +13,9 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.streamshub.mcp.systemtest.AbstractST;
+import io.streamshub.mcp.systemtest.Constants;
+import io.streamshub.mcp.systemtest.Environment;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
@@ -24,12 +27,10 @@ import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Locale;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -70,15 +71,15 @@ class KafkaUserToolsST extends AbstractST {
     void setup() {
         if (!Environment.SKIP_STRIMZI_INSTALL) {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
-
+            
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
-
+            
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build(),
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build());
-
+            
             krm.createOrUpdateResourceWithWait(
                 KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1)
                     .editSpec()
@@ -112,7 +113,7 @@ class KafkaUserToolsST extends AbstractST {
                         .endKafka()
                     .endSpec()
                     .build());
-
+            
             krm.createOrUpdateResourceWithWait(
                 KafkaUserTemplates.scramUserWithAcls(kafkaNs,
                     KafkaUserTemplates.SCRAM_USER_NAME, Constants.KAFKA_CLUSTER_NAME).build(),
@@ -121,6 +122,7 @@ class KafkaUserToolsST extends AbstractST {
                 KafkaUserTemplates.adminUser(kafkaNs,
                     KafkaUserTemplates.ADMIN_USER_NAME, Constants.KAFKA_CLUSTER_NAME).build());
         }
+
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
 
         String mcpUrl = ConnectivitySetup.expose(mcpNamespace.getMetadata().getName());
@@ -135,19 +137,19 @@ class KafkaUserToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("list_kafka_users returns pre-deployed users")
-    @Story("List KafkaUsers")
+    @Story("list_kafka_users returns pre-deployed users")
     void testListKafkaUsers() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "namespace", Environment.KAFKA_NAMESPACE);
+
         mcpClient.when()
             .toolsCall("list_kafka_users", args, response -> {
-                assertFalse(response.isError(), "list_kafka_users should not return error");
+                assertToolSuccess(response);
+
                 assertTrue(response.content().size() >= 2,
                     "Should have at least 2 content entries (one per user), got "
                         + response.content().size());
-
                 // Each list item is a separate content entry; find both users
                 JsonNode scramUser = null;
                 JsonNode tlsUser = null;
@@ -164,14 +166,12 @@ class KafkaUserToolsST extends AbstractST {
                         tlsUser = found;
                     }
                 }
-
                 assertNotNull(scramUser, "Should find SCRAM user across content entries");
                 assertEquals("scram-sha-512", scramUser.path("authentication").asText());
                 assertEquals("simple", scramUser.path("authorization").asText());
                 assertTrue(scramUser.path("acl_count").asInt() > 0, "SCRAM user should have ACLs");
                 assertEquals("Ready", scramUser.path("readiness").asText());
                 assertEquals(Constants.KAFKA_CLUSTER_NAME, scramUser.path("cluster").asText());
-
                 assertNotNull(tlsUser, "Should find TLS user across content entries");
                 assertEquals("tls", tlsUser.path("authentication").asText());
                 assertEquals("simple", tlsUser.path("authorization").asText());
@@ -182,54 +182,46 @@ class KafkaUserToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("list_kafka_users filtered by nonexistent cluster returns no users")
-    @Story("List KafkaUsers filtered")
+    @Story("list_kafka_users filtered by nonexistent cluster returns no users")
     void testListKafkaUsersFilteredByCluster() {
         Map<String, Object> args = Map.of(
             "clusterName", "nonexistent-cluster",
             "namespace", Environment.KAFKA_NAMESPACE);
+
         mcpClient.when()
             .toolsCall("list_kafka_users", args, response -> {
-                assertFalse(response.isError(),
-                    "list_kafka_users should not return error for empty results");
+                JsonNode root = assertToolSuccess(response);
 
-                // Empty list: either no content entries, or a single entry with "[]"
-                if (!response.content().isEmpty()) {
-                    String json = response.content().getFirst().asText().text();
-                    LOGGER.info("list_kafka_users (nonexistent cluster) response:\n{}", json);
-                    JsonNode root = parseJson(json);
-                    if (root.isArray()) {
-                        assertEquals(0, root.size(),
-                            "Should return empty array for nonexistent cluster");
-                    }
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("list_kafka_users (nonexistent cluster) response:\n{}", json);
+                if (root.isArray()) {
+                    assertEquals(0, root.size(),
+                        "Should return empty array for nonexistent cluster");
                 }
             })
             .thenAssertResults();
     }
 
     @Test
-    @DisplayName("get_kafka_user returns detailed SCRAM user with ACLs and quotas")
-    @Story("Get KafkaUser detail")
+    @Story("get_kafka_user returns detailed SCRAM user with ACLs and quotas")
     void testGetKafkaUserScram() {
         Map<String, Object> args = Map.of(
             "userName", KafkaUserTemplates.SCRAM_USER_NAME,
             "namespace", Environment.KAFKA_NAMESPACE);
+
         mcpClient.when()
             .toolsCall("get_kafka_user", args, response -> {
-                assertFalse(response.isError(), "get_kafka_user should not return error");
+                JsonNode user = assertToolSuccess(response);
+
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_user (SCRAM) response:\n{}", json);
-
-                JsonNode user = parseJson(json);
                 assertEquals(KafkaUserTemplates.SCRAM_USER_NAME, user.path("name").asText());
                 assertEquals("scram-sha-512", user.path("authentication").asText());
                 assertEquals("simple", user.path("authorization").asText());
                 assertEquals("Ready", user.path("readiness").asText());
-
                 // ACL rules should be present for detail
                 JsonNode aclRules = user.path("acl_rules");
                 assertTrue(aclRules.isArray() && !aclRules.isEmpty(), "Should have ACL rules");
-
                 // Verify ACL structure
                 boolean hasTopicRule = false;
                 boolean hasGroupRule = false;
@@ -248,18 +240,15 @@ class KafkaUserToolsST extends AbstractST {
                 }
                 assertTrue(hasTopicRule, "Should have topic ACL rule");
                 assertTrue(hasGroupRule, "Should have group ACL rule");
-
                 // Quotas should be present
                 JsonNode quotas = user.path("quotas");
                 assertFalse(quotas.isMissingNode(), "Should have quotas");
                 assertEquals(1048576, quotas.path("producer_byte_rate").asInt());
                 assertEquals(2097152, quotas.path("consumer_byte_rate").asInt());
                 assertEquals(55, quotas.path("request_percentage").asInt());
-
                 // Username and secret should be present
                 assertFalse(user.path("username").isMissingNode(), "Should have username");
                 assertFalse(user.path("secret_name").isMissingNode(), "Should have secret_name");
-
                 // CRITICAL: verify no secret data is exposed
                 assertFalse(json.contains("password"), "Must NOT contain password data");
                 assertFalse(json.contains("sasl.jaas.config"), "Must NOT contain JAAS config");
@@ -268,28 +257,25 @@ class KafkaUserToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_kafka_user returns detailed TLS user")
-    @Story("Get KafkaUser detail")
+    @Story("get_kafka_user returns detailed TLS user")
     void testGetKafkaUserTls() {
         Map<String, Object> args = Map.of(
             "userName", KafkaUserTemplates.TLS_USER_NAME,
             "namespace", Environment.KAFKA_NAMESPACE);
+
         mcpClient.when()
             .toolsCall("get_kafka_user", args, response -> {
-                assertFalse(response.isError(), "get_kafka_user should not return error");
+                JsonNode user = assertToolSuccess(response);
+
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_user (TLS) response:\n{}", json);
-
-                JsonNode user = parseJson(json);
                 assertEquals(KafkaUserTemplates.TLS_USER_NAME, user.path("name").asText());
                 assertEquals("tls", user.path("authentication").asText());
                 assertEquals("Ready", user.path("readiness").asText());
-
                 // TLS user should have CN= prefix in username
                 String username = user.path("username").asText();
                 assertTrue(username.startsWith("CN="),
                     "TLS user's Kafka principal should start with CN=, got: " + username);
-
                 // CRITICAL: verify no certificate data is exposed
                 assertFalse(json.contains("BEGIN CERTIFICATE"), "Must NOT contain certificate PEM");
                 assertFalse(json.contains("private_key"), "Must NOT contain private key");
@@ -299,46 +285,39 @@ class KafkaUserToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_kafka_user returns error for non-existent user")
-    @Story("Get KafkaUser not found")
+    @Story("get_kafka_user returns error for non-existent user")
     void testGetKafkaUserNotFound() {
         Map<String, Object> args = Map.of(
             "userName", "non-existent-user",
             "namespace", Environment.KAFKA_NAMESPACE);
+
         mcpClient.when()
             .toolsCall("get_kafka_user", args, response -> {
-                assertTrue(response.isError(),
-                    "Should return error for non-existent user");
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_user error response: {}", text);
-                assertTrue(text.toLowerCase(Locale.ROOT).contains("not found"),
-                    "Error should mention 'not found'");
+                // TODO - improve string for asserts
+                assertToolError(response, "not found");
             })
             .thenAssertResults();
     }
 
     @Test
-    @DisplayName("get_kafka_user returns detailed admin user with ACLs")
-    @Story("Get KafkaUser detail")
+    @Story("get_kafka_user returns detailed admin user with ACLs")
     void testGetKafkaUserAdmin() {
         Map<String, Object> args = Map.of(
             "userName", KafkaUserTemplates.ADMIN_USER_NAME,
             "namespace", kafkaNamespace.getMetadata().getName());
+
         mcpClient.when()
             .toolsCall("get_kafka_user", args, response -> {
-                assertFalse(response.isError(), "get_kafka_user should not return error");
+                JsonNode user = assertToolSuccess(response);
+
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_user (admin) response:\n{}", json);
-
-                JsonNode user = parseJson(json);
                 assertEquals("scram-sha-512", user.path("authentication").asText(),
                     "Admin user should use scram-sha-512 authentication");
-
                 // ACL rules should be present
                 JsonNode aclRules = user.path("acl_rules");
                 assertTrue(aclRules.isArray() && !aclRules.isEmpty(),
                     "Admin user should have ACL rules");
-
                 // CRITICAL: verify no secret data is exposed
                 assertFalse(json.contains("password"), "Must NOT contain password data");
                 assertFalse(json.contains("sasl.jaas.config"), "Must NOT contain JAAS config");

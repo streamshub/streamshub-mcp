@@ -2,7 +2,7 @@
  * Copyright StreamsHub authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package io.streamshub.mcp.systemtest;
+package io.streamshub.mcp.systemtest.metrics;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -13,6 +13,9 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.streamshub.mcp.systemtest.AbstractST;
+import io.streamshub.mcp.systemtest.Constants;
+import io.streamshub.mcp.systemtest.Environment;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
@@ -23,7 +26,6 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +68,6 @@ class MetricsToolsST extends AbstractST {
     void setup() {
         if (!Environment.SKIP_STRIMZI_INSTALL) {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
-
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
 
             krm.createOrUpdateResourceWithoutWait(
@@ -86,6 +87,7 @@ class MetricsToolsST extends AbstractST {
                 KafkaConnectTemplates.kafkaConnect(
                     kafkaNs, Constants.CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
         }
+
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
 
         String mcpUrl = ConnectivitySetup.expose(mcpNamespace.getMetadata().getName());
@@ -102,19 +104,17 @@ class MetricsToolsST extends AbstractST {
     // ---- Kafka Cluster Metrics ----
 
     @Test
-    @DisplayName("get_kafka_metrics returns metrics for cluster")
-    @Story("Get Kafka Metrics")
+    @Story("get_kafka_metrics returns metrics for cluster")
     void testGetKafkaMetrics() {
         Map<String, Object> args = Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME);
         mcpClient.when()
             .toolsCall("get_kafka_metrics", args, response -> {
-                assertFalse(response.isError(), "get_kafka_metrics should not return error");
-
+                JsonNode root = assertToolSuccess(response);
                 String text = response.content().getFirst().asText().text();
+
                 LOGGER.info("get_kafka_metrics response (length={})", text.length());
                 LOGGER.debug("get_kafka_metrics response:\n{}", text);
 
-                JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
                 assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
                     "namespace should match deployment namespace");
@@ -123,23 +123,20 @@ class MetricsToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_kafka_metrics with replication category")
-    @Story("Get Kafka Metrics")
+    @Story("get_kafka_metrics with replication category")
     void testGetKafkaMetricsReplication() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "category", "replication");
         mcpClient.when()
             .toolsCall("get_kafka_metrics", args, response -> {
-                assertFalse(response.isError(), "get_kafka_metrics replication should not return error");
-
+                JsonNode root = assertToolSuccess(response);
                 String text = response.content().getFirst().asText().text();
+
                 LOGGER.info("get_kafka_metrics replication response (length={})", text.length());
                 LOGGER.debug("get_kafka_metrics replication response:\n{}", text);
 
-                JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
-
                 boolean hasReplication = false;
                 for (JsonNode cat : root.path("categories")) {
                     if ("replication".equals(cat.asText())) {
@@ -153,14 +150,14 @@ class MetricsToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_kafka_metrics returns error for non-existent cluster")
-    @Story("Get Kafka Metrics")
+    @Story("get_kafka_metrics returns error for non-existent cluster")
     void testGetKafkaMetricsNotFound() {
         Map<String, Object> args = Map.of("clusterName", "nonexistent-cluster-xyz");
         mcpClient.when()
             .toolsCall("get_kafka_metrics", args, response -> {
                 LOGGER.info("get_kafka_metrics error response: {}",
                     response.content().getFirst().asText().text());
+
                 assertToolError(response, "not found");
             })
             .thenAssertResults();
@@ -169,19 +166,17 @@ class MetricsToolsST extends AbstractST {
     // ---- Kafka Exporter Metrics ----
 
     @Test
-    @DisplayName("get_kafka_exporter_metrics returns exporter metrics")
-    @Story("Get Kafka Exporter Metrics")
+    @Story("get_kafka_exporter_metrics returns exporter metrics")
     void testGetKafkaExporterMetrics() {
         Map<String, Object> args = Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME);
         mcpClient.when()
             .toolsCall("get_kafka_exporter_metrics", args, response -> {
-                assertFalse(response.isError(), "get_kafka_exporter_metrics should not return error");
-
+                JsonNode root = assertToolSuccess(response);
                 String text = response.content().getFirst().asText().text();
+
                 LOGGER.info("get_kafka_exporter_metrics response (length={})", text.length());
                 LOGGER.debug("get_kafka_exporter_metrics response:\n{}", text);
 
-                JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
             })
             .thenAssertResults();
@@ -190,20 +185,18 @@ class MetricsToolsST extends AbstractST {
     // ---- KafkaBridge Metrics ----
 
     @Test
-    @DisplayName("get_kafka_bridge_metrics returns metrics for Bridge")
-    @Story("Get KafkaBridge Metrics")
+    @Story("get_kafka_bridge_metrics returns metrics for Bridge")
     void testGetKafkaBridgeMetrics() {
         Map<String, Object> args = Map.of(
             "bridgeName", Constants.BRIDGE_NAME);
         mcpClient.when()
             .toolsCall("get_kafka_bridge_metrics", args, response -> {
-                assertFalse(response.isError(), "get_kafka_bridge_metrics should not return error");
-
+                JsonNode root = assertToolSuccess(response);
                 String text = response.content().getFirst().asText().text();
+
                 LOGGER.info("get_kafka_bridge_metrics response (length={})", text.length());
                 LOGGER.debug("get_kafka_bridge_metrics response:\n{}", text);
 
-                JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "bridge_name", Constants.BRIDGE_NAME);
                 assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
                     "namespace should match deployment namespace");
@@ -214,20 +207,18 @@ class MetricsToolsST extends AbstractST {
     // ---- KafkaConnect Metrics ----
 
     @Test
-    @DisplayName("get_kafka_connect_metrics returns metrics for Connect cluster")
-    @Story("Get KafkaConnect Metrics")
+    @Story("get_kafka_connect_metrics returns metrics for Connect cluster")
     void testGetKafkaConnectMetrics() {
         Map<String, Object> args = Map.of(
             "connectName", Constants.CONNECT_CLUSTER_NAME);
         mcpClient.when()
             .toolsCall("get_kafka_connect_metrics", args, response -> {
-                assertFalse(response.isError(), "get_kafka_connect_metrics should not return error");
-
+                JsonNode root = assertToolSuccess(response);
                 String text = response.content().getFirst().asText().text();
+
                 LOGGER.info("get_kafka_connect_metrics response (length={})", text.length());
                 LOGGER.debug("get_kafka_connect_metrics response:\n{}", text);
 
-                JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "connect_name", Constants.CONNECT_CLUSTER_NAME);
                 assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
                     "namespace should match deployment namespace");
@@ -238,20 +229,17 @@ class MetricsToolsST extends AbstractST {
     // ---- Strimzi Operator Metrics ----
 
     @Test
-    @DisplayName("get_strimzi_operator_metrics returns operator metrics")
-    @Story("Get Strimzi Operator Metrics")
+    @Story("get_strimzi_operator_metrics returns operator metrics")
     void testGetStrimziOperatorMetrics() {
         Map<String, Object> args = Map.of();
         mcpClient.when()
             .toolsCall("get_strimzi_operator_metrics", args, response -> {
-                assertFalse(response.isError(),
-                    "get_strimzi_operator_metrics should not return error");
-
+                JsonNode root = assertToolSuccess(response);
                 String text = response.content().getFirst().asText().text();
+
                 LOGGER.info("get_strimzi_operator_metrics response (length={})", text.length());
                 LOGGER.debug("get_strimzi_operator_metrics response:\n{}", text);
 
-                JsonNode root = parseJson(text);
                 assertFalse(root.path("operator_name").asText("").isEmpty(),
                     "operator_name should be present and non-empty");
                 assertFalse(root.path("namespace").isMissingNode(), "Should have namespace");
@@ -268,23 +256,20 @@ class MetricsToolsST extends AbstractST {
     // ---- Aggregation Levels ----
 
     @Test
-    @DisplayName("get_kafka_metrics with broker aggregation returns per-broker breakdown")
-    @Story("Get Kafka Metrics")
+    @Story("get_kafka_metrics with broker aggregation returns per-broker breakdown")
     void testGetKafkaMetricsBrokerAggregation() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "aggregation", "broker");
         mcpClient.when()
             .toolsCall("get_kafka_metrics", args, response -> {
-                assertFalse(response.isError(), "Broker aggregation should not return error");
-
+                JsonNode root = assertToolSuccess(response);
                 String text = response.content().getFirst().asText().text();
+
                 LOGGER.info("get_kafka_metrics broker aggregation response (length={})", text.length());
                 LOGGER.debug("get_kafka_metrics broker aggregation response:\n{}", text);
 
-                JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
-
                 JsonNode timeSeries = root.path("time_series");
                 if (timeSeries.isArray() && !timeSeries.isEmpty()) {
                     assertTrue(hasLabelWithKey(timeSeries, "pod")
@@ -296,8 +281,7 @@ class MetricsToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_kafka_exporter_metrics with topic aggregation returns per-topic data")
-    @Story("Get Kafka Exporter Metrics")
+    @Story("get_kafka_exporter_metrics with topic aggregation returns per-topic data")
     void testGetExporterMetricsTopicAggregation() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
@@ -305,16 +289,14 @@ class MetricsToolsST extends AbstractST {
             "aggregation", "topic");
         mcpClient.when()
             .toolsCall("get_kafka_exporter_metrics", args, response -> {
-                assertFalse(response.isError(), "Topic aggregation should not return error");
-
+                JsonNode root = assertToolSuccess(response);
                 String text = response.content().getFirst().asText().text();
+
                 LOGGER.info("get_kafka_exporter_metrics topic aggregation response (length={})",
                     text.length());
                 LOGGER.debug("get_kafka_exporter_metrics topic aggregation response:\n{}", text);
 
-                JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
-
                 JsonNode timeSeries = root.path("time_series");
                 if (root.path("sample_count").asInt() > 0 && timeSeries.isArray()) {
                     assertTrue(hasLabelWithKey(timeSeries, "topic"),
@@ -325,8 +307,7 @@ class MetricsToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_kafka_metrics with performance category and requestTypes filter")
-    @Story("Get Kafka Metrics")
+    @Story("get_kafka_metrics with performance category and requestTypes filter")
     void testGetKafkaMetricsPerformanceWithRequestTypes() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
@@ -334,16 +315,14 @@ class MetricsToolsST extends AbstractST {
             "requestTypes", "Produce,Fetch");
         mcpClient.when()
             .toolsCall("get_kafka_metrics", args, response -> {
-                assertFalse(response.isError(), "Performance metrics with requestTypes should not error");
-
+                JsonNode root = assertToolSuccess(response);
                 String text = response.content().getFirst().asText().text();
+
                 LOGGER.info("get_kafka_metrics performance+requestTypes response (length={})",
                     text.length());
                 LOGGER.debug("get_kafka_metrics performance+requestTypes response:\n{}", text);
 
-                JsonNode root = parseJson(text);
                 assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
-
                 JsonNode timeSeries = root.path("time_series");
                 if (timeSeries.isArray()) {
                     for (JsonNode series : timeSeries) {
@@ -363,8 +342,7 @@ class MetricsToolsST extends AbstractST {
     // ---- Time Range Validation ----
 
     @Test
-    @DisplayName("get_kafka_metrics rejects conflicting rangeMinutes and startTime")
-    @Story("Get Kafka Metrics")
+    @Story("get_kafka_metrics rejects conflicting rangeMinutes and startTime")
     void testGetKafkaMetricsConflictingTimeParams() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
@@ -372,17 +350,14 @@ class MetricsToolsST extends AbstractST {
             "startTime", "2025-01-01T00:00:00Z");
         mcpClient.when()
             .toolsCall("get_kafka_metrics", args, response -> {
-                assertTrue(response.isError(),
-                    "Conflicting rangeMinutes and startTime should return error");
 
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("Conflicting time params response: {}", text);
+                // TODO - improve check
+                assertToolError(response, "conflict");
             })
             .thenAssertResults();
     }
 
     // ---- Helpers ----
-
     private static boolean hasLabelWithKey(JsonNode timeSeries, String key) {
         for (JsonNode series : timeSeries) {
             JsonNode labels = series.path("labels");

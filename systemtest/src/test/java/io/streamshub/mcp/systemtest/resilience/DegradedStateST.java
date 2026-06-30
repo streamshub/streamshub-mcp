@@ -2,7 +2,7 @@
  * Copyright StreamsHub authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package io.streamshub.mcp.systemtest;
+package io.streamshub.mcp.systemtest.resilience;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -13,6 +13,9 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.streamshub.mcp.systemtest.AbstractST;
+import io.streamshub.mcp.systemtest.Constants;
+import io.streamshub.mcp.systemtest.Environment;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
@@ -24,7 +27,6 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import io.strimzi.api.kafka.model.connector.KafkaConnector;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * unhealthy resources gracefully without crashing.
  */
 @Epic("Strimzi MCP E2E")
-@Feature("Degraded State")
+@Feature("Degraded Strimzi Components State")
 class DegradedStateST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DegradedStateST.class);
@@ -71,18 +73,14 @@ class DegradedStateST extends AbstractST {
     void setup() {
         if (!Environment.SKIP_STRIMZI_INSTALL) {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
-
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
-
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build(),
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build());
-
             krm.createOrUpdateResourceWithWait(
                 KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
-
             krm.createOrUpdateResourceWithWait(
                 KafkaConnectTemplates.kafkaConnect(
                     kafkaNs, Constants.CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
@@ -104,8 +102,7 @@ class DegradedStateST extends AbstractST {
     // ---- Connector in FAILED state ----
 
     @Test
-    @DisplayName("get_kafka_connector reports FAILED state for invalid connector")
-    @Story("Connector Failure")
+    @Story("get_kafka_connector reports FAILED state for invalid connector")
     void testConnectorFailedState() {
         String kafkaNs = kafkaNamespace.getMetadata().getName();
 
@@ -118,15 +115,17 @@ class DegradedStateST extends AbstractST {
         Map<String, Object> args = Map.of(
             "connectorName", FAILED_CONNECTOR_NAME,
             "namespace", kafkaNs);
+
         mcpClient.when()
             .toolsCall("get_kafka_connector", args, response -> {
                 JsonNode root = assertToolSuccess(response);
+
                 LOGGER.info("get_kafka_connector (failed): readiness={}",
                     root.path("readiness").asText());
                 LOGGER.debug("get_kafka_connector (failed) response:\n{}", response.content().getFirst().asText().text());
+
                 assertEquals(FAILED_CONNECTOR_NAME, root.path("name").asText(),
                     "Connector name should match");
-
                 String readiness = root.path("readiness").asText("").toLowerCase(Locale.ROOT);
                 assertTrue(readiness.contains("notready") || readiness.contains("error"),
                     "Connector with invalid class should not be Ready, "
@@ -136,8 +135,7 @@ class DegradedStateST extends AbstractST {
     }
 
     @Test
-    @DisplayName("diagnose_kafka_connector handles failed connector gracefully")
-    @Story("Connector Failure")
+    @Story("diagnose_kafka_connector handles failed connector gracefully")
     void testDiagnoseFailedConnector() {
         String kafkaNs = kafkaNamespace.getMetadata().getName();
 
@@ -150,9 +148,11 @@ class DegradedStateST extends AbstractST {
         Map<String, Object> args = Map.of(
             "connectorName", FAILED_CONNECTOR_NAME,
             "namespace", kafkaNs);
+
         mcpClient.when()
             .toolsCall("diagnose_kafka_connector", args, response -> {
                 JsonNode root = assertToolSuccess(response);
+
                 LOGGER.info("diagnose_kafka_connector (failed): steps={}",
                     root.path("steps_completed").size());
                 LOGGER.debug("diagnose_kafka_connector (failed) response:\n{}", response.content().getFirst().asText().text());
@@ -165,8 +165,7 @@ class DegradedStateST extends AbstractST {
     }
 
     @Test
-    @DisplayName("diagnose_kafka_connect handles mixed healthy and failed connectors")
-    @Story("Connector Failure")
+    @Story("diagnose_kafka_connect handles mixed healthy and failed connectors")
     void testDiagnoseConnectWithMixedConnectors() {
         String kafkaNs = kafkaNamespace.getMetadata().getName();
 
@@ -179,9 +178,11 @@ class DegradedStateST extends AbstractST {
         Map<String, Object> args = Map.of(
             "connectName", Constants.CONNECT_CLUSTER_NAME,
             "namespace", kafkaNs);
+
         mcpClient.when()
             .toolsCall("diagnose_kafka_connect", args, response -> {
                 JsonNode root = assertToolSuccess(response);
+
                 LOGGER.info("diagnose_kafka_connect (mixed connectors): steps={}",
                     root.path("steps_completed").size());
                 LOGGER.debug("diagnose_kafka_connect (mixed connectors) response:\n{}", response.content().getFirst().asText().text());
@@ -189,7 +190,6 @@ class DegradedStateST extends AbstractST {
                 JsonNode steps = root.path("steps_completed");
                 assertTrue(steps.isArray() && !steps.isEmpty(),
                     "Diagnostic should complete steps with mixed connector health");
-
                 assertFalse(root.toString().contains("NullPointerException"),
                     "Should not contain NullPointerException in response");
             })

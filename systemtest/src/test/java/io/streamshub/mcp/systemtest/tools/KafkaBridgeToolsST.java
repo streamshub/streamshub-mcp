@@ -2,7 +2,7 @@
  * Copyright StreamsHub authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package io.streamshub.mcp.systemtest;
+package io.streamshub.mcp.systemtest.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -13,6 +13,9 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.streamshub.mcp.systemtest.AbstractST;
+import io.streamshub.mcp.systemtest.Constants;
+import io.streamshub.mcp.systemtest.Environment;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
@@ -22,7 +25,6 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,22 +68,23 @@ class KafkaBridgeToolsST extends AbstractST {
     void setup() {
         if (!Environment.SKIP_STRIMZI_INSTALL) {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
-
+            
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
-
+            
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build(),
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build());
-
+            
             krm.createOrUpdateResourceWithWait(
                 KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
-
+            
             krm.createOrUpdateResourceWithWait(
                 KafkaBridgeTemplates.kafkaBridge(
                     kafkaNs, Constants.BRIDGE_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
         }
+
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
 
         String mcpUrl = ConnectivitySetup.expose(mcpNamespace.getMetadata().getName());
@@ -99,18 +102,19 @@ class KafkaBridgeToolsST extends AbstractST {
      * Verify list_kafka_bridges returns the deployed bridge.
      */
     @Test
-    @DisplayName("list_kafka_bridges returns deployed bridge")
-    @Story("List KafkaBridges")
+    @Story("list_kafka_bridges returns deployed bridge")
     void testListKafkaBridges() {
         Map<String, Object> args = Map.of("namespace", Environment.KAFKA_NAMESPACE);
+
         mcpClient.when()
             .toolsCall("list_kafka_bridges", args, response -> {
-                assertFalse(response.isError(), "list_kafka_bridges should not return error");
+                JsonNode root = assertToolSuccess(response);
+
+                // TODO - better asserts for detailed info
+
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("list_kafka_bridges response (length={})", json.length());
                 LOGGER.debug("list_kafka_bridges response:\n{}", json);
-
-                JsonNode root = parseJson(json);
                 JsonNode bridge = findByName(root, Constants.BRIDGE_NAME);
                 assertNotNull(bridge, "Should find KafkaBridge '" + Constants.BRIDGE_NAME + "'");
                 assertEquals("Ready", bridge.path("readiness").asText(), "Bridge should be Ready");
@@ -122,20 +126,21 @@ class KafkaBridgeToolsST extends AbstractST {
      * Verify get_kafka_bridge returns detailed bridge info.
      */
     @Test
-    @DisplayName("get_kafka_bridge returns detailed bridge info")
-    @Story("Get KafkaBridge")
+    @Story("get_kafka_bridge returns detailed bridge info")
     void testGetKafkaBridge() {
         Map<String, Object> args = Map.of(
             "bridgeName", Constants.BRIDGE_NAME,
             "namespace", Environment.KAFKA_NAMESPACE);
+
         mcpClient.when()
             .toolsCall("get_kafka_bridge", args, response -> {
-                assertFalse(response.isError(), "get_kafka_bridge should not return error");
+                JsonNode bridge = assertToolSuccess(response);
+
+                // TODO - better asserts for detailed info
+
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_bridge response (length={})", json.length());
                 LOGGER.debug("get_kafka_bridge response:\n{}", json);
-
-                JsonNode bridge = parseJson(json);
                 assertEquals(Constants.BRIDGE_NAME, bridge.path("name").asText(),
                     "Bridge name should match");
                 assertEquals("Ready", bridge.path("readiness").asText(),
@@ -151,20 +156,21 @@ class KafkaBridgeToolsST extends AbstractST {
      * Verify get_kafka_bridge_pods returns running pods.
      */
     @Test
-    @DisplayName("get_kafka_bridge_pods returns running pods")
-    @Story("Get KafkaBridge Pods")
+    @Story("get_kafka_bridge_pods returns running pods")
     void testGetKafkaBridgePods() {
         Map<String, Object> args = Map.of(
             "bridgeName", Constants.BRIDGE_NAME,
             "namespace", Environment.KAFKA_NAMESPACE);
+
         mcpClient.when()
             .toolsCall("get_kafka_bridge_pods", args, response -> {
-                assertFalse(response.isError(), "get_kafka_bridge_pods should not return error");
+                JsonNode root = assertToolSuccess(response);
+
+                // TODO - better asserts for detailed info
+
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_bridge_pods response (length={})", json.length());
                 LOGGER.debug("get_kafka_bridge_pods response:\n{}", json);
-
-                JsonNode root = parseJson(json);
                 assertTrue(root.has("pod_summary"), "Should have pod_summary");
                 assertTrue(root.path("pod_summary").path("total_pods").asInt() > 0,
                     "Should have at least one pod");
@@ -173,20 +179,21 @@ class KafkaBridgeToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_kafka_bridge_logs returns log output")
-    @Story("Get KafkaBridge Logs")
+    @Story("get_kafka_bridge_logs returns log output")
     void testGetKafkaBridgeLogs() {
         Map<String, Object> args = Map.of(
             "bridgeName", Constants.BRIDGE_NAME,
             "tailLines", 50);
+
         mcpClient.when()
             .toolsCall("get_kafka_bridge_logs", args, response -> {
-                assertFalse(response.isError(), "get_kafka_bridge_logs should not return error");
+                JsonNode root = assertToolSuccess(response);
+
+                // TODO - check logs details
+
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_bridge_logs response (length={})", text.length());
                 LOGGER.debug("get_kafka_bridge_logs response:\n{}", text);
-
-                JsonNode root = parseJson(text);
                 assertEquals(Constants.BRIDGE_NAME, root.path("bridge_name").asText(),
                     "bridge_name should match");
                 JsonNode pods = root.path("pods");
@@ -202,21 +209,22 @@ class KafkaBridgeToolsST extends AbstractST {
     }
 
     @Test
-    @DisplayName("get_strimzi_events returns events for KafkaBridge")
-    @Story("Get Strimzi Events KafkaBridge")
+    @Story("get_strimzi_events returns events for KafkaBridge")
     void testGetStrimziEventsKafkaBridge() {
         Map<String, Object> args = Map.of(
             "resourceName", Constants.BRIDGE_NAME,
             "resourceKind", "KafkaBridge",
             "namespace", kafkaNamespace.getMetadata().getName());
+
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
-                assertFalse(response.isError(), "get_strimzi_events should not return error");
+                JsonNode root = assertToolSuccess(response);
+
+                // TODO - check events details
+
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_strimzi_events (KafkaBridge) response (length={})", text.length());
                 LOGGER.debug("get_strimzi_events (KafkaBridge) response:\n{}", text);
-
-                JsonNode root = parseJson(text);
                 assertEquals(Constants.BRIDGE_NAME, root.path("resource_name").asText(),
                     "resource_name should match");
                 assertEquals(kafkaNamespace.getMetadata().getName(),
