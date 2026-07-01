@@ -27,6 +27,7 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import io.strimzi.api.kafka.model.connector.KafkaConnector;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
+import static io.streamshub.mcp.systemtest.TestTags.RESILIENCE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -47,6 +50,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("Degraded Strimzi Components State")
+@Tag(REGRESSION)
+@Tag(RESILIENCE)
 class DegradedStateST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DegradedStateST.class);
@@ -74,19 +79,26 @@ class DegradedStateST extends AbstractST {
         if (!Environment.SKIP_STRIMZI_INSTALL) {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
+
+            KafkaTemplates.deployMetricsConfigMap(kafkaNs);
+            KafkaConnectTemplates.deployMetricsConfigMap(kafkaNs);
+
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build(),
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build());
             krm.createOrUpdateResourceWithWait(
-                KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
+                KafkaTemplates.kafkaWithMetrics(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
             krm.createOrUpdateResourceWithWait(
                 KafkaConnectTemplates.kafkaConnect(
                     kafkaNs, Constants.CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
         }
 
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
+        McpServerSetup.deploySensitiveRbac(
+            mcpNamespace.getMetadata().getName(),
+            kafkaNamespace.getMetadata().getName());
 
         String mcpUrl = ConnectivitySetup.expose(mcpNamespace.getMetadata().getName());
         mcpClient = McpClientFactory.create(mcpUrl);

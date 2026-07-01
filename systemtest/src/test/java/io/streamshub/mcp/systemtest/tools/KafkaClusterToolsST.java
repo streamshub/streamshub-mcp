@@ -24,6 +24,7 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +32,9 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 
+import static io.streamshub.mcp.systemtest.TestTags.LOGS;
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
+import static io.streamshub.mcp.systemtest.TestTags.TOOLS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -43,6 +47,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("Kafka Cluster Tools")
+@Tag(REGRESSION)
+@Tag(TOOLS)
 class KafkaClusterToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaClusterToolsST.class);
@@ -224,9 +230,8 @@ class KafkaClusterToolsST extends AbstractST {
                     "Should have creation_time");
                 assertFalse(cluster.path("age_minutes").isMissingNode(),
                     "Should have age_minutes");
-                // TODO - uncomment this once we fix production code of age
-//                assertTrue(cluster.path("age_minutes").asLong() >= 0,
-//                    "Age should be non-negative");
+                assertTrue(cluster.path("age_minutes").asLong() >= 0,
+                    "Age should be non-negative");
             })
             .thenAssertResults();
     }
@@ -478,6 +483,7 @@ class KafkaClusterToolsST extends AbstractST {
 
     @Test
     @Story("get_kafka_cluster_logs returns log lines")
+    @Tag(LOGS)
     void testGetKafkaClusterLogs() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
@@ -502,6 +508,7 @@ class KafkaClusterToolsST extends AbstractST {
 
     @Test
     @Story("get_kafka_cluster_logs with ERROR filter")
+    @Tag(LOGS)
     void testGetKafkaClusterLogsErrorFilter() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
@@ -527,6 +534,7 @@ class KafkaClusterToolsST extends AbstractST {
 
     @Test
     @Story("get_kafka_cluster_logs with keywords filter")
+    @Tag(LOGS)
     void testGetKafkaClusterLogsKeywords() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,

@@ -125,7 +125,9 @@ public class KafkaBridgeMetricsService {
         List<PodTarget> podTargets = pods.stream()
             .map(pod -> PodTarget.of(
                 pod.getMetadata().getNamespace(),
-                pod.getMetadata().getName()))
+                pod.getMetadata().getName(),
+                StrimziConstants.KafkaBridge.MANAGEMENT_PORT,
+                PodTarget.DEFAULT_PATH))
             .toList();
 
         Map<String, String> labelMatchers = new LinkedHashMap<>();

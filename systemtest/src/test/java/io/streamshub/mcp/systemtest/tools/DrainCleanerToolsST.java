@@ -22,12 +22,17 @@ import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
 import io.streamshub.mcp.systemtest.setup.strimzi.DrainCleanerSetup;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static io.streamshub.mcp.systemtest.TestTags.DRAIN_CLEANER;
+import static io.streamshub.mcp.systemtest.TestTags.LOGS;
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
+import static io.streamshub.mcp.systemtest.TestTags.TOOLS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -43,6 +48,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("DrainCleaner Tools")
+@Tag(REGRESSION)
+@Tag(TOOLS)
+@Tag(DRAIN_CLEANER)
 class DrainCleanerToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DrainCleanerToolsST.class);
@@ -236,6 +244,7 @@ class DrainCleanerToolsST extends AbstractST {
 
     @Test
     @Story("get_drain_cleaner_logs returns log output")
+    @Tag(LOGS)
     void testGetDrainCleanerLogs() {
         Map<String, Object> args = Map.of("tailLines", 50);
 
@@ -263,6 +272,7 @@ class DrainCleanerToolsST extends AbstractST {
 
     @Test
     @Story("get_drain_cleaner_logs with error filter does not return error")
+    @Tag(LOGS)
     void testGetDrainCleanerLogsErrorFilter() {
         Map<String, Object> args = Map.of("filter", "errors", "tailLines", 100);
         mcpClient.when()

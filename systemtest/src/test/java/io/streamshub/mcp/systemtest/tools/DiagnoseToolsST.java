@@ -26,12 +26,18 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static io.streamshub.mcp.systemtest.TestTags.ACCEPTANCE;
+import static io.streamshub.mcp.systemtest.TestTags.LOGS;
+import static io.streamshub.mcp.systemtest.TestTags.METRICS;
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
+import static io.streamshub.mcp.systemtest.TestTags.TOOLS;
 import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectorTemplates.CONNECTOR_NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -44,6 +50,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("Diagnose Tools")
+@Tag(ACCEPTANCE)
+@Tag(REGRESSION)
+@Tag(TOOLS)
+@Tag(METRICS)
+@Tag(LOGS)
 class DiagnoseToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DiagnoseToolsST.class);
@@ -69,18 +80,21 @@ class DiagnoseToolsST extends AbstractST {
     void setup() {
         if (!Environment.SKIP_STRIMZI_INSTALL) {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
-            
+
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
-            
+
+            KafkaTemplates.deployMetricsConfigMap(kafkaNs);
+            KafkaConnectTemplates.deployMetricsConfigMap(kafkaNs);
+
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build(),
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build());
-            
+
             krm.createOrUpdateResourceWithWait(
-                KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
-            
+                KafkaTemplates.kafkaWithMetrics(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
+
             krm.createOrUpdateResourceWithWait(
                 KafkaConnectTemplates.kafkaConnect(
                     kafkaNs, Constants.CONNECT_CLUSTER_NAME, Constants.KAFKA_CLUSTER_NAME, 1).build());
@@ -91,6 +105,12 @@ class DiagnoseToolsST extends AbstractST {
         }
 
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
+        McpServerSetup.deploySensitiveRbac(
+            mcpNamespace.getMetadata().getName(),
+            kafkaNamespace.getMetadata().getName());
+        McpServerSetup.deploySensitiveRbac(
+            mcpNamespace.getMetadata().getName(),
+            strimziNamespace.getMetadata().getName());
 
         String mcpUrl = ConnectivitySetup.expose(mcpNamespace.getMetadata().getName());
         mcpClient = McpClientFactory.create(mcpUrl);
@@ -139,7 +159,7 @@ class DiagnoseToolsST extends AbstractST {
                 assertFalse(root.path("metrics").isMissingNode(),
                     "Should have metrics section");
                 assertEquals("4.2.0", root.path("cluster").path("kafka_version").asText(), "Kafka version should be 4.2.0");
-                assertEquals(3, root.path("pods").path("pod_summary").path("total_pods").asInt(), "Should have 3 total pods");
+                assertEquals(4, root.path("pods").path("pod_summary").path("total_pods").asInt(), "Should have 4 total pods");
                 assertEquals("HEALTHY", root.path("pods").path("pod_summary").path("health_status").asText(), "Pod health should be HEALTHY");
                 assertEquals("strimzi-cluster-operator", root.path("operator").path("name").asText(), "Operator name should match");
                 assertEquals("HEALTHY", root.path("operator").path("status").asText(), "Operator status should be HEALTHY");
@@ -204,7 +224,7 @@ class DiagnoseToolsST extends AbstractST {
                     "Cluster name should match");
                 assertEquals("Ready", root.path("cluster").path("readiness").asText(), "Cluster should be Ready");
                 assertEquals(2, root.path("node_pools").size(), "Should have 2 node pools");
-                assertEquals(3, root.path("pods").path("pod_summary").path("total_pods").asInt(), "Should have 3 total pods");
+                assertEquals(4, root.path("pods").path("pod_summary").path("total_pods").asInt(), "Should have 4 total pods");
                 assertEquals("HEALTHY", root.path("operator").path("status").asText(), "Operator should be HEALTHY");
                 assertEquals(11, root.path("steps_completed").size(), "Should have 11 completed steps");
             })
@@ -410,7 +430,7 @@ class DiagnoseToolsST extends AbstractST {
                 assertTrue(root.path("operator").path("ready").asBoolean(), "Operator should be ready");
                 assertEquals("HEALTHY", root.path("operator").path("status").asText(), "Operator should be HEALTHY");
                 assertEquals(2, root.path("node_pools").size(), "Should have 2 node pools");
-                assertEquals(3, root.path("pods").path("pod_summary").path("total_pods").asInt(), "Should have 3 total pods");
+                assertEquals(4, root.path("pods").path("pod_summary").path("total_pods").asInt(), "Should have 4 total pods");
                 assertEquals(10, root.path("steps_completed").size(), "Should have 10 completed steps");
             })
             .thenAssertResults();

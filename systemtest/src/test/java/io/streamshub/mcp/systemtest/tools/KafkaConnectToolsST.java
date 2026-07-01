@@ -26,12 +26,16 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static io.streamshub.mcp.systemtest.TestTags.LOGS;
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
+import static io.streamshub.mcp.systemtest.TestTags.TOOLS;
 import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectTemplates.CAMEL_TIMER_SOURCE_CLASS_NAME;
 import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectorTemplates.CONNECTOR_NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,6 +50,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("KafkaConnect Tools")
+@Tag(REGRESSION)
+@Tag(TOOLS)
 class KafkaConnectToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaConnectToolsST.class);
@@ -255,6 +261,7 @@ class KafkaConnectToolsST extends AbstractST {
 
     @Test
     @Story("get_kafka_connect_logs returns log output")
+    @Tag(LOGS)
     void testGetKafkaConnectLogs() {
         Map<String, Object> args = Map.of(
             "connectName", Constants.CONNECT_CLUSTER_NAME,

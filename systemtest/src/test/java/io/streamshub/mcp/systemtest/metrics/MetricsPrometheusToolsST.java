@@ -29,6 +29,7 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,10 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.streamshub.mcp.systemtest.TestTags.ACCEPTANCE;
+import static io.streamshub.mcp.systemtest.TestTags.METRICS;
+import static io.streamshub.mcp.systemtest.TestTags.PROMETHEUS;
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -48,6 +53,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("Prometheus Metrics Integration")
+@Tag(ACCEPTANCE)
+@Tag(REGRESSION)
+@Tag(METRICS)
+@Tag(PROMETHEUS)
 class MetricsPrometheusToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsPrometheusToolsST.class);
@@ -81,6 +90,10 @@ class MetricsPrometheusToolsST extends AbstractST {
 
             KafkaTemplates.deployMetricsConfigMap(kafkaNs);
             KafkaTemplates.deployPodMonitors(kafkaNs);
+            KafkaBridgeTemplates.deployMetricsConfigMap(kafkaNs);
+            KafkaBridgeTemplates.deployPodMonitors(kafkaNs);
+            KafkaConnectTemplates.deployMetricsConfigMap(kafkaNs);
+            KafkaConnectTemplates.deployPodMonitors(kafkaNs);
 
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
@@ -229,10 +242,11 @@ class MetricsPrometheusToolsST extends AbstractST {
     void testGetKafkaExporterMetricsRange() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "category", "partitions",
             "rangeMinutes", 30,
             "stepSeconds", 60);
 
-        Wait.until("Prometheus to return metric data in expected format",
+        Wait.until("Prometheus to return Kafka Exporter metric data",
             Constants.KAFKA_READY_POLL_MS, Constants.MCP_READY_TIMEOUT_MS, () -> {
                 try {
                     mcpClient.when()

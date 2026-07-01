@@ -17,12 +17,16 @@ import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static io.streamshub.mcp.systemtest.TestTags.LOGS;
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
+import static io.streamshub.mcp.systemtest.TestTags.RESILIENCE;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -33,6 +37,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("Input Validation")
+@Tag(REGRESSION)
+@Tag(RESILIENCE)
 class InputValidationST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(InputValidationST.class);
@@ -160,6 +166,7 @@ class InputValidationST extends AbstractST {
 
     @Test
     @Story("Negative tailLines is handled gracefully")
+    @Tag(LOGS)
     void testNegativeTailLines() {
         Map<String, Object> args = Map.of(
             "clusterName", "any-cluster",

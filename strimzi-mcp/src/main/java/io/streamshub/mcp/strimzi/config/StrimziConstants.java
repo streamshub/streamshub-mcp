@@ -95,6 +95,19 @@ public final class StrimziConstants {
     }
 
     /**
+     * KafkaBridge-specific constants.
+     */
+    public static final class KafkaBridge {
+        /**
+         * Management port where the bridge exposes health and metrics endpoints.
+         */
+        public static final int MANAGEMENT_PORT = 8081;
+
+        private KafkaBridge() {
+        }
+    }
+
+    /**
      * Values for the strimzi.io/component-type label.
      */
     public static final class ComponentTypes {

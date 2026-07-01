@@ -140,6 +140,8 @@ public final class KafkaTemplates {
                             .build())
                         .build())
                 .endKafka()
+                .withNewKafkaExporter()
+                .endKafkaExporter()
             .endSpec();
     }
 
