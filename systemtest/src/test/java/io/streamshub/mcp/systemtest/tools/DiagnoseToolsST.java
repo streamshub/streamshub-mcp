@@ -138,6 +138,12 @@ class DiagnoseToolsST extends AbstractST {
                     "Should have events section");
                 assertFalse(root.path("metrics").isMissingNode(),
                     "Should have metrics section");
+                assertEquals("4.2.0", root.path("cluster").path("kafka_version").asText(), "Kafka version should be 4.2.0");
+                assertEquals(3, root.path("pods").path("pod_summary").path("total_pods").asInt(), "Should have 3 total pods");
+                assertEquals("HEALTHY", root.path("pods").path("pod_summary").path("health_status").asText(), "Pod health should be HEALTHY");
+                assertEquals("strimzi-cluster-operator", root.path("operator").path("name").asText(), "Operator name should match");
+                assertEquals("HEALTHY", root.path("operator").path("status").asText(), "Operator status should be HEALTHY");
+                assertEquals(11, root.path("steps_completed").size(), "Should have 11 completed steps");
             })
             .thenAssertResults();
     }
@@ -168,6 +174,9 @@ class DiagnoseToolsST extends AbstractST {
                     "Should have certificates section");
                 assertFalse(root.path("cluster_logs").isMissingNode(),
                     "Should have cluster_logs section");
+                assertEquals("success", root.path("bootstrap_servers").path("status").asText(), "Bootstrap servers status should be success");
+                assertEquals(2, root.path("bootstrap_servers").path("bootstrap_servers").size(), "Should have 2 bootstrap servers");
+                assertEquals(6, root.path("steps_completed").size(), "Should have 6 completed steps");
             })
             .thenAssertResults();
     }
@@ -193,6 +202,11 @@ class DiagnoseToolsST extends AbstractST {
                 assertEquals(Constants.KAFKA_CLUSTER_NAME,
                     root.path("cluster").path("name").asText(),
                     "Cluster name should match");
+                assertEquals("Ready", root.path("cluster").path("readiness").asText(), "Cluster should be Ready");
+                assertEquals(2, root.path("node_pools").size(), "Should have 2 node pools");
+                assertEquals(3, root.path("pods").path("pod_summary").path("total_pods").asInt(), "Should have 3 total pods");
+                assertEquals("HEALTHY", root.path("operator").path("status").asText(), "Operator should be HEALTHY");
+                assertEquals(11, root.path("steps_completed").size(), "Should have 11 completed steps");
             })
             .thenAssertResults();
     }
@@ -218,6 +232,10 @@ class DiagnoseToolsST extends AbstractST {
                     "Should have bootstrap_servers section");
                 assertFalse(root.path("certificates").isMissingNode(),
                     "Should have certificates section");
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster").path("name").asText(), "Cluster name should match");
+                assertEquals("Ready", root.path("cluster").path("readiness").asText(), "Cluster should be Ready");
+                assertEquals(2, root.path("bootstrap_servers").path("bootstrap_servers").size(), "Should have 2 bootstrap servers");
+                assertEquals(6, root.path("steps_completed").size(), "Should have 6 completed steps");
             })
             .thenAssertResults();
     }
@@ -250,6 +268,8 @@ class DiagnoseToolsST extends AbstractST {
                     "Should have resource_metrics section");
                 assertFalse(root.path("throughput_metrics").isMissingNode(),
                     "Should have throughput_metrics section");
+                assertEquals("streamshub-pod-scraping", root.path("replication_metrics").path("provider").asText(), "Provider should be streamshub-pod-scraping");
+                assertEquals(6, root.path("steps_completed").size(), "Should have 6 completed steps");
             })
             .thenAssertResults();
     }
@@ -286,6 +306,10 @@ class DiagnoseToolsST extends AbstractST {
                     "Should have connect_metrics section");
                 assertFalse(root.path("events").isMissingNode(),
                     "Should have events section");
+                assertEquals(1, root.path("connectors").size(), "Should have 1 connector");
+                assertEquals(1, root.path("pods").path("pod_summary").path("total_pods").asInt(), "Should have 1 connect pod");
+                assertEquals("HEALTHY", root.path("pods").path("pod_summary").path("health_status").asText(), "Pod health should be HEALTHY");
+                assertEquals(6, root.path("steps_completed").size(), "Should have 6 completed steps");
             })
             .thenAssertResults();
     }
@@ -320,6 +344,10 @@ class DiagnoseToolsST extends AbstractST {
                     "Should have connect_logs section");
                 assertFalse(root.path("events").isMissingNode(),
                     "Should have events section");
+                assertEquals("running", root.path("connector").path("state").asText(), "Connector state should be running");
+                assertEquals("Ready", root.path("connector").path("readiness").asText(), "Connector readiness should be Ready");
+                assertFalse(root.path("connect_logs").path("has_errors").asBoolean(), "Connect logs should have no errors");
+                assertEquals(5, root.path("steps_completed").size(), "Should have 5 completed steps");
             })
             .thenAssertResults();
     }
@@ -349,6 +377,10 @@ class DiagnoseToolsST extends AbstractST {
                     "Should have resource_metrics section");
                 assertFalse(root.path("jvm_metrics").isMissingNode(),
                     "Should have jvm_metrics section");
+                assertEquals("strimzi-cluster-operator", root.path("operator").path("name").asText(), "Operator name should match");
+                assertTrue(root.path("operator").path("ready").asBoolean(), "Operator should be ready");
+                assertEquals("HEALTHY", root.path("operator").path("status").asText(), "Operator status should be HEALTHY");
+                assertEquals(5, root.path("steps_completed").size(), "Should have 5 completed steps");
             })
             .thenAssertResults();
     }
@@ -374,6 +406,12 @@ class DiagnoseToolsST extends AbstractST {
                 assertEquals(Constants.KAFKA_CLUSTER_NAME,
                     root.path("cluster").path("name").asText(),
                     "Cluster name should match");
+                assertEquals("Ready", root.path("cluster").path("readiness").asText(), "Cluster should be Ready");
+                assertTrue(root.path("operator").path("ready").asBoolean(), "Operator should be ready");
+                assertEquals("HEALTHY", root.path("operator").path("status").asText(), "Operator should be HEALTHY");
+                assertEquals(2, root.path("node_pools").size(), "Should have 2 node pools");
+                assertEquals(3, root.path("pods").path("pod_summary").path("total_pods").asInt(), "Should have 3 total pods");
+                assertEquals(10, root.path("steps_completed").size(), "Should have 10 completed steps");
             })
             .thenAssertResults();
     }

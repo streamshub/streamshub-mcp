@@ -113,13 +113,16 @@ class KafkaConnectToolsST extends AbstractST {
             .toolsCall("list_kafka_connects", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - add detailed asserts
-
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("list_kafka_connects response:\n{}", json);
                 JsonNode connect = findByName(root, Constants.CONNECT_CLUSTER_NAME);
                 assertNotNull(connect, "Should find Connect cluster '" + Constants.CONNECT_CLUSTER_NAME + "'");
                 assertEquals("Ready", connect.path("readiness").asText(), "Connect should be Ready");
+                assertEquals(1, connect.path("replicas").path("expected").asInt(), "Expected replicas should be 1");
+                assertEquals(1, connect.path("replicas").path("ready").asInt(), "Ready replicas should be 1");
+                assertEquals("4.2.0", connect.path("version").asText(), "Version should be 4.2.0");
+                assertTrue(connect.has("conditions"), "Should have conditions");
+                assertEquals("Ready", connect.path("conditions").get(0).path("type").asText(), "First condition type should be Ready");
             })
             .thenAssertResults();
     }
@@ -134,8 +137,6 @@ class KafkaConnectToolsST extends AbstractST {
             .toolsCall("get_kafka_connect", args, response -> {
                 JsonNode connect = assertToolSuccess(response);
 
-                // TODO - add detailed asserts
-
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_connect response:\n{}", json);
                 assertEquals(Constants.CONNECT_CLUSTER_NAME, connect.path("name").asText(),
@@ -145,6 +146,11 @@ class KafkaConnectToolsST extends AbstractST {
                 assertFalse(connect.path("rest_api_url").isMissingNode(), "Should have REST API URL");
                 assertFalse(connect.path("bootstrap_servers").isMissingNode(), "Should have bootstrap servers");
                 assertTrue(connect.has("replicas"), "Should have replicas info");
+                assertEquals(1, connect.path("replicas").path("expected").asInt(), "Expected replicas should be 1");
+                assertEquals(1, connect.path("replicas").path("ready").asInt(), "Ready replicas should be 1");
+                assertEquals("4.2.0", connect.path("version").asText(), "Version should be 4.2.0");
+                assertEquals(6, connect.path("connector_plugins_count").asInt(), "Should have 6 connector plugins");
+                assertFalse(connect.path("creation_time").isMissingNode(), "Should have creation_time");
             })
             .thenAssertResults();
     }
@@ -160,13 +166,16 @@ class KafkaConnectToolsST extends AbstractST {
             .toolsCall("get_kafka_connect_pods", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - add detailed asserts
-
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_connect_pods response:\n{}", json);
                 assertTrue(root.has("pod_summary"), "Should have pod_summary");
                 assertTrue(root.path("pod_summary").path("total_pods").asInt() > 0,
                     "Should have at least one pod");
+                assertEquals(Constants.CONNECT_CLUSTER_NAME, root.path("connect_name").asText(), "connect_name should match");
+                JsonNode podSummary = root.path("pod_summary");
+                assertEquals(1, podSummary.path("ready_pods").asInt(), "Should have 1 ready pod");
+                assertEquals(0, podSummary.path("failed_pods").asInt(), "Should have 0 failed pods");
+                assertEquals("HEALTHY", podSummary.path("health_status").asText(), "Health status should be HEALTHY");
             })
             .thenAssertResults();
     }
@@ -180,14 +189,15 @@ class KafkaConnectToolsST extends AbstractST {
             .toolsCall("list_kafka_connectors", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - add detailed asserts
-
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("list_kafka_connectors response:\n{}", json);
                 JsonNode connector = findByName(root, CONNECTOR_NAME);
                 assertNotNull(connector, "Should find connector '" + CONNECTOR_NAME + "'");
                 assertTrue(connector.path("class_name").asText().contains(CAMEL_TIMER_SOURCE_CLASS_NAME),
                     "Should have correct class name");
+                assertEquals(1, connector.path("tasks_max").asInt(), "tasks_max should be 1");
+                assertEquals("running", connector.path("state").asText(), "State should be running");
+                assertEquals("Ready", connector.path("readiness").asText(), "Readiness should be Ready");
             })
             .thenAssertResults();
     }
@@ -203,14 +213,14 @@ class KafkaConnectToolsST extends AbstractST {
             .toolsCall("list_kafka_connectors", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - add detailed asserts
-
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("list_kafka_connectors (filtered) response:\n{}", json);
                 JsonNode connector = findByName(root, CONNECTOR_NAME);
                 assertNotNull(connector, "Should find connector '" + CONNECTOR_NAME + "'");
                 assertEquals(Constants.CONNECT_CLUSTER_NAME, connector.path("connect_cluster").asText(),
                     "Connector should belong to the filtered Connect cluster");
+                assertEquals("running", connector.path("state").asText(), "State should be running");
+                assertEquals("Ready", connector.path("readiness").asText(), "Readiness should be Ready");
             })
             .thenAssertResults();
     }
@@ -254,8 +264,6 @@ class KafkaConnectToolsST extends AbstractST {
             .toolsCall("get_kafka_connect_logs", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert for specific log data
-
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_connect_logs response (length={})", text.length());
                 LOGGER.debug("get_kafka_connect_logs response:\n{}", text);
@@ -269,6 +277,11 @@ class KafkaConnectToolsST extends AbstractST {
                 assertTrue(root.path("log_lines").isNumber(), "log_lines should be a number");
                 assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
                 assertFalse(root.path("message").isMissingNode(), "Should have message");
+                assertFalse(root.path("has_errors").asBoolean(), "Should have no errors");
+                assertEquals(0, root.path("error_count").asInt(), "Error count should be 0");
+                assertTrue(root.path("log_lines").asInt() > 0, "Should have log lines");
+                assertTrue(root.path("has_more").asBoolean(), "Should indicate more logs available");
+                assertTrue(root.path("logs").asText().contains("CamelSourceTask connector task started"), "Logs should contain CamelSourceTask started message");
             })
             .thenAssertResults();
     }
@@ -285,8 +298,6 @@ class KafkaConnectToolsST extends AbstractST {
             .toolsCall("get_strimzi_events", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert for specific event data
-
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_strimzi_events (KafkaConnect) response (length={})", text.length());
                 LOGGER.debug("get_strimzi_events (KafkaConnect) response:\n{}", text);
@@ -298,6 +309,10 @@ class KafkaConnectToolsST extends AbstractST {
                     "Should have events from connect deployment");
                 assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
                 assertFalse(root.path("message").isMissingNode(), "Should have message");
+                assertTrue(root.path("total_events").asInt() > 0, "Should have events");
+                JsonNode resources = root.path("resources");
+                assertTrue(resources.isArray() && resources.size() > 0, "Should have resource groups");
+                assertEquals("Pod", resources.get(0).path("resource_kind").asText(), "Resource kind should be Pod");
             })
             .thenAssertResults();
     }

@@ -128,14 +128,17 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
             .toolsCall("list_kafka_mirror_makers", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert mode details
-
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("list_kafka_mirror_makers response:\n{}", json);
                 JsonNode mm2 = findByName(root, MM2_NAME);
                 assertNotNull(mm2, "Should find MirrorMaker2 '" + MM2_NAME + "'");
                 assertEquals("Ready", mm2.path("readiness").asText(),
                     "MirrorMaker2 should be Ready");
+                assertEquals(1, mm2.path("replicas").path("expected").asInt(), "Expected replicas should be 1");
+                assertEquals(1, mm2.path("replicas").path("ready").asInt(), "Ready replicas should be 1");
+                assertEquals("target", mm2.path("target_cluster").asText(), "Target cluster should be 'target'");
+                assertTrue(mm2.path("source_cluster_aliases").isArray(), "source_cluster_aliases should be an array");
+                assertEquals("source", mm2.path("source_cluster_aliases").get(0).asText(), "Source cluster alias should be 'source'");
             })
             .thenAssertResults();
     }
@@ -151,8 +154,6 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
             .toolsCall("get_kafka_mirror_maker", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert mode details
-
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_mirror_maker response:\n{}", json);
                 assertEquals(MM2_NAME, root.path("name").asText());
@@ -160,6 +161,16 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
                 assertFalse(root.path("mirrors").isMissingNode(),
                     "Should have mirrors configuration");
                 assertTrue(root.has("replicas"), "Should have replicas info");
+                assertEquals(1, root.path("replicas").path("expected").asInt(), "Expected replicas should be 1");
+                assertEquals(1, root.path("replicas").path("ready").asInt(), "Ready replicas should be 1");
+                assertEquals("target", root.path("target_cluster").asText(), "Target cluster should be 'target'");
+                assertEquals("4.2.0", root.path("version").asText(), "Version should be 4.2.0");
+                JsonNode mirrors = root.path("mirrors");
+                assertTrue(mirrors.isArray() && mirrors.size() == 1, "Should have exactly 1 mirror");
+                assertEquals("source", mirrors.get(0).path("source_cluster").asText(), "Mirror source cluster should be 'source'");
+                JsonNode connectorStatuses = root.path("connector_statuses");
+                assertTrue(connectorStatuses.isArray() && connectorStatuses.size() >= 1, "Should have at least 1 connector status");
+                assertEquals("RUNNING", connectorStatuses.get(0).path("connector").path("state").asText(), "Connector state should be RUNNING");
             })
             .thenAssertResults();
     }
@@ -175,8 +186,6 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
             .toolsCall("get_kafka_mirror_maker_pods", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert mode details
-
                 LOGGER.info("get_kafka_mirror_maker_pods response (length={})",
                     response.content().getFirst().asText().text().length());
                 LOGGER.debug("get_kafka_mirror_maker_pods response:\n{}",
@@ -186,6 +195,11 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
                     "Should have at least one pod");
                 assertFalse(root.path("pod_summary").path("health_status").isMissingNode(),
                     "Should have health_status");
+                assertEquals(MM2_NAME, root.path("mirror_maker_name").asText(), "mirror_maker_name should match");
+                JsonNode podSummary = root.path("pod_summary");
+                assertEquals(1, podSummary.path("ready_pods").asInt(), "Should have 1 ready pod");
+                assertEquals(0, podSummary.path("failed_pods").asInt(), "Should have 0 failed pods");
+                assertEquals("HEALTHY", podSummary.path("health_status").asText(), "Health status should be HEALTHY");
             })
             .thenAssertResults();
     }
@@ -201,13 +215,16 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
             .toolsCall("get_kafka_mirror_maker_logs", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert specific logs data
-
                 LOGGER.info("get_kafka_mirror_maker_logs response (length={})",
                     response.content().getFirst().asText().text().length());
                 LOGGER.debug("get_kafka_mirror_maker_logs response:\n{}",
                     response.content().getFirst().asText().text());
                 assertLogsResponse(root, "mirror_maker_name", MM2_NAME);
+                assertEquals(1, root.path("pods").size(), "Should have exactly 1 pod");
+                assertTrue(root.path("log_lines").asInt() > 0, "Should have log lines");
+                assertTrue(root.path("has_more").asBoolean(), "Should indicate more logs available");
+                String logs = root.path("logs").asText();
+                assertTrue(logs.contains("MirrorSourceConnector"), "Logs should contain MirrorSourceConnector references");
             })
             .thenAssertResults();
     }
@@ -224,8 +241,6 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
             .toolsCall("get_strimzi_events", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert specific events data
-
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_strimzi_events (MM2) response (length={})", text.length());
                 LOGGER.debug("get_strimzi_events (MM2) response:\n{}", text);
@@ -236,6 +251,9 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
                     "namespace should match deployment namespace");
                 assertTrue(root.path("total_events").asInt() > 0,
                     "Should have events from MM2 deployment");
+                JsonNode resources = root.path("resources");
+                assertTrue(resources.isArray() && resources.size() > 0, "Should have resource groups");
+                assertEquals("Pod", resources.get(0).path("resource_kind").asText(), "Resource kind should be Pod");
             })
             .thenAssertResults();
     }
@@ -251,8 +269,6 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
             .toolsCall("diagnose_kafka_mirror_maker", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO assert more details about diagnostic steps
-
                 LOGGER.info("diagnose_kafka_mirror_maker: steps={}",
                     root.path("steps_completed").size());
                 LOGGER.debug("diagnose_kafka_mirror_maker response:\n{}",
@@ -261,6 +277,11 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
                 assertEquals(MM2_NAME,
                     root.path("mirror_maker").path("name").asText(),
                     "MirrorMaker2 name should match");
+                assertEquals(4, root.path("steps_completed").size(), "Should have 4 completed steps");
+                assertTrue(root.path("message").asText().contains("4 steps succeeded"), "Message should indicate 4 steps succeeded");
+                assertEquals("Ready", root.path("mirror_maker").path("readiness").asText(), "MM2 readiness should be Ready");
+                assertEquals(1, root.path("pods").path("pod_summary").path("total_pods").asInt(), "Should have 1 pod");
+                assertEquals("HEALTHY", root.path("pods").path("pod_summary").path("health_status").asText(), "Health status should be HEALTHY");
             })
             .thenAssertResults();
     }

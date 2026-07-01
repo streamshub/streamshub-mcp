@@ -185,7 +185,11 @@ class MetricsPrometheusToolsST extends AbstractST {
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_metrics (short range) response (length={})", text.length());
                 LOGGER.debug("get_kafka_metrics (short range) response:\n{}", text);
-                assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText(), "cluster_name should match");
+                assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText());
+                assertEquals("streamshub-prometheus", root.path("provider").asText());
+                assertFalse(root.path("interpretation").isMissingNode(), "Should have interpretation text");
+                assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
             })
             .thenAssertResults();
     }
@@ -269,9 +273,10 @@ class MetricsPrometheusToolsST extends AbstractST {
                             String text = response.content().getFirst().asText().text();
                             LOGGER.info("get_kafka_bridge_metrics range response (length={})", text.length());
                             LOGGER.debug("get_kafka_bridge_metrics range response:\n{}", text);
-                            assertMetricsResponse(root, "bridge_name", Constants.BRIDGE_NAME);
-                            assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
-                                "namespace should match deployment namespace");
+                            assertEquals(Constants.BRIDGE_NAME, root.path("bridge_name").asText(), "bridge_name should match");
+                            assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText());
+                            assertEquals("streamshub-prometheus", root.path("provider").asText());
+                            assertFalse(root.path("interpretation").isMissingNode(), "Should have interpretation text");
                         })
                         .thenAssertResults();
 
@@ -303,9 +308,10 @@ class MetricsPrometheusToolsST extends AbstractST {
                             String text = response.content().getFirst().asText().text();
                             LOGGER.info("get_kafka_connect_metrics range response (length={})", text.length());
                             LOGGER.debug("get_kafka_connect_metrics range response:\n{}", text);
-                            assertMetricsResponse(root, "connect_name", Constants.CONNECT_CLUSTER_NAME);
-                            assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
-                                "namespace should match deployment namespace");
+                            assertEquals(Constants.CONNECT_CLUSTER_NAME, root.path("connect_name").asText(), "connect_name should match");
+                            assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText());
+                            assertEquals("streamshub-prometheus", root.path("provider").asText());
+                            assertFalse(root.path("interpretation").isMissingNode(), "Should have interpretation text");
                         })
                         .thenAssertResults();
 

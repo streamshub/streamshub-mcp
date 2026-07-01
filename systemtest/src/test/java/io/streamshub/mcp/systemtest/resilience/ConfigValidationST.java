@@ -116,6 +116,8 @@ class ConfigValidationST extends AbstractST {
                     "Error should reference the unreachable Prometheus host, got: " + text);
                 assertFalse(text.contains("not found"),
                     "Error should be about unreachable Prometheus, not missing cluster");
+                assertTrue(text.contains("UnknownHostException"),
+                    "Error should mention UnknownHostException for DNS failure");
                 assertNoStackTrace(text);
             })
             .thenAssertResults();
@@ -131,16 +133,23 @@ class ConfigValidationST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_kafka_cluster_logs", args, response -> {
-                assertToolError(response, "Loki query failed");
+                JsonNode root = assertToolSuccess(response);
 
                 String text = response.content().getFirst().asText().text();
-                JsonNode root = parseJson(text);
                 assertEquals(0, root.path("log_lines").asInt(),
                     "No log lines should be retrieved with invalid Loki URL");
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText(),
+                    "cluster_name should match");
+                assertEquals(3, root.path("pods").size(),
+                    "Should list all 3 pods even though Loki failed");
                 assertTrue(text.contains("Loki query failed"),
                     "Response should indicate Loki query failure, got: " + text);
                 assertTrue(text.contains("nonexistent-loki"),
                     "Response should reference the unreachable Loki host, got: " + text);
+                assertTrue(text.contains("UnknownHostException"),
+                    "Response should contain UnknownHostException for the unreachable host");
+                assertFalse(root.path("has_errors").asBoolean(),
+                    "has_errors should be false (Loki errors are per-pod, not data errors)");
                 assertNoStackTrace(text);
             })
             .thenAssertResults();
@@ -153,8 +162,8 @@ class ConfigValidationST extends AbstractST {
             .toolsList(page -> {
                 LOGGER.info("tools/list succeeded with {} tools despite bad provider config",
                     page.size());
-                assertTrue(page.size() > 0,
-                    "Tool discovery should still work regardless of provider config");
+                assertTrue(page.size() >= 40,
+                    "Tool discovery should return a substantial number of tools despite bad provider config, got: " + page.size());
             })
             .thenAssertResults();
     }

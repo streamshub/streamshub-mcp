@@ -23,6 +23,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 /**
  * System tests for input validation edge cases. Deploys only the MCP server
  * (no Strimzi operator or Kafka cluster) and sends malformed inputs to verify
@@ -72,6 +74,10 @@ class InputValidationST extends AbstractST {
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Special chars response: {}", text);
                 assertNoStackTrace(text);
+                assertTrue(text.contains("Invalid cluster name"),
+                    "Error should mention 'Invalid cluster name', got: " + text);
+                assertTrue(text.contains("my;cluster"),
+                    "Error should echo back the invalid name 'my;cluster', got: " + text);
             })
             .thenAssertResults();
     }
@@ -89,6 +95,8 @@ class InputValidationST extends AbstractST {
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Long name response: {}", text);
                 assertNoStackTrace(text);
+                assertTrue(text.contains("exceeds maximum length of 253 characters"),
+                    "Error should mention the 253 character limit, got: " + text);
             })
             .thenAssertResults();
     }
@@ -105,6 +113,8 @@ class InputValidationST extends AbstractST {
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Empty name response: {}", text);
                 assertNoStackTrace(text);
+                assertTrue(text.contains("Cluster name is required"),
+                    "Error should state 'Cluster name is required', got: " + text);
             })
             .thenAssertResults();
     }

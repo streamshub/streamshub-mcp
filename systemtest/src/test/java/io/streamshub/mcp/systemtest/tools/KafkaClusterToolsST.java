@@ -329,8 +329,7 @@ class KafkaClusterToolsST extends AbstractST {
         Map<String, Object> args = Map.of("clusterName", "nonexistent-cluster-xyz");
         mcpClient.when()
             .toolsCall("get_strimzi_kafka_cluster_overview", args, response -> {
-                // TODO - improve assert strings
-                assertToolError(response, "not found");
+                assertToolError(response, "not found", "nonexistent-cluster-xyz");
             })
             .thenAssertResults();
     }
@@ -343,8 +342,7 @@ class KafkaClusterToolsST extends AbstractST {
         Map<String, Object> args = Map.of("clusterName", "nonexistent-cluster-xyz");
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
-                // TODO - improve assert strings
-                assertToolError(response, "not found");
+                assertToolError(response, "not found", "nonexistent-cluster-xyz");
             })
             .thenAssertResults();
     }
@@ -357,8 +355,7 @@ class KafkaClusterToolsST extends AbstractST {
             "namespace", "nonexistent-namespace");
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
-                // TODO - improve assert strings
-                assertToolError(response, "not found");
+                assertToolError(response, "not found", "nonexistent-namespace");
             })
             .thenAssertResults();
     }
@@ -369,8 +366,9 @@ class KafkaClusterToolsST extends AbstractST {
         Map<String, Object> args = Map.of("namespace", "default");
         mcpClient.when()
             .toolsCall("list_kafka_clusters", args, response -> {
-                // TODO - improve additional asserts
                 assertToolSuccess(response);
+                assertTrue(response.content().isEmpty(),
+                    "Should return empty content for namespace with no Kafka clusters");
             })
             .thenAssertResults();
     }
@@ -489,13 +487,15 @@ class KafkaClusterToolsST extends AbstractST {
             .toolsCall("get_kafka_cluster_logs", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert for specific logs
-
                 LOGGER.info("get_kafka_cluster_logs response (length={})",
                     response.content().getFirst().asText().text().length());
                 LOGGER.debug("get_kafka_cluster_logs response:\n{}",
                     response.content().getFirst().asText().text());
                 assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
+                assertFalse(root.path("has_errors").asBoolean(), "Should have no errors");
+                assertEquals(0, root.path("error_count").asInt(), "Error count should be 0");
+                assertTrue(root.path("log_lines").asInt() > 0, "Should have log lines");
+                assertTrue(root.path("has_more").asBoolean(), "Should indicate more logs are available");
             })
             .thenAssertResults();
     }
@@ -513,12 +513,14 @@ class KafkaClusterToolsST extends AbstractST {
             .toolsCall("get_kafka_cluster_logs", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert for specific logs
-
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_cluster_logs ERROR filter response (length={})", text.length());
                 LOGGER.debug("get_kafka_cluster_logs ERROR filter response:\n{}", text);
                 assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
+                assertEquals(0, root.path("log_lines").asInt(), "ERROR filter should return 0 log lines on healthy cluster");
+                assertEquals(0, root.path("error_count").asInt(), "Error count should be 0 on healthy cluster");
+                assertFalse(root.path("has_errors").asBoolean(), "Should have no errors");
+                assertFalse(root.path("has_more").asBoolean(), "Should not have more logs when 0 lines returned");
             })
             .thenAssertResults();
     }
@@ -535,12 +537,16 @@ class KafkaClusterToolsST extends AbstractST {
             .toolsCall("get_kafka_cluster_logs", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert  for specific logs
-
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_cluster_logs keywords response (length={})", text.length());
                 LOGGER.debug("get_kafka_cluster_logs keywords response:\n{}", text);
                 assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
+                assertFalse(root.path("has_errors").asBoolean(), "Should have no errors");
+                assertEquals(0, root.path("error_count").asInt(), "Error count should be 0");
+                assertTrue(root.path("log_lines").asInt() > 0, "Keywords filter should return matching log lines");
+                String logs = root.path("logs").asText();
+                assertTrue(logs.contains("partition") || logs.contains("leader"),
+                    "Logs should contain keyword 'partition' or 'leader'");
             })
             .thenAssertResults();
     }
@@ -602,14 +608,14 @@ class KafkaClusterToolsST extends AbstractST {
             .toolsCall("get_kafka_cluster_logs", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - better asserts?
-
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_cluster_logs large request response (length={})", text.length());
                 LOGGER.debug("get_kafka_cluster_logs large request response:\n{}", text);
                 assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
-                assertTrue(root.path("log_lines").asInt() > 0,
-                    "log_lines should be positive for a large request against a running cluster");
+                assertTrue(root.path("log_lines").asInt() > 100,
+                    "Large request should return many log lines (got " + root.path("log_lines").asInt() + ")");
+                assertEquals(10, root.path("pods").size(), "Should have logs from all 10 pods");
+                assertFalse(root.path("has_more").asBoolean(), "Should not have more when requesting 1000 tailLines");
             })
             .thenAssertResults();
     }
@@ -679,8 +685,6 @@ class KafkaClusterToolsST extends AbstractST {
             .toolsCall("get_kafka_node_pool", args, response -> {
                 JsonNode pool = assertToolSuccess(response);
 
-                // TODO  - check it doesn't contains different roles
-
                 LOGGER.info("get_kafka_node_pool broker response:\n{}",
                     response.content().getFirst().asText().text());
                 assertEquals("broker-np1", pool.path("name").asText(),
@@ -688,6 +692,8 @@ class KafkaClusterToolsST extends AbstractST {
                 assertTrue(pool.path("roles").isArray(),
                     "roles should be an array");
                 assertContainsRole(pool.path("roles"), "broker");
+                assertEquals(1, pool.path("roles").size(), "Broker pool should have exactly 1 role");
+                assertEquals("broker", pool.path("roles").get(0).asText(), "The only role should be 'broker'");
             })
             .thenAssertResults();
     }
@@ -719,8 +725,7 @@ class KafkaClusterToolsST extends AbstractST {
             "nodePoolName", "nonexistent-pool");
         mcpClient.when()
             .toolsCall("get_kafka_node_pool", args, response -> {
-                // TODO improve assert string
-                assertToolError(response, "not found");
+                assertToolError(response, "not found", "nonexistent-pool");
             })
             .thenAssertResults();
     }

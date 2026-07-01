@@ -89,6 +89,8 @@ class ServerObservabilityST extends AbstractST {
         JsonNode root = parseJson(body);
         assertEquals("UP", root.path("status").asText(),
             "Readiness endpoint should report UP status");
+        JsonNode checks = root.path("checks");
+        assertTrue(checks.isArray() && checks.size() >= 2, "Should have at least 2 health checks");
     }
 
     // ---- Prometheus Metrics ----
@@ -109,6 +111,7 @@ class ServerObservabilityST extends AbstractST {
             "Metrics should contain mcp_tool_calls counter");
         assertTrue(metrics.contains("list_kafka_clusters"),
             "Metrics should reference the tool name used");
+        assertTrue(metrics.contains("mcp_tool_calls_total"), "Should contain total counter metric");
     }
 
     @Test
@@ -125,6 +128,7 @@ class ServerObservabilityST extends AbstractST {
         LOGGER.info("Prometheus duration metrics response length={}", metrics.length());
         assertTrue(metrics.contains("mcp_tool_call_duration"),
             "Metrics should contain mcp_tool_call_duration timer");
+        assertTrue(metrics.contains("get_kafka_fleet_overview"), "Duration metrics should reference the tool name used");
     }
 
     private static String httpGet(final String url) throws Exception {

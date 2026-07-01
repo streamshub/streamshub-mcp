@@ -258,8 +258,7 @@ class KafkaTopicToolsST extends AbstractST {
             "namespace", kafkaNamespace.getMetadata().getName());
         mcpClient.when()
             .toolsCall("get_kafka_topic", args, response -> {
-                // TODO - improve strings for asserts
-                assertToolError(response, "not found");
+                assertToolError(response, "not found", "nonexistent-topic-xyz");
             })
             .thenAssertResults();
     }
@@ -278,8 +277,6 @@ class KafkaTopicToolsST extends AbstractST {
             .toolsCall("diagnose_kafka_topic", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - asserts details about diagnostic steps
-
                 LOGGER.info("diagnose_kafka_topic response (length={})",
                     response.content().getFirst().asText().text().length());
                 LOGGER.debug("diagnose_kafka_topic response:\n{}",
@@ -288,6 +285,13 @@ class KafkaTopicToolsST extends AbstractST {
                 assertEquals("mcp-topic-alpha",
                     root.path("topic").path("name").asText(),
                     "Diagnostic topic name should match");
+                assertEquals("Ready", root.path("topic").path("status").asText(), "Topic status should be Ready");
+                assertEquals(3, root.path("topic").path("partitions").asInt(), "Topic should have 3 partitions");
+                assertEquals("mcp-cluster", root.path("topic").path("cluster").asText(), "Topic cluster should match");
+                assertEquals(4, root.path("related_topics").path("total").asInt(), "Should have 4 related topics");
+                assertEquals("Ready", root.path("cluster").path("readiness").asText(), "Cluster readiness should be Ready");
+                assertEquals(6, root.path("steps_completed").size(), "Should have 6 completed steps");
+                assertTrue(root.path("message").asText().contains("6 steps succeeded"), "Message should indicate 6 steps succeeded");
             })
             .thenAssertResults();
     }
@@ -360,8 +364,7 @@ class KafkaTopicToolsST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_kafka_topic", args, response -> {
-                // TODO - improve string for asserts
-                assertToolError(response, "not found");
+                assertToolError(response, "not found", "mcp-topic-alpha");
             })
             .thenAssertResults();
     }
@@ -381,8 +384,6 @@ class KafkaTopicToolsST extends AbstractST {
             .toolsCall("diagnose_kafka_topic", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - improve asserts for diagnostic steps
-
                 LOGGER.info("diagnose_kafka_topic with clusterName response (length={})",
                     response.content().getFirst().asText().text().length());
                 LOGGER.debug("diagnose_kafka_topic with clusterName response:\n{}",
@@ -391,6 +392,13 @@ class KafkaTopicToolsST extends AbstractST {
                 assertEquals("mcp-topic-alpha",
                     root.path("topic").path("name").asText(),
                     "Diagnostic topic name should match");
+                assertEquals("mcp-cluster", root.path("topic").path("cluster").asText(), "Topic cluster should match");
+                assertEquals("Ready", root.path("topic").path("status").asText(), "Topic status should be Ready");
+                assertEquals(3, root.path("topic").path("partitions").asInt(), "Topic should have 3 partitions");
+                assertEquals(4, root.path("related_topics").path("total").asInt(), "Should have 4 related topics");
+                assertEquals("Ready", root.path("cluster").path("readiness").asText(), "Cluster readiness should be Ready");
+                assertEquals(6, root.path("steps_completed").size(), "Should have 6 completed steps");
+                assertTrue(root.path("message").asText().contains("6 steps succeeded"), "Message should indicate 6 steps succeeded");
             })
             .thenAssertResults();
     }

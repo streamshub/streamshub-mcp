@@ -199,8 +199,12 @@ class NamespaceScopedRbacST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
-                // TODO - check some error string
-                assertToolError(response, "403");
+                assertToolError(response, "403", "Forbidden");
+                String text = response.content().getFirst().asText().text();
+                assertTrue(text.contains(Constants.KAFKA_CLUSTER_NAME_2),
+                    "Error should mention the cluster name");
+                assertTrue(text.contains(Constants.KAFKA_NAMESPACE_2),
+                    "Error should mention the inaccessible namespace");
             })
             .thenAssertResults();
     }
@@ -212,8 +216,10 @@ class NamespaceScopedRbacST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
-                // TODO - check some error string
-                assertToolError(response);
+                assertToolError(response, "403", "Forbidden");
+                String text = response.content().getFirst().asText().text();
+                assertTrue(text.contains("across all namespaces"),
+                    "Error should mention cluster-wide query failure");
             })
             .thenAssertResults();
     }
@@ -229,7 +235,14 @@ class NamespaceScopedRbacST extends AbstractST {
             .toolsCall("get_kafka_cluster_pods", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - add more asserts
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText());
+                assertEquals(Constants.KAFKA_NAMESPACE, root.path("namespace").asText());
+                JsonNode podSummary = root.path("pod_summary");
+                assertEquals(3, podSummary.path("total_pods").asInt(), "Should have 3 total pods");
+                assertEquals(3, podSummary.path("ready_pods").asInt(), "All 3 pods should be ready");
+                assertEquals(0, podSummary.path("failed_pods").asInt(), "Should have 0 failed pods");
+                assertEquals("HEALTHY", podSummary.path("health_status").asText());
+
                 LOGGER.info("get_kafka_cluster_pods (accessible): {} entries",
                     root.isArray() ? root.size() : 1);
                 LOGGER.debug("get_kafka_cluster_pods (accessible) response:\n{}", response.content().getFirst().asText().text());
@@ -253,7 +266,12 @@ class NamespaceScopedRbacST extends AbstractST {
                     root.path("log_lines").asInt());
                 LOGGER.debug("get_kafka_cluster_logs (accessible) response:\n{}", response.content().getFirst().asText().text());
                 assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText());
-                // TODO assert details about logs
+                assertEquals(Constants.KAFKA_NAMESPACE, root.path("namespace").asText());
+                assertFalse(root.path("has_errors").asBoolean(), "Should have no errors in logs");
+                assertTrue(root.path("log_lines").asInt() > 0, "Should have some log lines");
+                assertTrue(root.path("has_more").asBoolean(), "Should indicate more logs available");
+                JsonNode pods = root.path("pods");
+                assertTrue(pods.isArray() && pods.size() == 3, "Should have logs from 3 pods");
             })
             .thenAssertResults();
     }
@@ -274,7 +292,12 @@ class NamespaceScopedRbacST extends AbstractST {
                 LOGGER.debug("get_kafka_fleet_overview (accessible ns) response:\n{}", response.content().getFirst().asText().text());
                 assertEquals(1, root.path("total_clusters").asInt(),
                     "Should see exactly 1 cluster in accessible namespace");
-                // TODO - assert at least cluster name and nubmer of pods
+                assertEquals(1, root.path("total_brokers").asInt());
+                assertEquals(Constants.KAFKA_NAMESPACE, root.path("namespace_filter").asText());
+                JsonNode cluster = root.path("clusters").get(0);
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, cluster.path("name").asText());
+                assertEquals("Ready", cluster.path("readiness").asText());
+                assertTrue(root.path("warnings").isEmpty(), "Should have no warnings");
             })
             .thenAssertResults();
     }
@@ -286,8 +309,10 @@ class NamespaceScopedRbacST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_kafka_fleet_overview", args, response -> {
-                // TODO - check some error string
-                assertToolError(response);
+                assertToolError(response, "403", "Forbidden");
+                String text = response.content().getFirst().asText().text();
+                assertTrue(text.contains("strimzi-kafka-2"),
+                    "Error should mention the inaccessible namespace");
             })
             .thenAssertResults();
     }
@@ -297,8 +322,10 @@ class NamespaceScopedRbacST extends AbstractST {
     void testFleetOverviewClusterWide() {
         mcpClient.when()
             .toolsCall("get_kafka_fleet_overview", Map.of(), response -> {
-                // TODO - check some error string
-                assertToolError(response);
+                assertToolError(response, "403", "Forbidden");
+                String text = response.content().getFirst().asText().text();
+                assertTrue(text.contains("across all namespaces"),
+                    "Error should mention cluster-wide scope");
             })
             .thenAssertResults();
     }
@@ -322,7 +349,11 @@ class NamespaceScopedRbacST extends AbstractST {
                 JsonNode steps = root.path("steps_completed");
                 assertTrue(steps.isArray() && !steps.isEmpty(),
                     "Diagnostic should complete at least some steps");
-                // TODO - add asserts for steps details
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster").path("name").asText());
+                assertEquals(Constants.KAFKA_NAMESPACE, root.path("cluster").path("namespace").asText());
+                assertTrue(root.has("steps_failed"), "Should have steps_failed for cluster-scoped operations");
+                assertTrue(root.path("message").asText().contains("steps succeeded"));
+                assertEquals("HEALTHY", root.path("pods").path("pod_summary").path("health_status").asText());
             })
             .thenAssertResults();
     }
@@ -336,8 +367,12 @@ class NamespaceScopedRbacST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("diagnose_kafka_cluster", args, response -> {
-                // TODO - check some error string
-                assertToolError(response);
+                assertToolError(response, "403", "Forbidden");
+                String text = response.content().getFirst().asText().text();
+                assertTrue(text.contains(Constants.KAFKA_CLUSTER_NAME_2),
+                    "Error should mention the cluster name");
+                assertTrue(text.contains(Constants.KAFKA_NAMESPACE_2),
+                    "Error should mention the inaccessible namespace");
             })
             .thenAssertResults();
     }
@@ -412,7 +447,14 @@ class NamespaceScopedRbacST extends AbstractST {
             .toolsCall("list_strimzi_operators", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - add detailed asserts
+                assertEquals("strimzi-cluster-operator", root.path("name").asText());
+                assertEquals(Constants.STRIMZI_NAMESPACE, root.path("namespace").asText());
+                assertTrue(root.path("ready").asBoolean(), "Operator should be ready");
+                assertEquals(1, root.path("replicas").asInt());
+                assertEquals("HEALTHY", root.path("status").asText());
+                assertTrue(root.path("image").asText().contains("quay.io/strimzi/operator"),
+                    "Image should be from strimzi operator registry");
+
                 LOGGER.info("list_strimzi_operators (accessible): {}", root);
                 LOGGER.debug("list_strimzi_operators (accessible) response:\n{}", response.content().getFirst().asText().text());
             })
@@ -456,8 +498,16 @@ class NamespaceScopedRbacST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_kafka_metrics", args, response -> {
-                assertToolSuccess(response);
-                // TODO - add more asserts
+                JsonNode root = assertToolSuccess(response);
+
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText());
+                assertEquals(Constants.KAFKA_NAMESPACE, root.path("namespace").asText());
+                assertEquals("streamshub-pod-scraping", root.path("provider").asText());
+                assertEquals(6, root.path("metric_count").asInt(), "Should have 6 metrics with sensitive RBAC");
+                assertEquals(6, root.path("sample_count").asInt(), "Should have 6 samples");
+                JsonNode timeSeries = root.path("time_series");
+                assertTrue(timeSeries.isArray() && timeSeries.size() == 6, "Should have 6 time series entries");
+
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_metrics (with sensitive RBAC): response length={}", text.length());
                 LOGGER.debug("get_kafka_metrics (with sensitive RBAC) response:\n{}", text);
@@ -515,8 +565,11 @@ class NamespaceScopedRbacST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("list_kafka_users", args, response -> {
-                // TODO - asserts properly data about users
-                assertToolSuccess(response);
+                assertFalse(response.isError(), "Tool call should not return error");
+                if (response.content().isEmpty()) {
+                    LOGGER.info("list_kafka_users returned empty content (no KafkaUsers in namespace)");
+                    return;
+                }
 
                 String fullResponse = response.content().getFirst().asText().text();
                 LOGGER.info("list_kafka_users response length={}", fullResponse.length());

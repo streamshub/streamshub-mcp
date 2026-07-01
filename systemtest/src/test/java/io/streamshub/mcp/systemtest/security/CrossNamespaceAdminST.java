@@ -118,7 +118,6 @@ class CrossNamespaceAdminST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
-                // TODO - assert more detailed message
                 assertToolError(response, "multiple");
 
                 String text = response.content().getFirst().asText().text();
@@ -129,6 +128,8 @@ class CrossNamespaceAdminST extends AbstractST {
                     "Error should list namespace 1: " + Constants.KAFKA_NAMESPACE);
                 assertTrue(text.contains(Constants.KAFKA_NAMESPACE_2),
                     "Error should list namespace 2: " + Constants.KAFKA_NAMESPACE_2);
+                assertTrue(text.contains("Please specify namespace"),
+                    "Error should suggest specifying namespace");
             })
             .thenAssertResults();
     }
@@ -182,7 +183,6 @@ class CrossNamespaceAdminST extends AbstractST {
     @Test
     @Story("get_kafka_fleet_overview counts clusters from both namespaces")
     void testFleetOverviewCountsBoth() {
-        // TODO - add asserts about cluster details
         mcpClient.when()
             .toolsCall("get_kafka_fleet_overview", Map.of(), response -> {
                 JsonNode root = assertToolSuccess(response);
@@ -192,6 +192,10 @@ class CrossNamespaceAdminST extends AbstractST {
                 LOGGER.debug("get_kafka_fleet_overview (all) response:\n{}", response.content().getFirst().asText().text());
                 assertTrue(root.path("total_clusters").asInt() >= 2,
                     "Should count at least 2 clusters");
+                assertEquals(2, root.path("total_brokers").asInt(), "Should have 2 total brokers");
+                assertEquals(2, root.path("status_distribution").path("ready").asInt(), "Both clusters should be ready");
+                assertEquals(0, root.path("status_distribution").path("not_ready").asInt());
+                assertTrue(root.path("warnings").isEmpty(), "Should have no warnings");
             })
             .thenAssertResults();
     }
@@ -238,7 +242,6 @@ class CrossNamespaceAdminST extends AbstractST {
     @Story("list_kafka_clusters per namespace returns only that namespace's cluster")
     @Story("List Clusters")
     void testListClustersPerNamespace() {
-        // TODO - add assert that exactly one cluster is returned and not the one from other namespace
         mcpClient.when()
             .toolsCall("list_kafka_clusters",
                 Map.of("namespace", Constants.KAFKA_NAMESPACE), response -> {
@@ -250,6 +253,10 @@ class CrossNamespaceAdminST extends AbstractST {
                     JsonNode cluster = findByName(root, Constants.KAFKA_CLUSTER_NAME);
                     assertNotNull(cluster, "Should find cluster in namespace 1");
                     assertEquals(Constants.KAFKA_NAMESPACE, cluster.path("namespace").asText());
+                    assertEquals(1, response.content().size(),
+                        "Should return exactly one cluster for this namespace");
+                    assertNotEquals(Constants.KAFKA_NAMESPACE_2, cluster.path("namespace").asText(),
+                        "Should not contain cluster from namespace 2");
                 })
             .thenAssertResults();
 
@@ -264,6 +271,10 @@ class CrossNamespaceAdminST extends AbstractST {
                     JsonNode cluster = findByName(root, Constants.KAFKA_CLUSTER_NAME);
                     assertNotNull(cluster, "Should find cluster in namespace 2");
                     assertEquals(Constants.KAFKA_NAMESPACE_2, cluster.path("namespace").asText());
+                    assertEquals(1, response.content().size(),
+                        "Should return exactly one cluster for this namespace");
+                    assertNotEquals(Constants.KAFKA_NAMESPACE, cluster.path("namespace").asText(),
+                        "Should not contain cluster from namespace 1");
                 })
             .thenAssertResults();
     }
@@ -278,7 +289,6 @@ class CrossNamespaceAdminST extends AbstractST {
             "namespace1", Constants.KAFKA_NAMESPACE,
             "clusterName2", Constants.KAFKA_CLUSTER_NAME,
             "namespace2", Constants.KAFKA_NAMESPACE_2);
-        // TODO - add some details to asserts
         mcpClient.when()
             .toolsCall("compare_kafka_clusters", args, response -> {
                 JsonNode root = assertToolSuccess(response);
@@ -301,6 +311,8 @@ class CrossNamespaceAdminST extends AbstractST {
                     "Should have steps_completed");
                 assertNotNull(root.path("timestamp"),
                     "Should have timestamp");
+                assertEquals(2, root.path("steps_completed").size(), "Should have 2 completed steps");
+                assertTrue(root.path("message").asText().contains("2 steps succeeded"));
             })
             .thenAssertResults();
     }
@@ -344,7 +356,6 @@ class CrossNamespaceAdminST extends AbstractST {
     @Test
     @Story("diagnose_kafka_cluster targets correct cluster when namespace is provided")
     void testDiagnoseWithNamespace() {
-        // TODO - add assert that only one cluster was diagnosed in proper namespace
         mcpClient.when()
             .toolsCall("diagnose_kafka_cluster",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME,
@@ -356,6 +367,13 @@ class CrossNamespaceAdminST extends AbstractST {
                     LOGGER.debug("diagnose_kafka_cluster (ns-1) response:\n{}", response.content().getFirst().asText().text());
                     assertTrue(root.path("steps_completed").isArray(),
                         "Should complete diagnostic steps");
+                    assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster").path("name").asText(),
+                        "Diagnosed cluster name should match");
+                    assertEquals(Constants.KAFKA_NAMESPACE, root.path("cluster").path("namespace").asText(),
+                        "Diagnosed cluster should be in namespace 1");
+                    assertEquals("Ready", root.path("cluster").path("readiness").asText());
+                    assertTrue(root.path("message").asText().contains("steps succeeded"));
+                    assertEquals("HEALTHY", root.path("pods").path("pod_summary").path("health_status").asText());
                 })
             .thenAssertResults();
     }

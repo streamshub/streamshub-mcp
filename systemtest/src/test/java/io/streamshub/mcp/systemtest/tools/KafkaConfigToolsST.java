@@ -209,8 +209,7 @@ class KafkaConfigToolsST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_kafka_cluster_config", args, response -> {
-                // TODO improve assert string
-                assertToolError(response, "not found");
+                assertToolError(response, "not found", "non-existent-cluster");
             })
             .thenAssertResults();
     }
@@ -291,8 +290,7 @@ class KafkaConfigToolsST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("compare_kafka_clusters", args, response -> {
-                // TODO improve assert string
-                assertToolError(response, "not found");
+                assertToolError(response, "not found", "non-existent-cluster");
             })
             .thenAssertResults();
     }
