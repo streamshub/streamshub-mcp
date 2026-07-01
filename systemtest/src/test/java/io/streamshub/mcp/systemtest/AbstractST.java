@@ -146,7 +146,7 @@ public abstract class AbstractST {
         if (response.isError() != expectError) {
             String content = response.content().isEmpty()
                 ? "<empty>" : response.content().getFirst().asText().text();
-            LOGGER.info("Unexpected tool response (expected {}): {}",
+            LOGGER.error("Unexpected tool response (expected {}): {}",
                 expectError ? "error" : "success", content);
         }
         assertEquals(expectError, response.isError(),

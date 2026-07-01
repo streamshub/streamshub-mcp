@@ -164,7 +164,7 @@ class MetricsPrometheusToolsST extends AbstractST {
                         .thenAssertResults();
 
                     return true;
-                } catch (Exception ignored) {
+                } catch (Exception | AssertionError ignored) {
                     LOGGER.info("Prometheus doesn't scrape metrics yet, retrying...");
                     return false;
                 }
@@ -210,7 +210,7 @@ class MetricsPrometheusToolsST extends AbstractST {
                         .thenAssertResults();
 
                     return true;
-                } catch (Exception ignored) {
+                } catch (Exception | AssertionError ignored) {
                     LOGGER.info("Prometheus doesn't scrape metrics yet, retrying...");
                     return false;
                 }
@@ -242,7 +242,7 @@ class MetricsPrometheusToolsST extends AbstractST {
                         .thenAssertResults();
 
                     return true;
-                } catch (Exception ignored) {
+                } catch (Exception | AssertionError ignored) {
                     LOGGER.info("Prometheus doesn't scrape metrics yet, retrying...");
                     return false;
                 }
@@ -276,7 +276,7 @@ class MetricsPrometheusToolsST extends AbstractST {
                         .thenAssertResults();
 
                     return true;
-                } catch (Exception ignored) {
+                } catch (Exception | AssertionError ignored) {
                     LOGGER.info("Prometheus doesn't scrape metrics yet, retrying...");
                     return false;
                 }
@@ -310,7 +310,7 @@ class MetricsPrometheusToolsST extends AbstractST {
                         .thenAssertResults();
 
                     return true;
-                } catch (Exception ignored) {
+                } catch (Exception | AssertionError ignored) {
                     LOGGER.info("Prometheus doesn't scrape metrics yet, retrying...");
                     return false;
                 }
@@ -349,7 +349,7 @@ class MetricsPrometheusToolsST extends AbstractST {
                         .thenAssertResults();
                     return true;
 
-                } catch (Exception ignored) {
+                } catch (Exception | AssertionError ignored) {
                     LOGGER.info("Prometheus doesn't scrape metrics yet, retrying...");
                     return false;
                 }
@@ -410,7 +410,7 @@ class MetricsPrometheusToolsST extends AbstractST {
                         .thenAssertResults();
 
                     return true;
-                } catch (Exception ignored) {
+                } catch (Exception | AssertionError ignored) {
                     LOGGER.info("Prometheus doesn't scrape metrics yet, retrying...");
                     return false;
                 }
