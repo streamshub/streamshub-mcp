@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.common.guardrail;
 
+import io.quarkiverse.mcp.server.ToolCallException;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.inject.Any;
 import jakarta.enterprise.inject.Instance;
@@ -78,7 +79,13 @@ public class GuardrailInterceptor {
             }
 
             return result;
-        } catch (Exception | Error e) {
+        } catch (ToolCallException e) {
+            caught = e;
+            throw e;
+        } catch (Exception e) {
+            caught = e;
+            throw new ToolCallException(e.getMessage(), e);
+        } catch (Error e) {
             caught = e;
             throw e;
         } finally {
