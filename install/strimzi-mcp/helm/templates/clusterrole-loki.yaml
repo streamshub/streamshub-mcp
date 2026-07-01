@@ -1,0 +1,13 @@
+{{- if .Values.loki.enabled -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "strimzi-mcp.fullname" . }}-loki-application-view
+  labels:
+    {{- include "strimzi-mcp.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["loki.grafana.com"]
+    resources: ["application"]
+    resourceNames: ["logs"]
+    verbs: ["get"]
+{{- end }}

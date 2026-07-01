@@ -32,7 +32,7 @@ import java.util.function.Consumer;
 
 /**
  * Deploys the MCP server by loading install YAMLs from
- * {@code install/strimzi-mcp/base/} and modifying them with Fabric8 builders.
+ * {@code install/strimzi-mcp/kustomize/base} and modifying them with Fabric8 builders.
  *
  * <p>Uses a builder pattern for composing deployment configuration:
  * <pre>{@code
@@ -271,7 +271,7 @@ public final class McpServerSetup {
     }
 
     private static File installFile(final String filename) {
-        return new File(Constants.INSTALL_DIR, filename);
+        return new File(Constants.INSTALL_DIR_KUSTOMIZE, filename);
     }
 
     private static File optionalInstallFile(final String filename) {

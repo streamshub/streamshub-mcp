@@ -1,0 +1,29 @@
+Strimzi MCP Server has been deployed.
+
+Get the MCP endpoint URL:
+{{- if .Values.route.enabled }}
+  oc -n {{ .Release.Namespace }} get route {{ include "strimzi-mcp.fullname" . }} -o jsonpath='https://{.spec.host}/mcp'
+{{- else if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+{{- if $host.host }}
+  https://{{ $host.host }}/mcp
+{{- else }}
+  kubectl -n {{ $.Release.Namespace }} get ingress {{ include "strimzi-mcp.fullname" $ }} -o jsonpath='https://{.spec.rules[0].host}/mcp'
+{{- end }}
+{{- end }}
+{{- else }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "strimzi-mcp.fullname" . }} 8080:{{ .Values.service.port }}
+  http://localhost:8080/mcp
+{{- end }}
+
+Verify the server is healthy:
+  kubectl -n {{ .Release.Namespace }} rollout status deployment/{{ include "strimzi-mcp.fullname" . }}
+  curl http://localhost:8080/q/health/ready
+
+{{- if not .Values.sensitive.namespaces }}
+
+NOTE: Sensitive RBAC is not enabled. The server cannot access Secrets
+or scrape metrics directly from pods. To enable, upgrade with:
+  helm upgrade {{ .Release.Name }} install/strimzi-mcp/helm/ \
+    --set sensitive.namespaces={strimzi-kafka}
+{{- end }}

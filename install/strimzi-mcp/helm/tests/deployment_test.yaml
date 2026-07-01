@@ -1,0 +1,716 @@
+suite: deployment
+templates:
+  - deployment.yaml
+release:
+  name: test
+  namespace: streamshub-mcp
+tests:
+  # =========================================================================
+  # Default values
+  # =========================================================================
+  - it: should render a Deployment with defaults
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: test-streamshub-mcp-strimzi
+      - equal:
+          path: metadata.namespace
+          value: streamshub-mcp
+      - equal:
+          path: spec.replicas
+          value: 1
+      - isNull:
+          path: spec.strategy
+
+  - it: should use Chart.AppVersion when image.tag is empty
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: "quay.io/streamshub/strimzi-mcp:.+"
+
+  - it: should set image tag override
+    set:
+      image.tag: "1.0.0"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "quay.io/streamshub/strimzi-mcp:1.0.0"
+
+  - it: should set correct security context
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - contains:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          content: ALL
+
+  - it: should set terminationGracePeriodSeconds
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 30
+
+  - it: should have tmp volume and mount
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: tmp
+            emptyDir: {}
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp
+            mountPath: /tmp
+
+  - it: should set health probes
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /q/health/live
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /q/health/ready
+
+  # =========================================================================
+  # Default environment variables
+  # =========================================================================
+  - it: should set JVM options
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: JAVA_OPTS_APPEND
+            value: "-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
+
+  - it: should set default log provider
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_LOG_PROVIDER
+            value: "streamshub-kubernetes"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_LOG_TAIL_LINES
+            value: "200"
+
+  - it: should set default metrics provider
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_METRICS_PROVIDER
+            value: "streamshub-pod-scraping"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_METRICS_DEFAULT_STEP_SECONDS
+            value: "60"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_METRICS_MAX_RANGE_MINUTES
+            value: "10080"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_METRICS_MAX_SAMPLES
+            value: "10000"
+
+  - it: should set default sampling config
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_SAMPLING_TRIAGE_MAX_TOKENS
+            value: "200"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_SAMPLING_ANALYSIS_MAX_TOKENS
+            value: "1500"
+
+  - it: should set default topics config
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_TOPICS_DEFAULT_PAGE_SIZE
+            value: "100"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_TOPICS_MAX_LIST_SIZE
+            value: "5000"
+
+  - it: should set default events config
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_EVENTS_MAX_RELATED_RESOURCES
+            value: "50"
+
+  - it: should set default diagnostic config
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_DIAGNOSTIC_RESTART_THRESHOLD
+            value: "3"
+
+  - it: should set default watch config
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_RESOURCE_WATCHES_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_WATCH_RECONNECT_INITIAL_DELAY_MS
+            value: "1000"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_WATCH_RECONNECT_MAX_DELAY_MS
+            value: "60000"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_WATCH_RECONNECT_MAX_ATTEMPTS
+            value: "10"
+
+  - it: should set default completion config
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_COMPLETION_CACHE_TTL_SECONDS
+            value: "5"
+
+  - it: should set default guardrail config
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_GUARDRAIL_LOG_REDACTION_ENABLED
+            value: "true"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_GUARDRAIL_MAX_RESPONSE_BYTES
+            value: "500000"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_GUARDRAIL_RATE_LIMIT_LOG_RPM
+            value: "0"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_GUARDRAIL_RATE_LIMIT_METRICS_RPM
+            value: "0"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_GUARDRAIL_RATE_LIMIT_GENERAL_RPM
+            value: "0"
+
+  - it: should set default CORS and logging
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_HTTP_CORS_ORIGINS
+            value: "http://localhost:*,https://localhost:*"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_LOG_CATEGORY__IO_STREAMSHUB_MCP__LEVEL
+            value: "INFO"
+
+  # =========================================================================
+  # Default: no provider-specific env vars
+  # =========================================================================
+  - it: should not set Loki env vars when provider is kubernetes
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_REST_CLIENT_LOKI_URL
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_LOG_LOKI_AUTH_MODE
+          any: true
+
+  - it: should not set Prometheus env vars when provider is pod-scraping
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_REST_CLIENT_PROMETHEUS_URL
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_METRICS_PROMETHEUS_AUTH_MODE
+          any: true
+
+  - it: should not set tracing env vars when disabled
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_OTEL_SDK_DISABLED
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT
+          any: true
+
+  - it: should not set TLS trust-all when false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_TLS_TRUST_ALL
+          any: true
+
+  # =========================================================================
+  # Loki provider
+  # =========================================================================
+  - it: should set Loki env vars when provider is loki
+    set:
+      mcp.log.provider: loki
+      mcp.log.loki.url: "https://loki:8080"
+      mcp.log.loki.authMode: serviceaccount
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_LOG_PROVIDER
+            value: "streamshub-loki"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_REST_CLIENT_LOKI_URL
+            value: "https://loki:8080"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_LOG_LOKI_AUTH_MODE
+            value: "serviceaccount"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_REST_CLIENT_LOKI_CONNECT_TIMEOUT
+            value: "5000"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_REST_CLIENT_LOKI_READ_TIMEOUT
+            value: "30000"
+
+  - it: should set Loki label overrides
+    set:
+      mcp.log.provider: loki
+      mcp.log.loki.url: "https://loki:8080"
+      mcp.log.loki.labels.namespace: kubernetes_namespace_name
+      mcp.log.loki.labels.pod: kubernetes_pod_name
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_LOG_LOKI_LABEL_NAMESPACE
+            value: "kubernetes_namespace_name"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_LOG_LOKI_LABEL_POD
+            value: "kubernetes_pod_name"
+
+  - it: should set Loki tenant ID
+    set:
+      mcp.log.provider: loki
+      mcp.log.loki.url: "https://loki:8080"
+      mcp.log.loki.tenantId: my-tenant
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_LOG_LOKI_TENANT_ID
+            value: "my-tenant"
+
+  - it: should set Loki SA token path
+    set:
+      mcp.log.provider: loki
+      mcp.log.loki.url: "https://loki:8080"
+      mcp.log.loki.saTokenPath: /custom/token
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_LOG_LOKI_SA_TOKEN_PATH
+            value: "/custom/token"
+
+  - it: should not set optional Loki env vars when empty
+    set:
+      mcp.log.provider: loki
+      mcp.log.loki.url: "https://loki:8080"
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_LOG_LOKI_TENANT_ID
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_LOG_LOKI_SA_TOKEN_PATH
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_LOG_LOKI_LABEL_NAMESPACE
+          any: true
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_LOG_LOKI_LABEL_POD
+          any: true
+
+  # =========================================================================
+  # Prometheus provider
+  # =========================================================================
+  - it: should set Prometheus env vars when provider is prometheus
+    set:
+      mcp.metrics.provider: prometheus
+      mcp.metrics.prometheus.url: "https://prom:9091"
+      mcp.metrics.prometheus.authMode: serviceaccount
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_METRICS_PROVIDER
+            value: "streamshub-prometheus"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_REST_CLIENT_PROMETHEUS_URL
+            value: "https://prom:9091"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_METRICS_PROMETHEUS_AUTH_MODE
+            value: "serviceaccount"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_REST_CLIENT_PROMETHEUS_CONNECT_TIMEOUT
+            value: "5000"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_REST_CLIENT_PROMETHEUS_READ_TIMEOUT
+            value: "30000"
+
+  - it: should set Prometheus SA token path
+    set:
+      mcp.metrics.provider: prometheus
+      mcp.metrics.prometheus.url: "https://prom:9091"
+      mcp.metrics.prometheus.saTokenPath: /custom/token
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_METRICS_PROMETHEUS_SA_TOKEN_PATH
+            value: "/custom/token"
+
+  - it: should not set Prometheus SA token path when empty
+    set:
+      mcp.metrics.provider: prometheus
+      mcp.metrics.prometheus.url: "https://prom:9091"
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_METRICS_PROMETHEUS_SA_TOKEN_PATH
+          any: true
+
+  # =========================================================================
+  # Tracing
+  # =========================================================================
+  - it: should set tracing env vars when enabled
+    set:
+      mcp.tracing.enabled: true
+      mcp.tracing.endpoint: "http://jaeger:4317"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_OTEL_SDK_DISABLED
+            value: "false"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT
+            value: "http://jaeger:4317"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_OTEL_SERVICE_NAME
+            value: "strimzi-mcp"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_OTEL_PROPAGATORS
+            value: "tracecontext,baggage"
+
+  - it: should set OTEL protocol when specified
+    set:
+      mcp.tracing.enabled: true
+      mcp.tracing.protocol: "http/protobuf"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_OTEL_EXPORTER_OTLP_PROTOCOL
+            value: "http/protobuf"
+
+  - it: should not set OTEL protocol when empty
+    set:
+      mcp.tracing.enabled: true
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_OTEL_EXPORTER_OTLP_PROTOCOL
+          any: true
+
+  # =========================================================================
+  # TLS
+  # =========================================================================
+  - it: should set TLS trust-all when enabled
+    set:
+      tls.trustAll: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUARKUS_TLS_TRUST_ALL
+            value: "true"
+
+  # =========================================================================
+  # Custom env overrides
+  # =========================================================================
+  - it: should add custom env vars
+    set:
+      env:
+        MY_CUSTOM_VAR: my-value
+        ANOTHER_VAR: another
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MY_CUSTOM_VAR
+            value: "my-value"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ANOTHER_VAR
+            value: "another"
+
+  # =========================================================================
+  # envFrom
+  # =========================================================================
+  - it: should add envFrom references
+    set:
+      envFrom:
+        - configMapRef:
+            name: my-config
+        - secretRef:
+            name: my-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: my-config
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: my-secret
+
+  # =========================================================================
+  # Guardrail custom patterns
+  # =========================================================================
+  - it: should set guardrail custom redaction patterns
+    set:
+      mcp.guardrail.logRedaction.customPatterns:
+        - "(?i)ssn\\s*[=:]\\s*\\d{3}-\\d{2}-\\d{4}"
+        - "(?i)x-custom-header:\\s*\\S+"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_GUARDRAIL_LOG_REDACTION_CUSTOM_PATTERNS_0
+            value: "(?i)ssn\\s*[=:]\\s*\\d{3}-\\d{2}-\\d{4}"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MCP_GUARDRAIL_LOG_REDACTION_CUSTOM_PATTERNS_1
+            value: "(?i)x-custom-header:\\s*\\S+"
+
+  # =========================================================================
+  # Deployment features
+  # =========================================================================
+  - it: should set deployment strategy
+    set:
+      strategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxUnavailable: 0
+          maxSurge: 1
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 0
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: 1
+
+  - it: should add extra volumes and mounts
+    set:
+      extraVolumes:
+        - name: loki-tls
+          secret:
+            secretName: loki-tls-certs
+      extraVolumeMounts:
+        - name: loki-tls
+          mountPath: /etc/loki-tls
+          readOnly: true
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: loki-tls
+            secret:
+              secretName: loki-tls-certs
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: loki-tls
+            mountPath: /etc/loki-tls
+            readOnly: true
+
+  - it: should set topology spread constraints
+    set:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: test
+    asserts:
+      - contains:
+          path: spec.template.spec.topologySpreadConstraints
+          content:
+            maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+            labelSelector:
+              matchLabels:
+                app: test
+
+  - it: should set pod annotations
+    set:
+      podAnnotations:
+        prometheus.io/scrape: "true"
+    asserts:
+      - isSubset:
+          path: spec.template.metadata.annotations
+          content:
+            prometheus.io/scrape: "true"
+
+  - it: should set pod labels
+    set:
+      podLabels:
+        custom-label: my-value
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels.custom-label
+          value: my-value
+
+  - it: should set node selector
+    set:
+      nodeSelector:
+        disktype: ssd
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.disktype
+          value: ssd
+
+  - it: should set tolerations
+    set:
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: kafka
+          effect: NoSchedule
+    asserts:
+      - contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: dedicated
+            operator: Equal
+            value: kafka
+            effect: NoSchedule
+
+  - it: should set affinity
+    set:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+    asserts:
+      - isNotNull:
+          path: spec.template.spec.affinity.podAntiAffinity
+
+  - it: should set replica count
+    set:
+      replicaCount: 3
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  - it: should set image pull secrets
+    set:
+      imagePullSecrets:
+        - name: my-registry-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: my-registry-secret

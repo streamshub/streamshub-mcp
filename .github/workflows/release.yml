@@ -99,6 +99,20 @@ jobs:
           -Dquarkus.container-image.registry=${{ env.REGISTRY }} \
           -Dquarkus.container-image.group=${{ env.IMAGE_GROUP }}
 
+    - name: Set up Helm
+      uses: azure/setup-helm@b9e51907a09c216f16ebe8536097933489208112 # v4.3.0
+
+    - name: Package and push Helm chart
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        helm package install/strimzi-mcp/helm/
+        helm registry login ${{ env.REGISTRY }} \
+          -u ${{ secrets.IMAGE_REPO_USERNAME }} \
+          -p ${{ secrets.IMAGE_REPO_PASSWORD }}
+        helm push streamshub-mcp-strimzi-${VERSION}.tgz \
+          oci://${{ env.REGISTRY }}/${{ env.IMAGE_GROUP }}/charts
+
     - name: Create and push tag
       if: steps.tagcheck.outputs.exists == 'false'
       env:

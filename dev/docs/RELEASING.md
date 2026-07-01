@@ -67,7 +67,7 @@ git push origin release-0.1
 1. Validates version format
 2. Creates or checks out the release branch (`release-X.Y`, derived from the major.minor components)
 3. Sets all `pom.xml` versions via `mvn versions:set`
-4. Updates kustomize base image tag in `install/strimzi-mcp/base/kustomization.yaml`
+4. Updates kustomize base image tag in `install/strimzi-mcp/kustomize/base/kustomization.yaml`
 5. Verifies the build compiles
 6. Commits — but does **not** push (you review first)
 

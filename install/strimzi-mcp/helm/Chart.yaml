@@ -1,0 +1,17 @@
+apiVersion: v2
+name: streamshub-mcp-strimzi
+description: StreamsHub MCP Server for Strimzi-managed Kafka clusters
+type: application
+version: 0.2.0
+appVersion: "latest"
+home: https://github.com/streamshub/streamshub-mcp
+sources:
+  - https://github.com/streamshub/streamshub-mcp
+maintainers:
+  - name: StreamsHub
+keywords:
+  - strimzi
+  - kafka
+  - mcp
+  - kubernetes
+  - ai

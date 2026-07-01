@@ -1,0 +1,88 @@
+suite: route
+templates:
+  - route.yaml
+release:
+  name: test
+  namespace: streamshub-mcp
+tests:
+  - it: should not render when disabled
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render when enabled
+    set:
+      route.enabled: true
+    asserts:
+      - isKind:
+          of: Route
+      - equal:
+          path: metadata.name
+          value: test-streamshub-mcp-strimzi
+      - equal:
+          path: metadata.namespace
+          value: streamshub-mcp
+
+  - it: should set default annotations
+    set:
+      route.enabled: true
+    asserts:
+      - isSubset:
+          path: metadata.annotations
+          content:
+            haproxy.router.openshift.io/timeout: 3600s
+            haproxy.router.openshift.io/balance: source
+
+  - it: should target the service on http port
+    set:
+      route.enabled: true
+    asserts:
+      - equal:
+          path: spec.to.kind
+          value: Service
+      - equal:
+          path: spec.to.name
+          value: test-streamshub-mcp-strimzi
+      - equal:
+          path: spec.port.targetPort
+          value: http
+
+  - it: should use edge TLS by default
+    set:
+      route.enabled: true
+    asserts:
+      - equal:
+          path: spec.tls.termination
+          value: edge
+      - equal:
+          path: spec.tls.insecureEdgeTerminationPolicy
+          value: Redirect
+
+  - it: should auto-generate host when empty
+    set:
+      route.enabled: true
+    asserts:
+      - isNull:
+          path: spec.host
+
+  - it: should set host when specified
+    set:
+      route.enabled: true
+      route.host: mcp.apps.example.com
+    asserts:
+      - equal:
+          path: spec.host
+          value: "mcp.apps.example.com"
+
+  - it: should support passthrough TLS
+    set:
+      route.enabled: true
+      route.tls.termination: passthrough
+      route.tls.insecureEdgeTerminationPolicy: None
+    asserts:
+      - equal:
+          path: spec.tls.termination
+          value: passthrough
+      - equal:
+          path: spec.tls.insecureEdgeTerminationPolicy
+          value: None

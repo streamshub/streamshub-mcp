@@ -1,0 +1,32 @@
+suite: clusterrolebinding
+templates:
+  - clusterrolebinding.yaml
+release:
+  name: test
+  namespace: streamshub-mcp
+tests:
+  - it: should render a ClusterRoleBinding
+    asserts:
+      - isKind:
+          of: ClusterRoleBinding
+      - equal:
+          path: metadata.name
+          value: test-streamshub-mcp-strimzi
+
+  - it: should reference the correct ClusterRole
+    asserts:
+      - equal:
+          path: roleRef.kind
+          value: ClusterRole
+      - equal:
+          path: roleRef.name
+          value: test-streamshub-mcp-strimzi
+
+  - it: should bind to the ServiceAccount in the release namespace
+    asserts:
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: test-streamshub-mcp-strimzi
+            namespace: streamshub-mcp

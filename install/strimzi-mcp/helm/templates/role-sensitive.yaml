@@ -1,0 +1,17 @@
+{{- range .Values.sensitive.namespaces }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "strimzi-mcp.fullname" $ }}-sensitive
+  namespace: {{ . }}
+  labels:
+    {{- include "strimzi-mcp.labels" $ | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods/proxy"]
+    verbs: ["get"]
+{{- end }}

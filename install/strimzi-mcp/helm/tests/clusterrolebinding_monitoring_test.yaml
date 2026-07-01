@@ -1,0 +1,58 @@
+suite: clusterrolebinding-monitoring
+templates:
+  - clusterrolebinding-monitoring.yaml
+release:
+  name: test
+  namespace: streamshub-mcp
+tests:
+  - it: should not render when monitoring is disabled
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should create two bindings when monitoring is enabled
+    set:
+      monitoring.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should create cluster-monitoring-view binding
+    set:
+      monitoring.enabled: true
+    documentIndex: 0
+    asserts:
+      - isKind:
+          of: ClusterRoleBinding
+      - equal:
+          path: metadata.name
+          value: test-streamshub-mcp-strimzi-monitoring-view
+      - equal:
+          path: roleRef.name
+          value: cluster-monitoring-view
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: test-streamshub-mcp-strimzi
+            namespace: streamshub-mcp
+
+  - it: should create cluster-reader binding
+    set:
+      monitoring.enabled: true
+    documentIndex: 1
+    asserts:
+      - isKind:
+          of: ClusterRoleBinding
+      - equal:
+          path: metadata.name
+          value: test-streamshub-mcp-strimzi-cluster-reader
+      - equal:
+          path: roleRef.name
+          value: cluster-reader
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: test-streamshub-mcp-strimzi
+            namespace: streamshub-mcp

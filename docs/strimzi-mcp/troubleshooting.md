@@ -194,7 +194,7 @@ kubectl -n streamshub-mcp logs <pod-name>
    kubectl get clusterrolebinding streamshub-mcp-reader
    
    # Recreate if missing
-   kubectl apply -k install/strimzi-mcp/base/
+   kubectl apply -k install/strimzi-mcp/kustomize/base/
    ```
 
 3. **Insufficient resources**
@@ -462,8 +462,8 @@ kubectl -n streamshub-mcp exec <mcp-pod> -- \
    OpenShift Logging v6.x does not auto-create the `cluster-logging-application-view` ClusterRole
    that the LokiStack gateway requires for read access. Apply the optional RBAC manifests:
    ```bash
-   kubectl apply -f install/strimzi-mcp/optional/clusterrole-loki-application-view.yaml
-   kubectl apply -f install/strimzi-mcp/optional/clusterrolebinding-loki-application-view.yaml
+   kubectl apply -f install/strimzi-mcp/kustomize/optional/clusterrole-loki-application-view.yaml
+   kubectl apply -f install/strimzi-mcp/kustomize/optional/clusterrolebinding-loki-application-view.yaml
    ```
 
 ## Metrics issues
@@ -513,8 +513,8 @@ kubectl -n streamshub-mcp exec <mcp-pod> -- \
    
    **Solution**:
    ```bash
-   kubectl apply -f install/strimzi-mcp/base/role-sensitive.yaml -n kafka-ns
-   kubectl apply -f install/strimzi-mcp/base/rolebinding-sensitive.yaml -n kafka-ns
+   kubectl apply -f install/strimzi-mcp/kustomize/optional/role-sensitive.yaml -n kafka-ns
+   kubectl apply -f install/strimzi-mcp/kustomize/optional/rolebinding-sensitive.yaml -n kafka-ns
    ```
 
 2. **Metrics endpoint not exposed**
