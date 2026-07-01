@@ -24,12 +24,17 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static io.streamshub.mcp.systemtest.TestTags.LOGS;
+import static io.streamshub.mcp.systemtest.TestTags.METRICS;
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
+import static io.streamshub.mcp.systemtest.TestTags.SECURITY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -52,6 +57,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("RBAC config variations across namespaces")
+@Tag(REGRESSION)
+@Tag(SECURITY)
 class NamespaceScopedRbacST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NamespaceScopedRbacST.class);
@@ -238,8 +245,8 @@ class NamespaceScopedRbacST extends AbstractST {
                 assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText());
                 assertEquals(Constants.KAFKA_NAMESPACE, root.path("namespace").asText());
                 JsonNode podSummary = root.path("pod_summary");
-                assertEquals(3, podSummary.path("total_pods").asInt(), "Should have 3 total pods");
-                assertEquals(3, podSummary.path("ready_pods").asInt(), "All 3 pods should be ready");
+                assertEquals(4, podSummary.path("total_pods").asInt(), "Should have 4 total pods");
+                assertEquals(4, podSummary.path("ready_pods").asInt(), "All 4 pods should be ready");
                 assertEquals(0, podSummary.path("failed_pods").asInt(), "Should have 0 failed pods");
                 assertEquals("HEALTHY", podSummary.path("health_status").asText());
 
@@ -252,6 +259,7 @@ class NamespaceScopedRbacST extends AbstractST {
 
     @Test
     @Story("get_kafka_cluster_logs succeeds in accessible namespace")
+    @Tag(LOGS)
     void testGetClusterLogsAccessible() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
@@ -271,7 +279,7 @@ class NamespaceScopedRbacST extends AbstractST {
                 assertTrue(root.path("log_lines").asInt() > 0, "Should have some log lines");
                 assertTrue(root.path("has_more").asBoolean(), "Should indicate more logs available");
                 JsonNode pods = root.path("pods");
-                assertTrue(pods.isArray() && pods.size() == 3, "Should have logs from 3 pods");
+                assertTrue(pods.isArray() && pods.size() == 4, "Should have logs from 4 pods");
             })
             .thenAssertResults();
     }
@@ -465,6 +473,7 @@ class NamespaceScopedRbacST extends AbstractST {
 
     @Test
     @Story("get_kafka_metrics returns error without pods/proxy permission")
+    @Tag(METRICS)
     void testMetricsWithoutPodsProxy() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
@@ -472,21 +481,16 @@ class NamespaceScopedRbacST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_kafka_metrics", args, response -> {
-                JsonNode root = assertToolSuccess(response);
-
-                LOGGER.info("get_kafka_metrics (no sensitive RBAC): {}", root);
-                LOGGER.debug("get_kafka_metrics (no sensitive RBAC) response:\n{}", response.content().getFirst().asText().text());
-                // TODO: should instead return info that MCP doesn't have access to metrics on pods?
-                assertEquals(0, root.path("metric_count").asInt(),
-                    "Should return 0 metrics without pods/proxy permission");
-                assertFalse(root.path("provider").isMissingNode(),
-                    "Should include provider field");
+                LOGGER.info("get_kafka_metrics (no sensitive RBAC): {}",
+                    response.content().getFirst().asText().text());
+                assertToolError(response, "forbidden");
             })
             .thenAssertResults();
     }
 
     @Test
     @Story("get_kafka_metrics succeeds after deploying sensitive RBAC (pods/proxy)")
+    @Tag(METRICS)
     void testMetricsWithPodsProxy() {
         McpServerSetup.deploySensitiveRbac(
             mcpNamespace.getMetadata().getName(),

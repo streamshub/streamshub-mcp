@@ -4,7 +4,6 @@
  */
 package io.streamshub.mcp.systemtest.resilience;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
@@ -24,13 +23,15 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
+import static io.streamshub.mcp.systemtest.TestTags.RESILIENCE;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -43,6 +44,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("MCP Server Config Validation")
+@Tag(REGRESSION)
+@Tag(RESILIENCE)
 class ConfigValidationST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ConfigValidationST.class);
@@ -133,23 +136,13 @@ class ConfigValidationST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_kafka_cluster_logs", args, response -> {
-                JsonNode root = assertToolSuccess(response);
+                assertToolError(response, "Failed to retrieve logs from all");
 
                 String text = response.content().getFirst().asText().text();
-                assertEquals(0, root.path("log_lines").asInt(),
-                    "No log lines should be retrieved with invalid Loki URL");
-                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText(),
-                    "cluster_name should match");
-                assertEquals(3, root.path("pods").size(),
-                    "Should list all 3 pods even though Loki failed");
-                assertTrue(text.contains("Loki query failed"),
-                    "Response should indicate Loki query failure, got: " + text);
+                assertTrue(response.isError(),
+                    "Logs should fail when all pods fail with unreachable Loki");
                 assertTrue(text.contains("nonexistent-loki"),
-                    "Response should reference the unreachable Loki host, got: " + text);
-                assertTrue(text.contains("UnknownHostException"),
-                    "Response should contain UnknownHostException for the unreachable host");
-                assertFalse(root.path("has_errors").asBoolean(),
-                    "has_errors should be false (Loki errors are per-pod, not data errors)");
+                    "Error should reference the unreachable Loki host, got: " + text);
                 assertNoStackTrace(text);
             })
             .thenAssertResults();

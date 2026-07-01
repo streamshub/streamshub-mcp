@@ -25,6 +25,7 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTopicTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
+import static io.streamshub.mcp.systemtest.TestTags.TOOLS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,6 +47,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("KafkaTopic Tools")
+@Tag(REGRESSION)
+@Tag(TOOLS)
 class KafkaTopicToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaTopicToolsST.class);

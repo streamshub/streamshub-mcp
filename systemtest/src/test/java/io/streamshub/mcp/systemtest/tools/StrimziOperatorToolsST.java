@@ -24,12 +24,16 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static io.streamshub.mcp.systemtest.TestTags.LOGS;
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
+import static io.streamshub.mcp.systemtest.TestTags.TOOLS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -41,6 +45,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("Strimzi Operator Tools")
+@Tag(REGRESSION)
+@Tag(TOOLS)
 class StrimziOperatorToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(StrimziOperatorToolsST.class);
@@ -231,6 +237,7 @@ class StrimziOperatorToolsST extends AbstractST {
 
     @Test
     @Story("get_strimzi_operator_logs returns logs filtered by ERROR level")
+    @Tag(LOGS)
     void testGetStrimziOperatorLogsErrorFilter() {
         Map<String, Object> args = Map.of("filter", "ERROR", "tailLines", 100);
 
@@ -341,7 +348,7 @@ class StrimziOperatorToolsST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
-                assertToolError(response, "not found", "nonexistent-resource");
+                assertToolError(response, "not found", "nonexistent-xyz");
             })
             .thenAssertResults();
     }

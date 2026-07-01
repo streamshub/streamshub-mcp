@@ -354,7 +354,7 @@ public final class McpServerSetup {
                     .editSpec()
                         .editFirstContainer()
                             .withImage(image)
-                            .withImagePullPolicy("Always")
+                            .withImagePullPolicy(Environment.MCP_IMAGE_PULL_POLICY)
                             .addToEnv(new EnvVarBuilder()
                                 .withName("QUARKUS_LOG_CATEGORY__IO_STREAMSHUB_MCP__LEVEL")
                                 .withValue("DEBUG").build())

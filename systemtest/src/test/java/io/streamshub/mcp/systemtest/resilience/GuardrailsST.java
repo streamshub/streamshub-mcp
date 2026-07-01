@@ -26,6 +26,7 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,9 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.streamshub.mcp.systemtest.TestTags.LOGS;
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
+import static io.streamshub.mcp.systemtest.TestTags.RESILIENCE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -45,6 +49,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("Guardrails for requests")
+@Tag(REGRESSION)
+@Tag(RESILIENCE)
 class GuardrailsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GuardrailsST.class);
@@ -118,6 +124,7 @@ class GuardrailsST extends AbstractST {
      */
     @Test
     @Story("Response size truncation limits large log output")
+    @Tag(LOGS)
     void testResponseSizeTruncation() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,

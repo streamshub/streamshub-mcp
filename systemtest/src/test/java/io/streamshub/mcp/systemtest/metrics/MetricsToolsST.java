@@ -26,12 +26,15 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static io.streamshub.mcp.systemtest.TestTags.METRICS;
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -43,6 +46,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("Metrics Tools")
+@Tag(REGRESSION)
+@Tag(METRICS)
 class MetricsToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsToolsST.class);
@@ -72,6 +77,8 @@ class MetricsToolsST extends AbstractST {
 
             KafkaTemplates.deployMetricsConfigMap(kafkaNs);
             KafkaTemplates.deployPodMonitors(kafkaNs);
+            KafkaBridgeTemplates.deployMetricsConfigMap(kafkaNs);
+            KafkaConnectTemplates.deployMetricsConfigMap(kafkaNs);
 
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
@@ -92,6 +99,12 @@ class MetricsToolsST extends AbstractST {
         }
 
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
+        McpServerSetup.deploySensitiveRbac(
+            mcpNamespace.getMetadata().getName(),
+            kafkaNamespace.getMetadata().getName());
+        McpServerSetup.deploySensitiveRbac(
+            mcpNamespace.getMetadata().getName(),
+            strimziNamespace.getMetadata().getName());
 
         String mcpUrl = ConnectivitySetup.expose(mcpNamespace.getMetadata().getName());
         mcpClient = McpClientFactory.create(mcpUrl);
@@ -187,9 +200,8 @@ class MetricsToolsST extends AbstractST {
 
                 assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText(), "cluster_name should match");
                 assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText());
-                assertEquals(0, root.path("metric_count").asInt(), "metric_count should be 0 when no exporter pods");
-                assertTrue(root.path("time_series").isArray() && root.path("time_series").isEmpty(), "time_series should be empty when no exporter pods");
-                assertTrue(root.path("message").asText().contains("No Kafka Exporter pods found"), "message should indicate no exporter pods found");
+                assertEquals("streamshub-pod-scraping", root.path("provider").asText());
+                assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
             })
             .thenAssertResults();
     }
@@ -308,9 +320,9 @@ class MetricsToolsST extends AbstractST {
                 LOGGER.debug("get_kafka_exporter_metrics topic aggregation response:\n{}", text);
 
                 assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText(), "cluster_name should match");
-                assertEquals(0, root.path("metric_count").asInt(), "metric_count should be 0 when no exporter pods");
-                assertTrue(root.path("time_series").isArray() && root.path("time_series").isEmpty(), "time_series should be empty when no exporter pods");
-                assertTrue(root.path("message").asText().contains("No Kafka Exporter pods found"), "message should indicate no exporter pods found");
+                assertEquals("streamshub-pod-scraping", root.path("provider").asText());
+                assertTrue(root.path("categories").isArray(), "categories should be an array");
+                assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
             })
             .thenAssertResults();
     }

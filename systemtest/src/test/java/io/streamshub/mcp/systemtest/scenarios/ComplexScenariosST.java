@@ -28,6 +28,7 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTopicTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,11 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.streamshub.mcp.systemtest.TestTags.ACCEPTANCE;
+import static io.streamshub.mcp.systemtest.TestTags.LOGS;
+import static io.streamshub.mcp.systemtest.TestTags.METRICS;
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
+import static io.streamshub.mcp.systemtest.TestTags.TOOLS;
 import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectorTemplates.CONNECTOR_NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -49,6 +55,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("Complex Scenarios")
+@Tag(ACCEPTANCE)
+@Tag(REGRESSION)
+@Tag(METRICS)
+@Tag(LOGS)
+@Tag(TOOLS)
 class ComplexScenariosST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ComplexScenariosST.class);
@@ -484,7 +495,7 @@ class ComplexScenariosST extends AbstractST {
                     JsonNode bridge = assertToolSuccess(response);
                     assertEquals(discoveredBridge.get(), bridge.path("name").asText(),
                         "Bridge name should match discovered name");
-                    int replicas = bridge.path("replicas").asInt();
+                    int replicas = bridge.path("replicas").path("expected").asInt();
                     assertTrue(replicas > 0, "Bridge should have at least 1 replica");
                     expectedReplicas.set(replicas);
                     LOGGER.info("Step 2 - Bridge '{}' has {} replica(s)",

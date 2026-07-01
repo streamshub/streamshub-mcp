@@ -25,12 +25,16 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static io.streamshub.mcp.systemtest.TestTags.LOGS;
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
+import static io.streamshub.mcp.systemtest.TestTags.TOOLS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -43,6 +47,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("KafkaBridge Tools")
+@Tag(REGRESSION)
+@Tag(TOOLS)
 class KafkaBridgeToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaBridgeToolsST.class);
@@ -189,6 +195,7 @@ class KafkaBridgeToolsST extends AbstractST {
 
     @Test
     @Story("get_kafka_bridge_logs returns log output")
+    @Tag(LOGS)
     void testGetKafkaBridgeLogs() {
         Map<String, Object> args = Map.of(
             "bridgeName", Constants.BRIDGE_NAME,
