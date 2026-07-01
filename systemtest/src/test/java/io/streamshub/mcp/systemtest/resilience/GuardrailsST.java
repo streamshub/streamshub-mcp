@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -149,6 +150,11 @@ class GuardrailsST extends AbstractST {
         assertTrue(json.length() <= Integer.parseInt(MAX_RESPONSE_BYTES) + 500,
             "Response should be close to or under the max-response-bytes limit "
                 + "(got " + json.length() + " bytes)");
+        JsonNode truncRoot = parseJson(json);
+        assertEquals("mcp-cluster", truncRoot.path("cluster_name").asText(),
+            "cluster_name should be preserved even in truncated response");
+        assertTrue(truncRoot.path("log_lines").asInt() > 0,
+            "log_lines should be non-zero to confirm logs were actually truncated, not empty");
     }
 
     // ---- Rate Limiting ----
@@ -180,6 +186,13 @@ class GuardrailsST extends AbstractST {
             .toolsCall("get_kafka_cluster_logs", args, response -> {
                 LOGGER.info("Log call #3 response (isError={})", response.isError());
                 assertToolError(response, "rate");
+                String text = response.content().getFirst().asText().text();
+                assertTrue(text.contains("Rate limit exceeded"),
+                    "Error should say 'Rate limit exceeded', got: " + text);
+                assertTrue(text.contains("2/min"),
+                    "Error should reference the configured limit '2/min', got: " + text);
+                assertTrue(text.contains("Try again in"),
+                    "Error should include retry guidance, got: " + text);
             })
             .thenAssertResults();
     }
@@ -227,6 +240,10 @@ class GuardrailsST extends AbstractST {
                 JsonNode root = assertToolSuccess(response);
                 LOGGER.info("General tool succeeded despite log rate limit: {}",
                     root.path("name").asText());
+                assertEquals("mcp-cluster", root.path("name").asText(),
+                    "General tool should return the correct cluster name");
+                assertEquals("Ready", root.path("readiness").asText(),
+                    "Cluster readiness should be Ready");
             })
             .thenAssertResults();
     }
@@ -258,6 +275,9 @@ class GuardrailsST extends AbstractST {
                     "Logs should not contain private key material");
                 assertFalse(fullResponse.contains("BEGIN RSA PRIVATE KEY"),
                     "Logs should not contain RSA private key material");
+                assertFalse(response.isError(), "Log call should succeed");
+                assertFalse(fullResponse.contains("secret_key="),
+                    "Logs should not contain raw 'secret_key=' patterns");
             })
             .thenAssertResults();
     }

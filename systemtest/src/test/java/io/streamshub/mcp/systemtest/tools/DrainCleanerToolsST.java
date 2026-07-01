@@ -189,8 +189,7 @@ class DrainCleanerToolsST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_drain_cleaner", args, response -> {
-                // TODO - improve assert strings
-                assertToolError(response, "not found");
+                assertToolError(response, "not found", "non-existent-drain-cleaner");
             })
             .thenAssertResults();
     }
@@ -268,8 +267,13 @@ class DrainCleanerToolsST extends AbstractST {
         Map<String, Object> args = Map.of("filter", "errors", "tailLines", 100);
         mcpClient.when()
             .toolsCall("get_drain_cleaner_logs", args, response -> {
-                assertToolSuccess(response);
-                // TODO - add asserts for logs
+                JsonNode root = assertToolSuccess(response);
+                assertEquals(Constants.DRAIN_CLEANER_NAMESPACE, root.path("namespace").asText(), "Namespace should match");
+                assertFalse(root.path("has_errors").asBoolean(), "Should have no errors");
+                assertEquals(0, root.path("error_count").asInt(), "Error count should be 0");
+                assertEquals(0, root.path("log_lines").asInt(), "Should have 0 log lines with error filter");
+                assertEquals(1, root.path("drain_cleaner_pods").size(), "Should have 1 pod");
+                assertTrue(root.path("message").asText().contains("no errors found"), "Message should indicate no errors found");
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("get_drain_cleaner_logs (errors filter) response (length={})", json.length());
                 LOGGER.debug("get_drain_cleaner_logs (errors filter) response:\n{}", json);
@@ -287,8 +291,13 @@ class DrainCleanerToolsST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
-                assertToolSuccess(response);
-                // TODO - add asserts for events
+                JsonNode root = assertToolSuccess(response);
+                assertEquals(Constants.DRAIN_CLEANER_NAME, root.path("resource_name").asText(), "Resource name should match");
+                assertEquals(Constants.DRAIN_CLEANER_NAMESPACE, root.path("namespace").asText(), "Namespace should match");
+                assertTrue(root.path("total_events").asInt() > 0, "Should have events");
+                JsonNode resources = root.path("resources");
+                assertTrue(resources.isArray() && resources.size() > 0, "Should have resource groups");
+                assertTrue(root.path("message").asText().contains("events"), "Message should mention events");
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("get_strimzi_events (DrainCleaner) response (length={})", json.length());
                 LOGGER.debug("get_strimzi_events (DrainCleaner) response:\n{}", json);

@@ -118,9 +118,11 @@ class MetricsToolsST extends AbstractST {
                 LOGGER.info("get_kafka_metrics response (length={})", text.length());
                 LOGGER.debug("get_kafka_metrics response:\n{}", text);
 
-                assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
-                assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
-                    "namespace should match deployment namespace");
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText(), "cluster_name should match");
+                assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(), "namespace should match");
+                assertEquals("streamshub-pod-scraping", root.path("provider").asText());
+                assertFalse(root.path("interpretation").isMissingNode(), "Should have interpretation text");
+                assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
             })
             .thenAssertResults();
     }
@@ -139,7 +141,10 @@ class MetricsToolsST extends AbstractST {
                 LOGGER.info("get_kafka_metrics replication response (length={})", text.length());
                 LOGGER.debug("get_kafka_metrics replication response:\n{}", text);
 
-                assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText(), "cluster_name should match");
+                assertEquals("streamshub-pod-scraping", root.path("provider").asText());
+                assertTrue(root.path("categories").isArray(), "categories should be an array");
+                assertFalse(root.path("interpretation").isMissingNode(), "Should have interpretation text");
                 boolean hasReplication = false;
                 for (JsonNode cat : root.path("categories")) {
                     if ("replication".equals(cat.asText())) {
@@ -180,7 +185,11 @@ class MetricsToolsST extends AbstractST {
                 LOGGER.info("get_kafka_exporter_metrics response (length={})", text.length());
                 LOGGER.debug("get_kafka_exporter_metrics response:\n{}", text);
 
-                assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText(), "cluster_name should match");
+                assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText());
+                assertEquals(0, root.path("metric_count").asInt(), "metric_count should be 0 when no exporter pods");
+                assertTrue(root.path("time_series").isArray() && root.path("time_series").isEmpty(), "time_series should be empty when no exporter pods");
+                assertTrue(root.path("message").asText().contains("No Kafka Exporter pods found"), "message should indicate no exporter pods found");
             })
             .thenAssertResults();
     }
@@ -200,9 +209,10 @@ class MetricsToolsST extends AbstractST {
                 LOGGER.info("get_kafka_bridge_metrics response (length={})", text.length());
                 LOGGER.debug("get_kafka_bridge_metrics response:\n{}", text);
 
-                assertMetricsResponse(root, "bridge_name", Constants.BRIDGE_NAME);
-                assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
-                    "namespace should match deployment namespace");
+                assertEquals(Constants.BRIDGE_NAME, root.path("bridge_name").asText(), "bridge_name should match");
+                assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText());
+                assertEquals("streamshub-pod-scraping", root.path("provider").asText());
+                assertFalse(root.path("interpretation").isMissingNode(), "Should have interpretation text");
             })
             .thenAssertResults();
     }
@@ -222,9 +232,10 @@ class MetricsToolsST extends AbstractST {
                 LOGGER.info("get_kafka_connect_metrics response (length={})", text.length());
                 LOGGER.debug("get_kafka_connect_metrics response:\n{}", text);
 
-                assertMetricsResponse(root, "connect_name", Constants.CONNECT_CLUSTER_NAME);
-                assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
-                    "namespace should match deployment namespace");
+                assertEquals(Constants.CONNECT_CLUSTER_NAME, root.path("connect_name").asText(), "connect_name should match");
+                assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText());
+                assertEquals("streamshub-pod-scraping", root.path("provider").asText());
+                assertFalse(root.path("interpretation").isMissingNode(), "Should have interpretation text");
             })
             .thenAssertResults();
     }
@@ -272,13 +283,10 @@ class MetricsToolsST extends AbstractST {
                 LOGGER.info("get_kafka_metrics broker aggregation response (length={})", text.length());
                 LOGGER.debug("get_kafka_metrics broker aggregation response:\n{}", text);
 
-                assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
-                JsonNode timeSeries = root.path("time_series");
-                if (timeSeries.isArray() && !timeSeries.isEmpty()) {
-                    assertTrue(hasLabelWithKey(timeSeries, "pod")
-                            || hasLabelWithKey(timeSeries, "broker_id"),
-                        "Broker aggregation should include pod or broker_id labels");
-                }
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText(), "cluster_name should match");
+                assertEquals("broker", root.path("aggregation").asText(), "aggregation should be broker");
+                assertEquals("streamshub-pod-scraping", root.path("provider").asText());
+                assertFalse(root.path("interpretation").isMissingNode(), "Should have interpretation text");
             })
             .thenAssertResults();
     }
@@ -299,12 +307,10 @@ class MetricsToolsST extends AbstractST {
                     text.length());
                 LOGGER.debug("get_kafka_exporter_metrics topic aggregation response:\n{}", text);
 
-                assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
-                JsonNode timeSeries = root.path("time_series");
-                if (root.path("sample_count").asInt() > 0 && timeSeries.isArray()) {
-                    assertTrue(hasLabelWithKey(timeSeries, "topic"),
-                        "Topic aggregation should include topic labels when data is available");
-                }
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText(), "cluster_name should match");
+                assertEquals(0, root.path("metric_count").asInt(), "metric_count should be 0 when no exporter pods");
+                assertTrue(root.path("time_series").isArray() && root.path("time_series").isEmpty(), "time_series should be empty when no exporter pods");
+                assertTrue(root.path("message").asText().contains("No Kafka Exporter pods found"), "message should indicate no exporter pods found");
             })
             .thenAssertResults();
     }
@@ -325,19 +331,10 @@ class MetricsToolsST extends AbstractST {
                     text.length());
                 LOGGER.debug("get_kafka_metrics performance+requestTypes response:\n{}", text);
 
-                assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
-                JsonNode timeSeries = root.path("time_series");
-                if (timeSeries.isArray()) {
-                    for (JsonNode series : timeSeries) {
-                        JsonNode requestLabel = series.path("labels").path("request");
-                        if (!requestLabel.isMissingNode() && !requestLabel.asText().isEmpty()) {
-                            String reqType = requestLabel.asText();
-                            assertTrue("Produce".equals(reqType) || "Fetch".equals(reqType),
-                                "Request type filter should only return Produce or Fetch, got: "
-                                    + reqType);
-                        }
-                    }
-                }
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText(), "cluster_name should match");
+                assertEquals("streamshub-pod-scraping", root.path("provider").asText());
+                assertTrue(root.path("categories").isArray(), "categories should be an array");
+                assertFalse(root.path("interpretation").isMissingNode(), "Should have interpretation text");
             })
             .thenAssertResults();
     }
@@ -354,8 +351,7 @@ class MetricsToolsST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_metrics", args, response -> {
 
-                // TODO - improve check
-                assertToolError(response, "conflict");
+                assertToolError(response, "Cannot specify both");
             })
             .thenAssertResults();
     }

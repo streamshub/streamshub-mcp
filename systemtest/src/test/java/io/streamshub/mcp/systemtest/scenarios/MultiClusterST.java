@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -256,8 +257,6 @@ class MultiClusterST extends AbstractST {
     @Test
     @Story("list_kafka_node_pools returns per-cluster pools")
     void testNodePoolsPerCluster() {
-        // TODO - assert that nodepools are to different clusters
-
         mcpClient.when()
             .toolsCall("list_kafka_node_pools",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME,
@@ -266,6 +265,13 @@ class MultiClusterST extends AbstractST {
                     assertFalse(response.content().isEmpty(), "Cluster 1 should have node pools");
                     LOGGER.info("Node pools (cluster 1): {} entries", response.content().size());
                     LOGGER.debug("Node pools (cluster 1) response:\n{}", response.content().getFirst().asText().text());
+                    java.util.List<JsonNode> pools1 = response.content().stream()
+                        .map(c -> parseJson(c.asText().text()))
+                        .toList();
+                    for (JsonNode pool : pools1) {
+                        assertEquals(Constants.KAFKA_CLUSTER_NAME, pool.path("cluster").asText(),
+                            "Node pool should belong to cluster 1");
+                    }
                 })
             .thenAssertResults();
 
@@ -277,6 +283,13 @@ class MultiClusterST extends AbstractST {
                     assertFalse(response.content().isEmpty(), "Cluster 2 should have node pools");
                     LOGGER.info("Node pools (cluster 2): {} entries", response.content().size());
                     LOGGER.debug("Node pools (cluster 2) response:\n{}", response.content().getFirst().asText().text());
+                    java.util.List<JsonNode> pools2 = response.content().stream()
+                        .map(c -> parseJson(c.asText().text()))
+                        .toList();
+                    for (JsonNode pool : pools2) {
+                        assertEquals(Constants.KAFKA_CLUSTER_NAME_2, pool.path("cluster").asText(),
+                            "Node pool should belong to cluster 2");
+                    }
                 })
             .thenAssertResults();
     }
@@ -286,7 +299,9 @@ class MultiClusterST extends AbstractST {
     @Test
     @Story("get_strimzi_kafka_cluster_overview returns per-cluster details")
     void testClusterOverviewPerCluster() {
-        // TODO - assert that clusters are different and also assert specific configs
+        AtomicReference<String> root1name = new AtomicReference<>();
+        AtomicReference<String> root2name = new AtomicReference<>();
+
         mcpClient.when()
             .toolsCall("get_strimzi_kafka_cluster_overview",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME), response -> {
@@ -296,6 +311,10 @@ class MultiClusterST extends AbstractST {
                     LOGGER.debug("get_strimzi_kafka_cluster_overview (1) response:\n{}", response.content().getFirst().asText().text());
                     assertEquals(Constants.KAFKA_CLUSTER_NAME,
                         root.path("cluster").path("name").asText());
+                    assertEquals("Ready", root.path("cluster").path("readiness").asText());
+                    assertEquals("HEALTHY", root.path("operator").path("status").asText());
+                    assertEquals(2, root.path("node_pools").size(), "Should have 2 node pools");
+                    root1name.set(root.path("cluster").path("name").asText());
                 })
             .thenAssertResults();
 
@@ -308,8 +327,16 @@ class MultiClusterST extends AbstractST {
                     LOGGER.debug("get_strimzi_kafka_cluster_overview (2) response:\n{}", response.content().getFirst().asText().text());
                     assertEquals(Constants.KAFKA_CLUSTER_NAME_2,
                         root.path("cluster").path("name").asText());
+                    assertEquals("Ready", root.path("cluster").path("readiness").asText());
+                    assertEquals(2, root.path("node_pools").size(), "Should have 2 node pools");
+                    root2name.set(root.path("cluster").path("name").asText());
                 })
             .thenAssertResults();
+
+        assertNotEquals(
+            root1name.get(),
+            root2name.get(),
+            "Cluster names should differ between calls");
     }
 
     @Test

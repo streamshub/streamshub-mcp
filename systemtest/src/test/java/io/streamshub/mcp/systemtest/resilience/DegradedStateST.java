@@ -130,6 +130,15 @@ class DegradedStateST extends AbstractST {
                 assertTrue(readiness.contains("notready") || readiness.contains("error"),
                     "Connector with invalid class should not be Ready, "
                         + "got readiness: " + root.path("readiness").asText());
+                assertEquals("mcp-connect", root.path("connect_cluster").asText(),
+                    "Connect cluster should match");
+                assertEquals(1, root.path("conditions").size(),
+                    "Should have exactly 1 condition");
+                assertEquals("NotReady", root.path("conditions").get(0).path("type").asText(),
+                    "Condition type should be NotReady");
+                assertTrue(root.path("conditions").get(0).path("message").asText()
+                    .contains("Failed to find any class that implements Connector"),
+                    "Condition message should explain the connector class was not found");
             })
             .thenAssertResults();
     }
@@ -160,6 +169,16 @@ class DegradedStateST extends AbstractST {
                 JsonNode steps = root.path("steps_completed");
                 assertTrue(steps.isArray() && !steps.isEmpty(),
                     "Diagnostic should complete at least some steps even for failed connector");
+                assertEquals("mcp-failed-connector", root.path("connector").path("name").asText(),
+                    "Connector name should match");
+                assertEquals("NotReady", root.path("connector").path("readiness").asText(),
+                    "Failed connector should be NotReady");
+                assertEquals(5, root.path("steps_completed").size(),
+                    "Should complete exactly 5 diagnostic steps");
+                assertTrue(root.path("message").asText().contains("5 steps succeeded"),
+                    "Message should indicate 5 steps succeeded");
+                assertEquals("Ready", root.path("connect_cluster").path("readiness").asText(),
+                    "Parent connect cluster should still be Ready");
             })
             .thenAssertResults();
     }
@@ -192,6 +211,18 @@ class DegradedStateST extends AbstractST {
                     "Diagnostic should complete steps with mixed connector health");
                 assertFalse(root.toString().contains("NullPointerException"),
                     "Should not contain NullPointerException in response");
+                assertEquals(6, root.path("steps_completed").size(),
+                    "Should complete exactly 6 diagnostic steps");
+                assertEquals("Ready", root.path("connect_cluster").path("readiness").asText(),
+                    "Connect cluster should still be Ready");
+                assertEquals(1, root.path("connectors").size(),
+                    "Should list exactly 1 connector (the failed one)");
+                assertEquals("NotReady", root.path("connectors").get(0).path("readiness").asText(),
+                    "The failed connector should be NotReady");
+                assertEquals("HEALTHY", root.path("pods").path("pod_summary").path("health_status").asText(),
+                    "Connect pods should still be HEALTHY despite failed connector");
+                assertTrue(root.path("message").asText().contains("6 steps succeeded"),
+                    "Message should indicate all 6 steps succeeded");
             })
             .thenAssertResults();
     }

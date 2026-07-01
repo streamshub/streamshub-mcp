@@ -190,14 +190,9 @@ class KafkaUserToolsST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("list_kafka_users", args, response -> {
-                JsonNode root = assertToolSuccess(response);
-
-                String json = response.content().getFirst().asText().text();
-                LOGGER.info("list_kafka_users (nonexistent cluster) response:\n{}", json);
-                if (root.isArray()) {
-                    assertEquals(0, root.size(),
-                        "Should return empty array for nonexistent cluster");
-                }
+                assertFalse(response.isError(), "Tool call should not return error");
+                assertTrue(response.content().isEmpty(),
+                    "Should return empty content for nonexistent cluster");
             })
             .thenAssertResults();
     }
@@ -293,8 +288,7 @@ class KafkaUserToolsST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_kafka_user", args, response -> {
-                // TODO - improve string for asserts
-                assertToolError(response, "not found");
+                assertToolError(response, "not found", "non-existent-user");
             })
             .thenAssertResults();
     }

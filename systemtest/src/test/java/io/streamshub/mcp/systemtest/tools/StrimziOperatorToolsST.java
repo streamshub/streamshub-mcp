@@ -169,8 +169,7 @@ class StrimziOperatorToolsST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_strimzi_operator", args, response -> {
-                // TODO - improve string for asserts
-                assertToolError(response, "not found");
+                assertToolError(response, "not found", "non-existent-operator");
             })
             .thenAssertResults();
     }
@@ -239,8 +238,6 @@ class StrimziOperatorToolsST extends AbstractST {
             .toolsCall("get_strimzi_operator_logs", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert log details
-
                 LOGGER.info("get_strimzi_operator_logs (ERROR filter) response (length={})",
                     response.content().getFirst().asText().text().length());
                 LOGGER.debug("get_strimzi_operator_logs (ERROR filter) response:\n{}",
@@ -250,6 +247,10 @@ class StrimziOperatorToolsST extends AbstractST {
                     "operator_pods should be a non-empty array");
                 assertTrue(root.path("log_lines").isNumber(),
                     "log_lines should be a number");
+                assertFalse(root.path("has_errors").asBoolean(), "Should have no errors");
+                assertEquals(0, root.path("error_count").asInt(), "Error count should be 0");
+                assertEquals(0, root.path("log_lines").asInt(), "Should have 0 log lines with error filter");
+                assertTrue(root.path("message").asText().contains("no errors found"), "Message should indicate no errors found");
             })
             .thenAssertResults();
     }
@@ -267,13 +268,15 @@ class StrimziOperatorToolsST extends AbstractST {
             .toolsCall("get_strimzi_events", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert event details
-
                 LOGGER.info("get_strimzi_events (Kafka) response (length={})",
                     response.content().getFirst().asText().text().length());
                 LOGGER.debug("get_strimzi_events (Kafka) response:\n{}",
                     response.content().getFirst().asText().text());
                 assertEventsResponse(root, Constants.KAFKA_CLUSTER_NAME, kafkaNs);
+                assertTrue(root.path("total_events").asInt() > 0, "Should have events");
+                JsonNode resources = root.path("resources");
+                assertTrue(resources.isArray() && resources.size() > 0, "Should have resource groups");
+                assertTrue(root.path("message").asText().contains("events"), "Message should mention events");
             })
             .thenAssertResults();
     }
@@ -292,13 +295,13 @@ class StrimziOperatorToolsST extends AbstractST {
             .toolsCall("get_strimzi_events", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert event details
-
                 LOGGER.info("get_strimzi_events (time-scoped) response (length={})",
                     response.content().getFirst().asText().text().length());
                 LOGGER.debug("get_strimzi_events (time-scoped) response:\n{}",
                     response.content().getFirst().asText().text());
                 assertEventsResponse(root, Constants.KAFKA_CLUSTER_NAME, kafkaNs);
+                assertTrue(root.path("total_events").asInt() >= 0, "total_events should be non-negative");
+                assertTrue(root.path("resources").isArray(), "resources should be an array");
             })
             .thenAssertResults();
     }
@@ -316,13 +319,14 @@ class StrimziOperatorToolsST extends AbstractST {
             .toolsCall("get_strimzi_events", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert event details
-
                 LOGGER.info("get_strimzi_events (StrimziOperator) response (length={})",
                     response.content().getFirst().asText().text().length());
                 LOGGER.debug("get_strimzi_events (StrimziOperator) response:\n{}",
                     response.content().getFirst().asText().text());
                 assertEventsResponse(root, "strimzi-cluster-operator", strimziNs);
+                assertTrue(root.path("total_events").asInt() > 0, "Should have events");
+                JsonNode resources = root.path("resources");
+                assertTrue(resources.isArray() && resources.size() > 0, "Should have resource groups");
             })
             .thenAssertResults();
     }
@@ -337,8 +341,7 @@ class StrimziOperatorToolsST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_strimzi_events", args, response -> {
-                // TODO - improve string for asserts
-                assertToolError(response, "not found");
+                assertToolError(response, "not found", "nonexistent-resource");
             })
             .thenAssertResults();
     }

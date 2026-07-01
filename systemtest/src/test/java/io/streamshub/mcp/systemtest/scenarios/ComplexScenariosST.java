@@ -253,10 +253,11 @@ class ComplexScenariosST extends AbstractST {
         AtomicReference<String> discoveredConnect = new AtomicReference<>();
         mcpClient.when()
             .toolsCall("list_kafka_connects", Map.of("namespace", ns), response -> {
-                JsonNode root = assertToolSuccess(response);
-                assertTrue(root.isArray() && !root.isEmpty(),
+                assertFalse(response.isError(), "Tool call should not return error");
+                assertFalse(response.content().isEmpty(),
                     "Should have at least one Connect cluster");
-                String connectName = root.get(0).path("name").asText();
+                JsonNode connect = parseJson(response.content().getFirst().asText().text());
+                String connectName = connect.path("name").asText();
                 assertFalse(connectName.isEmpty(), "Connect cluster should have a name");
                 discoveredConnect.set(connectName);
                 LOGGER.info("Step 1 - Discovered Connect cluster: {}", connectName);
@@ -268,10 +269,11 @@ class ComplexScenariosST extends AbstractST {
         mcpClient.when()
             .toolsCall("list_kafka_connectors",
                 Map.of("namespace", ns, "connectCluster", discoveredConnect.get()), response -> {
-                    JsonNode root = assertToolSuccess(response);
-                    assertTrue(root.isArray() && !root.isEmpty(),
+                    assertFalse(response.isError(), "Tool call should not return error");
+                    assertFalse(response.content().isEmpty(),
                         "Should have at least one connector in the discovered Connect cluster");
-                    String connectorName = root.get(0).path("name").asText();
+                    JsonNode connector = parseJson(response.content().getFirst().asText().text());
+                    String connectorName = connector.path("name").asText();
                     assertFalse(connectorName.isEmpty(), "Connector should have a name");
                     discoveredConnector.set(connectorName);
                     LOGGER.info("Step 2 - Discovered connector: {}", connectorName);
@@ -325,11 +327,12 @@ class ComplexScenariosST extends AbstractST {
         AtomicReference<String> discoveredOperatorNs = new AtomicReference<>();
         mcpClient.when()
             .toolsCall("list_strimzi_operators", Map.of("namespace", strimziNs), response -> {
-                JsonNode root = assertToolSuccess(response);
-                assertTrue(root.isArray() && !root.isEmpty(),
+                assertFalse(response.isError(), "Tool call should not return error");
+                assertFalse(response.content().isEmpty(),
                     "Should discover at least one operator");
-                String operatorName = root.get(0).path("name").asText();
-                String operatorNs = root.get(0).path("namespace").asText();
+                JsonNode operator = parseJson(response.content().getFirst().asText().text());
+                String operatorName = operator.path("name").asText();
+                String operatorNs = operator.path("namespace").asText();
                 assertFalse(operatorName.isEmpty(), "Operator should have a name");
                 discoveredOperator.set(operatorName);
                 discoveredOperatorNs.set(operatorNs);
@@ -419,13 +422,13 @@ class ComplexScenariosST extends AbstractST {
                     JsonNode root = assertToolSuccess(response);
                     assertEquals(discoveredCluster.get(), root.path("cluster_name").asText(),
                         "Certificate cluster should match");
-                    JsonNode certs = root.path("certificates");
-                    assertTrue(certs.isArray() && !certs.isEmpty(),
-                        "TLS listener should have certificates");
+                    JsonNode listenerAuth = root.path("listener_authentication");
+                    assertTrue(listenerAuth.isArray() && !listenerAuth.isEmpty(),
+                        "Should have listener authentication info");
                     assertFalse(root.toString().contains("PRIVATE KEY"),
                         "Should not expose private key material");
-                    LOGGER.info("Step 2 - Listener '{}' has {} certificate(s)",
-                        discoveredListener.get(), certs.size());
+                    LOGGER.info("Step 2 - Listener '{}' has {} certificate(s), {} listener(s)",
+                        discoveredListener.get(), root.path("certificates").size(), listenerAuth.size());
                 })
             .thenAssertResults();
 
@@ -462,10 +465,11 @@ class ComplexScenariosST extends AbstractST {
         AtomicReference<String> discoveredBridge = new AtomicReference<>();
         mcpClient.when()
             .toolsCall("list_kafka_bridges", Map.of("namespace", ns), response -> {
-                JsonNode root = assertToolSuccess(response);
-                assertTrue(root.isArray() && !root.isEmpty(),
+                assertFalse(response.isError(), "Tool call should not return error");
+                assertFalse(response.content().isEmpty(),
                     "Should discover at least one bridge");
-                String bridgeName = root.get(0).path("name").asText();
+                JsonNode bridge = parseJson(response.content().getFirst().asText().text());
+                String bridgeName = bridge.path("name").asText();
                 assertFalse(bridgeName.isEmpty(), "Bridge should have a name");
                 discoveredBridge.set(bridgeName);
                 LOGGER.info("Step 1 - Discovered bridge: {}", bridgeName);

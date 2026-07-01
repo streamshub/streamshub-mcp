@@ -115,8 +115,6 @@ class KafkaRebalanceToolsST extends AbstractST {
             .toolsCall("list_kafka_rebalances", args, response -> {
                 assertToolSuccess(response);
 
-                // TODO - assert details about resources
-
                 assertTrue(response.content().isEmpty(), "list_kafka_rebalances should return empty response");
                 LOGGER.info("list_kafka_rebalances returned empty response as expected");
             })
@@ -154,8 +152,7 @@ class KafkaRebalanceToolsST extends AbstractST {
             "namespace", kafkaNamespace.getMetadata().getName());
         mcpClient.when()
             .toolsCall("get_kafka_rebalance", args, response -> {
-                // TODO - improve strings for asserts
-                assertToolError(response, "not found");
+                assertToolError(response, "not found", "nonexistent-rebalance");
             })
             .thenAssertResults();
     }
@@ -180,8 +177,6 @@ class KafkaRebalanceToolsST extends AbstractST {
             .toolsCall("list_kafka_rebalances", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert more details about rebalance
-
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("list_kafka_rebalances response (length={})", json.length());
                 LOGGER.debug("list_kafka_rebalances response:\n{}", json);
@@ -199,6 +194,10 @@ class KafkaRebalanceToolsST extends AbstractST {
                 assertEquals(Constants.KAFKA_CLUSTER_NAME,
                     rebalance.path("cluster").asText(),
                     "Rebalance cluster should match");
+                assertEquals("full", rebalance.path("mode").asText(), "Rebalance mode should be 'full'");
+                assertFalse(rebalance.path("conditions").isMissingNode(), "Rebalance should have 'conditions' field");
+                assertTrue(rebalance.path("conditions").isArray() && !rebalance.path("conditions").isEmpty(),
+                    "Rebalance should have at least one condition");
             })
             .thenAssertResults();
     }
@@ -224,23 +223,26 @@ class KafkaRebalanceToolsST extends AbstractST {
             .toolsCall("list_kafka_rebalances", args, response -> {
                 JsonNode root = assertToolSuccess(response);
 
-                // TODO - assert more details about rebalance
-
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("list_kafka_rebalances filtered response (length={})", json.length());
                 LOGGER.debug("list_kafka_rebalances filtered response:\n{}", json);
-                boolean found = false;
+                JsonNode rebalance = null;
                 if (root.isArray()) {
-                    for (JsonNode rebalance : root) {
-                        if (REBALANCE_NAME.equals(rebalance.path("name").asText())) {
-                            found = true;
+                    for (JsonNode node : root) {
+                        if (REBALANCE_NAME.equals(node.path("name").asText())) {
+                            rebalance = node;
                             break;
                         }
                     }
                 } else if (root.isObject()) {
-                    found = REBALANCE_NAME.equals(root.path("name").asText());
+                    if (REBALANCE_NAME.equals(root.path("name").asText())) {
+                        rebalance = root;
+                    }
                 }
-                assertTrue(found, "Should find rebalance '" + REBALANCE_NAME + "' in filtered results");
+                assertFalse(rebalance == null, "Should find rebalance '" + REBALANCE_NAME + "' in filtered results");
+                assertEquals("full", rebalance.path("mode").asText(), "Mode should be 'full'");
+                assertFalse(rebalance.path("state").isMissingNode(), "Should have 'state' field");
+                assertFalse(rebalance.path("conditions").isMissingNode(), "Should have 'conditions' field");
             })
             .thenAssertResults();
     }
