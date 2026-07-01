@@ -8,6 +8,7 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
+import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.Guarded;
@@ -24,7 +25,7 @@ import java.util.List;
  */
 @Singleton
 @Guarded
-@WrapBusinessError(Exception.class)
+@WrapBusinessError(value = Exception.class, unless = ToolCallException.class)
 public class KafkaRebalanceTools {
 
     @Inject

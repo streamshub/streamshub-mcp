@@ -11,6 +11,7 @@ import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
+import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
@@ -33,7 +34,7 @@ import java.util.List;
  */
 @Singleton
 @Guarded
-@WrapBusinessError(Exception.class)
+@WrapBusinessError(value = Exception.class, unless = ToolCallException.class)
 public class KafkaConnectTools {
 
     private static final int SECONDS_PER_MINUTE = 60;

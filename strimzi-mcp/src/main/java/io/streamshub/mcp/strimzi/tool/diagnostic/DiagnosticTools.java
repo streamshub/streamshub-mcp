@@ -13,6 +13,7 @@ import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
+import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.Guarded;
@@ -48,7 +49,7 @@ import jakarta.inject.Singleton;
  */
 @Singleton
 @Guarded
-@WrapBusinessError(Exception.class)
+@WrapBusinessError(value = Exception.class, unless = ToolCallException.class)
 public class DiagnosticTools {
 
     @Inject
