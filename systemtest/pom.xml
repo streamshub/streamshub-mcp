@@ -13,7 +13,7 @@
     <description>End-to-end system tests for Strimzi MCP server</description>
 
     <properties>
-        <kubetest4j.version>1.2.0</kubetest4j.version>
+        <kubetest4j.version>1.2.1</kubetest4j.version>
         <quarkus.mcp.server.test.version>1.12.0</quarkus.mcp.server.test.version>
         <strimzi.test-clients.version>0.14.0</strimzi.test-clients.version>
         <allure.junit.version>2.35.2</allure.junit.version>

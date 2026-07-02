@@ -4,27 +4,48 @@
  */
 package io.streamshub.mcp.metrics.prometheus.service;
 
+import io.streamshub.mcp.common.dto.metrics.MetricSample;
+import io.streamshub.mcp.common.dto.metrics.MetricsQueryParams;
+import io.streamshub.mcp.common.service.metrics.MetricsQueryException;
+import io.streamshub.mcp.metrics.prometheus.dto.PrometheusResponse;
+import io.streamshub.mcp.metrics.prometheus.dto.PrometheusResponse.PrometheusData;
+import io.streamshub.mcp.metrics.prometheus.dto.PrometheusResponse.PrometheusResult;
+import jakarta.enterprise.inject.Instance;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Unit tests for {@link PrometheusMetricsProvider} PromQL query building.
  */
+@ExtendWith(MockitoExtension.class)
 class PrometheusMetricsProviderTest {
 
     PrometheusMetricsProviderTest() {
     }
 
+    @Mock
+    PrometheusClient prometheusClient;
+
+    @Mock
+    @SuppressWarnings("rawtypes")
+    Instance prometheusClientInstance;
+
     private PrometheusMetricsProvider provider;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
         provider = new PrometheusMetricsProvider();
     }
@@ -144,5 +165,113 @@ class PrometheusMetricsProviderTest {
 
         assertTrue(counters.isEmpty());
         assertEquals(List.of("gauge_a", "gauge_b"), gauges);
+    }
+
+    // ---- Response validation tests ----
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void queryMetricsThrowsWhenPrometheusReturnsNull() throws Exception {
+        injectMockClient();
+        org.mockito.Mockito.when(prometheusClientInstance.isUnsatisfied()).thenReturn(false);
+        org.mockito.Mockito.when(prometheusClientInstance.get()).thenReturn(prometheusClient);
+        org.mockito.Mockito.when(prometheusClient.instantQuery(org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.isNull())).thenReturn(null);
+
+        MetricsQueryParams params = MetricsQueryParams.instant(
+            List.of("test_gauge"), null, null, 0);
+
+        MetricsQueryException ex = assertThrows(MetricsQueryException.class,
+            () -> provider.queryMetrics(params));
+        assertTrue(ex.getMessage().contains("Prometheus returned no response data"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void queryMetricsThrowsWhenPrometheusReturnsNullData() throws Exception {
+        injectMockClient();
+        org.mockito.Mockito.when(prometheusClientInstance.isUnsatisfied()).thenReturn(false);
+        org.mockito.Mockito.when(prometheusClientInstance.get()).thenReturn(prometheusClient);
+        PrometheusResponse response = new PrometheusResponse("success", null);
+        org.mockito.Mockito.when(prometheusClient.instantQuery(org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.isNull())).thenReturn(response);
+
+        MetricsQueryParams params = MetricsQueryParams.instant(
+            List.of("test_gauge"), null, null, 0);
+
+        MetricsQueryException ex = assertThrows(MetricsQueryException.class,
+            () -> provider.queryMetrics(params));
+        assertTrue(ex.getMessage().contains("Prometheus returned no response data"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void queryMetricsThrowsWhenPrometheusReturnsErrorStatus() throws Exception {
+        injectMockClient();
+        org.mockito.Mockito.when(prometheusClientInstance.isUnsatisfied()).thenReturn(false);
+        org.mockito.Mockito.when(prometheusClientInstance.get()).thenReturn(prometheusClient);
+        PrometheusResponse response = new PrometheusResponse("error",
+            new PrometheusData("vector", List.of()));
+        org.mockito.Mockito.when(prometheusClient.instantQuery(org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.isNull())).thenReturn(response);
+
+        MetricsQueryParams params = MetricsQueryParams.instant(
+            List.of("test_gauge"), null, null, 0);
+
+        MetricsQueryException ex = assertThrows(MetricsQueryException.class,
+            () -> provider.queryMetrics(params));
+        assertTrue(ex.getMessage().contains("Prometheus query failed with status 'error'"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void queryMetricsReturnsEmptyListForSuccessWithNoResults() throws Exception {
+        injectMockClient();
+        org.mockito.Mockito.when(prometheusClientInstance.isUnsatisfied()).thenReturn(false);
+        org.mockito.Mockito.when(prometheusClientInstance.get()).thenReturn(prometheusClient);
+        PrometheusResponse response = new PrometheusResponse("success",
+            new PrometheusData("vector", List.of()));
+        org.mockito.Mockito.when(prometheusClient.instantQuery(org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.isNull())).thenReturn(response);
+
+        MetricsQueryParams params = MetricsQueryParams.instant(
+            List.of("test_gauge"), null, null, 0);
+
+        List<MetricSample> result = provider.queryMetrics(params);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void queryMetricsReturnsDataForSuccessfulResponse() throws Exception {
+        injectMockClient();
+        org.mockito.Mockito.when(prometheusClientInstance.isUnsatisfied()).thenReturn(false);
+        org.mockito.Mockito.when(prometheusClientInstance.get()).thenReturn(prometheusClient);
+        PrometheusResponse response = new PrometheusResponse("success",
+            new PrometheusData("vector", List.of(
+                new PrometheusResult(
+                    Map.of("__name__", "test_gauge", "pod", "pod-0"),
+                    List.of(1719792000.0, "42.5"),
+                    null)
+            )));
+        org.mockito.Mockito.when(prometheusClient.instantQuery(org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.isNull())).thenReturn(response);
+
+        MetricsQueryParams params = MetricsQueryParams.instant(
+            List.of("test_gauge"), null, null, 0);
+
+        List<MetricSample> result = provider.queryMetrics(params);
+
+        assertEquals(1, result.size());
+        assertEquals("test_gauge", result.getFirst().name());
+        assertEquals(42.5, result.getFirst().value());
+    }
+
+    @SuppressWarnings("unchecked")
+    private void injectMockClient() throws Exception {
+        Field field = PrometheusMetricsProvider.class.getDeclaredField("prometheusClientInstance");
+        field.setAccessible(true);
+        field.set(provider, prometheusClientInstance);
     }
 }

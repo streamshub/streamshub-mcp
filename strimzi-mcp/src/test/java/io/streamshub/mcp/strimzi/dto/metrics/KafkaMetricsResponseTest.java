@@ -61,13 +61,16 @@ class KafkaMetricsResponseTest {
     @Test
     void ofWithEmptySamplesReturnsEmptyTimeSeries() {
         KafkaMetricsResponse response = KafkaMetricsResponse.of(
-            "my-cluster", "kafka", "pod-scraping", List.of(),
+            "my-cluster", "kafka", "pod-scraping", List.of("replication"),
             List.of(), null, AggregationLevel.BROKER);
 
         assertNotNull(response.timeSeries());
         assertTrue(response.timeSeries().isEmpty());
         assertEquals(0, response.sampleCount());
         assertEquals(0, response.metricCount());
+        assertTrue(response.message().contains("No metrics data available"));
+        assertTrue(response.message().contains("my-cluster"));
+        assertTrue(response.message().contains("pod-scraping"));
     }
 
     @Test

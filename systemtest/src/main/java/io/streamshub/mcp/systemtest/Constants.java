@@ -20,6 +20,9 @@ public final class Constants {
     /** Namespace where the Strimzi operator is deployed. */
     public static final String STRIMZI_NAMESPACE = "strimzi";
 
+    /** Second Kafka namespace for multi-namespace / RBAC tests. */
+    public static final String KAFKA_NAMESPACE_2 = "strimzi-kafka-2";
+
     /** Namespace where the Strimzi Drain Cleaner is deployed. */
     public static final String DRAIN_CLEANER_NAMESPACE = "strimzi-drain-cleaner";
 
@@ -45,8 +48,20 @@ public final class Constants {
     /** Name of the pre-deployed Kafka cluster. */
     public static final String KAFKA_CLUSTER_NAME = "mcp-cluster";
 
+    /** Name of the second Kafka cluster for multi-cluster tests. */
+    public static final String KAFKA_CLUSTER_NAME_2 = "mcp-cluster-2";
+
     /** Name of the Strimzi Drain Cleaner deployment. */
     public static final String DRAIN_CLEANER_NAME = "strimzi-drain-cleaner";
+
+    /** Name of the KafkaConnect cluster used in tests. */
+    public static final String CONNECT_CLUSTER_NAME = "mcp-connect";
+
+    /** Name of the KafkaBridge used in tests. */
+    public static final String BRIDGE_NAME = "mcp-bridge";
+
+    /** Name of the KafkaTopic used in tests. */
+    public static final String TOPIC_NAME = "mcp-test-topic";
 
     // --- Timeouts (milliseconds) ---
 

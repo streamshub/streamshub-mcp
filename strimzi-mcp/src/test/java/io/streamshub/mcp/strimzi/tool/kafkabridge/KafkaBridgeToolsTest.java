@@ -134,8 +134,8 @@ class KafkaBridgeToolsTest {
     void testGetKafkaBridgeLogs() {
         when(bridgeService.getBridgeLogs(any(), any(), any())).thenReturn(
             KafkaBridgeLogsResponse.of("my-bridge", "kafka",
-                List.of("my-bridge-bridge-0"), false, 0, 50, false,
-                "2025-01-01 INFO Bridge started")
+                List.of("my-bridge-bridge-0"), false, 0, 0, 50, false,
+                "2025-01-01 INFO Bridge started", List.of())
         );
 
         client.when()

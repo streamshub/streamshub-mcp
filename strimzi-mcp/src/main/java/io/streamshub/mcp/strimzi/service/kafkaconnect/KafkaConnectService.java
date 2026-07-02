@@ -170,7 +170,8 @@ public class KafkaConnectService {
 
         PodLogsResult result = logCollectionService.collectLogs(ns, pods, options);
         return KafkaConnectLogsResponse.of(normalizedName, ns, result.podNames(),
-            result.hasErrors(), result.errorCount(), result.totalLines(), result.hasMore(), result.logs());
+            result.hasErrors(), result.errorCount(), result.failedPods(),
+            result.totalLines(), result.hasMore(), result.logs(), result.warnings());
     }
 
     /**
@@ -253,7 +254,7 @@ public class KafkaConnectService {
         Instant creationTime = extractCreationTime(connect);
         Long ageMinutes = null;
         if (creationTime != null) {
-            ageMinutes = Duration.between(creationTime, Instant.now()).toMinutes();
+            ageMinutes = Math.max(0, Duration.between(creationTime, Instant.now()).toMinutes());
         }
 
         return KafkaConnectResponse.of(

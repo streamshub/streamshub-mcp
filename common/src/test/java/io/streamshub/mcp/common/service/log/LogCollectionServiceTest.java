@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -66,7 +67,8 @@ class LogCollectionServiceTest {
             .progressCallback((completed, total) -> progressCalls.add(new int[]{completed, total}))
             .build();
 
-        logCollectionService.collectLogs("kafka", List.of(pod1, pod2, pod3), options);
+        assertThrows(LogQueryException.class, () ->
+            logCollectionService.collectLogs("kafka", List.of(pod1, pod2, pod3), options));
 
         assertEquals(3, progressCalls.size());
         assertEquals(1, progressCalls.get(0)[0]);
@@ -85,7 +87,8 @@ class LogCollectionServiceTest {
             .notifier(notifications::add)
             .build();
 
-        logCollectionService.collectLogs("kafka", List.of(pod), options);
+        assertThrows(LogQueryException.class, () ->
+            logCollectionService.collectLogs("kafka", List.of(pod), options));
 
         assertEquals(1, notifications.size());
         assertTrue(notifications.getFirst().contains("test-pod (1/1)"));
@@ -113,6 +116,53 @@ class LogCollectionServiceTest {
         assertNotNull(result);
         assertTrue(result.podNames().isEmpty());
         assertEquals(0, result.totalLines());
+        assertEquals(0, result.failedPods());
+        assertTrue(result.warnings().isEmpty());
+    }
+
+    @Test
+    void testCollectLogsAllPodsFailThrowsLogQueryException() {
+        Pod pod1 = createSimplePod("pod-1");
+        Pod pod2 = createSimplePod("pod-2");
+
+        LogCollectionParams options = LogCollectionParams.builder(100).build();
+
+        LogQueryException ex = assertThrows(LogQueryException.class, () ->
+            logCollectionService.collectLogs("kafka", List.of(pod1, pod2), options));
+
+        assertTrue(ex.getMessage().contains("Failed to retrieve logs from all 2 pods"));
+        assertTrue(ex.getMessage().contains("pod-1"));
+        assertTrue(ex.getMessage().contains("pod-2"));
+    }
+
+    @Test
+    void testHasErrorsTrueWhenFailedPodsOnly() {
+        PodLogsResult result = new PodLogsResult(
+            List.of("pod-1"), "logs", 0, 5, 5, false, 1,
+            List.of("Failed to retrieve logs from pod pod-1: connection refused"));
+
+        assertTrue(result.hasErrors());
+        assertEquals(0, result.errorCount());
+        assertEquals(1, result.failedPods());
+    }
+
+    @Test
+    void testHasErrorsFalseWhenNoFailuresAndNoErrors() {
+        PodLogsResult result = new PodLogsResult(
+            List.of("pod-1"), "logs", 0, 5, 5, false, 0, List.of());
+
+        assertFalse(result.hasErrors());
+    }
+
+    @Test
+    void testHasErrorsTrueWhenBothContentErrorsAndFailedPods() {
+        PodLogsResult result = new PodLogsResult(
+            List.of("pod-1", "pod-2"), "logs with ERROR", 2, 10, 10, false, 1,
+            List.of("Failed to retrieve logs from pod pod-2: timeout"));
+
+        assertTrue(result.hasErrors());
+        assertEquals(2, result.errorCount());
+        assertEquals(1, result.failedPods());
     }
 
     // ---- 4a: tailLines tests ----
