@@ -27,7 +27,7 @@ import java.util.Map;
 import static io.streamshub.mcp.systemtest.TestTags.LOGS;
 import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
 import static io.streamshub.mcp.systemtest.TestTags.RESILIENCE;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+
 
 /**
  * System tests for input validation edge cases. Deploys only the MCP server
@@ -75,15 +75,11 @@ class InputValidationST extends AbstractST {
         
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
-                assertToolError(response);
-                
+                assertToolError(response, "Invalid cluster name", "my;cluster");
+
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Special chars response: {}", text);
                 assertNoStackTrace(text);
-                assertTrue(text.contains("Invalid cluster name"),
-                    "Error should mention 'Invalid cluster name', got: " + text);
-                assertTrue(text.contains("my;cluster"),
-                    "Error should echo back the invalid name 'my;cluster', got: " + text);
             })
             .thenAssertResults();
     }
@@ -96,13 +92,11 @@ class InputValidationST extends AbstractST {
         
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
-                assertToolError(response);
-                
+                assertToolError(response, "Invalid cluster name", "exceeds maximum length of 253 characters");
+
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Long name response: {}", text);
                 assertNoStackTrace(text);
-                assertTrue(text.contains("exceeds maximum length of 253 characters"),
-                    "Error should mention the 253 character limit, got: " + text);
             })
             .thenAssertResults();
     }
@@ -114,13 +108,11 @@ class InputValidationST extends AbstractST {
         
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
-                assertToolError(response);
-                
+                assertToolError(response, "Cluster name is required");
+
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Empty name response: {}", text);
                 assertNoStackTrace(text);
-                assertTrue(text.contains("Cluster name is required"),
-                    "Error should state 'Cluster name is required', got: " + text);
             })
             .thenAssertResults();
     }
@@ -132,8 +124,8 @@ class InputValidationST extends AbstractST {
         
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
-                assertToolError(response);
-                
+                assertToolError(response, "not found");
+
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Whitespace-padded name response: {}", text);
                 assertNoStackTrace(text);
@@ -151,9 +143,9 @@ class InputValidationST extends AbstractST {
             "namespace", "null");
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
-                assertToolError(response);
                 // InputUtils.normalizeInput converts "null" to null (auto-discover)
-                // Result should be a clean error (cluster not found), not a crash
+                assertToolError(response, "not found");
+
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Literal 'null' namespace response (isError={}): {}",
                     response.isError(), text);
@@ -174,8 +166,8 @@ class InputValidationST extends AbstractST {
         
         mcpClient.when()
             .toolsCall("get_kafka_cluster_logs", args, response -> {
-                assertToolError(response);
-                
+                assertToolError(response, "not found");
+
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Negative tailLines response: {}", text);
                 assertNoStackTrace(text);
@@ -189,11 +181,11 @@ class InputValidationST extends AbstractST {
         Map<String, Object> args = Map.of(
             "clusterName", "any-cluster",
             "limit", 0);
-        
+
         mcpClient.when()
             .toolsCall("list_kafka_topics", args, response -> {
-                assertToolError(response);
-                
+                assertToolError(response, "not found");
+
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Zero limit response: {}", text);
                 assertNoStackTrace(text);
@@ -207,11 +199,11 @@ class InputValidationST extends AbstractST {
         Map<String, Object> args = Map.of(
             "clusterName", "any-cluster",
             "tailLines", 999999);
-        
+
         mcpClient.when()
             .toolsCall("get_kafka_cluster_logs", args, response -> {
-                assertToolError(response);
-                
+                assertToolError(response, "not found");
+
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Very large tailLines response: {}", text);
                 assertNoStackTrace(text);

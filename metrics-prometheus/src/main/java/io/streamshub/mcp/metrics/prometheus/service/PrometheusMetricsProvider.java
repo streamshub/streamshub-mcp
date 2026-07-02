@@ -9,6 +9,7 @@ import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.dto.metrics.MetricsQueryParams;
 import io.streamshub.mcp.common.service.metrics.MetricsProvider;
 import io.streamshub.mcp.common.service.metrics.MetricsQueryException;
+import io.streamshub.mcp.common.util.ExceptionUtils;
 import io.streamshub.mcp.common.util.metrics.MetricLabelFilter;
 import io.streamshub.mcp.metrics.prometheus.dto.PrometheusResponse;
 import io.streamshub.mcp.metrics.prometheus.util.PromQLSanitizer;
@@ -100,13 +101,22 @@ public class PrometheusMetricsProvider implements MetricsProvider {
     private PrometheusResponse executeQuery(final PrometheusClient client,
                                              final String promql,
                                              final MetricsQueryParams params) {
-        if (params.isRangeQuery()) {
-            String start = String.valueOf(params.startTime().getEpochSecond());
-            String end = String.valueOf(params.endTime().getEpochSecond());
-            String step = params.stepSeconds() + "s";
-            return client.rangeQuery(promql, start, end, step);
+        try {
+            if (params.isRangeQuery()) {
+                String start = String.valueOf(params.startTime().getEpochSecond());
+                String end = String.valueOf(params.endTime().getEpochSecond());
+                String step = params.stepSeconds() + "s";
+                return client.rangeQuery(promql, start, end, step);
+            }
+            return client.instantQuery(promql, null);
+        } catch (MetricsQueryException e) {
+            throw e;
+        } catch (Exception e) {
+            LOG.warnf("Failed to query Prometheus: %s", e.getMessage());
+            throw new MetricsQueryException(
+                String.format("Failed to query Prometheus at configured URL: %s",
+                    ExceptionUtils.rootCauseMessage(e)), e);
         }
-        return client.instantQuery(promql, null);
     }
 
     static void partitionMetrics(final List<String> metricNames,

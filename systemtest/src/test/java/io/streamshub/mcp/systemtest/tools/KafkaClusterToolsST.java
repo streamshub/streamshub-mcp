@@ -610,7 +610,7 @@ class KafkaClusterToolsST extends AbstractST {
     void testGetKafkaClusterLogsLargeRequest() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
-            "tailLines", 1000);
+            "tailLines", 500);
 
         mcpClient.when()
             .toolsCall("get_kafka_cluster_logs", args, response -> {

@@ -168,6 +168,9 @@ class GuardrailsST extends AbstractST {
     /**
      * Verify that log tool calls are rate-limited after exceeding the
      * configured requests-per-minute threshold.
+     * <p>
+     * RateLimitFilter uses a 60s sliding window, so there is no fixed minute-boundary reset.
+     * The 3 sequential calls complete in under 5s, making window-reset flakiness negligible.
      */
     @Test
     @Story("Rate limiting enforced after exceeding log RPM threshold")
@@ -207,6 +210,9 @@ class GuardrailsST extends AbstractST {
     /**
      * Verify that rate limiting is applied per category: log tools are
      * rate-limited while general tools remain unrestricted.
+     * <p>
+     * RateLimitFilter uses a 60s sliding window, so there is no fixed minute-boundary reset.
+     * The sequential calls complete well within the window, making reset flakiness negligible.
      */
     @Test
     @Story("Rate limiting applies per category (log vs general)")

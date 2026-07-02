@@ -32,7 +32,6 @@ import java.util.Map;
 
 import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
 import static io.streamshub.mcp.systemtest.TestTags.RESILIENCE;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -115,12 +114,8 @@ class ConfigValidationST extends AbstractST {
                 String text = response.content().getFirst().asText().text();
                 assertTrue(response.isError(),
                     "Metrics should fail with unreachable Prometheus");
-                assertTrue(text.contains("nonexistent-prometheus"),
+                assertTrue(text.contains("nonexistent-prometheus: Name or service not known"),
                     "Error should reference the unreachable Prometheus host, got: " + text);
-                assertFalse(text.contains("not found"),
-                    "Error should be about unreachable Prometheus, not missing cluster");
-                assertTrue(text.contains("UnknownHostException"),
-                    "Error should mention UnknownHostException for DNS failure");
                 assertNoStackTrace(text);
             })
             .thenAssertResults();

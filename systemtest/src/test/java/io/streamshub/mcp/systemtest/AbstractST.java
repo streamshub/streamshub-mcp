@@ -45,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -99,6 +100,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public abstract class AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractST.class);
+
+    private static final Pattern FQCN_PATTERN = Pattern.compile(
+        "\\b\\w+(\\.\\w+)+\\.(\\w+Exception|\\w+Error)\\b");
 
     /**
      * Helper method to jet json object from json string
@@ -236,10 +240,8 @@ public abstract class AbstractST {
     }
 
     protected static void assertNoStackTrace(final String text) {
-        assertFalse(text.contains("java.lang."),
-            "Response should not contain Java package references");
-        assertFalse(text.contains("NullPointerException"),
-            "Response should not contain NullPointerException");
+        assertFalse(FQCN_PATTERN.matcher(text).find(),
+            "Response should not contain fully qualified exception/error class names, got: " + text);
         assertFalse(text.contains("\tat "),
             "Response should not contain stack trace frames");
     }
