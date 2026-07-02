@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **AI agent best practices documentation** -- expanded usage examples and troubleshooting with guidance on response interpretation, script avoidance, pagination handling, diagnostic report structure, Sampling/Elicitation, and parameter optimization (#135)
 - **Prompt template validation tests** -- unit tests for all 13 prompt templates covering null parameter safety, format validation (no unresolved `%s` placeholders or literal `null` injection), and `ERROR_HANDLING_INSTRUCTION` presence
 - **Production deployment checklist** in configuration docs covering authentication, rate limiting, CORS, TLS, and log redaction hardening
+- **Documentation audit and improvements** -- comprehensive review of all user-facing documentation for correctness and zero-experience usability
 
 ### Changed
 

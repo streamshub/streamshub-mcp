@@ -12,7 +12,7 @@ Before you begin, ensure you have:
 
 - A Kubernetes cluster with `kubectl` configured
 - The Strimzi operator deployed (see [Deploy Strimzi](#deploy-strimzi))
-- An AI assistant that supports MCP (Claude Desktop, Claude Code, or similar)
+- An AI assistant that supports MCP (see [MCP clients](https://modelcontextprotocol.io/clients))
 
 ## Deploy Strimzi
 
@@ -20,7 +20,8 @@ If you do not have Strimzi deployed, follow these steps.
 
 ### Using the setup script (recommended)
 
-The setup script automates the entire deployment process:
+The setup script automates the entire deployment process.
+Run this from the repository root:
 
 ```bash
 ./dev/scripts/setup-strimzi.sh deploy
@@ -134,10 +135,17 @@ The deployment manifests use [Kustomize](https://kustomize.io/) with a base and 
 | Overlay | Command | Use case |
 |---------|---------|----------|
 | `base` | `kubectl apply -k install/strimzi-mcp/base/` | Minimal deployment with defaults |
-| `overlays/dev` | `kubectl apply -k install/strimzi-mcp/overlays/dev/` | Local development (Kind, minikube) |
-| `overlays/dev-openshift` | `kubectl apply -k install/strimzi-mcp/overlays/dev-openshift/` | Local development (OpenShift) |
-| `overlays/prod` | `kubectl apply -k install/strimzi-mcp/overlays/prod/` | Production Kubernetes |
-| `overlays/prod-openshift` | `kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/` | Production OpenShift |
+| `overlays/dev` | `kubectl apply -k install/strimzi-mcp/overlays/dev/` | Local development with Kind, minikube, or Docker Desktop. Uses `imagePullPolicy: Always`. |
+| `overlays/dev-openshift` | `kubectl apply -k install/strimzi-mcp/overlays/dev-openshift/` | Local development on OpenShift (CRC, Red Hat OpenShift Local). Adds a TLS Route for external access. |
+| `overlays/prod` | `kubectl apply -k install/strimzi-mcp/overlays/prod/` | Production Kubernetes. Adds 2 replicas, higher resource limits, ConfigMap/Secret references. |
+| `overlays/prod-openshift` | `kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/` | Production OpenShift. Extends prod with an edge-terminated TLS Route. |
+
+**How to choose:**
+
+- Use **dev** or **dev-openshift** if you are testing locally or developing features.
+- Use **prod** or **prod-openshift** for any shared or production environment.
+- Use the **-openshift** variants if you are running on OpenShift (they add a Route for external access).
+- Use **base** only if you want a minimal starting point to customize yourself.
 
 The **prod** overlay adds:
 
@@ -175,10 +183,20 @@ kubectl apply -k install/strimzi-mcp/overlays/prod/
 
 # Production OpenShift
 kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/
+```
 
-# Verify the deployment
-kubectl -n streamshub-mcp rollout status deployment/streamshub-mcp-strimzi
+**Verify the deployment is healthy:**
+
+```bash
+# Wait for the rollout to complete
+kubectl -n streamshub-mcp rollout status deployment/streamshub-mcp-strimzi --timeout=120s
+
+# Check pods are running
 kubectl -n streamshub-mcp get pods
+
+# Check health endpoint (requires port-forward if not exposed)
+kubectl -n streamshub-mcp port-forward svc/streamshub-mcp-strimzi 8080:8080 &
+curl http://localhost:8080/q/health
 ```
 
 To override the image tag or registry:
@@ -204,7 +222,7 @@ The `install/strimzi-mcp/base/` directory contains the following resources:
 | `../optional/role-sensitive.yaml` | Role | Optional per-namespace permissions for sensitive resources |
 | `../optional/rolebinding-sensitive.yaml` | RoleBinding | Companion RoleBinding for the sensitive Role |
 
-For the full directory structure and overlay details, see the [install README](../../install/strimzi-mcp/README.md).
+For the full directory structure and overlay details, see the [install README](../../../install/strimzi-mcp/README.md).
 
 ### RBAC configuration
 
@@ -235,6 +253,15 @@ Deploy the sensitive Role and its RoleBinding only in namespaces where you need 
 kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n kafka-namespace
 kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n kafka-namespace
 ```
+
+**What happens without the sensitive Role:**
+
+If you do not apply the optional sensitive Role, the following features are unavailable:
+
+- **Certificate details** — `get_kafka_cluster_certificates` cannot read TLS certificate metadata from Secrets
+- **Direct metrics scraping** — The default `streamshub-pod-scraping` metrics provider cannot access pod metrics endpoints via `pods/proxy`. You must use the `streamshub-prometheus` provider instead (see [configuration](configuration.md#prometheus-provider)).
+
+All other tools work normally without the sensitive Role.
 
 ## Security model
 
@@ -332,6 +359,9 @@ oc -n streamshub-mcp create route edge streamshub-mcp-strimzi \
 Configure your MCP client with the HTTPS URL: `https://<route-hostname>/mcp`.
 
 ### Kubernetes ingress
+
+**Prerequisites:** This example requires an [ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/) (e.g., nginx-ingress) and [cert-manager](https://cert-manager.io/) for automatic TLS certificate provisioning.
+Adjust the annotations if you use a different setup.
 
 Create an Ingress resource for external access on standard Kubernetes:
 

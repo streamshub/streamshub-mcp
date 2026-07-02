@@ -246,36 +246,19 @@ kubectl -n streamshub-mcp run test --rm -it --image=curlimages/curl -- \
 
 ## AI assistant issues
 
-### Claude Desktop not showing tools
+### AI client not showing tools
 
-**Symptom**: MCP server connected but tools do not appear
+**Symptom**: MCP server connected but tools do not appear in the AI client
 
 **Solutions**:
 
-1. **Restart Claude Desktop**
+1. **Restart the AI client**
    - Completely quit and restart the application
-   - Check configuration file was saved correctly
+   - Check that the MCP server configuration was saved correctly
 
-2. **Verify configuration**
-   ```bash
-   # macOS
-   cat ~/Library/Application\ Support/Claude/claude_desktop_config.json
-   
-   # Windows
-   type %APPDATA%\Claude\claude_desktop_config.json
-   ```
-   
-   Should contain:
-   ```json
-   {
-     "mcpServers": {
-       "strimzi": {
-         "transport": "http",
-         "url": "http://localhost:8080/mcp"
-       }
-     }
-   }
-   ```
+2. **Verify the MCP server URL is correct**
+   - The endpoint is `http://localhost:8080/mcp` (not just `/` or `/api`)
+   - The transport type should be HTTP (or "Streamable HTTP")
 
 3. **Check server accessibility**
    ```bash
@@ -283,9 +266,26 @@ kubectl -n streamshub-mcp run test --rm -it --image=curlimages/curl -- \
    curl http://localhost:8080/q/health
    ```
 
+4. **Check client-specific configuration**
+   - Refer to your AI client's documentation for MCP server setup
+   - A list of MCP-compatible clients is available at [modelcontextprotocol.io](https://modelcontextprotocol.io/clients)
+
 ### Tools timeout
 
 **Symptom**: AI reports tool execution timeouts
+
+**Typical operation durations**:
+
+| Operation | Typical duration | Timeout risk |
+|-----------|-----------------|--------------|
+| List clusters/topics | < 1s | Low |
+| Get cluster/topic status | < 1s | Low |
+| Collect logs (1 pod, last hour) | 1-3s | Low |
+| Collect logs (10+ pods, 24h) | 10-30s | Medium |
+| Metrics query (1h range) | 1-5s | Low |
+| Metrics query (7-day range) | 5-30s | Medium |
+| Full cluster diagnostic | 10-60s | Medium |
+| Fleet overview (10+ clusters) | 5-30s | Medium |
 
 **Common Causes**:
 
@@ -466,6 +466,85 @@ kubectl -n streamshub-mcp exec <mcp-pod> -- \
    kubectl apply -f install/strimzi-mcp/optional/clusterrolebinding-loki-application-view.yaml
    ```
 
+## External service connectivity
+
+### Loki or Prometheus unreachable
+
+**Symptom**: Log or metrics tools return connection errors, or the MCP server logs show `ConnectException` or `SocketTimeoutException` for Loki/Prometheus.
+
+**Diagnosis**:
+
+```bash
+# Check if the external service is reachable from the MCP pod
+kubectl -n streamshub-mcp exec deployment/streamshub-mcp-strimzi -- \
+  curl -s -o /dev/null -w "%{http_code}" http://loki.monitoring:3100/ready
+
+kubectl -n streamshub-mcp exec deployment/streamshub-mcp-strimzi -- \
+  curl -s -o /dev/null -w "%{http_code}" http://prometheus.monitoring:9090/-/ready
+```
+
+**Common causes and solutions**:
+
+1. **Wrong URL configured**
+   ```bash
+   # Check current configuration
+   kubectl -n streamshub-mcp exec deployment/streamshub-mcp-strimzi -- \
+     env | grep -E 'LOKI|PROMETHEUS'
+   ```
+   Verify the URL matches the actual service name, namespace, and port.
+
+2. **NetworkPolicy blocking traffic**
+   ```bash
+   # Check for NetworkPolicies in both namespaces
+   kubectl -n streamshub-mcp get networkpolicy
+   kubectl -n monitoring get networkpolicy
+   ```
+   If NetworkPolicies exist, add rules to allow traffic from the `streamshub-mcp` namespace to the monitoring namespace on the relevant ports.
+
+3. **DNS resolution failure**
+   ```bash
+   # Test DNS resolution from the MCP pod
+   kubectl -n streamshub-mcp exec deployment/streamshub-mcp-strimzi -- \
+     nslookup loki.monitoring.svc.cluster.local
+   ```
+   If DNS fails, verify the service exists in the target namespace.
+
+4. **TLS certificate mismatch**
+   If the external service uses TLS, ensure the trust store is configured correctly.
+   See [Loki TLS configuration](configuration.md#loki-tls-configuration) or [Prometheus TLS configuration](configuration.md#prometheus-tls-configuration).
+
+## Configuration validation
+
+### Verify applied configuration
+
+**Symptom**: Configuration changes do not seem to take effect.
+
+**Diagnosis**:
+
+```bash
+# Check environment variables on the running pod
+kubectl -n streamshub-mcp exec deployment/streamshub-mcp-strimzi -- env | sort
+
+# Check if the ConfigMap was applied
+kubectl -n streamshub-mcp get configmap strimzi-mcp-config -o yaml
+
+# Check if the deployment references the ConfigMap
+kubectl -n streamshub-mcp get deployment streamshub-mcp-strimzi -o yaml | grep -A 5 envFrom
+```
+
+**Common causes**:
+
+1. **Pod not restarted** — Environment variable changes in a ConfigMap require a pod restart:
+   ```bash
+   kubectl -n streamshub-mcp rollout restart deployment/streamshub-mcp-strimzi
+   ```
+
+2. **ConfigMap not referenced** — The deployment must reference the ConfigMap via `envFrom`.
+   The prod overlay does this automatically; the base overlay does not.
+
+3. **Typo in variable name** — Environment variable names use underscores and uppercase (e.g., `MCP_LOG_TAIL_LINES`, not `mcp.log.tail-lines`).
+   The conversion rule: replace dots and hyphens with underscores, then uppercase everything.
+
 ## Metrics issues
 
 ### No metrics returned
@@ -513,8 +592,8 @@ kubectl -n streamshub-mcp exec <mcp-pod> -- \
    
    **Solution**:
    ```bash
-   kubectl apply -f install/strimzi-mcp/base/role-sensitive.yaml -n kafka-ns
-   kubectl apply -f install/strimzi-mcp/base/rolebinding-sensitive.yaml -n kafka-ns
+   kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n kafka-ns
+   kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n kafka-ns
    ```
 
 2. **Metrics endpoint not exposed**
@@ -594,6 +673,24 @@ kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
   QUARKUS_LOG_CATEGORY__IO_STREAMSHUB_MCP__LEVEL=TRACE
 ```
 
+**Where debug logs go**: In local development, logs appear in the terminal.
+In Kubernetes, view them with `kubectl logs`.
+Debug and trace logging significantly increases log volume and may impact performance — disable it after troubleshooting.
+
+**Useful log categories**:
+
+| Category | What it shows |
+|----------|--------------|
+| `io.streamshub.mcp` | All MCP server activity (tools, diagnostics, resources) |
+| `io.quarkus.mcp` | MCP protocol-level messages (initialize, tool calls) |
+| `io.fabric8.kubernetes` | Kubernetes API client requests and responses |
+
+**Filter debug output** for specific tools:
+
+```bash
+kubectl -n streamshub-mcp logs deployment/streamshub-mcp-strimzi | grep "diagnose"
+```
+
 ### Collect diagnostic information
 
 ```bash
@@ -618,7 +715,7 @@ When reporting issues, include:
    - Kubernetes version
    - Strimzi version
    - MCP server version
-   - AI assistant (Claude Desktop, Claude Code, etc.)
+   - AI client name and version
 
 2. **Error messages**
    - Complete error text

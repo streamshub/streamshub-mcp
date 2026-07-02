@@ -668,6 +668,148 @@ Resource Usage:
 The operator is healthy and functioning normally.
 ```
 
+## Using prompt templates
+
+Prompt templates are pre-built investigation workflows that guide the AI assistant through a structured approach to common tasks.
+They are an alternative to typing out a detailed question.
+
+### Diagnosing a cluster issue
+
+**Using the prompt**: `diagnose-cluster-issue` with `cluster_name=mcp-cluster`, `symptom=consumers are lagging`
+
+**What happens**:
+- The prompt provides the AI with a structured investigation plan
+- The AI follows the plan, calling the relevant tools step by step
+- Results are more thorough than ad-hoc questions because the prompt covers all relevant areas
+
+**Example interaction**:
+```
+Using the diagnose-cluster-issue prompt for mcp-cluster
+with symptom "consumers are lagging"...
+
+I'll investigate this systematically:
+
+1. Cluster health: mcp-cluster is Ready, 3/3 brokers healthy
+2. Topic status: All 5 topics are Ready
+3. Consumer group lag: Detected significant lag in group "order-processor"
+   - Partition 3: 15,234 messages behind
+   - Partition 7: 12,890 messages behind
+4. Broker metrics: Request queue time elevated on broker-1 (120ms avg)
+5. Network metrics: Bytes-in rate increased 3x in the last hour
+
+Root cause: A sudden spike in producer throughput is overwhelming broker-1,
+which hosts the leader replicas for the affected partitions. The consumers
+cannot keep up with the increased message rate.
+
+Recommended actions:
+1. Scale the consumer group to add more instances
+2. Rebalance partition leadership across brokers
+3. Consider increasing num.io.threads on broker-1
+```
+
+See [prompts and resources](tools/prompts-and-resources.md) for the full list of available prompt templates.
+
+## Working with large result sets
+
+### Paginating topics
+
+When a cluster has many topics, the `list_kafka_topics` tool returns results in pages.
+
+**Question**: "List all topics in prod-cluster"
+
+**What happens with 250 topics**:
+```
+Found 250 topics in prod-cluster (showing 1-100):
+
+1. analytics-events (12 partitions, RF 3) - Ready
+2. audit-log (6 partitions, RF 3) - Ready
+...
+100. order-processing-dlq (3 partitions, RF 3) - Ready
+
+There are 150 more topics. I'll fetch the next page...
+
+Showing 101-200:
+101. payment-events (12 partitions, RF 3) - Ready
+...
+```
+
+The AI assistant automatically handles pagination by calling `list_kafka_topics` with `offset` and `limit` parameters.
+You can also ask for specific subsets:
+
+- *"List topics matching 'order-*'"* — uses the `nameContains` filter
+- *"Show me only NotReady topics"* — the AI filters results
+- *"How many topics are in prod-cluster?"* — returns just the count
+
+## When things go wrong
+
+Not every request succeeds.
+Here are common error scenarios and what the AI assistant will tell you.
+
+### Cluster not found
+
+**Question**: "Show me the status of my-cluster"
+
+**When the cluster does not exist**:
+```
+I searched for a Kafka cluster named "my-cluster" but could not find it
+in any namespace.
+
+Available Kafka clusters:
+- mcp-cluster (namespace: strimzi-kafka)
+- dev-cluster (namespace: kafka-dev)
+
+Did you mean one of these? Or check that the cluster name is spelled
+correctly and that the MCP server has access to the namespace where
+it is deployed.
+```
+
+### Permission denied
+
+**Question**: "Show me the certificates for mcp-cluster"
+
+**When the sensitive RBAC Role is not configured**:
+```
+I tried to read the certificate details for mcp-cluster, but the MCP
+server does not have permission to access Secrets in the strimzi-kafka
+namespace.
+
+To enable certificate inspection, apply the optional sensitive Role:
+
+kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n strimzi-kafka
+kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n strimzi-kafka
+
+See the installation guide for details on the RBAC model.
+```
+
+### Metrics unavailable
+
+**Question**: "What are the current metrics for mcp-cluster?"
+
+**When metrics scraping is not configured**:
+```
+I attempted to query metrics for mcp-cluster, but no metrics data is
+available. This can happen when:
+
+1. The default pod-scraping provider requires the pods/proxy RBAC
+   permission (see installation guide)
+2. Or you need to configure a Prometheus provider (see configuration
+   guide)
+
+To use Prometheus for metrics, set:
+  MCP_METRICS_PROVIDER=streamshub-prometheus
+  QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://prometheus.monitoring:9090
+```
+
+## A note on Sampling
+
+Several diagnostic tools (like `diagnose_kafka_cluster` and `diagnose_kafka_connectivity`) use a feature called **Sampling**. Sampling lets the MCP server ask the AI assistant to analyze intermediate data during a multi-step workflow — for example, deciding which areas to investigate deeper based on initial findings.
+
+**If your MCP client supports Sampling**, you get the full diagnostic experience with intelligent triage and focused analysis. Check your AI client's documentation to see if it supports MCP Sampling.
+
+**If your MCP client does not support Sampling**, the diagnostic tools still work but return all collected data without intermediate analysis. The results may be larger, and the AI assistant performs the analysis after receiving all the data rather than during the diagnostic workflow.
+
+For more details, see [AI agent best practices](ai-agent-best-practices.md#understanding-sampling-and-elicitation).
+
 ## Next steps
 
 - **[AI Agent Best Practices](ai-agent-best-practices.md)** — Tips, tricks, and corner cases for AI assistants

@@ -5,13 +5,15 @@ weight = 2
 
 Configure the MCP Server for Strimzi to customize its behavior and integrate with external systems.
 
+> **Deploying to production?** See the [production deployment checklist](#production-deployment-checklist) for security-relevant settings that should be changed from their defaults.
+
 ## Configuration overview
 
 You can configure the MCP Server for Strimzi through:
 
-- **Environment variables** — Recommended for Kubernetes deployments
-- **application.properties file** — Convenient for local development
-- **ConfigMaps and Secrets** — Standard Kubernetes configuration management
+- **Environment variables** — Recommended for Kubernetes deployments. Set them via ConfigMaps, Secrets, or `kubectl set env`.
+- **application.properties file** — Convenient for local development with `quarkus:dev`. Changes take effect immediately with hot-reload.
+- **ConfigMaps and Secrets** — Standard Kubernetes configuration management. The prod overlay references these automatically via `envFrom`.
 
 ## Core configuration
 
@@ -40,6 +42,9 @@ Control cross-origin resource sharing for web-based MCP clients.
 In dev mode, CORS is permissive (`/.*/`) to simplify testing.
 
 **Production mode:**
+**Warning:** The dev-mode permissive CORS setting (`/.*/`) allows any origin to access the MCP endpoint.
+Always override this for production deployments.
+
 Override with a specific domain:
 
 ```bash
@@ -97,6 +102,7 @@ Use Grafana Loki for centralized log collection and historical log queries.
 | `quarkus.rest-client.loki.read-timeout` | `30000` | Read timeout in milliseconds |
 | `mcp.log.loki.auth-mode` | `none` | Authentication mode: `none`, `basic`, `bearer-token`, or `sa-token` |
 | `mcp.log.loki.sa-token-path` | `/var/run/secrets/kubernetes.io/serviceaccount/token` | Path to ServiceAccount token |
+| `mcp.log.loki.tenant-id` | - | Tenant ID for multi-tenant Loki deployments. When set, the server sends this value as the `X-Scope-OrgID` header with every Loki request. Required when Loki runs in multi-tenant mode. |
 
 To enable Loki:
 
@@ -167,6 +173,7 @@ Choose how the server collects metrics from your Kafka cluster.
 | `mcp.metrics.provider` | `streamshub-pod-scraping` | Metrics provider: `streamshub-pod-scraping` or `streamshub-prometheus` |
 | `mcp.metrics.default-step-seconds` | `60` | Default query resolution in seconds |
 | `mcp.metrics.max-samples` | `10000` | Maximum number of metric samples returned per query. Queries exceeding this limit are truncated. |
+| `mcp.metrics.max-range-minutes` | `10080` | Maximum time range for metrics queries in minutes. Default is 7 days. Queries exceeding this range are rejected with an error. |
 
 ### Pod scraping provider (default)
 
@@ -462,6 +469,7 @@ Control default pagination for topic listing.
 | Property | Default | Description |
 |----------|---------|-------------|
 | `mcp.topics.default-page-size` | `100` | Default number of topics per page |
+| `mcp.topics.max-list-size` | `5000` | Maximum number of topics returned in a single list request. Limits the total result set regardless of pagination. |
 
 Used by [`list_kafka_topics`](tools/kafka-topics.md#list_kafka_topics) when no explicit limit is provided.
 
@@ -540,6 +548,9 @@ Control request rates per tool category to prevent resource exhaustion.
 | `mcp.guardrail.rate-limit.log-rpm` | `0` | Log collection requests per minute (0 = unlimited) |
 | `mcp.guardrail.rate-limit.metrics-rpm` | `0` | Metrics query requests per minute (0 = unlimited) |
 | `mcp.guardrail.rate-limit.general-rpm` | `0` | General tool requests per minute (0 = unlimited) |
+
+**Recommended production values:** For a typical deployment with a single AI assistant, start with `log-rpm=30`, `metrics-rpm=60`, `general-rpm=120`.
+Increase if you have multiple concurrent users or automated pipelines calling the MCP server.
 
 Rate limits are enforced per tool category:
 
