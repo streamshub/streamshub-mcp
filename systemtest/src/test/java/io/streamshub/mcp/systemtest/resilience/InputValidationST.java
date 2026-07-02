@@ -124,7 +124,7 @@ class InputValidationST extends AbstractST {
         
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
-                assertToolError(response, "not found");
+                assertToolError(response, "Failed to query Kafka across all namespaces");
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Whitespace-padded name response: {}", text);
@@ -144,7 +144,7 @@ class InputValidationST extends AbstractST {
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
                 // InputUtils.normalizeInput converts "null" to null (auto-discover)
-                assertToolError(response, "not found");
+                assertToolError(response, "Failed to query Kafka across all namespaces");
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Literal 'null' namespace response (isError={}): {}",
@@ -166,7 +166,7 @@ class InputValidationST extends AbstractST {
         
         mcpClient.when()
             .toolsCall("get_kafka_cluster_logs", args, response -> {
-                assertToolError(response, "not found");
+                assertToolError(response, "Failed to query Kafka across all namespaces");
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Negative tailLines response: {}", text);
@@ -184,7 +184,7 @@ class InputValidationST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("list_kafka_topics", args, response -> {
-                assertToolError(response, "not found");
+                assertToolError(response, "Failed to query KafkaTopic by strimzi.io/cluster=any-cluster across all namespaces");
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Zero limit response: {}", text);
@@ -202,7 +202,7 @@ class InputValidationST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("get_kafka_cluster_logs", args, response -> {
-                assertToolError(response, "not found");
+                assertToolError(response, "Failed to query Kafka across all namespaces");
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Very large tailLines response: {}", text);

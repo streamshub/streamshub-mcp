@@ -102,7 +102,7 @@ public abstract class AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractST.class);
 
     private static final Pattern FQCN_PATTERN = Pattern.compile(
-        "\\b\\w+(\\.\\w+)+\\.(\\w+Exception|\\w+Error)\\b");
+        "\\b(?!io\\.quarkiverse\\.mcp\\.server\\.ToolCallException\\b)\\w+(\\.\\w+)+\\.(\\w+Exception|\\w+Error)\\b");
 
     /**
      * Helper method to jet json object from json string

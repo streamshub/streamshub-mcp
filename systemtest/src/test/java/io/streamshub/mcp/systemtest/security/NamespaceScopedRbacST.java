@@ -508,7 +508,7 @@ class NamespaceScopedRbacST extends AbstractST {
                 assertEquals(Constants.KAFKA_NAMESPACE, root.path("namespace").asText());
                 assertEquals("streamshub-pod-scraping", root.path("provider").asText());
                 assertTrue(root.path("metric_count").asInt() >= 6, "Should have at least 6 metrics with sensitive RBAC");
-                assertEquals(root.path("sample_count").asInt() >= 6, "Should have at least 6 samples");
+                assertTrue(root.path("sample_count").asInt() >= 6, "Should have at least 6 samples");
                 JsonNode timeSeries = root.path("time_series");
                 assertTrue(timeSeries.isArray() && timeSeries.size() >= 6, "Should have at least 6 time series entries");
 
