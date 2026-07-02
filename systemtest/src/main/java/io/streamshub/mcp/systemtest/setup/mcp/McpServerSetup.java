@@ -197,6 +197,24 @@ public final class McpServerSetup {
     }
 
     /**
+     * Deploy the optional monitoring RBAC (ClusterRoleBinding) that grants
+     * the MCP ServiceAccount the {@code cluster-monitoring-view} ClusterRole
+     * needed to query the OpenShift Thanos querier.
+     *
+     * @param mcpNamespace namespace where the MCP ServiceAccount lives
+     */
+    @Step("Deploy monitoring RBAC for namespace {mcpNamespace}")
+    public static void deployMonitoringRbac(final String mcpNamespace) {
+        LOGGER.info("Deploying monitoring RBAC (cluster-monitoring-view) for SA in {}", mcpNamespace);
+
+        ClusterRoleBinding crb = KubeTestUtils.configFromYaml(
+            optionalInstallFile("clusterrolebinding-cluster-monitoring-view.yaml"), ClusterRoleBinding.class);
+        KubeResourceManager.get().createOrUpdateResourceWithoutWait(new ClusterRoleBindingBuilder(crb)
+            .editFirstSubject().withNamespace(mcpNamespace).endSubject()
+            .build());
+    }
+
+    /**
      * Deploy the optional sensitive RBAC (Role + RoleBinding) that grants
      * Secret read access in the target namespace.
      *
