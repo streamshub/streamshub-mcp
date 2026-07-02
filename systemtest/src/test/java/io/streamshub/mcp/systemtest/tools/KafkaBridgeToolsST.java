@@ -76,7 +76,10 @@ class KafkaBridgeToolsST extends AbstractST {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
             
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
-            
+
+            KafkaBridgeTemplates.deployMetricsConfigMap(kafkaNs);
+            KafkaBridgeTemplates.deployPodMonitors(kafkaNs);
+
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build(),
