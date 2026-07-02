@@ -579,6 +579,18 @@ kubectl -n streamshub-mcp get deployment streamshub-mcp-strimzi -o yaml | grep -
    ```
 3. **Wrong metric name**: Use Prometheus UI to find correct names
 
+### 403 Forbidden querying OpenShift Thanos
+
+**Symptom**: Prometheus metrics queries return errors on OpenShift when using the Thanos querier
+
+**Cause**: The MCP server's service account needs the `cluster-monitoring-view` ClusterRole
+to query the OpenShift Thanos querier at `thanos-querier.openshift-monitoring.svc:9091`.
+
+**Solution**: Apply the optional RBAC manifest:
+```bash
+kubectl apply -f install/strimzi-mcp/optional/clusterrolebinding-cluster-monitoring-view.yaml
+```
+
 ### Pod metrics scraping fails
 
 **Symptom**: Direct pod metrics scraping returns errors
