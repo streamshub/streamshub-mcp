@@ -87,6 +87,13 @@ class ComplexScenariosST extends AbstractST {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
 
+            KafkaTemplates.deployMetricsConfigMap(kafkaNs);
+            KafkaTemplates.deployPodMonitors(kafkaNs);
+            KafkaBridgeTemplates.deployMetricsConfigMap(kafkaNs);
+            KafkaBridgeTemplates.deployPodMonitors(kafkaNs);
+            KafkaConnectTemplates.deployMetricsConfigMap(kafkaNs);
+            KafkaConnectTemplates.deployPodMonitors(kafkaNs);
+
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build(),
@@ -94,7 +101,7 @@ class ComplexScenariosST extends AbstractST {
                     Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
-                KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
+                KafkaTemplates.kafkaWithMetrics(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
                 KafkaTopicTemplates.topic(kafkaNs, Constants.TOPIC_NAME,

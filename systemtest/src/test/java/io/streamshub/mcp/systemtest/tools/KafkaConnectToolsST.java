@@ -80,6 +80,9 @@ class KafkaConnectToolsST extends AbstractST {
 
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
 
+            KafkaConnectTemplates.deployMetricsConfigMap(kafkaNs);
+            KafkaConnectTemplates.deployPodMonitors(kafkaNs);
+
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build(),
