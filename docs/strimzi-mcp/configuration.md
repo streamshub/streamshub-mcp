@@ -208,6 +208,25 @@ QUARKUS_REST_CLIENT_PROMETHEUS_PASSWORD=your-password
 MCP_METRICS_PROMETHEUS_AUTH_MODE=sa-token
 ```
 
+**OpenShift Thanos querier:**
+
+On OpenShift, the built-in Thanos querier can be used as the Prometheus endpoint.
+The MCP server's service account needs the `cluster-monitoring-view` ClusterRole to query Thanos.
+Apply the optional RBAC manifest:
+
+```bash
+kubectl apply -f install/strimzi-mcp/optional/clusterrolebinding-cluster-monitoring-view.yaml
+```
+
+Then configure the MCP server to use the Thanos querier:
+
+```bash
+QUARKUS_REST_CLIENT_PROMETHEUS_URL=https://thanos-querier.openshift-monitoring.svc:9091
+MCP_METRICS_PROVIDER=streamshub-prometheus
+MCP_METRICS_PROMETHEUS_AUTH_MODE=sa-token
+QUARKUS_TLS_TRUST_ALL=true
+```
+
 #### Prometheus TLS configuration
 
 **Server certificate verification:**

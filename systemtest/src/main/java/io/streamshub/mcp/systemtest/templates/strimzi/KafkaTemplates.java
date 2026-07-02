@@ -9,6 +9,8 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.streamshub.mcp.systemtest.Constants;
+import io.strimzi.api.kafka.model.common.ExternalConfigurationReferenceBuilder;
+import io.strimzi.api.kafka.model.common.metrics.JmxPrometheusExporterMetricsBuilder;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceConfigurationBuilder;
 import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceMode;
@@ -31,8 +33,17 @@ public final class KafkaTemplates {
     private static final Path KAFKA_FILE =
         Path.of(Constants.STRIMZI_MANIFESTS_DIR, "kafka", "010-Kafka.yaml");
 
+    private static final Path PODMONITOR_FILE =
+        Path.of(Constants.STRIMZI_MANIFESTS_DIR, "kafka", "020-PodMonitor.yaml");
+
     /** Default Kafka version for test clusters. */
     public static final String DEFAULT_KAFKA_VERSION = "4.2.0";
+
+    /** Name of the Kafka metrics ConfigMap. */
+    private static final String METRICS_CONFIG_MAP_NAME = "kafka-metrics";
+
+    /** Key in the ConfigMap containing the JMX exporter config. */
+    private static final String METRICS_CONFIG_MAP_KEY = "kafka-metrics-config.yml";
 
     /** Maximum replication factor for Kafka internal topics. */
     private static final int MAX_REPLICATION_FACTOR = 3;
@@ -78,6 +89,11 @@ public final class KafkaTemplates {
                     .addToConfig("transaction.state.log.min.isr", Math.min(replicas, MAX_MIN_ISR))
                     .addToConfig("default.replication.factor", Math.min(replicas, MAX_REPLICATION_FACTOR))
                     .addToConfig("min.insync.replicas", Math.clamp(replicas - 1, 1, MAX_MIN_ISR))
+                    .withMetricsConfig(new JmxPrometheusExporterMetricsBuilder()
+                        .withValueFrom(new ExternalConfigurationReferenceBuilder()
+                            .withNewConfigMapKeyRef(METRICS_CONFIG_MAP_KEY, METRICS_CONFIG_MAP_NAME, false)
+                            .build())
+                        .build())
                 .endKafka()
                 .editEntityOperator()
                     .editOrNewUserOperator()
@@ -133,6 +149,26 @@ public final class KafkaTemplates {
             }
         } catch (IOException e) {
             LOGGER.warn("Could not load metrics ConfigMap from {}, skipping", KAFKA_FILE, e);
+        }
+    }
+
+    /**
+     * Deploy the Kafka PodMonitor resources from {@code dev/manifests/strimzi/kafka/020-PodMonitor.yaml}.
+     * These PodMonitors configure Prometheus to scrape metrics from Kafka pods
+     * (brokers, entity operator) and are required for metrics to appear in
+     * Prometheus/Thanos on OpenShift with user-workload monitoring enabled.
+     *
+     * @param namespace the target namespace
+     */
+    public static void deployPodMonitors(final String namespace) {
+        try {
+            List<HasMetadata> resources = KubeResourceManager.get().readResourcesFromFile(PODMONITOR_FILE);
+            for (HasMetadata resource : resources) {
+                resource.getMetadata().setNamespace(namespace);
+                KubeResourceManager.get().createOrUpdateResourceWithoutWait(resource);
+            }
+        } catch (IOException e) {
+            LOGGER.warn("Could not load PodMonitors from {}, skipping", PODMONITOR_FILE, e);
         }
     }
 }

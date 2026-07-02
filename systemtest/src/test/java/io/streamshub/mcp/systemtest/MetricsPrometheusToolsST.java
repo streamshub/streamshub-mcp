@@ -82,6 +82,7 @@ class MetricsPrometheusToolsST extends AbstractST {
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
 
             KafkaTemplates.deployMetricsConfigMap(kafkaNs);
+            KafkaTemplates.deployPodMonitors(kafkaNs);
 
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
@@ -103,6 +104,10 @@ class MetricsPrometheusToolsST extends AbstractST {
 
         PrometheusConfig promConfig = discoverPrometheus();
         LOGGER.info("Using Prometheus: url={}, auth={}, trustAll={}", promConfig.url(), promConfig.authMode(), promConfig.trustAll());
+
+        if ("sa-token".equals(promConfig.authMode())) {
+            McpServerSetup.deployMonitoringRbac(mcpNamespace.getMetadata().getName());
+        }
 
         McpServerSetup.Builder builder = McpServerSetup.builder(mcpNamespace.getMetadata().getName())
             .withEnv("MCP_METRICS_PROVIDER", "streamshub-prometheus")

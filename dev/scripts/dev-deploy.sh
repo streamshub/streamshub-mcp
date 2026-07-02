@@ -118,44 +118,17 @@ DEPLOY_NS="streamshub-mcp"
 DEPLOY_TARGET="deployment/streamshub-mcp-strimzi"
 SA_NAME="streamshub-mcp-strimzi"
 
+OPTIONAL_DIR="$PROJECT_ROOT/install/$MODULE/optional"
+
 if [ "$LOKI" = true ] || [ "$PROMETHEUS" = true ]; then
     echo "==> Granting monitoring RBAC to service account $SA_NAME"
-    kubectl create clusterrolebinding "${SA_NAME}-monitoring-view" \
-        --clusterrole=cluster-monitoring-view \
-        --serviceaccount="${DEPLOY_NS}:${SA_NAME}" \
-        --dry-run=client -o yaml | kubectl apply -f -
-    kubectl create clusterrolebinding "${SA_NAME}-cluster-reader" \
-        --clusterrole=cluster-reader \
-        --serviceaccount="${DEPLOY_NS}:${SA_NAME}" \
-        --dry-run=client -o yaml | kubectl apply -f -
+    kubectl apply -f "$OPTIONAL_DIR/clusterrolebinding-cluster-monitoring-view.yaml"
 fi
 
 if [ "$LOKI" = true ]; then
     echo "==> Granting Loki RBAC to service account $SA_NAME"
-    # OpenShift Logging v6.x does not auto-create this ClusterRole (v5.x did).
-    # Create it if missing so the SA can read application logs via the Loki gateway.
-    if ! kubectl get clusterrole cluster-logging-application-view &>/dev/null; then
-        echo "    ClusterRole cluster-logging-application-view not found, creating it"
-        kubectl apply -f - <<'ROLE_EOF'
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: cluster-logging-application-view
-rules:
-- apiGroups:
-  - loki.grafana.com
-  resources:
-  - application
-  resourceNames:
-  - logs
-  verbs:
-  - get
-ROLE_EOF
-    fi
-    kubectl create clusterrolebinding "${SA_NAME}-logging-application-view" \
-        --clusterrole=cluster-logging-application-view \
-        --serviceaccount="${DEPLOY_NS}:${SA_NAME}" \
-        --dry-run=client -o yaml | kubectl apply -f -
+    kubectl apply -f "$OPTIONAL_DIR/clusterrole-loki-application-view.yaml"
+    kubectl apply -f "$OPTIONAL_DIR/clusterrolebinding-loki-application-view.yaml"
     echo "==> Configuring Loki log provider"
     kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
         MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-loki}" \
