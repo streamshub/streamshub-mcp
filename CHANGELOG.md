@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **E2E Coverage** -- Added e2e coverage that now covers most of the user's scenarios
 - **Tool metadata** -- tools now include `_meta` fields (`type`, `resource`, `composite`) in `tools/list` responses, enabling AI agents and clients to discover and filter tools by purpose and target resource (#151)
 - **Fleet overview tool** -- `get_kafka_fleet_overview` returns aggregated health across all Kafka clusters in a single call, including status distribution, total broker count, per-cluster summaries with cross-resource relationship counts (topics, users, active rebalances, connected KafkaConnect/Bridge/MirrorMaker2), and warnings for clusters that need attention
 - **AI agent best practices documentation** -- expanded usage examples and troubleshooting with guidance on response interpretation, script avoidance, pagination handling, diagnostic report structure, Sampling/Elicitation, and parameter optimization (#135)
@@ -28,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed Prometheus and Loki providers leaking Java exception class names (e.g., `java.net.UnknownHostException`) in error responses; connectivity failures now return clean messages with the target hostname and root cause
 - Fixed Prometheus metrics system tests failing on OpenShift: added optional `cluster-monitoring-view` ClusterRoleBinding for querying the Thanos querier, enabled `metricsConfig` on test Kafka CRs, and deployed PodMonitors for metrics scraping
 - Fixed `get_kafka_cluster` and `get_kafka_fleet_overview` counting all node pool replicas (brokers + controllers) as a single combined total; now reports separate `broker_replicas` and `controller_replicas` with per-role storage information (#171)
 - Replaced deprecated `Elicitation.isSupported()` with `isFormModeSupported()` across all diagnostic services
