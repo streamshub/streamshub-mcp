@@ -40,6 +40,7 @@ import static io.streamshub.mcp.systemtest.TestTags.ACCEPTANCE;
 import static io.streamshub.mcp.systemtest.TestTags.LOGS;
 import static io.streamshub.mcp.systemtest.TestTags.METRICS;
 import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
+import static io.streamshub.mcp.systemtest.TestTags.SMOKE;
 import static io.streamshub.mcp.systemtest.TestTags.TOOLS;
 import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectorTemplates.CONNECTOR_NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -55,6 +56,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Epic("Strimzi MCP E2E")
 @Feature("Complex Scenarios")
+@Tag(SMOKE)
 @Tag(ACCEPTANCE)
 @Tag(REGRESSION)
 @Tag(METRICS)
