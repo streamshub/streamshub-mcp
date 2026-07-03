@@ -38,6 +38,7 @@ import org.jboss.logging.Logger;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -250,7 +251,8 @@ public class KafkaService {
 
         PodLogsResult result = logCollectionService.collectLogs(ns, pods, options);
         return KafkaClusterLogsResponse.of(normalizedName, ns, result.podNames(),
-            result.hasErrors(), result.errorCount(), result.totalLines(), result.hasMore(), result.logs());
+            result.hasErrors(), result.errorCount(), result.failedPods(),
+            result.totalLines(), result.hasMore(), result.logs(), result.warnings());
     }
 
     private List<KafkaBootstrapResponse.BootstrapServerInfo> extractBootstrapServers(final Kafka kafka) {
@@ -307,6 +309,7 @@ public class KafkaService {
         String name = kafka.getMetadata().getName();
         String namespace = kafka.getMetadata().getNamespace();
         String kind = kafka.getKind();
+        List<String> warnings = new ArrayList<>();
 
         String readiness;
         if (kafka.getStatus() != null) {
@@ -319,15 +322,15 @@ public class KafkaService {
         List<ConditionInfo> conditions = extractConditions(kafka);
         List<ListenerInfo> listeners = extractListenerInfos(kafka);
 
-        List<KafkaNodePoolResponse> nodePools = fetchNodePools(namespace, name);
-        List<Pod> kafkaPods = fetchKafkaPods(namespace, name);
+        List<KafkaNodePoolResponse> nodePools = fetchNodePools(namespace, name, warnings);
+        List<Pod> kafkaPods = fetchKafkaPods(namespace, name, warnings);
         RoleReplicasInfo brokerReplicas = buildRoleReplicas(nodePools, kafkaPods, ProcessRoles.BROKER);
         RoleReplicasInfo controllerReplicas = buildRoleReplicas(nodePools, kafkaPods, ProcessRoles.CONTROLLER);
 
         Instant creationTime = extractCreationTime(kafka);
         Long ageMinutes = null;
         if (creationTime != null) {
-            ageMinutes = Duration.between(creationTime, Instant.now()).toMinutes();
+            ageMinutes = Math.max(0, Duration.between(creationTime, Instant.now()).toMinutes());
         }
 
         return KafkaClusterResponse.of(
@@ -335,7 +338,7 @@ public class KafkaService {
             conditions, listeners, brokerReplicas, controllerReplicas,
             extractExternalAccess(kafka),
             extractAuthenticationEnabled(kafka), extractAuthorizationEnabled(kafka),
-            creationTime, ageMinutes, extractManagedBy(kafka));
+            creationTime, ageMinutes, extractManagedBy(kafka), warnings);
     }
 
     private String determineResourceStatus(final List<Condition> conditions) {
@@ -379,16 +382,19 @@ public class KafkaService {
         return labels != null ? labels.get(KubernetesConstants.Labels.MANAGED_BY) : null;
     }
 
-    private List<KafkaNodePoolResponse> fetchNodePools(final String namespace, final String clusterName) {
+    private List<KafkaNodePoolResponse> fetchNodePools(final String namespace, final String clusterName,
+                                                        final List<String> warnings) {
         try {
             return nodePoolService.listNodePools(namespace, clusterName);
         } catch (Exception e) {
-            LOG.debugf("Could not get NodePools for cluster %s: %s", clusterName, e.getMessage());
+            LOG.warnf("Could not get NodePools for cluster %s: %s", clusterName, e.getMessage());
+            warnings.add("Could not determine NodePools: " + e.getMessage());
             return List.of();
         }
     }
 
-    private List<Pod> fetchKafkaPods(final String namespace, final String clusterName) {
+    private List<Pod> fetchKafkaPods(final String namespace, final String clusterName,
+                                     final List<String> warnings) {
         try {
             return k8sService.queryResourcesByLabel(
                     Pod.class, namespace, ResourceLabels.STRIMZI_CLUSTER_LABEL, clusterName)
@@ -398,7 +404,8 @@ public class KafkaService {
                     pod.getMetadata().getLabels().get(ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL)))
                 .toList();
         } catch (Exception e) {
-            LOG.debugf("Could not get pods for cluster %s: %s", clusterName, e.getMessage());
+            LOG.warnf("Could not get pods for cluster %s: %s", clusterName, e.getMessage());
+            warnings.add("Could not determine ready replicas: " + e.getMessage());
             return List.of();
         }
     }

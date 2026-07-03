@@ -176,6 +176,20 @@ public final class McpServerSetup {
         }
 
         /**
+         * Deploy the MCP server with namespace-scoped RBAC. Instead of a
+         * ClusterRoleBinding the ClusterRole is bound via RoleBindings in
+         * each target namespace, restricting visibility to those namespaces.
+         *
+         * @param targetNamespaces namespaces where RoleBindings should be created
+         */
+        @Step("Deploy MCP server with namespace-scoped RBAC")
+        public void deployWithNamespaceScopedRbac(final String... targetNamespaces) {
+            LOGGER.info("Deploying MCP server into namespace {} with namespace-scoped RBAC", namespace);
+            deployNamespaceScopedRbac(namespace, targetNamespaces);
+            deployServer(namespace, image, modifier);
+        }
+
+        /**
          * Redeploy the MCP server — deletes the existing Deployment first.
          */
         @Step("Redeploy MCP server in namespace {namespace}")
@@ -197,6 +211,35 @@ public final class McpServerSetup {
     }
 
     /**
+     * Deploy a ClusterRoleBinding that grants the MCP ServiceAccount the
+     * {@code cluster-monitoring-view} ClusterRole, allowing it to query
+     * the OpenShift Thanos querier for Prometheus metrics.
+     *
+     * @param mcpNamespace namespace where the MCP ServiceAccount lives
+     */
+    @Step("Deploy monitoring RBAC for MCP server in namespace {mcpNamespace}")
+    public static void deployMonitoringRbac(final String mcpNamespace) {
+        LOGGER.info("Deploying cluster-monitoring-view ClusterRoleBinding for SA in {}", mcpNamespace);
+        ClusterRoleBinding crb = new ClusterRoleBindingBuilder()
+            .withNewMetadata()
+                .withName(Constants.MCP_NAME + "-monitoring-view")
+                .addToLabels(Constants.MCP_APP_LABEL_KEY, Constants.MCP_APP_LABEL)
+            .endMetadata()
+            .withNewRoleRef()
+                .withApiGroup("rbac.authorization.k8s.io")
+                .withKind("ClusterRole")
+                .withName("cluster-monitoring-view")
+            .endRoleRef()
+            .addNewSubject()
+                .withKind("ServiceAccount")
+                .withName(Constants.MCP_NAME)
+                .withNamespace(mcpNamespace)
+            .endSubject()
+            .build();
+        KubeResourceManager.get().createOrUpdateResourceWithoutWait(crb);
+    }
+
+    /**
      * Deploy the optional sensitive RBAC (Role + RoleBinding) that grants
      * Secret read access in the target namespace.
      *
@@ -210,15 +253,67 @@ public final class McpServerSetup {
         Role role = KubeTestUtils.configFromYaml(
             optionalInstallFile("role-sensitive.yaml"), Role.class);
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(new RoleBuilder(role)
-            .editMetadata().withNamespace(targetNamespace).endMetadata()
+            .editMetadata()
+                .withNamespace(targetNamespace)
+            .endMetadata()
             .build());
 
         RoleBinding rb = KubeTestUtils.configFromYaml(
             optionalInstallFile("rolebinding-sensitive.yaml"), RoleBinding.class);
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(new RoleBindingBuilder(rb)
-            .editMetadata().withNamespace(targetNamespace).endMetadata()
-            .editFirstSubject().withNamespace(mcpNamespace).endSubject()
+            .editMetadata()
+                .withNamespace(targetNamespace)
+            .endMetadata()
+            .editFirstSubject()
+                .withNamespace(mcpNamespace)
+            .endSubject()
             .build());
+    }
+
+    /**
+     * Deploy namespace-scoped RBAC: ServiceAccount + ClusterRole (as template)
+     * + a RoleBinding per target namespace. This restricts access to only the
+     * listed namespaces — cluster-wide list operations will return 403.
+     *
+     * @param mcpNamespace     namespace where the MCP ServiceAccount lives
+     * @param targetNamespaces namespaces to grant access to
+     */
+    @Step("Deploy namespace-scoped RBAC for MCP server")
+    public static void deployNamespaceScopedRbac(final String mcpNamespace,
+                                                  final String... targetNamespaces) {
+        LOGGER.info("Deploying namespace-scoped RBAC for SA in {} to namespaces {}",
+            mcpNamespace, java.util.Arrays.toString(targetNamespaces));
+
+        ServiceAccount sa = KubeTestUtils.configFromYaml(
+            installFile("serviceaccount.yaml"), ServiceAccount.class);
+        KubeResourceManager.get().createOrUpdateResourceWithoutWait(new ServiceAccountBuilder(sa)
+            .editMetadata().withNamespace(mcpNamespace).endMetadata()
+            .build());
+
+        ClusterRole cr = KubeTestUtils.configFromYaml(
+            installFile("clusterrole.yaml"), ClusterRole.class);
+        KubeResourceManager.get().createOrUpdateResourceWithoutWait(cr);
+
+        for (String targetNs : targetNamespaces) {
+            RoleBinding rb = new RoleBindingBuilder()
+                .withNewMetadata()
+                    .withName(Constants.MCP_NAME)
+                    .withNamespace(targetNs)
+                    .addToLabels(Constants.MCP_APP_LABEL_KEY, Constants.MCP_APP_LABEL)
+                .endMetadata()
+                .withNewRoleRef()
+                    .withApiGroup("rbac.authorization.k8s.io")
+                    .withKind("ClusterRole")
+                    .withName(cr.getMetadata().getName())
+                .endRoleRef()
+                .addNewSubject()
+                    .withKind("ServiceAccount")
+                    .withName(sa.getMetadata().getName())
+                    .withNamespace(mcpNamespace)
+                .endSubject()
+                .build();
+            KubeResourceManager.get().createOrUpdateResourceWithoutWait(rb);
+        }
     }
 
     // --- Internal deployment methods ---
@@ -238,7 +333,9 @@ public final class McpServerSetup {
         ClusterRoleBinding crb = KubeTestUtils.configFromYaml(
             installFile("clusterrolebinding.yaml"), ClusterRoleBinding.class);
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(new ClusterRoleBindingBuilder(crb)
-            .editFirstSubject().withNamespace(namespace).endSubject()
+            .editFirstSubject()
+                .withNamespace(namespace)
+            .endSubject()
             .build());
     }
 
@@ -249,13 +346,22 @@ public final class McpServerSetup {
             installFile("deployment.yaml"), Deployment.class);
 
         DeploymentBuilder db = new DeploymentBuilder(deployment)
-            .editMetadata().withNamespace(namespace).endMetadata()
-            .editSpec().editTemplate().editSpec()
-                .editFirstContainer()
-                    .withImage(image)
-                    .withImagePullPolicy("IfNotPresent")
-                .endContainer()
-            .endSpec().endTemplate().endSpec();
+            .editMetadata()
+                .withNamespace(namespace)
+            .endMetadata()
+            .editSpec()
+                .editTemplate()
+                    .editSpec()
+                        .editFirstContainer()
+                            .withImage(image)
+                            .withImagePullPolicy(Environment.MCP_IMAGE_PULL_POLICY)
+                            .addToEnv(new EnvVarBuilder()
+                                .withName("QUARKUS_LOG_CATEGORY__IO_STREAMSHUB_MCP__LEVEL")
+                                .withValue("DEBUG").build())
+                        .endContainer()
+                    .endSpec()
+                .endTemplate()
+            .endSpec();
 
         if (modifier != null) {
             modifier.accept(db);
@@ -266,7 +372,9 @@ public final class McpServerSetup {
         Service service = KubeTestUtils.configFromYaml(
             installFile("service.yaml"), Service.class);
         KubeResourceManager.get().createOrUpdateResourceWithoutWait(new ServiceBuilder(service)
-            .editMetadata().withNamespace(namespace).endMetadata()
+            .editMetadata()
+                .withNamespace(namespace)
+            .endMetadata()
             .build());
     }
 

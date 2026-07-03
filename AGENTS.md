@@ -640,3 +640,109 @@ Unit tests use Quarkus test framework with Mockito for Kubernetes client mocking
 System tests use kubetest4j against a real Kubernetes cluster and are skipped by default.
 
 For detailed testing documentation including test locations, patterns, system test configuration, and the systemtest module structure, see [dev/docs/TESTING.md](dev/docs/TESTING.md).
+
+### E2E (system test) best practices
+
+System tests live in `systemtest/src/test/java/io/streamshub/mcp/systemtest/` and extend `AbstractST`.
+Every test calls MCP tools via `McpAssured.McpStreamableTestClient` and validates the JSON responses.
+
+#### Always validate response content, not just success/error status
+
+Never write a tool call assertion that only checks `!isError()`. Every tool call must parse the
+JSON response and verify at least the key fields. A test that only checks `!isError()` will pass
+even if the tool returns garbage data.
+
+```java
+// BAD — passes even if response is empty or contains wrong data
+mcpClient.when()
+    .toolsCall("get_kafka_cluster", args, response -> {
+        assertFalse(response.isError(), "should not error");
+    })
+    .thenAssertResults();
+
+// GOOD — verifies the response contains the expected resource
+mcpClient.when()
+    .toolsCall("get_kafka_cluster", args, response -> {
+        JsonNode root = assertToolSuccess(response);
+        LOGGER.info("get_kafka_cluster response:\n{}", response.content().getFirst().asText().text());
+        assertEquals(CLUSTER_NAME, root.path("name").asText(), "Cluster name should match");
+        assertEquals("Ready", root.path("readiness").asText(), "Cluster should be Ready");
+        assertEquals(ns, root.path("namespace").asText(), "Namespace should match");
+    })
+    .thenAssertResults();
+```
+
+#### Use AbstractST assertion helpers
+
+`AbstractST` provides shared helpers — use them instead of repeating the same checks:
+
+- **`assertToolSuccess(response)`** — asserts `!isError()`, `!content.isEmpty()`, parses JSON. Use instead of manual `assertFalse(response.isError())` + `parseJson()`.
+- **`assertToolError(response, "not found")`** — asserts `isError()` and error message contains substrings (case-insensitive). Use for all error test cases.
+- **`assertDiagnosticReport(root)`** — validates `steps_completed` is non-empty array, `timestamp` and `message` present. Use for all `diagnose_*` and `assess_*` tool responses.
+- **`assertPodSummaryResponse(root)`** — validates `total_pods > 0`, `ready_pods >= 0`, `health_status` and `timestamp` present. Use for all `get_*_pods` tool responses.
+- **`assertLogsResponse(root, "cluster_name", expectedName)`** — validates resource name field, `pods` array, `log_lines`, `timestamp`, `message`. Use for all `get_*_logs` tool responses.
+- **`assertEventsResponse(root, resourceName, namespace)`** — validates `resource_name`, `namespace`, `total_events >= 0`, `timestamp`, `message`. Use for all `get_strimzi_events` tool responses.
+
+#### Always verify resource identity in responses
+
+Check that the response contains the correct resource name and namespace — not just that fields exist:
+
+```java
+// BAD — only checks field existence
+assertFalse(root.path("name").isMissingNode(), "Should have name");
+
+// GOOD — verifies the actual value
+assertEquals(EXPECTED_NAME, root.path("name").asText(), "Name should match");
+assertEquals(expectedNamespace, root.path("namespace").asText(), "Namespace should match");
+```
+
+#### Verify counts in list responses
+
+When the test deploys a known number of resources, verify the response count:
+
+```java
+assertEquals(3, nodePools.size(), "Should have 3 node pools (controller-np, broker-np1, broker-np2)");
+assertTrue(items.size() >= 3, "Should return at least 3 topics");
+```
+
+#### Always log tool responses
+
+Every tool call must log its response for debugging CI failures. Use shortened logging for
+large responses (logs, metrics):
+
+```java
+// Normal responses — log full content
+LOGGER.info("get_kafka_cluster response:\n{}", response.content().getFirst().asText().text());
+
+// Large responses (logs, metrics) — log length only
+LOGGER.info("get_kafka_cluster_logs response (length={})",
+    response.content().getFirst().asText().text().length());
+```
+
+#### Validate error responses properly
+
+Error test cases must verify the error message content, not just that `isError()` is true:
+
+```java
+// BAD — passes even if the error message is "NullPointerException"
+assertTrue(response.isError(), "Should error");
+
+// GOOD — verifies the error message is user-friendly
+assertToolError(response, "not found");
+```
+
+#### Parse JSON arrays properly
+
+Don't use `.toString().contains("value")` to check array contents. Iterate the array:
+
+```java
+// BAD
+assertTrue(pool.path("roles").toString().contains("controller"));
+
+// GOOD
+boolean found = false;
+for (JsonNode role : pool.path("roles")) {
+    if ("controller".equals(role.asText())) { found = true; break; }
+}
+assertTrue(found, "roles should contain 'controller'");
+```

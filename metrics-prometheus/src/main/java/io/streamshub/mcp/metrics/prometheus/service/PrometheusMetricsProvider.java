@@ -8,6 +8,8 @@ import io.quarkus.arc.lookup.LookupIfProperty;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.dto.metrics.MetricsQueryParams;
 import io.streamshub.mcp.common.service.metrics.MetricsProvider;
+import io.streamshub.mcp.common.service.metrics.MetricsQueryException;
+import io.streamshub.mcp.common.util.ExceptionUtils;
 import io.streamshub.mcp.common.util.metrics.MetricLabelFilter;
 import io.streamshub.mcp.metrics.prometheus.dto.PrometheusResponse;
 import io.streamshub.mcp.metrics.prometheus.util.PromQLSanitizer;
@@ -99,13 +101,22 @@ public class PrometheusMetricsProvider implements MetricsProvider {
     private PrometheusResponse executeQuery(final PrometheusClient client,
                                              final String promql,
                                              final MetricsQueryParams params) {
-        if (params.isRangeQuery()) {
-            String start = String.valueOf(params.startTime().getEpochSecond());
-            String end = String.valueOf(params.endTime().getEpochSecond());
-            String step = params.stepSeconds() + "s";
-            return client.rangeQuery(promql, start, end, step);
+        try {
+            if (params.isRangeQuery()) {
+                String start = String.valueOf(params.startTime().getEpochSecond());
+                String end = String.valueOf(params.endTime().getEpochSecond());
+                String step = params.stepSeconds() + "s";
+                return client.rangeQuery(promql, start, end, step);
+            }
+            return client.instantQuery(promql, null);
+        } catch (MetricsQueryException e) {
+            throw e;
+        } catch (Exception e) {
+            LOG.warnf("Failed to query Prometheus: %s", e.getMessage());
+            throw new MetricsQueryException(
+                String.format("Failed to query Prometheus at configured URL: %s",
+                    ExceptionUtils.rootCauseMessage(e)), e);
         }
-        return client.instantQuery(promql, null);
     }
 
     static void partitionMetrics(final List<String> metricNames,
@@ -192,12 +203,9 @@ public class PrometheusMetricsProvider implements MetricsProvider {
     private List<MetricSample> convertResponseWithName(final PrometheusResponse response,
                                                        final int maxSamples,
                                                        final String metricName) {
-        if (response == null || response.data() == null || response.data().result() == null) {
-            return List.of();
-        }
+        validateResponse(response);
 
-        if (!"success".equals(response.status())) {
-            LOG.warnf("Prometheus query returned non-success status: %s", response.status());
+        if (response.data().result() == null || response.data().result().isEmpty()) {
             return List.of();
         }
 
@@ -229,12 +237,9 @@ public class PrometheusMetricsProvider implements MetricsProvider {
 
     private List<MetricSample> convertResponse(final PrometheusResponse response,
                                                 final int maxSamples) {
-        if (response == null || response.data() == null || response.data().result() == null) {
-            return List.of();
-        }
+        validateResponse(response);
 
-        if (!"success".equals(response.status())) {
-            LOG.warnf("Prometheus query returned non-success status: %s", response.status());
+        if (response.data().result() == null || response.data().result().isEmpty()) {
             return List.of();
         }
 
@@ -265,6 +270,17 @@ public class PrometheusMetricsProvider implements MetricsProvider {
         }
 
         return samples;
+    }
+
+    private void validateResponse(final PrometheusResponse response) {
+        if (response == null || response.data() == null) {
+            throw new MetricsQueryException("Prometheus returned no response data. "
+                + "Check Prometheus URL configuration and connectivity.");
+        }
+        if (!"success".equals(response.status())) {
+            throw new MetricsQueryException(
+                String.format("Prometheus query failed with status '%s'", response.status()));
+        }
     }
 
     private void addSample(final List<MetricSample> samples, final String metricName,

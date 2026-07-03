@@ -174,7 +174,8 @@ public class KafkaBridgeService {
 
         PodLogsResult result = logCollectionService.collectLogs(ns, pods, options);
         return KafkaBridgeLogsResponse.of(normalizedName, ns, result.podNames(),
-            result.hasErrors(), result.errorCount(), result.totalLines(), result.hasMore(), result.logs());
+            result.hasErrors(), result.errorCount(), result.failedPods(),
+            result.totalLines(), result.hasMore(), result.logs(), result.warnings());
     }
 
     /**
@@ -255,7 +256,7 @@ public class KafkaBridgeService {
         Instant creationTime = extractCreationTime(bridge);
         Long ageMinutes = null;
         if (creationTime != null) {
-            ageMinutes = Duration.between(creationTime, Instant.now()).toMinutes();
+            ageMinutes = Math.max(0, Duration.between(creationTime, Instant.now()).toMinutes());
         }
 
         return KafkaBridgeResponse.of(

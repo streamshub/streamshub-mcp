@@ -93,7 +93,7 @@ class OperatorLogCollectionTest {
         PodLogsResult logsResult = new PodLogsResult(
             List.of("strimzi-cluster-operator-abc123"),
             "=== Pod: strimzi-cluster-operator-abc123 ===\nINFO Reconciliation complete\n",
-            0, 5, 5, false);
+            0, 5, 5, false, 0, List.of());
 
         when(logCollectionService.collectLogs(eq("strimzi"), any(), any()))
             .thenReturn(logsResult);
@@ -122,7 +122,7 @@ class OperatorLogCollectionTest {
         PodLogsResult logsResult = new PodLogsResult(
             List.of("strimzi-cluster-operator-abc123"),
             "ERROR Reconciliation #5 failed\n",
-            3, 20, 3, false);
+            3, 20, 3, false, 0, List.of());
 
         when(logCollectionService.collectLogs(eq("strimzi"), any(), any()))
             .thenReturn(logsResult);
@@ -136,6 +136,35 @@ class OperatorLogCollectionTest {
     }
 
     @Test
+    void testLogCollectionWithPartialPodFailure() {
+        Pod pod = createOperatorPod("strimzi-cluster-operator-abc123", "strimzi");
+
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("strimzi"),
+            eq(ResourceLabels.STRIMZI_KIND_LABEL), eq(StrimziConstants.KindValues.CLUSTER_OPERATOR)))
+            .thenReturn(List.of(pod));
+
+        List<String> warnings = List.of(
+            "Failed to retrieve logs from pod strimzi-cluster-operator-abc123: 403 Forbidden");
+        PodLogsResult logsResult = new PodLogsResult(
+            List.of("strimzi-cluster-operator-abc123"),
+            "=== Pod: strimzi-cluster-operator-abc123 === (logs unavailable: 403 Forbidden)\n",
+            0, 0, 0, false, 1, warnings);
+
+        when(logCollectionService.collectLogs(eq("strimzi"), any(), any()))
+            .thenReturn(logsResult);
+
+        LogCollectionParams options = LogCollectionParams.of(null, null, 200, null);
+
+        StrimziOperatorLogsResponse response = operatorService.getOperatorLogs("strimzi", null, options);
+
+        assertTrue(response.hasErrors());
+        assertEquals(1, response.failedPods());
+        assertEquals(0, response.errorCount());
+        assertEquals(1, response.warnings().size());
+        assertTrue(response.warnings().getFirst().contains("403 Forbidden"));
+    }
+
+    @Test
     void testLogCollectionPassesOptionsThrough() {
         Pod pod = createOperatorPod("strimzi-cluster-operator-abc123", "strimzi");
 
@@ -144,7 +173,7 @@ class OperatorLogCollectionTest {
             .thenReturn(List.of(pod));
 
         when(logCollectionService.collectLogs(any(), any(), any()))
-            .thenReturn(new PodLogsResult(List.of(), "", 0, 0, 0, false));
+            .thenReturn(new PodLogsResult(List.of(), "", 0, 0, 0, false, 0, List.of()));
 
         LogCollectionParams options = LogCollectionParams.builder(50)
             .filter("warnings")

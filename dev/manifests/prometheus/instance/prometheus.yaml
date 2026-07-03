@@ -57,7 +57,7 @@ spec:
   serviceAccountName: prometheus-server
   podMonitorSelector:
     matchLabels:
-      mcp: strimzi
+      app: strimzi
   podMonitorNamespaceSelector: {}
   serviceMonitorSelector: {}
   serviceMonitorNamespaceSelector: {}

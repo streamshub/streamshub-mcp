@@ -7,6 +7,7 @@ package io.streamshub.mcp.loki;
 import io.quarkus.arc.lookup.LookupIfProperty;
 import io.streamshub.mcp.common.service.log.LogCollectorProvider;
 import io.streamshub.mcp.common.service.log.LogQueryException;
+import io.streamshub.mcp.common.util.ExceptionUtils;
 import io.streamshub.mcp.loki.config.LokiConfig;
 import io.streamshub.mcp.loki.service.LokiClient;
 import io.streamshub.mcp.loki.util.LogQLSanitizer;
@@ -89,7 +90,8 @@ public class LokiLogProvider implements LogCollectorProvider {
         } catch (Exception e) {
             LOG.warnf("Failed to query Loki for pod %s/%s: %s", namespace, podName, e.getMessage());
             throw new LogQueryException(
-                String.format("Loki query failed for pod %s/%s: %s", namespace, podName, e.getMessage()), e);
+                String.format("Loki query failed for pod %s/%s: %s",
+                    namespace, podName, ExceptionUtils.rootCauseMessage(e)), e);
         }
     }
 

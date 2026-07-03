@@ -15,6 +15,8 @@ import java.util.List;
  * @param totalLines    the total number of log lines retrieved before filtering
  * @param filteredLines the number of log lines after filtering (equals totalLines when no filter)
  * @param hasMore       whether more log lines are available beyond the requested tail limit
+ * @param failedPods    the number of pods whose log fetch failed
+ * @param warnings      per-pod failure details (empty when all pods succeeded)
  */
 public record PodLogsResult(
     List<String> podNames,
@@ -22,15 +24,17 @@ public record PodLogsResult(
     int errorCount,
     int totalLines,
     int filteredLines,
-    boolean hasMore
+    boolean hasMore,
+    int failedPods,
+    List<String> warnings
 ) {
 
     /**
-     * Whether any error lines were found in the logs.
+     * Whether any error lines were found in the logs or any pod fetches failed.
      *
-     * @return true if errors were detected
+     * @return true if errors were detected or pod fetches failed
      */
     public boolean hasErrors() {
-        return errorCount > 0;
+        return errorCount > 0 || failedPods > 0;
     }
 }

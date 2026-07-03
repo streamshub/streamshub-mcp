@@ -104,7 +104,7 @@ class KafkaLogCollectionTest {
         PodLogsResult logsResult = new PodLogsResult(
             List.of("my-cluster-kafka-0"),
             "=== Pod: my-cluster-kafka-0 ===\nERROR Something failed\n",
-            1, 10, 1, false);
+            1, 10, 1, false, 0, List.of());
 
         when(logCollectionService.collectLogs(eq("kafka"), any(), any()))
             .thenReturn(logsResult);
@@ -136,7 +136,7 @@ class KafkaLogCollectionTest {
 
         PodLogsResult logsResult = new PodLogsResult(
             List.of("my-cluster-kafka-0", "my-cluster-kafka-1", "my-cluster-kafka-2"),
-            "logs from 3 pods", 0, 30, 30, false);
+            "logs from 3 pods", 0, 30, 30, false, 0, List.of());
 
         when(logCollectionService.collectLogs(eq("kafka"), any(), any()))
             .thenReturn(logsResult);
@@ -161,7 +161,7 @@ class KafkaLogCollectionTest {
 
         PodLogsResult logsResult = new PodLogsResult(
             List.of("my-cluster-kafka-0"),
-            "truncated logs", 0, 200, 200, true);
+            "truncated logs", 0, 200, 200, true, 0, List.of());
 
         when(logCollectionService.collectLogs(eq("kafka"), any(), any()))
             .thenReturn(logsResult);
@@ -174,6 +174,39 @@ class KafkaLogCollectionTest {
     }
 
     @Test
+    void testLogCollectionWithPartialPodFailure() {
+        Pod pod1 = createPod("my-cluster-kafka-0", "kafka");
+        Pod pod2 = createPod("my-cluster-kafka-1", "kafka");
+
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod1, pod2));
+
+        List<String> warnings = List.of(
+            "Failed to retrieve logs from pod my-cluster-kafka-1: connection refused");
+        PodLogsResult logsResult = new PodLogsResult(
+            List.of("my-cluster-kafka-0", "my-cluster-kafka-1"),
+            "=== Pod: my-cluster-kafka-0 ===\nlog line\n"
+                + "=== Pod: my-cluster-kafka-1 === (logs unavailable: connection refused)\n",
+            0, 1, 1, false, 1, warnings);
+
+        when(logCollectionService.collectLogs(eq("kafka"), any(), any()))
+            .thenReturn(logsResult);
+
+        LogCollectionParams options = LogCollectionParams.of(null, null, 200, null);
+
+        KafkaClusterLogsResponse response = kafkaService.getClusterLogs("kafka", "my-cluster", options);
+
+        assertNotNull(response);
+        assertTrue(response.hasErrors());
+        assertEquals(1, response.failedPods());
+        assertEquals(0, response.errorCount());
+        assertEquals(1, response.warnings().size());
+        assertTrue(response.warnings().getFirst().contains("connection refused"));
+        assertTrue(response.message().contains("1 failed"));
+    }
+
+    @Test
     void testLogCollectionPassesOptionsThrough() {
         Pod pod = createPod("my-cluster-kafka-0", "kafka");
 
@@ -182,7 +215,7 @@ class KafkaLogCollectionTest {
             .thenReturn(List.of(pod));
 
         when(logCollectionService.collectLogs(any(), any(), any()))
-            .thenReturn(new PodLogsResult(List.of(), "", 0, 0, 0, false));
+            .thenReturn(new PodLogsResult(List.of(), "", 0, 0, 0, false, 0, List.of()));
 
         LogCollectionParams options = LogCollectionParams.builder(100)
             .filter("errors")

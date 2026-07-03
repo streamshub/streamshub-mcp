@@ -5,6 +5,7 @@
 package io.streamshub.mcp.systemtest.setup.mcp;
 
 import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.NodeAddress;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
@@ -215,7 +216,7 @@ public final class ConnectivitySetup {
         return client.nodes().list().getItems().stream()
             .flatMap(node -> node.getStatus().getAddresses().stream())
             .filter(addr -> "InternalIP".equals(addr.getType()))
-            .map(io.fabric8.kubernetes.api.model.NodeAddress::getAddress)
+            .map(NodeAddress::getAddress)
             .findFirst()
             .orElseThrow(() -> new RuntimeException("No node with InternalIP found"));
     }

@@ -138,7 +138,8 @@ public class StrimziOperatorService {
 
         PodLogsResult result = logCollectionService.collectLogs(ns, pods, options);
         return StrimziOperatorLogsResponse.of(ns, result.logs(), result.podNames(),
-            result.hasErrors(), result.errorCount(), result.totalLines(), result.hasMore());
+            result.hasErrors(), result.errorCount(), result.failedPods(),
+            result.totalLines(), result.hasMore(), result.warnings());
     }
 
     /**

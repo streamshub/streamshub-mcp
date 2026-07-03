@@ -16,6 +16,9 @@ public final class Environment {
     /** MCP server container image. */
     public static final String MCP_IMAGE = ENV_VARIABLES.getOrDefault("MCP_IMAGE", "quay.io/streamshub/strimzi-mcp:latest");
 
+    /** MCP server image pull policy */
+    public static final String MCP_IMAGE_PULL_POLICY = ENV_VARIABLES.getOrDefault("MCP_IMAGE_PULL_POLICY", "IfNotPresent");
+
     /** Direct MCP URL override. When set, skips all connectivity setup (e.g. for manual port-forward). */
     public static final String MCP_URL = ENV_VARIABLES.getOrDefault("MCP_URL", null);
 

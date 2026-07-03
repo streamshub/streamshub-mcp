@@ -2,7 +2,7 @@
  * Copyright StreamsHub authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package io.streamshub.mcp.systemtest;
+package io.streamshub.mcp.systemtest.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -12,9 +12,11 @@ import io.qameta.allure.Story;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
-import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
 import io.skodjob.kubetest4j.wait.Wait;
+import io.streamshub.mcp.systemtest.AbstractST;
+import io.streamshub.mcp.systemtest.Constants;
+import io.streamshub.mcp.systemtest.Environment;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.resources.strimzi.KafkaRebalanceType;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
@@ -26,7 +28,7 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
 import io.strimzi.api.kafka.model.rebalance.KafkaRebalanceList;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +36,9 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
+import static io.streamshub.mcp.systemtest.TestTags.TOOLS;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -44,10 +49,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * KafkaRebalance scenarios correctly, including auto-rebalance
  * on scale-up and scale-down.
  */
-@KubernetesTest
-@DisplayName("KafkaRebalance MCP Tools")
 @Epic("Strimzi MCP E2E")
 @Feature("KafkaRebalance Tools")
+@Tag(REGRESSION)
+@Tag(TOOLS)
 class KafkaRebalanceToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRebalanceToolsST.class);
@@ -75,21 +80,20 @@ class KafkaRebalanceToolsST extends AbstractST {
     void setup() {
         if (!Environment.SKIP_STRIMZI_INSTALL) {
             String kafkaNs = kafkaNamespace.getMetadata().getName();
-
+            
             StrimziSetup.deploy(strimziNamespace.getMetadata().getName());
-
-            KafkaTemplates.deployMetricsConfigMap(kafkaNs);
-
+            
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
                     Constants.KAFKA_CLUSTER_NAME, 1).build(),
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
                     Constants.KAFKA_CLUSTER_NAME, INITIAL_BROKER_REPLICAS).build());
-
+            
             krm.createOrUpdateResourceWithWait(
                 KafkaTemplates.kafkaWithCruiseControl(
                     kafkaNs, Constants.KAFKA_CLUSTER_NAME, INITIAL_BROKER_REPLICAS).build());
         }
+
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
 
         String mcpUrl = ConnectivitySetup.expose(mcpNamespace.getMetadata().getName());
@@ -104,20 +108,18 @@ class KafkaRebalanceToolsST extends AbstractST {
     }
 
     // ---- Empty / Not-Found Tests ----
-
     /**
      * Verify list_kafka_rebalances returns empty when no rebalances exist.
      */
     @Test
-    @DisplayName("list_kafka_rebalances returns empty when no rebalances exist")
-    @Story("List Kafka Rebalances")
+    @Story("list_kafka_rebalances returns empty when no rebalances exist")
     void testListKafkaRebalancesEmpty() {
         waitForNoRebalances(kafkaNamespace.getMetadata().getName());
-
         Map<String, Object> args = Map.of("namespace", kafkaNamespace.getMetadata().getName());
         mcpClient.when()
             .toolsCall("list_kafka_rebalances", args, response -> {
-                assertFalse(response.isError(), "list_kafka_rebalances should not return error");
+                assertToolSuccess(response);
+
                 assertTrue(response.content().isEmpty(), "list_kafka_rebalances should return empty response");
                 LOGGER.info("list_kafka_rebalances returned empty response as expected");
             })
@@ -128,19 +130,18 @@ class KafkaRebalanceToolsST extends AbstractST {
      * Verify list_kafka_rebalances by cluster returns empty when no rebalances exist.
      */
     @Test
-    @DisplayName("list_kafka_rebalances by cluster returns empty when no rebalances exist")
-    @Story("List Kafka Rebalances")
+    @Story("list_kafka_rebalances by cluster returns empty when no rebalances exist")
     void testListKafkaRebalancesByCluster() {
         waitForNoRebalances(kafkaNamespace.getMetadata().getName());
-
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "namespace", kafkaNamespace.getMetadata().getName());
+
         mcpClient.when()
             .toolsCall("list_kafka_rebalances", args, response -> {
-                assertFalse(response.isError(), "list_kafka_rebalances should not return error");
+                assertToolSuccess(response);
+
                 assertTrue(response.content().isEmpty(), "list_kafka_rebalances should return empty response");
-                LOGGER.info("list_kafka_rebalances by cluster returned empty response as expected");
             })
             .thenAssertResults();
     }
@@ -149,34 +150,26 @@ class KafkaRebalanceToolsST extends AbstractST {
      * Verify get_kafka_rebalance returns error for nonexistent rebalance.
      */
     @Test
-    @DisplayName("get_kafka_rebalance returns error for nonexistent rebalance")
-    @Story("Get Kafka Rebalance")
+    @Story("get_kafka_rebalance returns error for nonexistent rebalance")
     void testGetKafkaRebalanceNotFound() {
         Map<String, Object> args = Map.of(
             "rebalanceName", "nonexistent-rebalance",
             "namespace", kafkaNamespace.getMetadata().getName());
         mcpClient.when()
             .toolsCall("get_kafka_rebalance", args, response -> {
-                assertTrue(response.isError(), "get_kafka_rebalance should return error for nonexistent rebalance");
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_rebalance error response:\n{}", text);
-                assertTrue(text.contains("not found"),
-                    "Error message should mention 'not found'");
+                assertToolError(response, "not found", "nonexistent-rebalance");
             })
             .thenAssertResults();
     }
 
     // ---- Manual KafkaRebalance CR Tests ----
-
     /**
      * Verify list_kafka_rebalances returns the deployed rebalance resource.
      */
     @Test
-    @DisplayName("list_kafka_rebalances returns deployed rebalance")
-    @Story("List Kafka Rebalances")
+    @Story("list_kafka_rebalances returns deployed rebalance")
     void testListKafkaRebalancesWithRebalance() {
         String kafkaNs = kafkaNamespace.getMetadata().getName();
-
         krm.createOrUpdateResourceWithoutWait(
             KafkaRebalanceTemplates.rebalance(kafkaNs, REBALANCE_NAME,
                 Constants.KAFKA_CLUSTER_NAME).build());
@@ -184,17 +177,14 @@ class KafkaRebalanceToolsST extends AbstractST {
         waitForRebalanceToAppear(kafkaNs);
 
         Map<String, Object> args = Map.of("namespace", kafkaNs);
+
         mcpClient.when()
             .toolsCall("list_kafka_rebalances", args, response -> {
-                assertFalse(response.isError(), "list_kafka_rebalances should not return error");
-                assertFalse(response.content().isEmpty(),
-                    "list_kafka_rebalances should return at least one rebalance");
+                JsonNode root = assertToolSuccess(response);
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("list_kafka_rebalances response:\n{}", json);
-
-                JsonNode root = parseJson(json);
-
+                LOGGER.info("list_kafka_rebalances response (length={})", json.length());
+                LOGGER.debug("list_kafka_rebalances response:\n{}", json);
                 JsonNode rebalance;
                 if (root.isArray()) {
                     assertTrue(root.size() >= 1, "Should have at least 1 rebalance");
@@ -202,12 +192,17 @@ class KafkaRebalanceToolsST extends AbstractST {
                 } else {
                     rebalance = root;
                 }
-                assertFalse(rebalance.path("name").isMissingNode(),
-                    "Rebalance should have 'name' field");
+                assertEquals(REBALANCE_NAME, rebalance.path("name").asText(),
+                    "Rebalance name should match");
                 assertFalse(rebalance.path("state").isMissingNode(),
                     "Rebalance should have 'state' field");
-                assertFalse(rebalance.path("cluster").isMissingNode(),
-                    "Rebalance should have 'cluster' field");
+                assertEquals(Constants.KAFKA_CLUSTER_NAME,
+                    rebalance.path("cluster").asText(),
+                    "Rebalance cluster should match");
+                assertEquals("full", rebalance.path("mode").asText(), "Rebalance mode should be 'full'");
+                assertFalse(rebalance.path("conditions").isMissingNode(), "Rebalance should have 'conditions' field");
+                assertTrue(rebalance.path("conditions").isArray() && !rebalance.path("conditions").isEmpty(),
+                    "Rebalance should have at least one condition");
             })
             .thenAssertResults();
     }
@@ -216,41 +211,43 @@ class KafkaRebalanceToolsST extends AbstractST {
      * Verify list_kafka_rebalances filtered by cluster returns the rebalance.
      */
     @Test
-    @DisplayName("list_kafka_rebalances filtered by cluster returns rebalance")
-    @Story("List Kafka Rebalances")
+    @Story("list_kafka_rebalances filtered by cluster returns rebalance")
     void testListKafkaRebalancesFilteredByCluster() {
         String kafkaNs = kafkaNamespace.getMetadata().getName();
-
         krm.createOrUpdateResourceWithoutWait(
             KafkaRebalanceTemplates.rebalance(kafkaNs, REBALANCE_NAME,
                 Constants.KAFKA_CLUSTER_NAME).build());
+
         waitForRebalanceToAppear(kafkaNs);
 
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "namespace", kafkaNs);
+
         mcpClient.when()
             .toolsCall("list_kafka_rebalances", args, response -> {
-                assertFalse(response.isError(), "list_kafka_rebalances should not return error");
-                assertFalse(response.content().isEmpty(),
-                    "Should find rebalance when filtering by cluster");
+                JsonNode root = assertToolSuccess(response);
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("list_kafka_rebalances filtered response:\n{}", json);
-
-                JsonNode root = parseJson(json);
-                boolean found = false;
+                LOGGER.info("list_kafka_rebalances filtered response (length={})", json.length());
+                LOGGER.debug("list_kafka_rebalances filtered response:\n{}", json);
+                JsonNode rebalance = null;
                 if (root.isArray()) {
-                    for (JsonNode rebalance : root) {
-                        if (REBALANCE_NAME.equals(rebalance.path("name").asText())) {
-                            found = true;
+                    for (JsonNode node : root) {
+                        if (REBALANCE_NAME.equals(node.path("name").asText())) {
+                            rebalance = node;
                             break;
                         }
                     }
                 } else if (root.isObject()) {
-                    found = REBALANCE_NAME.equals(root.path("name").asText());
+                    if (REBALANCE_NAME.equals(root.path("name").asText())) {
+                        rebalance = root;
+                    }
                 }
-                assertTrue(found, "Should find rebalance '" + REBALANCE_NAME + "' in filtered results");
+                assertFalse(rebalance == null, "Should find rebalance '" + REBALANCE_NAME + "' in filtered results");
+                assertEquals("full", rebalance.path("mode").asText(), "Mode should be 'full'");
+                assertFalse(rebalance.path("state").isMissingNode(), "Should have 'state' field");
+                assertFalse(rebalance.path("conditions").isMissingNode(), "Should have 'conditions' field");
             })
             .thenAssertResults();
     }
@@ -259,33 +256,33 @@ class KafkaRebalanceToolsST extends AbstractST {
      * Verify get_kafka_rebalance returns details for the deployed rebalance.
      */
     @Test
-    @DisplayName("get_kafka_rebalance returns detailed rebalance info")
-    @Story("Get Kafka Rebalance")
+    @Story("get_kafka_rebalance returns detailed rebalance info")
     void testGetKafkaRebalance() {
         String kafkaNs = kafkaNamespace.getMetadata().getName();
 
         krm.createOrUpdateResourceWithoutWait(
             KafkaRebalanceTemplates.rebalance(kafkaNs, REBALANCE_NAME,
                 Constants.KAFKA_CLUSTER_NAME).build());
+
         waitForRebalanceToAppear(kafkaNs);
 
         Map<String, Object> args = Map.of(
             "rebalanceName", REBALANCE_NAME,
             "namespace", kafkaNs);
+
         mcpClient.when()
             .toolsCall("get_kafka_rebalance", args, response -> {
-                assertFalse(response.isError(), "get_kafka_rebalance should not return error");
+                JsonNode rebalance = assertToolSuccess(response);
 
                 String json = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_rebalance response:\n{}", json);
-
-                JsonNode rebalance = parseJson(json);
-                assertFalse(rebalance.path("name").isMissingNode(),
-                    "Should have 'name' field");
-                assertFalse(rebalance.path("namespace").isMissingNode(),
-                    "Should have 'namespace' field");
-                assertFalse(rebalance.path("cluster").isMissingNode(),
-                    "Should have 'cluster' field");
+                LOGGER.info("get_kafka_rebalance response (length={})", json.length());
+                LOGGER.debug("get_kafka_rebalance response:\n{}", json);
+                assertEquals(REBALANCE_NAME, rebalance.path("name").asText(),
+                    "Rebalance name should match");
+                assertEquals(kafkaNs, rebalance.path("namespace").asText(),
+                    "Namespace should match");
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, rebalance.path("cluster").asText(),
+                    "Cluster should match");
                 assertFalse(rebalance.path("state").isMissingNode(),
                     "Should have 'state' field");
                 assertFalse(rebalance.path("conditions").isMissingNode(),
@@ -297,7 +294,6 @@ class KafkaRebalanceToolsST extends AbstractST {
     }
 
     // ---- Helpers ----
-
     private void waitForRebalanceToAppear(final String namespace) {
         LOGGER.info("Waiting for KafkaRebalance '{}' to appear in namespace '{}'",
             REBALANCE_NAME, namespace);

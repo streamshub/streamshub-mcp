@@ -116,7 +116,7 @@ class DrainCleanerToolsTest {
         when(drainCleanerService.getDrainCleanerLogs(any(), any(), any()))
             .thenReturn(DrainCleanerLogsResponse.of("strimzi-drain-cleaner",
                 "INFO: Drain cleaner running normally", List.of("strimzi-drain-cleaner-abc123"),
-                false, 0, 1, false));
+                false, 0, 0, 1, false, List.of()));
 
         client.when()
             .toolsCall("get_drain_cleaner_logs", Map.of(), response -> {
