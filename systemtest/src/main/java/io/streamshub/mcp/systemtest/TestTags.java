@@ -13,6 +13,11 @@ public final class TestTags {
     }
 
     /**
+     * Tag for smoke tests
+     */
+    public static final String SMOKE = "smoke";
+
+    /**
      * Tag for acceptance tests
      */
     public static final String ACCEPTANCE = "acceptance";
