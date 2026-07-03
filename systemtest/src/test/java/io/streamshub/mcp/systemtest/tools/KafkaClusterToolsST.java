@@ -623,7 +623,7 @@ class KafkaClusterToolsST extends AbstractST {
                 assertTrue(root.path("log_lines").asInt() > 100,
                     "Large request should return many log lines (got " + root.path("log_lines").asInt() + ")");
                 assertEquals(10, root.path("pods").size(), "Should have logs from all 10 pods");
-                assertFalse(root.path("has_more").asBoolean(), "Should not have more when requesting 1000 tailLines");
+                assertTrue(root.path("has_more").asBoolean(), "Should have more when requesting 10*500 tailLines");
             })
             .thenAssertResults();
     }
