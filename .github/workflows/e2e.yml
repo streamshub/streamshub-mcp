@@ -47,6 +47,9 @@ jobs:
     - name: Deploy Prometheus operator
       run: ./dev/scripts/setup-prometheus.sh deploy
 
+    - name: Deploy Loki and Promtail
+      run: ./dev/scripts/setup-loki-kind.sh deploy
+
     - name: Build MCP image and load into kind
       run: |
         ./mvnw package -pl common,metrics-prometheus,loki-log-provider,strimzi-mcp \

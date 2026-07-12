@@ -54,6 +54,12 @@ public final class Environment {
     /** Prometheus auth mode override ({@code none}, {@code sa-token}, {@code basic}). Auto-detected if not set. */
     public static final String PROMETHEUS_AUTH_MODE = ENV_VARIABLES.getOrDefault("PROMETHEUS_AUTH_MODE", null);
 
+    /** Loki URL override. When set, skips auto-discovery of Loki services. */
+    public static final String LOKI_URL = ENV_VARIABLES.getOrDefault("LOKI_URL", null);
+
+    /** Loki auth mode override ({@code none}, {@code sa-token}, {@code bearer-token}). Auto-detected if not set. */
+    public static final String LOKI_AUTH_MODE = ENV_VARIABLES.getOrDefault("LOKI_AUTH_MODE", null);
+
     private Environment() {
     }
 }
