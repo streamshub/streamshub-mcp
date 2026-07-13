@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.common.guardrail;
 
+import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolCallException;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.inject.Any;
@@ -59,7 +60,7 @@ public class GuardrailInterceptor {
         ensureInitialized();
         final List<GuardrailFilter> filters = sortedFilters;
         Method method = ctx.getMethod();
-        String toolName = method.getName();
+        String toolName = resolveToolName(method);
 
         // Apply input filters
         Object[] params = ctx.getParameters();
@@ -128,6 +129,14 @@ public class GuardrailInterceptor {
                     filter.getClass().getSimpleName(), suppressed.getMessage());
             }
         }
+    }
+
+    private static String resolveToolName(final Method method) {
+        Tool tool = method.getAnnotation(Tool.class);
+        if (tool != null && !tool.name().isEmpty()) {
+            return tool.name();
+        }
+        return method.getName();
     }
 
     private int getPriority(final GuardrailFilter filter) {
