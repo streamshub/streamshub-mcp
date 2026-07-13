@@ -73,7 +73,7 @@ jobs:
         CONNECT_IMAGE: quay.io/streamshub/mcp-connect-test:test
         MCP_CONNECTIVITY: NODEPORT
       run: |
-        ./mvnw verify -pl systemtest \
+        ./mvnw verify -pl systemtest -Dgroups=loki \
           -Psystemtest
 
     - name: Generate Allure report

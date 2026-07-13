@@ -357,7 +357,7 @@ class LogsLokiToolsST extends AbstractST {
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_cluster_logs not found via Loki (length={})", text.length());
                 LOGGER.debug("get_kafka_cluster_logs not found via Loki:\n{}", text);
-                assertToolError(response, "not found");
+                assertToolError(response, "No Kafka cluster");
             })
             .thenAssertResults();
     }
