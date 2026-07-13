@@ -94,6 +94,14 @@ jobs:
         name: allure-report
         path: allure-report/
 
+    - name: Dump Loki and Promtail logs
+      if: always()
+      run: |
+        mkdir -p systemtest/target/test-logs/logging
+        kubectl logs -n logging -l app=loki > systemtest/target/test-logs/logging/loki.log 2>&1 || true
+        kubectl logs -n logging -l app=promtail --all-containers > systemtest/target/test-logs/logging/promtail.log 2>&1 || true
+        kubectl get pods -n logging -o wide >> systemtest/target/test-logs/logging/promtail.log 2>&1 || true
+
     - name: Upload test logs
       uses: actions/upload-artifact@v7.0.1
       if: failure()
