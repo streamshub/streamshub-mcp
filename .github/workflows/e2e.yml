@@ -94,13 +94,18 @@ jobs:
         name: allure-report
         path: allure-report/
 
-    - name: Dump Loki and Promtail logs
+    - name: Dump Loki and Alloy diagnostics
       if: always()
       run: |
         mkdir -p systemtest/target/test-logs/logging
+        echo "=== Logging pods ===" > systemtest/target/test-logs/logging/diagnostics.log
+        kubectl get pods -n logging -o wide >> systemtest/target/test-logs/logging/diagnostics.log 2>&1 || true
+        echo -e "\n=== Loki labels ===" >> systemtest/target/test-logs/logging/diagnostics.log
+        kubectl exec -n logging deploy/loki -- wget -qO- 'http://localhost:3100/loki/api/v1/labels' >> systemtest/target/test-logs/logging/diagnostics.log 2>&1 || true
+        echo -e "\n=== Loki series ===" >> systemtest/target/test-logs/logging/diagnostics.log
+        kubectl exec -n logging deploy/loki -- wget -qO- 'http://localhost:3100/loki/api/v1/series?match[]={namespace=~".%2B"}' >> systemtest/target/test-logs/logging/diagnostics.log 2>&1 || true
         kubectl logs -n logging -l app=loki > systemtest/target/test-logs/logging/loki.log 2>&1 || true
-        kubectl logs -n logging -l app=promtail --all-containers > systemtest/target/test-logs/logging/promtail.log 2>&1 || true
-        kubectl get pods -n logging -o wide >> systemtest/target/test-logs/logging/promtail.log 2>&1 || true
+        kubectl logs -n logging -l app=alloy > systemtest/target/test-logs/logging/alloy.log 2>&1 || true
 
     - name: Upload test logs
       uses: actions/upload-artifact@v7.0.1

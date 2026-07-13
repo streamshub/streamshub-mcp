@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Deploy or tear down standalone Loki + Promtail for log collection in kind.
-# Deploys Loki in monolithic mode with filesystem storage and Promtail
-# as a DaemonSet for Kubernetes pod log collection.
+# Deploy or tear down standalone Loki + Alloy for log collection in kind.
+# Deploys Loki in monolithic mode with filesystem storage and Grafana Alloy
+# for Kubernetes pod log collection via the Kubernetes API.
 #
 # Usage:
-#   ./setup-loki-kind.sh deploy   - Deploy Loki + Promtail
+#   ./setup-loki-kind.sh deploy   - Deploy Loki + Alloy
 #   ./setup-loki-kind.sh teardown - Remove everything
 #   ./setup-loki-kind.sh help     - Show usage
 
@@ -40,7 +40,7 @@ check_kubectl() {
 deploy() {
     check_kubectl
 
-    log_info "Deploying Loki and Promtail..."
+    log_info "Deploying Loki and Alloy..."
     kubectl apply -k "$LOKI_KIND_DIR"
 
     log_info "Waiting for Loki to be ready..."
@@ -50,20 +50,21 @@ deploy() {
         --timeout=120s
     log_success "Loki is ready"
 
-    log_info "Waiting for Promtail to be ready..."
-    kubectl rollout status daemonset/promtail \
+    log_info "Waiting for Alloy to be ready..."
+    kubectl wait --for=condition=Available \
+        deployment/alloy \
         -n "$LOGGING_NS" \
         --timeout=120s
-    log_success "Promtail is ready"
+    log_success "Alloy is ready"
 
-    log_success "Loki + Promtail deployed successfully"
+    log_success "Loki + Alloy deployed successfully"
     log_info "In-cluster URL: http://loki.logging.svc.cluster.local:3100"
 }
 
 teardown() {
     check_kubectl
 
-    log_info "Removing Loki and Promtail..."
+    log_info "Removing Loki and Alloy..."
     kubectl delete -k "$LOKI_KIND_DIR" --ignore-not-found
 
     log_success "Loki teardown complete"
@@ -73,8 +74,8 @@ show_help() {
     echo "Usage: $(basename "$0") <command>"
     echo ""
     echo "Commands:"
-    echo "  deploy   - Deploy Loki and Promtail for log collection"
-    echo "  teardown - Remove Loki and Promtail"
+    echo "  deploy   - Deploy Loki and Alloy for log collection"
+    echo "  teardown - Remove Loki and Alloy"
     echo "  help     - Show this help message"
 }
 

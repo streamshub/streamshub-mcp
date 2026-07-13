@@ -4,5 +4,5 @@ resources:
   - namespace.yaml
   - loki-config.yaml
   - loki.yaml
-  - promtail-config.yaml
-  - promtail.yaml
+  - alloy-config.yaml
+  - alloy.yaml
