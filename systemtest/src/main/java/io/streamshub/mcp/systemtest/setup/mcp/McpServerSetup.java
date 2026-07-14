@@ -240,6 +240,40 @@ public final class McpServerSetup {
     }
 
     /**
+     * Deploy a ClusterRole and ClusterRoleBinding that grants the MCP
+     * ServiceAccount access to read application logs via the OpenShift
+     * LokiStack gateway ({@code loki.grafana.com/application} "logs" get).
+     *
+     * @param mcpNamespace namespace where the MCP ServiceAccount lives
+     */
+    @Step("Deploy Loki application-log RBAC for MCP server in namespace {mcpNamespace}")
+    public static void deployLokiRbac(final String mcpNamespace) {
+        LOGGER.info("Deploying Loki application-view RBAC for SA in {}", mcpNamespace);
+
+        ClusterRole cr = KubeTestUtils.configFromYaml(
+            optionalInstallFile("clusterrole-loki-application-view.yaml"), ClusterRole.class);
+        KubeResourceManager.get().createOrUpdateResourceWithoutWait(cr);
+
+        ClusterRoleBinding crb = new ClusterRoleBindingBuilder()
+            .withNewMetadata()
+                .withName(Constants.MCP_NAME + "-logging-application-view")
+                .addToLabels(Constants.MCP_APP_LABEL_KEY, Constants.MCP_APP_LABEL)
+            .endMetadata()
+            .withNewRoleRef()
+                .withApiGroup("rbac.authorization.k8s.io")
+                .withKind("ClusterRole")
+                .withName(cr.getMetadata().getName())
+            .endRoleRef()
+            .addNewSubject()
+                .withKind("ServiceAccount")
+                .withName(Constants.MCP_NAME)
+                .withNamespace(mcpNamespace)
+            .endSubject()
+            .build();
+        KubeResourceManager.get().createOrUpdateResourceWithoutWait(crb);
+    }
+
+    /**
      * Deploy the optional sensitive RBAC (Role + RoleBinding) that grants
      * Secret read access in the target namespace.
      *

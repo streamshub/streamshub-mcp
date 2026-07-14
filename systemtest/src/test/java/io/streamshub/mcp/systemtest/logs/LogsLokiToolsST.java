@@ -75,7 +75,8 @@ class LogsLokiToolsST extends AbstractST {
 
     private static McpAssured.McpStreamableTestClient mcpClient;
 
-    private record LokiConfig(String url, String authMode, boolean trustAll) {
+    private record LokiConfig(String url, String authMode, boolean trustAll,
+                              String namespaceLabel, String podLabel) {
     }
 
     LogsLokiToolsST() {
@@ -102,13 +103,15 @@ class LogsLokiToolsST extends AbstractST {
         LOGGER.info("Using Loki: url={}, auth={}, trustAll={}", lokiConfig.url(), lokiConfig.authMode(), lokiConfig.trustAll());
 
         if ("sa-token".equals(lokiConfig.authMode())) {
-            McpServerSetup.deployMonitoringRbac(mcpNamespace.getMetadata().getName());
+            McpServerSetup.deployLokiRbac(mcpNamespace.getMetadata().getName());
         }
 
         McpServerSetup.Builder builder = McpServerSetup.builder(mcpNamespace.getMetadata().getName())
             .withEnv("MCP_LOG_PROVIDER", "streamshub-loki")
             .withEnv("QUARKUS_REST_CLIENT_LOKI_URL", lokiConfig.url())
-            .withEnv("MCP_LOG_LOKI_AUTH_MODE", lokiConfig.authMode());
+            .withEnv("MCP_LOG_LOKI_AUTH_MODE", lokiConfig.authMode())
+            .withEnv("MCP_LOG_LOKI_LABEL_NAMESPACE", lokiConfig.namespaceLabel())
+            .withEnv("MCP_LOG_LOKI_LABEL_POD", lokiConfig.podLabel());
 
         if (lokiConfig.trustAll()) {
             builder.withEnv("QUARKUS_TLS_TRUST_ALL", "true");
@@ -182,7 +185,7 @@ class LogsLokiToolsST extends AbstractST {
 
     @Test
     @Story("get_kafka_cluster_logs with warnings filter via Loki")
-    void testGetKafkaClusterLogsWarningsFilterViaLoki() {
+    void testGetKafkaClusterLogsWarningsFilterViaLoki() throws InterruptedException {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "filter", "warnings",
@@ -366,7 +369,7 @@ class LogsLokiToolsST extends AbstractST {
         if (Environment.LOKI_URL != null && !Environment.LOKI_URL.isBlank()) {
             String authMode = Environment.LOKI_AUTH_MODE != null ? Environment.LOKI_AUTH_MODE : "none";
             LOGGER.info("Using LOKI_URL override: {}", Environment.LOKI_URL);
-            return new LokiConfig(Environment.LOKI_URL, authMode, false);
+            return new LokiConfig(Environment.LOKI_URL, authMode, false, "namespace", "pod");
         }
 
         KubernetesClient client = KubeResourceManager.get().kubeClient().getClient();
@@ -380,7 +383,7 @@ class LogsLokiToolsST extends AbstractST {
             LOGGER.info("Discovered OpenShift Logging LokiStack gateway in openshift-logging namespace");
             return new LokiConfig(
                 "https://logging-loki-gateway-http.openshift-logging.svc:8080/api/logs/v1/application",
-                authMode, true);
+                authMode, true, "kubernetes_namespace_name", "kubernetes_pod_name");
         }
 
         Service loki = client.services()
@@ -391,7 +394,7 @@ class LogsLokiToolsST extends AbstractST {
             String authMode = Environment.LOKI_AUTH_MODE != null ? Environment.LOKI_AUTH_MODE : "none";
             LOGGER.info("Discovered standalone Loki service in logging namespace");
             return new LokiConfig(
-                "http://loki.logging.svc.cluster.local:3100", authMode, false);
+                "http://loki.logging.svc.cluster.local:3100", authMode, false, "namespace", "pod");
         }
 
         throw new IllegalStateException(
