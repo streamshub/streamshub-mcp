@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static io.streamshub.mcp.systemtest.TestTags.ACCEPTANCE;
@@ -150,6 +151,11 @@ class LogsLokiToolsST extends AbstractST {
                             LOGGER.debug("get_kafka_cluster_logs via Loki response:\n{}", text);
                             assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
                             assertTrue(root.path("log_lines").asInt() > 0, "Should have log lines from Loki");
+                            assertEquals(root.path("has_errors").asBoolean(), root.path("error_count").asInt() > 0,
+                                "has_errors should be consistent with error_count");
+                            assertTrue(root.path("has_more").asBoolean(), "Should indicate more logs are available");
+                            assertFalse(root.path("logs").asText("").isEmpty(), "logs content should not be empty");
+                            assertTrue(root.path("logs").asText("").contains("=== Pod:"), "logs should contain pod log sections");
                         })
                         .thenAssertResults();
                     return true;
@@ -177,15 +183,19 @@ class LogsLokiToolsST extends AbstractST {
                 LOGGER.info("get_kafka_cluster_logs ERROR filter via Loki (length={})", text.length());
                 LOGGER.debug("get_kafka_cluster_logs ERROR filter via Loki:\n{}", text);
                 assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
-                assertTrue(root.path("log_lines").isNumber(), "log_lines should be a number");
-                assertTrue(root.path("error_count").isNumber(), "error_count should be a number");
+                int logLines = root.path("log_lines").asInt();
+                int errorCount = root.path("error_count").asInt();
+                assertEquals(errorCount, logLines,
+                    "With error filter, every returned line should be counted as an error");
+                assertEquals(root.path("has_errors").asBoolean(), errorCount > 0,
+                    "has_errors should be consistent with error_count");
             })
             .thenAssertResults();
     }
 
     @Test
     @Story("get_kafka_cluster_logs with warnings filter via Loki")
-    void testGetKafkaClusterLogsWarningsFilterViaLoki() throws InterruptedException {
+    void testGetKafkaClusterLogsWarningsFilterViaLoki() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "filter", "warnings",
@@ -199,6 +209,14 @@ class LogsLokiToolsST extends AbstractST {
                 LOGGER.info("get_kafka_cluster_logs WARNINGS filter via Loki (length={})", text.length());
                 LOGGER.debug("get_kafka_cluster_logs WARNINGS filter via Loki:\n{}", text);
                 assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
+                int logLines = root.path("log_lines").asInt();
+                int errorCount = root.path("error_count").asInt();
+                assertTrue(errorCount <= logLines,
+                    "error_count (" + errorCount + ") should not exceed log_lines (" + logLines + ")");
+                if (logLines == 0) {
+                    assertFalse(root.path("has_errors").asBoolean(), "Should have no errors when no lines");
+                    assertEquals(0, errorCount, "Error count should be 0 when no lines");
+                }
             })
             .thenAssertResults();
     }
@@ -218,13 +236,15 @@ class LogsLokiToolsST extends AbstractST {
                 LOGGER.info("get_kafka_cluster_logs keywords via Loki (length={})", text.length());
                 LOGGER.debug("get_kafka_cluster_logs keywords via Loki:\n{}", text);
                 assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
-                assertFalse(root.path("has_errors").asBoolean(), "Should have no errors");
-                assertEquals(0, root.path("error_count").asInt(), "Error count should be 0");
+                assertEquals(root.path("has_errors").asBoolean(), root.path("error_count").asInt() > 0,
+                    "has_errors should be consistent with error_count");
                 assertTrue(root.path("log_lines").asInt() > 0,
                     "Keywords filter should return matching log lines");
-                String logs = root.path("logs").asText();
-                assertTrue(logs.contains("partition") || logs.contains("leader"),
-                    "Logs should contain keyword 'partition' or 'leader'");
+                assertFalse(root.path("logs").asText("").isEmpty(), "logs content should not be empty");
+                assertTrue(root.path("logs").asText("").contains("=== Pod:"), "logs should contain pod log sections");
+                String logsLower = root.path("logs").asText().toLowerCase(Locale.ROOT);
+                assertTrue(logsLower.contains("partition") || logsLower.contains("leader"),
+                    "Logs should contain keyword 'partition' or 'leader' (case-insensitive)");
             })
             .thenAssertResults();
     }
@@ -246,6 +266,10 @@ class LogsLokiToolsST extends AbstractST {
                 assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
                 assertEquals(0, root.path("log_lines").asInt(),
                     "Non-matching filter should return zero log lines");
+                assertFalse(root.path("has_errors").asBoolean(), "Should have no errors");
+                assertEquals(0, root.path("error_count").asInt(), "Error count should be 0");
+                assertFalse(root.path("has_more").asBoolean(),
+                    "Should not have more logs when 0 lines returned");
             })
             .thenAssertResults();
     }
@@ -269,6 +293,10 @@ class LogsLokiToolsST extends AbstractST {
                 JsonNode pods = root.path("pods");
                 assertEquals(1, pods.size(), "Should contain exactly one pod");
                 assertEquals(podName, pods.get(0).asText(), "Pod name should match requested pod");
+                assertTrue(root.path("log_lines").asInt() > 0,
+                    "Should have log lines for the requested pod");
+                assertFalse(root.path("logs").asText("").isEmpty(), "logs content should not be empty");
+                assertTrue(root.path("logs").asText("").contains("=== Pod:"), "logs should contain pod log sections");
             })
             .thenAssertResults();
     }
@@ -290,6 +318,8 @@ class LogsLokiToolsST extends AbstractST {
                 assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
                 assertTrue(root.path("log_lines").asInt() > 0,
                     "Should have log lines within the last 60 minutes");
+                assertFalse(root.path("logs").asText("").isEmpty(), "logs content should not be empty");
+                assertTrue(root.path("logs").asText("").contains("=== Pod:"), "logs should contain pod log sections");
             })
             .thenAssertResults();
     }
@@ -316,6 +346,8 @@ class LogsLokiToolsST extends AbstractST {
                 assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
                 assertTrue(root.path("log_lines").asInt() > 0,
                     "Should return data within the 30-minute window");
+                assertFalse(root.path("logs").asText("").isEmpty(), "logs content should not be empty");
+                assertTrue(root.path("logs").asText("").contains("=== Pod:"), "logs should contain pod log sections");
             })
             .thenAssertResults();
     }
@@ -335,11 +367,35 @@ class LogsLokiToolsST extends AbstractST {
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_strimzi_operator_logs via Loki (length={})", text.length());
                 LOGGER.debug("get_strimzi_operator_logs via Loki:\n{}", text);
-                assertTrue(root.path("operator_pods").isArray()
-                        && !root.path("operator_pods").isEmpty(),
-                    "operator_pods should be a non-empty array");
-                assertTrue(root.path("log_lines").isNumber(), "log_lines should be a number");
+                assertOperatorLogsResponse(root, Constants.STRIMZI_NAMESPACE);
                 assertTrue(root.path("log_lines").asInt() > 0, "Should have log lines from operator");
+                assertFalse(root.path("logs").asText("").isEmpty(), "logs content should not be empty");
+                assertTrue(root.path("logs").asText("").contains("=== Pod:"), "logs should contain pod log sections");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @Story("get_strimzi_operator_logs with errors filter via Loki")
+    void testGetStrimziOperatorLogsErrorFilterViaLoki() {
+        Map<String, Object> args = Map.of(
+            "namespace", Constants.STRIMZI_NAMESPACE,
+            "filter", "errors",
+            "tailLines", 100);
+
+        mcpClient.when()
+            .toolsCall("get_strimzi_operator_logs", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_strimzi_operator_logs ERROR filter via Loki (length={})", text.length());
+                LOGGER.debug("get_strimzi_operator_logs ERROR filter via Loki:\n{}", text);
+                assertOperatorLogsResponse(root, Constants.STRIMZI_NAMESPACE);
+                int logLines = root.path("log_lines").asInt();
+                int errorCount = root.path("error_count").asInt();
+                assertEquals(errorCount, logLines,
+                    "With error filter, every returned line should be counted as an error");
+                assertEquals(root.path("has_errors").asBoolean(), errorCount > 0,
+                    "has_errors should be consistent with error_count");
             })
             .thenAssertResults();
     }

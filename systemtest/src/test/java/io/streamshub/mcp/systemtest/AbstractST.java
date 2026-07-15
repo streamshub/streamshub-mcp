@@ -253,6 +253,18 @@ public abstract class AbstractST {
         assertTrue(root.path("pods").isArray() && !root.path("pods").isEmpty(),
             "pods should be a non-empty array");
         assertTrue(root.path("log_lines").isNumber(), "log_lines should be a number");
+        assertFalse(root.path("namespace").isMissingNode(), "Should have namespace");
+        assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
+        assertFalse(root.path("message").isMissingNode(), "Should have message");
+    }
+
+    protected static void assertOperatorLogsResponse(final JsonNode root,
+                                                      final String expectedNamespace) {
+        assertEquals(expectedNamespace, root.path("namespace").asText(),
+            "namespace should match");
+        assertTrue(root.path("operator_pods").isArray() && !root.path("operator_pods").isEmpty(),
+            "operator_pods should be a non-empty array");
+        assertTrue(root.path("log_lines").isNumber(), "log_lines should be a number");
         assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
         assertFalse(root.path("message").isMissingNode(), "Should have message");
     }
