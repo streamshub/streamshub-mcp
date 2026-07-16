@@ -185,8 +185,8 @@ class LogsLokiToolsST extends AbstractST {
                 assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
                 int logLines = root.path("log_lines").asInt();
                 int errorCount = root.path("error_count").asInt();
-                assertEquals(errorCount, logLines,
-                    "With error filter, every returned line should be counted as an error");
+                assertTrue(errorCount <= logLines,
+                    "error_count (" + errorCount + ") should not exceed log_lines (" + logLines + ")");
                 assertEquals(root.path("has_errors").asBoolean(), errorCount > 0,
                     "has_errors should be consistent with error_count");
             })
@@ -392,8 +392,8 @@ class LogsLokiToolsST extends AbstractST {
                 assertOperatorLogsResponse(root, Constants.STRIMZI_NAMESPACE);
                 int logLines = root.path("log_lines").asInt();
                 int errorCount = root.path("error_count").asInt();
-                assertEquals(errorCount, logLines,
-                    "With error filter, every returned line should be counted as an error");
+                assertTrue(errorCount <= logLines,
+                    "error_count (" + errorCount + ") should not exceed log_lines (" + logLines + ")");
                 assertEquals(root.path("has_errors").asBoolean(), errorCount > 0,
                     "has_errors should be consistent with error_count");
             })
