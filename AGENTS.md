@@ -69,20 +69,47 @@ Checkstyle runs during compile phase. Fix all violations before committing.
 
 ```
 io.streamshub.mcp.common.
-├── config/         → KubernetesConstants (labels, conditions, phases, health status)
-├── dto/            → PodSummaryResponse, PodLogsResult, LogCollectionParams (generic pod DTOs)
+├── auth/           → AbstractAuthFilter (base JAX-RS client request filter for outgoing API auth),
+│                     AuthConfig (auth mode + token/credential config),
+│                     AuthHelper (reads SA token and builds Authorization headers)
+├── config/         → KubernetesConstants (labels, conditions, phases, health status),
+│                     ToolMetaFields (type/resource/composite meta field name constants)
+├── dto/            → PodSummaryResponse, PodLogsResult, LogCollectionParams (generic pod DTOs),
+│                     ConditionInfo (serialisable Kubernetes condition record),
+│                     ReplicasInfo (desired/ready/available replica counts),
+│                     ResourceEventsResult (event list with metadata),
+│                     ResourceInfo (generic name/namespace/status summary),
+│                     PaginatedResponse (generic paginated list wrapper)
 │   └── metrics/    → MetricSample, PodTarget, MetricsQueryParams, AggregatedTimeSeries,
-│                     AggregationLevel (PARTITION→TOPIC→BROKER→CLUSTER hierarchy)
+│                     AggregationLevel (PARTITION→TOPIC→BROKER→CLUSTER hierarchy),
+│                     MetricTimeSeries (labeled metric series with sample list),
+│                     TimeSeriesSummary (min/max/avg/latest summary over a series)
 ├── guardrail/      → Guarded, GuardrailFilter, GuardrailInterceptor, InputValidationFilter,
 │                     LogRedactionFilter, RateLimitFilter, ResponseSizeLimitFilter,
-│                     MetricsFilter (Micrometer tool call metrics), RateCategory
+│                     MetricsFilter (Micrometer tool call metrics), RateCategory,
+│                     JsonNodeSanitizer (recursive text-node transformer for redaction)
 ├── readiness/      → KubernetesConnectionReadinessCheck (health check for kube API)
 ├── service/        → KubernetesResourceService, PodsService, DeploymentService, CompletionHelper,
-│   │                 DiagnosticHelper (shared MCP framework utilities for diagnostic tools)
-│   ├── log/        → LogCollectionService, LogCollectorProvider, KubernetesLogProvider
-│   └── metrics/    → MetricsProvider (interface), PodScrapingMetricsProvider, MetricsQueryService
-└── util/           → InputUtils
-    └── metrics/    → PrometheusTextParser, MetricLabelFilter
+│   │                 CompletionCache (TTL-based cache for completion results),
+│   │                 DiagnosticHelper (shared MCP framework utilities for diagnostic tools),
+│   │                 BaseDiagnosticService (abstract base for all diagnostic services;
+│   │                   injects ObjectMapper + token/log config; provides performSampling/Analysis/Triage),
+│   │                 KubernetesEventsService (query Kubernetes events by resource name and kind),
+│   │                 KubernetesQueryException (typed exception for Kubernetes API failures)
+│   ├── log/        → LogCollectionService, LogCollectorProvider, KubernetesLogProvider,
+│   │                 LogFilterUtils (shared keyword/regex log line filtering),
+│   │                 LogQueryException (typed exception for log collection failures)
+│   └── metrics/    → MetricsProvider (interface), PodScrapingMetricsProvider, MetricsQueryService,
+│                     MetricsQueryException (typed exception for metrics query failures)
+└── util/           → InputUtils,
+│                     NamespaceElicitationHelper (namespace disambiguation via MCP Elicitation),
+│                     TimeRangeValidator (validates rangeMinutes vs absolute startTime/endTime),
+│                     CertificateUtils (parse and inspect X.509 certificate metadata),
+│                     ExceptionUtils (extract root-cause message without Java class names),
+│                     PaginationUtils (offset/limit helpers for paginated list responses)
+    └── metrics/    → PrometheusTextParser, MetricLabelFilter,
+                      CommonLabelExtractor (extracts shared labels from a set of metric samples),
+                      TimeSeriesCompressor (compresses constant-value runs in time series)
 ```
 
 ### Prometheus metrics module (`metrics-prometheus/`)
@@ -153,8 +180,7 @@ io.streamshub.mcp.strimzi.
 │   └── metrics/       → KafkaMetricCategories, KafkaExporterMetricCategories,
 │                        KafkaBridgeMetricCategories, KafkaConnectMetricCategories,
 │                        StrimziOperatorMetricCategories (category constants + metric name mappings)
-└── util/              → NamespaceElicitationHelper (Strimzi-specific namespace disambiguation),
-                         MetricNameResolver, TimeRangeValidator
+└── util/              → MetricNameResolver
 ```
 
 ### Layer rules
@@ -176,7 +202,7 @@ io.streamshub.mcp.strimzi.
   and time-series compression for constant-value runs.
 - **Diagnostic services** orchestrate multi-step workflows by calling existing domain services.
   They use `DiagnosticHelper` (common/) for MCP framework interactions and `NamespaceElicitationHelper`
-  (strimzi-mcp) for Strimzi-specific namespace disambiguation. Individual step failures do not abort the workflow.
+  (common/) for namespace disambiguation. Individual step failures do not abort the workflow.
 - **Metric category constants** are defined as public `static final String` fields in each `*MetricCategories` class
   (e.g., `KafkaMetricCategories.REPLICATION`). Use these constants instead of string literals when referencing
   metric categories in services, diagnostic tools, or prompts.
@@ -185,7 +211,7 @@ io.streamshub.mcp.strimzi.
 
 ```java
 @Singleton
-@WrapBusinessError(Exception.class)
+@WrapBusinessError(value = Exception.class, unless = ToolCallException.class)
 public class XxxTools {
 
     @Inject
@@ -290,7 +316,7 @@ composite tools are server-driven (server gathers all data internally).
 ```java
 @Singleton
 @Guarded
-@WrapBusinessError(Exception.class)
+@WrapBusinessError(value = Exception.class, unless = ToolCallException.class)
 public class DiagnosticTools {
 
     @Inject
@@ -352,9 +378,21 @@ Shared MCP framework utilities in `common/src/.../service/DiagnosticHelper.java`
 - `extractSamplingText(SamplingResponse)` — safe text extraction from Sampling response
 - `MAP_TYPE_REF` — reusable `TypeReference<Map<String, Object>>` for JSON parsing
 
-### NamespaceElicitationHelper (strimzi module)
+### BaseDiagnosticService (common module)
 
-Strimzi-specific namespace disambiguation in `strimzi-mcp/src/.../util/NamespaceElicitationHelper.java`:
+Abstract base class in `common/src/.../service/BaseDiagnosticService.java` that all
+diagnostic services must extend:
+- Injects `ObjectMapper` (shared Jackson mapper)
+- Binds `mcp.sampling.triage-max-tokens` → `triageMaxTokens`
+- Binds `mcp.sampling.analysis-max-tokens` → `analysisMaxTokens`
+- Binds `mcp.log.tail-lines` → `defaultTailLines`
+- `performSampling(sampling, systemPrompt, data, maxTokens)` — sends a Sampling request and returns extracted text
+- `performAnalysis(sampling, systemPrompt, fullData)` — convenience wrapper using `analysisMaxTokens`
+- `performTriage(sampling, systemPrompt, phase1Summary)` — sends triage Sampling, parses JSON response to Map
+
+### NamespaceElicitationHelper (common module)
+
+Namespace disambiguation in `common/src/.../common/util/NamespaceElicitationHelper.java`:
 - `isMultipleNamespacesError(ToolCallException)` — checks for Strimzi multi-namespace error
 - `parseNamespacesFromError(String)` — extracts namespace list from Strimzi error message
 - `elicitNamespace(ToolCallException, Elicitation, context)` — combines parsing + `DiagnosticHelper.elicitSelection`
@@ -371,7 +409,10 @@ Compose existing DTOs into a single report. Follow the naming pattern `Kafka*Dia
 ### Adding a new composite diagnostic tool
 
 1. Create the report DTO in `strimzi-mcp/src/.../strimzi/dto/`
-2. Create the diagnostic service in `strimzi-mcp/src/.../strimzi/service/` following the 3-phase pattern
+2. Create the diagnostic service in `strimzi-mcp/src/.../strimzi/service/` extending
+   `BaseDiagnosticService` (common/) — provides `objectMapper`, `triageMaxTokens`,
+   `analysisMaxTokens`, `defaultTailLines`, and the `performSampling()`, `performAnalysis()`,
+   `performTriage()` utility methods
 3. Add the `@Tool` method to `DiagnosticTools`
 4. Add the tool name to `McpDiscoveryTest.testToolDiscovery()` expected list
 5. Create a service test in `strimzi-mcp/src/test/.../strimzi/service/`
