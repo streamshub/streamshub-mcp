@@ -7,6 +7,7 @@ package io.streamshub.mcp.systemtest.clients;
 import io.qameta.allure.Step;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.wait.Wait;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +41,10 @@ public final class McpClientFactory {
     public static McpAssured.McpStreamableTestClient create(final String mcpUrl) {
         LOGGER.info("Waiting for MCP server to be reachable at {}", mcpUrl);
         waitForMcpReady(mcpUrl);
+
+        // Set all timeouts to 60s instead of default 10s.
+        // This should make tests more stable when actions will take longer time to finish.
+        Awaitility.setDefaultTimeout(Duration.ofSeconds(60));
 
         LOGGER.info("Connecting MCP streamable HTTP client to {}", mcpUrl);
         McpAssured.baseUri = URI.create(mcpUrl);
