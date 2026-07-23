@@ -67,18 +67,16 @@ public class AssessUpgradeReadinessPrompt {
             ? " Target version: " + targetVersion + "."
             : "";
 
-        String instructions = """
-            You are assessing upgrade readiness for Kafka cluster `%s`%s.%s
+        String taskSteps = """
+            Assess upgrade readiness for Kafka cluster `%s`%s.%s
 
             **IMPORTANT**: An upgrade triggers a rolling restart of all broker \
             and controller pods. The cluster must be healthy and have sufficient \
             replication headroom to tolerate individual pod restarts without \
             data unavailability.
 
-            Follow these steps in order. Each step produces a GO/NO-GO verdict. \
+            Each step produces a GO/NO-GO verdict. \
             If any step is NO-GO, the cluster is NOT ready for upgrade.
-
-            %s
 
             ## Step 1: Cluster health baseline [GO/NO-GO]
             Use `get_kafka_cluster(cluster_name='%s'%s)` to check current state.
@@ -251,7 +249,6 @@ public class AssessUpgradeReadinessPrompt {
             - Risk assessment for proceeding without meeting conditions\
             """.formatted(
                 clusterName, nsClause, versionClause,
-                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
                 clusterName, nsArg,
                 clusterName, nsArg,
                 clusterName, nsArg,
@@ -263,7 +260,8 @@ public class AssessUpgradeReadinessPrompt {
                 clusterName, nsArg);
 
         return PromptResponse.withMessages(List.of(
-            PromptMessage.withUserRole(instructions)
+            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("Kafka upgrade readiness assessment")),
+            PromptMessage.withUserRole(taskSteps)
         ));
     }
 }

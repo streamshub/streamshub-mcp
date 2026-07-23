@@ -70,6 +70,7 @@ public class TroubleshootTopicPrompt {
             InputUtils.normalizeInput(symptom));
 
         return PromptResponse.withMessages(List.of(
+            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("KafkaTopic troubleshooting")),
             PromptMessage.withUserRole(instructions)
         ));
     }
@@ -86,16 +87,11 @@ public class TroubleshootTopicPrompt {
         String clusterLead = cluster != null ? "cluster_name='" + cluster + "'" : "";
 
         return """
-            You are troubleshooting KafkaTopic `%s`%s%s.%s
+            Troubleshoot KafkaTopic `%s`%s%s.%s
 
             This workflow focuses on **topic-specific** diagnosis. For cluster-wide \
             issues, use `diagnose-cluster-issue`. For metrics analysis, use \
             `analyze-kafka-metrics`.
-
-            Follow these steps in order. After each step, analyze the results \
-            before proceeding to the next.
-
-            %s
 
             ## Step 1: Check topic status and configuration
             Use `get_kafka_topic(topic_name='%s'%s%s)` to retrieve the \
@@ -177,7 +173,6 @@ public class TroubleshootTopicPrompt {
             4. **Prevention** -- how to avoid this in the future\
             """.formatted(
                 topicName, clusterClause, nsClause, symptomClause,
-                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
                 topicName, clusterArg, nsArg,
                 clusterLead, nsArg,
                 clusterLead, nsArg,

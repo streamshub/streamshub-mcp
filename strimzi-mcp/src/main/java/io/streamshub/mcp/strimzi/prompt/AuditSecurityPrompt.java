@@ -52,13 +52,8 @@ public class AuditSecurityPrompt {
             ? " in namespace `" + namespace + "`"
             : "";
 
-        String instructions = """
-            You are performing a security audit of Kafka cluster `%s`%s.
-
-            Follow these steps in order. After each step, analyze the results \
-            before proceeding to the next.
-
-            %s
+        String taskSteps = """
+            Perform a security audit of Kafka cluster `%s`%s.
 
             ## Step 1: Gather cluster authentication configuration
             Use `get_kafka_cluster` to retrieve the cluster's listener configuration.
@@ -126,11 +121,11 @@ public class AuditSecurityPrompt {
             5. Apply principle of least privilege to overly broad ACLs
             6. Consider adding host restrictions to high-privilege rules\
             """.formatted(clusterName, nsClause,
-                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
                 clusterName, nsClause.isEmpty() ? "" : " and namespace");
 
         return PromptResponse.withMessages(List.of(
-            PromptMessage.withUserRole(instructions)
+            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("Kafka security auditing")),
+            PromptMessage.withUserRole(taskSteps)
         ));
     }
 }

@@ -60,13 +60,8 @@ public class TroubleshootConnectivityPrompt {
             ? " Focus on the `" + listenerName + "` listener."
             : "";
 
-        String instructions = """
-            You are troubleshooting connectivity to Kafka cluster `%s`%s.%s
-
-            Follow these steps in order. After each step, analyze the results \
-            before proceeding to the next.
-
-            %s
+        String taskSteps = """
+            Troubleshoot connectivity to Kafka cluster `%s`%s.%s
 
             ## Step 1: Check cluster status
             Use `get_kafka_cluster` to verify the cluster exists and is Ready.
@@ -136,11 +131,11 @@ public class TroubleshootConnectivityPrompt {
             - KafkaUser authentication and ACL status for the relevant listener
             - Any issues found that could prevent connectivity
             - Example client configuration properties for the relevant listener(s)\
-            """.formatted(clusterName, nsClause, listenerClause,
-                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION);
+            """.formatted(clusterName, nsClause, listenerClause);
 
         return PromptResponse.withMessages(List.of(
-            PromptMessage.withUserRole(instructions)
+            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("Kafka connectivity troubleshooting")),
+            PromptMessage.withUserRole(taskSteps)
         ));
     }
 }

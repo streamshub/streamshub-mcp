@@ -66,17 +66,12 @@ public class TroubleshootMirrorMakerPrompt {
             ? " The reported symptom is: " + symptom + "."
             : "";
 
-        String instructions = """
-            You are troubleshooting KafkaMirrorMaker2 `%s`%s.%s
+        String taskSteps = """
+            Troubleshoot KafkaMirrorMaker2 `%s`%s.%s
 
             KafkaMirrorMaker2 manages cross-cluster replication using MirrorSourceConnector \
             (data replication), MirrorCheckpointConnector (consumer group offset sync), \
             and MirrorHeartbeatConnector (connectivity monitoring).
-
-            Follow these steps in order. After each step, analyze the results \
-            before proceeding to the next.
-
-            %s
 
             ## Step 1: Check MM2 status and configuration
             Use `get_kafka_mirror_maker(mirror_maker_name='%s'%s)` to retrieve the MM2 \
@@ -135,14 +130,14 @@ public class TroubleshootMirrorMakerPrompt {
             - Specific remediation steps (which field in the MM2 CR to change, \
             which cluster configuration to check)\
             """.formatted(mirrorMakerName, nsClause, symptomClause,
-                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
                 mirrorMakerName, nsArg,
                 mirrorMakerName, nsArg,
                 mirrorMakerName, nsArg,
                 mirrorMakerName, nsArg);
 
         return PromptResponse.withMessages(List.of(
-            PromptMessage.withUserRole(instructions)
+            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("KafkaMirrorMaker2 troubleshooting")),
+            PromptMessage.withUserRole(taskSteps)
         ));
     }
 }

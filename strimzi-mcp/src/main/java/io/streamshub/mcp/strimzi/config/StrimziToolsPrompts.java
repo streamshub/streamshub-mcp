@@ -323,6 +323,19 @@ public final class StrimziToolsPrompts {
             + " Common types: Produce, Fetch, FetchConsumer, FetchFollower,"
             + " FindCoordinator, Metadata, JoinGroup, SyncGroup, Heartbeat.";
 
+    /**
+     * Build a consistent system message for prompt templates.
+     *
+     * @param domain the specialization area (e.g., "Kafka cluster diagnostics")
+     * @return formatted system message with behavioral rules and error handling
+     */
+    public static String systemMessage(String domain) {
+        return "You are an expert Kafka and Strimzi SRE assistant specializing in "
+            + domain + ". Use only the MCP tools available to you. "
+            + "Follow each step in order, analyzing results before proceeding. "
+            + ERROR_HANDLING_INSTRUCTION;
+    }
+
     private StrimziToolsPrompts() {
     }
 }
