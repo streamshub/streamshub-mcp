@@ -371,9 +371,10 @@ class KafkaClusterToolsST extends AbstractST {
         Map<String, Object> args = Map.of("namespace", "default");
         mcpClient.when()
             .toolsCall("list_kafka_clusters", args, response -> {
-                assertToolSuccess(response);
-                assertTrue(response.content().isEmpty(),
-                    "Should return empty content for namespace with no Kafka clusters");
+                JsonNode root = assertToolSuccess(response);
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray() && items.isEmpty(),
+                    "Should return empty items for namespace with no Kafka clusters");
             })
             .thenAssertResults();
     }
@@ -639,15 +640,15 @@ class KafkaClusterToolsST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("list_kafka_node_pools", args, response -> {
-                assertToolSuccess(response);
+                JsonNode root = assertToolSuccess(response);
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray(), "Response should contain items array");
 
-                assertEquals(3, response.content().size(),
+                assertEquals(3, items.size(),
                     "Should have 3 node pools (controller-np, broker-np1, broker-np2)");
                 java.util.Set<String> poolNames = new java.util.HashSet<>();
-                for (var entry : response.content()) {
-                    String json = entry.asText().text();
-                    LOGGER.info("list_kafka_node_pools entry:\n{}", json);
-                    JsonNode pool = parseJson(json);
+                for (JsonNode pool : items) {
+                    LOGGER.info("list_kafka_node_pools entry:\n{}", pool);
                     assertFalse(pool.path("name").isMissingNode(), "Pool should have a name");
                     poolNames.add(pool.path("name").asText());
                 }
@@ -714,13 +715,16 @@ class KafkaClusterToolsST extends AbstractST {
             "nodePoolName", "broker-np1");
         mcpClient.when()
             .toolsCall("get_kafka_node_pool_pods", args, response -> {
-                assertToolSuccess(response);
+                JsonNode root = assertToolSuccess(response);
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray(), "Response should contain items array");
 
-                assertTrue(response.content().size() >= 1,
+                assertTrue(items.size() >= 1,
                     "Should return at least one pod for broker-np1");
-                LOGGER.info("get_kafka_node_pool_pods returned {} pod(s)", response.content().size());
-                response.content().forEach(c ->
-                    LOGGER.debug("  pod: {}", c.asText().text()));
+                LOGGER.info("get_kafka_node_pool_pods returned {} pod(s)", items.size());
+                for (JsonNode pod : items) {
+                    LOGGER.debug("  pod: {}", pod);
+                }
             })
             .thenAssertResults();
     }

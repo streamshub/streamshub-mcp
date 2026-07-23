@@ -276,8 +276,11 @@ class ComplexScenariosST extends AbstractST {
                 assertFalse(response.isError(), "Tool call should not return error");
                 assertFalse(response.content().isEmpty(),
                     "Should have at least one Connect cluster");
-                JsonNode connect = parseJson(response.content().getFirst().asText().text());
-                String connectName = connect.path("name").asText();
+                JsonNode wrapper = parseJson(response.content().getFirst().asText().text());
+                JsonNode items = wrapper.path("items");
+                assertTrue(items.isArray() && !items.isEmpty(),
+                    "Should have at least one Connect cluster in items");
+                String connectName = items.get(0).path("name").asText();
                 assertFalse(connectName.isEmpty(), "Connect cluster should have a name");
                 discoveredConnect.set(connectName);
                 LOGGER.info("Step 1 - Discovered Connect cluster: {}", connectName);
@@ -292,8 +295,11 @@ class ComplexScenariosST extends AbstractST {
                     assertFalse(response.isError(), "Tool call should not return error");
                     assertFalse(response.content().isEmpty(),
                         "Should have at least one connector in the discovered Connect cluster");
-                    JsonNode connector = parseJson(response.content().getFirst().asText().text());
-                    String connectorName = connector.path("name").asText();
+                    JsonNode wrapper = parseJson(response.content().getFirst().asText().text());
+                    JsonNode items = wrapper.path("items");
+                    assertTrue(items.isArray() && !items.isEmpty(),
+                        "Should have at least one connector in items");
+                    String connectorName = items.get(0).path("name").asText();
                     assertFalse(connectorName.isEmpty(), "Connector should have a name");
                     discoveredConnector.set(connectorName);
                     LOGGER.info("Step 2 - Discovered connector: {}", connectorName);
@@ -350,7 +356,11 @@ class ComplexScenariosST extends AbstractST {
                 assertFalse(response.isError(), "Tool call should not return error");
                 assertFalse(response.content().isEmpty(),
                     "Should discover at least one operator");
-                JsonNode operator = parseJson(response.content().getFirst().asText().text());
+                JsonNode wrapper = parseJson(response.content().getFirst().asText().text());
+                JsonNode items = wrapper.path("items");
+                assertTrue(items.isArray() && !items.isEmpty(),
+                    "Should have at least one operator in items");
+                JsonNode operator = items.get(0);
                 String operatorName = operator.path("name").asText();
                 String operatorNs = operator.path("namespace").asText();
                 assertFalse(operatorName.isEmpty(), "Operator should have a name");
@@ -488,8 +498,11 @@ class ComplexScenariosST extends AbstractST {
                 assertFalse(response.isError(), "Tool call should not return error");
                 assertFalse(response.content().isEmpty(),
                     "Should discover at least one bridge");
-                JsonNode bridge = parseJson(response.content().getFirst().asText().text());
-                String bridgeName = bridge.path("name").asText();
+                JsonNode wrapper = parseJson(response.content().getFirst().asText().text());
+                JsonNode items = wrapper.path("items");
+                assertTrue(items.isArray() && !items.isEmpty(),
+                    "Should have at least one bridge in items");
+                String bridgeName = items.get(0).path("name").asText();
                 assertFalse(bridgeName.isEmpty(), "Bridge should have a name");
                 discoveredBridge.set(bridgeName);
                 LOGGER.info("Step 1 - Discovered bridge: {}", bridgeName);
