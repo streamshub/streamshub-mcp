@@ -172,8 +172,11 @@ io.streamshub.mcp.strimzi.
 │                        KafkaBridgeMetricsResponse, KafkaConnectMetricsResponse,
 │                        StrimziOperatorMetricsResponse
 ├── prompt/            → MCP prompt templates (DiagnoseClusterIssuePrompt, TroubleshootConnectivityPrompt,
+│                        TroubleshootTopicPrompt, TroubleshootConnectPrompt, TroubleshootConnectorPrompt,
+│                        TroubleshootBridgePrompt, TroubleshootMirrorMakerPrompt,
 │                        AnalyzeKafkaMetricsPrompt, AnalyzeStrimziOperatorMetricsPrompt,
-│                        TroubleshootConnectorPrompt, CompareClusterConfigsPrompt, PromptCompletions)
+│                        AnalyzeCapacityPrompt, CompareClusterConfigsPrompt, AuditSecurityPrompt,
+│                        AssessUpgradeReadinessPrompt, PromptCompletions)
 ├── resource/          → ResourceSubscriptionManager (Kubernetes watches → MCP notifications)
 ├── resource/template/ → MCP resource templates and completions (5 templates)
 ├── config/            → StrimziConstants (labels, resource URIs), StrimziToolsPrompts
@@ -437,18 +440,24 @@ They tell the LLM exactly which tools to call and in what order.
 public class XxxPrompt {
 
     @Prompt(name = "verb-noun", description = "What this workflow does.")
-    PromptMessage execute(
+    PromptResponse execute(
         @PromptArg(description = "...") final String requiredParam,
         @PromptArg(description = "...", required = false) final String optionalParam
     ) {
         String instructions = "Step-by-step instructions referencing MCP tools...";
-        return PromptMessage.withUserRole(new TextContent(instructions));
+        return PromptResponse.withMessages(List.of(
+            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("domain area")),
+            PromptMessage.withUserRole(instructions)
+        ));
     }
 }
 ```
 
 - Prompt names use `kebab-case`: `diagnose-cluster-issue`, `troubleshoot-connectivity`
-- Return `PromptMessage.withUserRole(new TextContent(...))` with step-by-step instructions
+- Return `PromptResponse.withMessages(List.of(...))` with two messages:
+  1. An **assistant-role persona** via `StrimziToolsPrompts.systemMessage("domain")` — sets the SRE expert persona
+  2. A **user-role task** with step-by-step instructions
+- Use `StrimziToolsPrompts.systemMessage()` for consistent persona across all prompts
 - Reference specific tool names in the instructions so the LLM knows what to call
 
 ## MCP Resource Template Pattern
