@@ -264,14 +264,11 @@ class MultiClusterST extends AbstractST {
             .toolsCall("list_kafka_node_pools",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME,
                     "namespace", Constants.KAFKA_NAMESPACE), response -> {
-                    assertToolSuccess(response);
-                    assertFalse(response.content().isEmpty(), "Cluster 1 should have node pools");
-                    LOGGER.info("Node pools (cluster 1): {} entries", response.content().size());
-                    LOGGER.debug("Node pools (cluster 1) response:\n{}", response.content().getFirst().asText().text());
-                    java.util.List<JsonNode> pools1 = response.content().stream()
-                        .map(c -> parseJson(c.asText().text()))
-                        .toList();
-                    for (JsonNode pool : pools1) {
+                    JsonNode root = assertToolSuccess(response);
+                    JsonNode items = root.path("items");
+                    assertTrue(items.isArray() && !items.isEmpty(), "Cluster 1 should have node pools");
+                    LOGGER.info("Node pools (cluster 1): {} entries", items.size());
+                    for (JsonNode pool : items) {
                         assertEquals(Constants.KAFKA_CLUSTER_NAME, pool.path("cluster").asText(),
                             "Node pool should belong to cluster 1");
                     }
@@ -282,14 +279,11 @@ class MultiClusterST extends AbstractST {
             .toolsCall("list_kafka_node_pools",
                 Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME_2,
                     "namespace", Constants.KAFKA_NAMESPACE), response -> {
-                    assertToolSuccess(response);
-                    assertFalse(response.content().isEmpty(), "Cluster 2 should have node pools");
-                    LOGGER.info("Node pools (cluster 2): {} entries", response.content().size());
-                    LOGGER.debug("Node pools (cluster 2) response:\n{}", response.content().getFirst().asText().text());
-                    java.util.List<JsonNode> pools2 = response.content().stream()
-                        .map(c -> parseJson(c.asText().text()))
-                        .toList();
-                    for (JsonNode pool : pools2) {
+                    JsonNode root = assertToolSuccess(response);
+                    JsonNode items = root.path("items");
+                    assertTrue(items.isArray() && !items.isEmpty(), "Cluster 2 should have node pools");
+                    LOGGER.info("Node pools (cluster 2): {} entries", items.size());
+                    for (JsonNode pool : items) {
                         assertEquals(Constants.KAFKA_CLUSTER_NAME_2, pool.path("cluster").asText(),
                             "Node pool should belong to cluster 2");
                     }

@@ -104,6 +104,9 @@ public abstract class AbstractST {
     private static final Pattern FQCN_PATTERN = Pattern.compile(
         "\\b(?!io\\.quarkiverse\\.mcp\\.server\\.ToolCallException\\b)\\w+(\\.\\w+)+\\.(\\w+Exception|\\w+Error)\\b");
 
+    private static final java.util.concurrent.atomic.AtomicInteger RESPONSE_PARSE_COUNTER =
+        new java.util.concurrent.atomic.AtomicInteger(0);
+
     /**
      * Helper method to jet json object from json string
      *
@@ -162,10 +165,19 @@ public abstract class AbstractST {
         }
         assertEquals(expectError, response.isError(),
             expectError ? "Tool call should return error" : "Tool call should not return error");
-        if (response.content().isEmpty() || expectError) {
+        if (expectError) {
             return null;
         }
-        return parseJson(response.content().getFirst().asText().text());
+        boolean useStructured = RESPONSE_PARSE_COUNTER.getAndIncrement() % 2 == 0;
+        if (useStructured && response.structuredContent() != null) {
+            LOGGER.debug("Parsing response via structuredContent (round-robin)");
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.valueToTree(response.structuredContent());
+        } else if (!response.content().isEmpty()) {
+            LOGGER.debug("Parsing response via content text (round-robin)");
+            return parseJson(response.content().getFirst().asText().text());
+        }
+        return null;
     }
 
     /**

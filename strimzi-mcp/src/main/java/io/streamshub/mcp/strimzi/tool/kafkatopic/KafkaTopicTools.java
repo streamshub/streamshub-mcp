@@ -71,7 +71,7 @@ public class KafkaTopicTools {
             description = "Maximum number of topics to return per page.",
             required = false
         ) final Integer limit,
-        @ToolArg(
+        @Min(0) @ToolArg(
             description = "Zero-based offset for pagination (default: 0).",
             required = false
         ) final Integer offset
