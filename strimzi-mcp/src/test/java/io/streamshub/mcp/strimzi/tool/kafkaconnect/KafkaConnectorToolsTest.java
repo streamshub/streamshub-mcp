@@ -69,7 +69,7 @@ class KafkaConnectorToolsTest {
         client.when()
             .toolsCall("list_kafka_connectors", Map.of(), response -> {
                 assertFalse(response.isError());
-                String json = response.content().getFirst().asText().text();
+                String json = response.structuredContent().toString();
                 assertTrue(json.contains("my-sink"));
                 assertTrue(json.contains("FileStreamSinkConnector"));
                 assertTrue(json.contains("running"));
@@ -93,7 +93,7 @@ class KafkaConnectorToolsTest {
             .toolsCall("list_kafka_connectors",
                 Map.of("connectCluster", "my-connect"), response -> {
                     assertFalse(response.isError());
-                    String json = response.content().getFirst().asText().text();
+                    String json = response.structuredContent().toString();
                     assertTrue(json.contains("my-sink"));
                     assertTrue(json.contains("my-connect"));
                 })

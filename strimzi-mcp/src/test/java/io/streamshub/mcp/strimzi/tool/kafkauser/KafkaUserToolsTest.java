@@ -68,11 +68,12 @@ class KafkaUserToolsTest {
             .toolsCall("list_kafka_users",
                 Map.of("clusterName", "my-cluster"), response -> {
                     assertFalse(response.isError());
-                    String json = response.content().getFirst().asText().text();
+                    String json = response.structuredContent().toString();
                     assertTrue(json.contains("alice"));
                     assertTrue(json.contains("scram-sha-512"));
                     assertTrue(json.contains("my-cluster"));
                     assertTrue(json.contains("\"acl_count\":3"));
+                    assertTrue(json.contains("\"count\":1"));
                 })
             .thenAssertResults();
     }
@@ -87,6 +88,8 @@ class KafkaUserToolsTest {
         client.when()
             .toolsCall("list_kafka_users", Map.of(), response -> {
                 assertFalse(response.isError());
+                String json = response.structuredContent().toString();
+                assertTrue(json.contains("\"count\":0"));
             })
             .thenAssertResults();
     }

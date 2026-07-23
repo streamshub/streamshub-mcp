@@ -105,10 +105,10 @@ class InputValidationST extends AbstractST {
     @Story("Empty cluster name is handled gracefully")
     void testEmptyClusterName() {
         Map<String, Object> args = Map.of("clusterName", "");
-        
+
         mcpClient.when()
             .toolsCall("get_kafka_cluster", args, response -> {
-                assertToolError(response, "Cluster name is required");
+                assertToolError(response, "must not be blank");
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Empty name response: {}", text);
@@ -157,7 +157,7 @@ class InputValidationST extends AbstractST {
     // ---- Numeric parameter edge cases ----
 
     @Test
-    @Story("Negative tailLines is handled gracefully")
+    @Story("Negative tailLines is rejected by input validation")
     @Tag(LOGS)
     void testNegativeTailLines() {
         Map<String, Object> args = Map.of(
@@ -166,7 +166,7 @@ class InputValidationST extends AbstractST {
         
         mcpClient.when()
             .toolsCall("get_kafka_cluster_logs", args, response -> {
-                assertToolError(response, "Failed to query Kafka across all namespaces");
+                assertToolError(response, "must be greater than or equal to 1");
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Negative tailLines response: {}", text);
@@ -176,7 +176,7 @@ class InputValidationST extends AbstractST {
     }
 
     @Test
-    @Story("Zero topic limit is handled gracefully")
+    @Story("Zero topic limit is rejected by input validation")
     void testZeroLimit() {
         Map<String, Object> args = Map.of(
             "clusterName", "any-cluster",
@@ -184,7 +184,7 @@ class InputValidationST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("list_kafka_topics", args, response -> {
-                assertToolError(response, "Failed to query KafkaTopic by strimzi.io/cluster=any-cluster across all namespaces");
+                assertToolError(response, "must be greater than or equal to 1");
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("Zero limit response: {}", text);

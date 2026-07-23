@@ -40,6 +40,7 @@ import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
 import static io.streamshub.mcp.systemtest.TestTags.TOOLS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -118,9 +119,11 @@ class KafkaRebalanceToolsST extends AbstractST {
         Map<String, Object> args = Map.of("namespace", kafkaNamespace.getMetadata().getName());
         mcpClient.when()
             .toolsCall("list_kafka_rebalances", args, response -> {
-                assertToolSuccess(response);
+                JsonNode root = assertToolSuccess(response);
 
-                assertTrue(response.content().isEmpty(), "list_kafka_rebalances should return empty response");
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray(), "Response should have items array");
+                assertEquals(0, items.size(), "list_kafka_rebalances should return empty items");
                 LOGGER.info("list_kafka_rebalances returned empty response as expected");
             })
             .thenAssertResults();
@@ -139,9 +142,11 @@ class KafkaRebalanceToolsST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("list_kafka_rebalances", args, response -> {
-                assertToolSuccess(response);
+                JsonNode root = assertToolSuccess(response);
 
-                assertTrue(response.content().isEmpty(), "list_kafka_rebalances should return empty response");
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray(), "Response should have items array");
+                assertEquals(0, items.size(), "list_kafka_rebalances should return empty items");
             })
             .thenAssertResults();
     }
@@ -185,13 +190,10 @@ class KafkaRebalanceToolsST extends AbstractST {
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("list_kafka_rebalances response (length={})", json.length());
                 LOGGER.debug("list_kafka_rebalances response:\n{}", json);
-                JsonNode rebalance;
-                if (root.isArray()) {
-                    assertTrue(root.size() >= 1, "Should have at least 1 rebalance");
-                    rebalance = root.get(0);
-                } else {
-                    rebalance = root;
-                }
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray(), "Response should have items array");
+                assertTrue(items.size() >= 1, "Should have at least 1 rebalance");
+                JsonNode rebalance = items.get(0);
                 assertEquals(REBALANCE_NAME, rebalance.path("name").asText(),
                     "Rebalance name should match");
                 assertFalse(rebalance.path("state").isMissingNode(),
@@ -231,20 +233,8 @@ class KafkaRebalanceToolsST extends AbstractST {
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("list_kafka_rebalances filtered response (length={})", json.length());
                 LOGGER.debug("list_kafka_rebalances filtered response:\n{}", json);
-                JsonNode rebalance = null;
-                if (root.isArray()) {
-                    for (JsonNode node : root) {
-                        if (REBALANCE_NAME.equals(node.path("name").asText())) {
-                            rebalance = node;
-                            break;
-                        }
-                    }
-                } else if (root.isObject()) {
-                    if (REBALANCE_NAME.equals(root.path("name").asText())) {
-                        rebalance = root;
-                    }
-                }
-                assertFalse(rebalance == null, "Should find rebalance '" + REBALANCE_NAME + "' in filtered results");
+                JsonNode rebalance = findByName(root, REBALANCE_NAME);
+                assertNotNull(rebalance, "Should find rebalance '" + REBALANCE_NAME + "' in filtered results");
                 assertEquals("full", rebalance.path("mode").asText(), "Mode should be 'full'");
                 assertFalse(rebalance.path("state").isMissingNode(), "Should have 'state' field");
                 assertFalse(rebalance.path("conditions").isMissingNode(), "Should have 'conditions' field");

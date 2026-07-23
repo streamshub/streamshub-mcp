@@ -14,10 +14,12 @@ import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserListResponse;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserResponse;
 import io.streamshub.mcp.strimzi.service.kafkauser.KafkaUserService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
 /**
@@ -46,6 +48,7 @@ public class KafkaUserTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_USER)
     @Tool(
         name = "list_kafka_users",
+        structuredContent = true,
         description = "List KafkaUsers with authentication type,"
             + " authorization, ACL count, and readiness."
             + " Optionally filter by Kafka cluster.",
@@ -56,7 +59,7 @@ public class KafkaUserTools {
             openWorldHint = false
         )
     )
-    public List<KafkaUserResponse> listKafkaUsers(
+    public KafkaUserListResponse listKafkaUsers(
         @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_FILTER_DESC,
             required = false
@@ -66,7 +69,8 @@ public class KafkaUserTools {
             required = false
         ) final String namespace
     ) {
-        return userService.listUsers(namespace, clusterName);
+        List<KafkaUserResponse> items = userService.listUsers(namespace, clusterName);
+        return new KafkaUserListResponse(items, items.size());
     }
 
     /**
@@ -81,6 +85,7 @@ public class KafkaUserTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_USER)
     @Tool(
         name = "get_kafka_user",
+        structuredContent = true,
         description = "Get detailed KafkaUser information including"
             + " ACL rules, quotas, and Kafka principal name."
             + " Never exposes credential secrets.",
@@ -92,7 +97,7 @@ public class KafkaUserTools {
         )
     )
     public KafkaUserResponse getKafkaUser(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.USER_NAME_DESC
         ) final String userName,
         @ToolArg(

@@ -26,6 +26,22 @@ Configure basic server identity and network settings.
 | `quarkus.mcp.server.server-info.name` | `strimzi-mcp` | MCP server name shown to clients |
 | `quarkus.mcp.server.server-info.version` | `1.0.0` | Server version |
 | `quarkus.http.port` | `8080` | HTTP port the server listens on |
+| `quarkus.mcp.server.tools.structured-content.compatibility-mode` | `true` | Controls how tool responses are delivered. See [Structured content](#structured-content) below. |
+
+### Structured content
+
+All tools return structured content with auto-generated output schemas, enabling MCP clients to programmatically consume tool results.
+
+| Mode | `content` (text) | `structuredContent` (JSON) | Behavior |
+|------|:-:|:-:|----------|
+| `compatibility-mode=true` (default) | Yes | Yes | Both fields are populated. Some MCP clients (including Claude) may inconsistently choose between them across sessions. |
+| `compatibility-mode=false` | No | Yes | Only `structuredContent` is populated. Forces all clients to use structured data. Recommended when your MCP client supports it (Claude, Cursor, etc.). |
+
+**Recommendation:** Set `compatibility-mode=false` if your MCP client supports structured content. This ensures the AI agent always receives typed JSON objects with schema metadata rather than plain text strings.
+
+```bash
+QUARKUS_MCP_SERVER_TOOLS_STRUCTURED_CONTENT_COMPATIBILITY_MODE=false
+```
 
 ### CORS configuration
 

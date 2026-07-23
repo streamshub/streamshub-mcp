@@ -15,10 +15,13 @@ import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolListResponse;
+import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
 import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
 /**
@@ -47,6 +50,7 @@ public class KafkaNodePoolTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_NODE_POOL)
     @Tool(
         name = "list_kafka_node_pools",
+        structuredContent = true,
         description = "List KafkaNodePools for a cluster showing roles, replicas, and storage configuration.",
         annotations = @Tool.Annotations(
             readOnlyHint = true,
@@ -55,8 +59,8 @@ public class KafkaNodePoolTools {
             openWorldHint = false
         )
     )
-    public List<KafkaNodePoolResponse> listKafkaNodePools(
-        @ToolArg(
+    public KafkaNodePoolListResponse listKafkaNodePools(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @ToolArg(
@@ -64,7 +68,8 @@ public class KafkaNodePoolTools {
             required = false
         ) final String namespace
     ) {
-        return nodePoolService.listNodePools(namespace, clusterName);
+        List<KafkaNodePoolResponse> items = nodePoolService.listNodePools(namespace, clusterName);
+        return new KafkaNodePoolListResponse(items, items.size());
     }
 
     /**
@@ -80,6 +85,7 @@ public class KafkaNodePoolTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_NODE_POOL)
     @Tool(
         name = "get_kafka_node_pool",
+        structuredContent = true,
         description = "Get detailed information about a specific KafkaNodePool including roles, replicas, and storage.",
         annotations = @Tool.Annotations(
             readOnlyHint = true,
@@ -89,10 +95,10 @@ public class KafkaNodePoolTools {
         )
     )
     public KafkaNodePoolResponse getKafkaNodePool(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = "Name of the node pool (e.g., 'kafka', 'controller')."
         ) final String nodePoolName,
         @ToolArg(
@@ -116,6 +122,7 @@ public class KafkaNodePoolTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_NODE_POOL)
     @Tool(
         name = "get_kafka_node_pool_pods",
+        structuredContent = true,
         description = "Get pod summaries for a KafkaNodePool with phase, readiness, restarts, and age.",
         annotations = @Tool.Annotations(
             readOnlyHint = true,
@@ -124,11 +131,11 @@ public class KafkaNodePoolTools {
             openWorldHint = false
         )
     )
-    public List<PodSummaryResponse.PodInfo> getKafkaNodePoolPods(
-        @ToolArg(
+    public KafkaNodePoolPodsResponse getKafkaNodePoolPods(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = "Name of the node pool (e.g., 'kafka', 'controller')."
         ) final String nodePoolName,
         @ToolArg(
@@ -136,6 +143,7 @@ public class KafkaNodePoolTools {
             required = false
         ) final String namespace
     ) {
-        return nodePoolService.getNodePoolPods(namespace, clusterName, nodePoolName);
+        List<PodSummaryResponse.PodInfo> items = nodePoolService.getNodePoolPods(namespace, clusterName, nodePoolName);
+        return new KafkaNodePoolPodsResponse(items, items.size());
     }
 }

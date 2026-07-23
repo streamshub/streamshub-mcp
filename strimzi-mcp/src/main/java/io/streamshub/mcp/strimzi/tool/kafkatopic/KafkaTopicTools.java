@@ -19,6 +19,8 @@ import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 /**
  * MCP tools for Kafka topic operations.
  */
@@ -47,6 +49,7 @@ public class KafkaTopicTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_TOPIC)
     @Tool(
         name = "list_kafka_topics",
+        structuredContent = true,
         description = "List Kafka topics for a cluster with partitions, replicas, and status."
             + " Returns paginated results (default 100 per page). Use offset to get more.",
         annotations = @Tool.Annotations(
@@ -57,18 +60,18 @@ public class KafkaTopicTools {
         )
     )
     public PaginatedResponse<KafkaTopicResponse> listKafkaTopics(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
         ) final String namespace,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = "Maximum number of topics to return per page.",
             required = false
         ) final Integer limit,
-        @ToolArg(
+        @Min(0) @ToolArg(
             description = "Zero-based offset for pagination (default: 0).",
             required = false
         ) final Integer offset
@@ -89,6 +92,7 @@ public class KafkaTopicTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_TOPIC)
     @Tool(
         name = "get_kafka_topic",
+        structuredContent = true,
         description = "Get detailed information for a specific Kafka topic including"
             + " configuration, partitions, replicas, and status.",
         annotations = @Tool.Annotations(
@@ -99,10 +103,10 @@ public class KafkaTopicTools {
         )
     )
     public KafkaTopicResponse getKafkaTopic(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = "Name of the topic (e.g., 'user-events')."
         ) final String topicName,
         @ToolArg(

@@ -70,12 +70,13 @@ class KafkaRebalanceToolsTest {
             .toolsCall("list_kafka_rebalances",
                 Map.of("clusterName", "my-cluster"), response -> {
                     assertFalse(response.isError());
-                    String json = response.content().getFirst().asText().text();
+                    String json = response.structuredContent().toString();
                     assertTrue(json.contains("my-rebalance"));
                     assertTrue(json.contains("Rebalancing"));
                     assertTrue(json.contains("full"));
                     assertTrue(json.contains("my-cluster"));
                     assertTrue(json.contains("session-123"));
+                    assertTrue(json.contains("\"count\":1"));
                 })
             .thenAssertResults();
     }
@@ -90,6 +91,8 @@ class KafkaRebalanceToolsTest {
         client.when()
             .toolsCall("list_kafka_rebalances", Map.of(), response -> {
                 assertFalse(response.isError());
+                String json = response.structuredContent().toString();
+                assertTrue(json.contains("\"count\":0"));
             })
             .thenAssertResults();
     }

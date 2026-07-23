@@ -454,16 +454,20 @@ class NamespaceScopedRbacST extends AbstractST {
         mcpClient.when()
             .toolsCall("list_strimzi_operators", args, response -> {
                 JsonNode root = assertToolSuccess(response);
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray() && !items.isEmpty(),
+                    "Should have at least one operator");
+                JsonNode operator = items.get(0);
 
-                assertEquals("strimzi-cluster-operator", root.path("name").asText());
-                assertEquals(Constants.STRIMZI_NAMESPACE, root.path("namespace").asText());
-                assertTrue(root.path("ready").asBoolean(), "Operator should be ready");
-                assertEquals(1, root.path("replicas").asInt());
-                assertEquals("HEALTHY", root.path("status").asText());
-                assertTrue(root.path("image").asText().contains("quay.io/strimzi/operator"),
+                assertEquals("strimzi-cluster-operator", operator.path("name").asText());
+                assertEquals(Constants.STRIMZI_NAMESPACE, operator.path("namespace").asText());
+                assertTrue(operator.path("ready").asBoolean(), "Operator should be ready");
+                assertEquals(1, operator.path("replicas").asInt());
+                assertEquals("HEALTHY", operator.path("status").asText());
+                assertTrue(operator.path("image").asText().contains("quay.io/strimzi/operator"),
                     "Image should be from strimzi operator registry");
 
-                LOGGER.info("list_strimzi_operators (accessible): {}", root);
+                LOGGER.info("list_strimzi_operators (accessible): {}", operator);
                 LOGGER.debug("list_strimzi_operators (accessible) response:\n{}", response.content().getFirst().asText().text());
             })
             .thenAssertResults();

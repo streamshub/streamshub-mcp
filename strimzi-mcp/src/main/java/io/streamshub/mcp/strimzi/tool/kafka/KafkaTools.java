@@ -22,6 +22,7 @@ import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterListResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
@@ -33,6 +34,8 @@ import io.streamshub.mcp.strimzi.service.kafka.KafkaFleetOverviewService;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.LinkedHashSet;
@@ -80,6 +83,7 @@ public class KafkaTools {
         description = "List Kafka clusters with status"
             + " and configuration."
             + " Optionally filter by namespace.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -87,13 +91,14 @@ public class KafkaTools {
             openWorldHint = false
         )
     )
-    public List<KafkaClusterResponse> listKafkaClusters(
+    public KafkaClusterListResponse listKafkaClusters(
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
         ) final String namespace
     ) {
-        return kafkaService.listClusters(namespace);
+        List<KafkaClusterResponse> items = kafkaService.listClusters(namespace);
+        return new KafkaClusterListResponse(items, items.size());
     }
 
     /**
@@ -108,6 +113,7 @@ public class KafkaTools {
     @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "get_kafka_fleet_overview",
+        structuredContent = true,
         description = "Get aggregated health overview across all Kafka clusters."
             + " Shows status distribution, total broker count, and clusters with warnings."
             + " Optionally filter by namespace.",
@@ -139,6 +145,7 @@ public class KafkaTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
     @Tool(
         name = "get_kafka_cluster",
+        structuredContent = true,
         description = "Get detailed information about"
             + " a specific Kafka cluster including"
             + " status, version, and configuration.",
@@ -150,7 +157,7 @@ public class KafkaTools {
         )
     )
     public KafkaClusterResponse getKafkaCluster(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @ToolArg(
@@ -174,6 +181,7 @@ public class KafkaTools {
     @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
     @Tool(
         name = "get_strimzi_kafka_cluster_overview",
+        structuredContent = true,
         description = "Get a full overview of a Kafka cluster and all related resources."
             + " Shows operator, node pools, topic/user counts, connected KafkaConnect/Bridge, and rebalances.",
         annotations = @Tool.Annotations(
@@ -184,7 +192,7 @@ public class KafkaTools {
         )
     )
     public KafkaClusterOverviewResponse getKafkaClusterOverview(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @ToolArg(
@@ -207,6 +215,7 @@ public class KafkaTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
     @Tool(
         name = "get_kafka_cluster_pods",
+        structuredContent = true,
         description = "Get pod summaries for a Kafka"
             + " cluster with component type, phase,"
             + " readiness, restarts, and age.",
@@ -218,7 +227,7 @@ public class KafkaTools {
         )
     )
     public KafkaClusterPodsResponse getKafkaClusterPods(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @ToolArg(
@@ -243,6 +252,7 @@ public class KafkaTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
     @Tool(
         name = "get_kafka_bootstrap_servers",
+        structuredContent = true,
         description = "Get bootstrap server addresses for a Kafka cluster"
             + " with listener names, types, hosts, and ports.",
         annotations = @Tool.Annotations(
@@ -253,7 +263,7 @@ public class KafkaTools {
         )
     )
     public KafkaBootstrapResponse getKafkaBootstrapServers(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @ToolArg(
@@ -277,6 +287,7 @@ public class KafkaTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
     @Tool(
         name = "get_kafka_cluster_certificates",
+        structuredContent = true,
         description = "Returns TLS certificate metadata and listener authentication"
             + " configuration for a Kafka cluster."
             + " Includes certificate expiry dates, issuers, and SANs from"
@@ -289,7 +300,7 @@ public class KafkaTools {
         )
     )
     public KafkaCertificateResponse getKafkaClusterCertificates(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @ToolArg(
@@ -327,6 +338,7 @@ public class KafkaTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
     @Tool(
         name = "get_kafka_cluster_logs",
+        structuredContent = true,
         description = "Get logs from Kafka cluster pods with error analysis."
             + " Returns logs from all pods belonging to the cluster,"
             + " or from specific pods when podNames is provided.",
@@ -340,7 +352,7 @@ public class KafkaTools {
     @RateCategory("log")
     @SuppressWarnings("checkstyle:ParameterNumber")
     public KafkaClusterLogsResponse getKafkaClusterLogs(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @ToolArg(
@@ -355,7 +367,7 @@ public class KafkaTools {
             description = StrimziToolsPrompts.KEYWORDS_DESC,
             required = false
         ) final List<String> keywords,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.SINCE_MINUTES_DESC,
             required = false
         ) final Integer sinceMinutes,
@@ -367,7 +379,7 @@ public class KafkaTools {
             description = StrimziToolsPrompts.END_TIME_DESC,
             required = false
         ) final String endTime,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.TAIL_LINES_DESC,
             required = false
         ) final Integer tailLines,

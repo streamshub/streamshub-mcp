@@ -85,10 +85,11 @@ class KafkaToolsTest {
         client.when()
             .toolsCall("list_kafka_clusters", Map.of(), response -> {
                 assertFalse(response.isError());
-                String json = response.content().getFirst().asText().text();
+                String json = response.structuredContent().toString();
                 assertTrue(json.contains("my-cluster"));
                 assertTrue(json.contains("kafka"));
                 assertTrue(json.contains("Ready"));
+                assertTrue(json.contains("\"count\":1"));
             })
             .thenAssertResults();
     }
@@ -224,7 +225,9 @@ class KafkaToolsTest {
         client.when()
             .toolsCall("list_kafka_clusters", Map.of(), response -> {
                 assertFalse(response.isError());
-                assertTrue(response.content().isEmpty());
+                String json = response.structuredContent().toString();
+                assertTrue(json.contains("\"items\":[]"));
+                assertTrue(json.contains("\"count\":0"));
             })
             .thenAssertResults();
     }
@@ -246,7 +249,7 @@ class KafkaToolsTest {
         client.when()
             .toolsCall("list_kafka_clusters", Map.of("namespace", "production"), response -> {
                 assertFalse(response.isError());
-                String json = response.content().getFirst().asText().text();
+                String json = response.structuredContent().toString();
                 assertTrue(json.contains("prod-cluster"));
                 assertTrue(json.contains("production"));
             })

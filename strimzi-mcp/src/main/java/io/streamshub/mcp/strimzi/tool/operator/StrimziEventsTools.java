@@ -18,6 +18,8 @@ import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
 import io.streamshub.mcp.strimzi.service.operator.StrimziEventsService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 /**
  * MCP tools for Strimzi Kubernetes events.
  */
@@ -50,6 +52,7 @@ public class StrimziEventsTools {
             + " For Kafka clusters (default), also includes PVC and node pool events."
             + " For KafkaConnect, KafkaMirrorMaker2, or KafkaBridge, pass the resource_kind"
             + " parameter to query events for the correct resource type.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -58,7 +61,7 @@ public class StrimziEventsTools {
         )
     )
     public StrimziEventsResponse getStrimziEvents(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = "Strimzi resource name (Kafka cluster, KafkaConnect,"
                 + " KafkaMirrorMaker2, or KafkaBridge). e.g., 'my-cluster' or 'my-connect'."
         ) final String resourceName,
@@ -66,11 +69,11 @@ public class StrimziEventsTools {
             description = StrimziToolsPrompts.NS_DESC,
             required = false
         ) final String namespace,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
             required = false
         ) final Integer sinceMinutes,
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.RESOURCE_KIND_DESC
         ) final String resourceKind
     ) {

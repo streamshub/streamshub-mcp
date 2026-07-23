@@ -152,25 +152,14 @@ class KafkaUserToolsST extends AbstractST {
             .toolsCall("list_kafka_users", args, response -> {
                 assertToolSuccess(response);
 
-                assertTrue(response.content().size() >= 2,
-                    "Should have at least 2 content entries (one per user), got "
-                        + response.content().size());
-                // Each list item is a separate content entry; find both users
-                JsonNode scramUser = null;
-                JsonNode tlsUser = null;
-                for (var entry : response.content()) {
-                    String entryJson = entry.asText().text();
-                    LOGGER.info("list_kafka_users content entry:\n{}", entryJson);
-                    JsonNode node = parseJson(entryJson);
-                    JsonNode found = findByName(node, KafkaUserTemplates.SCRAM_USER_NAME);
-                    if (found != null) {
-                        scramUser = found;
-                    }
-                    found = findByName(node, KafkaUserTemplates.TLS_USER_NAME);
-                    if (found != null) {
-                        tlsUser = found;
-                    }
-                }
+                assertFalse(response.content().isEmpty(), "Should return at least one content entry");
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("list_kafka_users response:\n{}", json);
+
+                JsonNode root = parseJson(json);
+                JsonNode scramUser = findByName(root, KafkaUserTemplates.SCRAM_USER_NAME);
+                JsonNode tlsUser = findByName(root, KafkaUserTemplates.TLS_USER_NAME);
                 assertNotNull(scramUser, "Should find SCRAM user across content entries");
                 assertEquals("scram-sha-512", scramUser.path("authentication").asText());
                 assertEquals("simple", scramUser.path("authorization").asText());
@@ -195,9 +184,13 @@ class KafkaUserToolsST extends AbstractST {
 
         mcpClient.when()
             .toolsCall("list_kafka_users", args, response -> {
-                assertFalse(response.isError(), "Tool call should not return error");
-                assertTrue(response.content().isEmpty(),
-                    "Should return empty content for nonexistent cluster");
+                JsonNode root = assertToolSuccess(response);
+
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray(), "Response should have items array");
+                assertEquals(0, items.size(),
+                    "Should return empty items array for nonexistent cluster");
+                LOGGER.info("list_kafka_users (nonexistent cluster) returned empty items as expected");
             })
             .thenAssertResults();
     }
@@ -323,4 +316,5 @@ class KafkaUserToolsST extends AbstractST {
             })
             .thenAssertResults();
     }
+
 }

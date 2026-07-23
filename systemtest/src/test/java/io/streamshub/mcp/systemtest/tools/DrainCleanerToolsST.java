@@ -132,17 +132,13 @@ class DrainCleanerToolsST extends AbstractST {
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("list_drain_cleaners (with namespace) response (length={})", json.length());
                 LOGGER.debug("list_drain_cleaners (with namespace) response:\n{}", json);
-                // May be a single object or an array
-                if (root.isArray()) {
-                    assertTrue(root.size() >= 1,
-                        "Should find at least one drain cleaner in namespace");
-                    for (JsonNode node : root) {
-                        assertEquals(Constants.DRAIN_CLEANER_NAMESPACE, node.path("namespace").asText(),
-                            "All entries should be in the specified namespace");
-                    }
-                } else {
-                    assertEquals(Constants.DRAIN_CLEANER_NAMESPACE, root.path("namespace").asText(),
-                        "Entry should be in the specified namespace");
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray(), "Response should have items array");
+                assertTrue(items.size() >= 1,
+                    "Should find at least one drain cleaner in namespace");
+                for (JsonNode node : items) {
+                    assertEquals(Constants.DRAIN_CLEANER_NAMESPACE, node.path("namespace").asText(),
+                        "All entries should be in the specified namespace");
                 }
             })
             .thenAssertResults();
