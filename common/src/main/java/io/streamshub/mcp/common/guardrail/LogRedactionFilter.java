@@ -54,7 +54,7 @@ public class LogRedactionFilter implements GuardrailFilter {
             Pattern.compile("(?i)(api[_\\-]?key|apikey)\\s*[=:]\\s*\\S+"),
             "$1=" + REDACTED),
         new RedactionRule("connection-string",
-            Pattern.compile("(?i)://[^:]+:[^@]+@"),
+            Pattern.compile("(?i)://[^:\\n]+:[^@\\n]+@"),
             "://" + REDACTED + "@"),
         new RedactionRule("base64-token",
             Pattern.compile("(?<![a-zA-Z0-9/+])[A-Za-z0-9+/]{40,}={0,2}(?![a-zA-Z0-9/+=])"),

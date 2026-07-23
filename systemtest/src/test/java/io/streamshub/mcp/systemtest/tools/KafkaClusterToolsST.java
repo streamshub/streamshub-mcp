@@ -13,6 +13,7 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.skodjob.kubetest4j.wait.Wait;
 import io.streamshub.mcp.systemtest.AbstractST;
 import io.streamshub.mcp.systemtest.Constants;
 import io.streamshub.mcp.systemtest.Environment;
@@ -31,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.streamshub.mcp.systemtest.TestTags.LOGS;
 import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
@@ -612,20 +614,33 @@ class KafkaClusterToolsST extends AbstractST {
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "tailLines", 500);
 
-        mcpClient.when()
-            .toolsCall("get_kafka_cluster_logs", args, response -> {
-                JsonNode root = assertToolSuccess(response);
+        AtomicBoolean hasMore = new AtomicBoolean(false);
+        Wait.until("pods to accumulate enough logs for has_more=true",
+            Constants.KAFKA_READY_POLL_MS, Constants.MCP_READY_TIMEOUT_MS, () -> {
+                try {
+                    mcpClient.when()
+                        .toolsCall("get_kafka_cluster_logs", args, response -> {
+                            JsonNode root = assertToolSuccess(response);
 
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_cluster_logs large request response (length={})", text.length());
-                LOGGER.debug("get_kafka_cluster_logs large request response:\n{}", text);
-                assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
-                assertTrue(root.path("log_lines").asInt() > 100,
-                    "Large request should return many log lines (got " + root.path("log_lines").asInt() + ")");
-                assertEquals(10, root.path("pods").size(), "Should have logs from all 10 pods");
-                assertTrue(root.path("has_more").asBoolean(), "Should have more when requesting 10*500 tailLines");
-            })
-            .thenAssertResults();
+                            String text = response.content().getFirst().asText().text();
+                            LOGGER.info("get_kafka_cluster_logs large request response (length={})", text.length());
+                            LOGGER.debug("get_kafka_cluster_logs large request response:\n{}", text);
+                            assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
+                            assertTrue(root.path("log_lines").asInt() > 100,
+                                "Large request should return many log lines (got "
+                                    + root.path("log_lines").asInt() + ")");
+                            assertEquals(10, root.path("pods").size(),
+                                "Should have logs from all 10 pods");
+                            hasMore.set(root.path("has_more").asBoolean());
+                        })
+                        .thenAssertResults();
+                } catch (Exception e) {
+                    LOGGER.debug("Tool call attempt failed, retrying: {}", e.getMessage());
+                    return false;
+                }
+                return hasMore.get();
+            });
+        assertTrue(hasMore.get(), "Should have more when requesting 10*500 tailLines");
     }
 
     // ---- Node Pool Tools ----
