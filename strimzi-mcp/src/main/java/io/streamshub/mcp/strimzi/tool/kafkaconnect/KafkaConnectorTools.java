@@ -14,10 +14,12 @@ import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorListResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorResponse;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectorService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
 /**
@@ -46,6 +48,7 @@ public class KafkaConnectorTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECTOR)
     @Tool(
         name = "list_kafka_connectors",
+        structuredContent = true,
         description = "List KafkaConnectors with class, state,"
             + " and task configuration. Optionally filter by"
             + " namespace or parent KafkaConnect cluster.",
@@ -56,7 +59,7 @@ public class KafkaConnectorTools {
             openWorldHint = false
         )
     )
-    public List<KafkaConnectorResponse> listKafkaConnectors(
+    public KafkaConnectorListResponse listKafkaConnectors(
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
@@ -66,7 +69,8 @@ public class KafkaConnectorTools {
             required = false
         ) final String connectCluster
     ) {
-        return connectorService.listConnectors(namespace, connectCluster);
+        List<KafkaConnectorResponse> items = connectorService.listConnectors(namespace, connectCluster);
+        return new KafkaConnectorListResponse(items, items.size());
     }
 
     /**
@@ -81,6 +85,7 @@ public class KafkaConnectorTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECTOR)
     @Tool(
         name = "get_kafka_connector",
+        structuredContent = true,
         description = "Get detailed information about a specific"
             + " KafkaConnector including class, state, tasks,"
             + " auto-restart status, topics, and configuration.",
@@ -92,7 +97,7 @@ public class KafkaConnectorTools {
         )
     )
     public KafkaConnectorResponse getKafkaConnector(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CONNECTOR_NAME_DESC
         ) final String connectorName,
         @ToolArg(

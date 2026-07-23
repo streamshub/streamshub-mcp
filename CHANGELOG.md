@@ -16,12 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Prompt template validation tests** -- unit tests for all 13 prompt templates covering null parameter safety, format validation (no unresolved `%s` placeholders or literal `null` injection), and `ERROR_HANDLING_INSTRUCTION` presence
 - **Production deployment checklist** in configuration docs covering authentication, rate limiting, CORS, TLS, and log redaction hardening
 - **Documentation audit and improvements** -- comprehensive review of all user-facing documentation for correctness and zero-experience usability
+- **Structured content output** -- all tools now return `structuredContent` with auto-generated output schemas, enabling MCP clients to programmatically consume tool results; compatibility mode ensures existing clients continue to receive text content alongside structured JSON
+- **Input validation** -- added `quarkus-mcp-server-hibernate-validator` for Jakarta Validation constraints on tool arguments (`@NotBlank` on required resource names, `@Min` on numeric parameters); constraints are enforced at runtime and enriched in JSON input schemas for LLM-visible type information
+- **Default values in tool schemas** -- exposed fixed default values (`previous`) via `@ToolArg(defaultValue)` so MCP clients can see them in the input schema
 
 ### Changed
 
 - Bumped Strimzi API dependency from 1.0.1 to 1.1.0; the MCP server remains compatible with clusters running Strimzi 1.0.1
 - Extracted `BaseDiagnosticService` base class in the `common` module -- all 9 diagnostic services now inherit shared fields (`ObjectMapper`, sampling/log config) and reusable `performSampling()`, `performAnalysis()`, `performTriage()` utility methods
 - `quarkus.kubernetes-client.trust-certs` is now scoped to the `%dev` profile only -- production builds validate Kubernetes API server certificates by default using the in-cluster CA. Override with `QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true` if needed.
+- List-returning tools now return wrapper DTOs (`KafkaClusterListResponse`, etc.) with `items` and `count` fields instead of raw lists, enabling structured content output schemas
 - Reorganized tool classes into domain sub-packages (`kafka/`, `kafkatopic/`, `operator/`, `diagnostic/`, etc.) matching the existing service and DTO package structure
 - Resource subscriptions (`mcp.resource-watches.enabled`) are now **disabled by default** because most AI clients do not yet support MCP resource subscriptions; resource templates still work for on-demand queries
 - Renamed deployment and related resources from `streamshub-strimzi-mcp` to `streamshub-mcp-strimzi` for consistent naming

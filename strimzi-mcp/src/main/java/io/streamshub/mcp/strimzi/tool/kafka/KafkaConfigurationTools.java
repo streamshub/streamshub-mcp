@@ -18,6 +18,7 @@ import io.streamshub.mcp.strimzi.dto.kafka.KafkaEffectiveConfigResponse;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaConfigService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.NotBlank;
 /**
  * MCP tools for Kafka cluster configuration inspection.
  */
@@ -44,6 +45,7 @@ public class KafkaConfigurationTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
     @Tool(
         name = "get_kafka_cluster_config",
+        structuredContent = true,
         description = "Returns the effective configuration of a Kafka cluster"
             + " including broker config, resources, JVM options, listeners,"
             + " authorization, metrics, logging, Entity Operator,"
@@ -57,7 +59,7 @@ public class KafkaConfigurationTools {
         )
     )
     public KafkaEffectiveConfigResponse getKafkaClusterConfig(
-        @ToolArg(description = StrimziToolsPrompts.CLUSTER_DESC) final String clusterName,
+        @NotBlank @ToolArg(description = StrimziToolsPrompts.CLUSTER_DESC) final String clusterName,
         @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace
     ) {
         return kafkaConfigService.getEffectiveConfig(namespace, clusterName);

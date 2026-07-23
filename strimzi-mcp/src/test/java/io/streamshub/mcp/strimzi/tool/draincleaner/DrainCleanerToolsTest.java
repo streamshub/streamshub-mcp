@@ -65,9 +65,10 @@ class DrainCleanerToolsTest {
         client.when()
             .toolsCall("list_drain_cleaners", Map.of(), response -> {
                 assertFalse(response.isError());
-                String json = response.content().getFirst().asText().text();
+                String json = response.structuredContent().toString();
                 assertTrue(json.contains("strimzi-drain-cleaner"));
                 assertTrue(json.contains("HEALTHY"));
+                assertTrue(json.contains("\"count\":1"));
             })
             .thenAssertResults();
     }
@@ -84,7 +85,7 @@ class DrainCleanerToolsTest {
             .toolsCall("list_drain_cleaners",
                 Map.of("namespace", "strimzi-drain-cleaner"), response -> {
                     assertFalse(response.isError());
-                    String json = response.content().getFirst().asText().text();
+                    String json = response.structuredContent().toString();
                     assertTrue(json.contains("strimzi-drain-cleaner"));
                 })
             .thenAssertResults();

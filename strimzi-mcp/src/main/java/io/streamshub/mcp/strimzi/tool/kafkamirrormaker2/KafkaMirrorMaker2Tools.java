@@ -20,12 +20,15 @@ import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2ListResponse;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2LogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2PodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2Response;
 import io.streamshub.mcp.strimzi.service.kafkamirrormaker2.KafkaMirrorMaker2Service;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.List;
@@ -59,6 +62,7 @@ public class KafkaMirrorMaker2Tools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_MIRROR_MAKER_2)
     @Tool(
         name = "list_kafka_mirror_makers",
+        structuredContent = true,
         description = "List KafkaMirrorMaker2 instances with status,"
             + " replicas, and source/target cluster pairs."
             + " Optionally filter by namespace.",
@@ -69,13 +73,14 @@ public class KafkaMirrorMaker2Tools {
             openWorldHint = false
         )
     )
-    public List<KafkaMirrorMaker2Response> listKafkaMirrorMakers(
+    public KafkaMirrorMaker2ListResponse listKafkaMirrorMakers(
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
         ) final String namespace
     ) {
-        return mirrorMakerService.listMirrorMakers(namespace);
+        List<KafkaMirrorMaker2Response> items = mirrorMakerService.listMirrorMakers(namespace);
+        return new KafkaMirrorMaker2ListResponse(items, items.size());
     }
 
     /**
@@ -90,6 +95,7 @@ public class KafkaMirrorMaker2Tools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_MIRROR_MAKER_2)
     @Tool(
         name = "get_kafka_mirror_maker",
+        structuredContent = true,
         description = "Get detailed KafkaMirrorMaker2 information including"
             + " mirror configurations, cluster connections, connector statuses,"
             + " and replication topic/group patterns.",
@@ -101,7 +107,7 @@ public class KafkaMirrorMaker2Tools {
         )
     )
     public KafkaMirrorMaker2Response getKafkaMirrorMaker(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.MIRROR_MAKER_NAME_DESC
         ) final String mirrorMakerName,
         @ToolArg(
@@ -124,6 +130,7 @@ public class KafkaMirrorMaker2Tools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_MIRROR_MAKER_2)
     @Tool(
         name = "get_kafka_mirror_maker_pods",
+        structuredContent = true,
         description = "Get pod summaries for a KafkaMirrorMaker2 instance"
             + " with phase, readiness, restart counts, and age.",
         annotations = @Tool.Annotations(
@@ -134,7 +141,7 @@ public class KafkaMirrorMaker2Tools {
         )
     )
     public KafkaMirrorMaker2PodsResponse getKafkaMirrorMakerPods(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.MIRROR_MAKER_NAME_DESC
         ) final String mirrorMakerName,
         @ToolArg(
@@ -168,6 +175,7 @@ public class KafkaMirrorMaker2Tools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_MIRROR_MAKER_2)
     @Tool(
         name = "get_kafka_mirror_maker_logs",
+        structuredContent = true,
         description = "Get logs from KafkaMirrorMaker2 pods with error analysis."
             + " Supports filtering, time ranges, and keyword search.",
         annotations = @Tool.Annotations(
@@ -179,14 +187,14 @@ public class KafkaMirrorMaker2Tools {
     )
     @RateCategory("log")
     public KafkaMirrorMaker2LogsResponse getKafkaMirrorMakerLogs(
-        @ToolArg(description = StrimziToolsPrompts.MIRROR_MAKER_NAME_DESC) final String mirrorMakerName,
+        @NotBlank @ToolArg(description = StrimziToolsPrompts.MIRROR_MAKER_NAME_DESC) final String mirrorMakerName,
         @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
         @ToolArg(description = StrimziToolsPrompts.LOG_FILTER_DESC, required = false) final String filter,
         @ToolArg(description = StrimziToolsPrompts.KEYWORDS_DESC, required = false) final List<String> keywords,
-        @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_DESC, required = false) final Integer sinceMinutes,
+        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_DESC, required = false) final Integer sinceMinutes,
         @ToolArg(description = StrimziToolsPrompts.START_TIME_DESC, required = false) final String startTime,
         @ToolArg(description = StrimziToolsPrompts.END_TIME_DESC, required = false) final String endTime,
-        @ToolArg(description = StrimziToolsPrompts.TAIL_LINES_DESC, required = false) final Integer tailLines,
+        @Min(1) @ToolArg(description = StrimziToolsPrompts.TAIL_LINES_DESC, required = false) final Integer tailLines,
         @ToolArg(description = StrimziToolsPrompts.PREVIOUS_DESC, required = false) final Boolean previous,
         final McpLog mcpLog,
         final Progress progress,

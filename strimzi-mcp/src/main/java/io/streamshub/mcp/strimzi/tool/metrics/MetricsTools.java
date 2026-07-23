@@ -27,6 +27,8 @@ import io.streamshub.mcp.strimzi.service.metrics.KafkaMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.StrimziOperatorMetricsService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 /**
  * MCP tools for metrics retrieval from Kafka clusters and Strimzi operators.
  */
@@ -76,6 +78,7 @@ public class MetricsTools {
         name = "get_kafka_metrics",
         description = "Retrieves Prometheus metrics from Kafka cluster pods by category or explicit metric names."
             + " Returns samples with an interpretation guide for thresholds and diagnostics.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -85,7 +88,7 @@ public class MetricsTools {
     )
     @RateCategory("metrics")
     public KafkaMetricsResponse getKafkaMetrics(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @ToolArg(
@@ -100,7 +103,7 @@ public class MetricsTools {
             description = StrimziToolsPrompts.METRICS_NAMES_DESC,
             required = false
         ) final String metricNames,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.RANGE_MINUTES_DESC,
             required = false
         ) final Integer rangeMinutes,
@@ -112,7 +115,7 @@ public class MetricsTools {
             description = StrimziToolsPrompts.END_TIME_DESC,
             required = false
         ) final String endTime,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.STEP_SECONDS_DESC,
             required = false
         ) final Integer stepSeconds,
@@ -151,6 +154,7 @@ public class MetricsTools {
         name = "get_kafka_exporter_metrics",
         description = "Retrieves Prometheus metrics from Kafka Exporter pods by category or explicit metric names."
             + " Returns consumer group lag, topic partition offsets, and JVM metrics with interpretation guide.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -160,7 +164,7 @@ public class MetricsTools {
     )
     @RateCategory("metrics")
     public KafkaExporterMetricsResponse getKafkaExporterMetrics(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @ToolArg(
@@ -175,7 +179,7 @@ public class MetricsTools {
             description = StrimziToolsPrompts.METRICS_NAMES_DESC,
             required = false
         ) final String metricNames,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.RANGE_MINUTES_DESC,
             required = false
         ) final Integer rangeMinutes,
@@ -187,7 +191,7 @@ public class MetricsTools {
             description = StrimziToolsPrompts.END_TIME_DESC,
             required = false
         ) final String endTime,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.STEP_SECONDS_DESC,
             required = false
         ) final Integer stepSeconds,
@@ -220,6 +224,7 @@ public class MetricsTools {
         name = "get_kafka_bridge_metrics",
         description = "Retrieves Prometheus metrics from KafkaBridge pods by category or explicit metric names."
             + " Returns HTTP request, producer, consumer, and JVM metrics with interpretation guide.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -229,7 +234,7 @@ public class MetricsTools {
     )
     @RateCategory("metrics")
     public KafkaBridgeMetricsResponse getKafkaBridgeMetrics(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.BRIDGE_NAME_DESC
         ) final String bridgeName,
         @ToolArg(
@@ -244,7 +249,7 @@ public class MetricsTools {
             description = StrimziToolsPrompts.METRICS_NAMES_DESC,
             required = false
         ) final String metricNames,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.RANGE_MINUTES_DESC,
             required = false
         ) final Integer rangeMinutes,
@@ -256,7 +261,7 @@ public class MetricsTools {
             description = StrimziToolsPrompts.END_TIME_DESC,
             required = false
         ) final String endTime,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.STEP_SECONDS_DESC,
             required = false
         ) final Integer stepSeconds,
@@ -290,6 +295,7 @@ public class MetricsTools {
         name = "get_kafka_connect_metrics",
         description = "Retrieves Prometheus metrics from KafkaConnect pods by category or explicit metric names."
             + " Returns worker, connector, source, sink, and JVM metrics with interpretation guide.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -299,7 +305,7 @@ public class MetricsTools {
     )
     @RateCategory("metrics")
     public KafkaConnectMetricsResponse getKafkaConnectMetrics(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CONNECT_CLUSTER_DESC
         ) final String connectName,
         @ToolArg(
@@ -314,7 +320,7 @@ public class MetricsTools {
             description = StrimziToolsPrompts.METRICS_NAMES_DESC,
             required = false
         ) final String metricNames,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.RANGE_MINUTES_DESC,
             required = false
         ) final Integer rangeMinutes,
@@ -326,7 +332,7 @@ public class MetricsTools {
             description = StrimziToolsPrompts.END_TIME_DESC,
             required = false
         ) final String endTime,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.STEP_SECONDS_DESC,
             required = false
         ) final Integer stepSeconds,
@@ -364,6 +370,7 @@ public class MetricsTools {
         description = "Retrieves Prometheus metrics from Strimzi operator pods by category or explicit metric names."
             + " When clusterName is provided, also includes entity operator (user-operator and topic-operator) metrics."
             + " Returns samples with an interpretation guide for thresholds and diagnostics.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -393,7 +400,7 @@ public class MetricsTools {
             description = StrimziToolsPrompts.METRICS_NAMES_DESC,
             required = false
         ) final String metricNames,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.RANGE_MINUTES_DESC,
             required = false
         ) final Integer rangeMinutes,
@@ -405,7 +412,7 @@ public class MetricsTools {
             description = StrimziToolsPrompts.END_TIME_DESC,
             required = false
         ) final String endTime,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.STEP_SECONDS_DESC,
             required = false
         ) final Integer stepSeconds,

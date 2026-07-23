@@ -22,11 +22,14 @@ import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorListResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorLogsResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorResponse;
 import io.streamshub.mcp.strimzi.service.operator.StrimziOperatorService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.List;
@@ -65,6 +68,7 @@ public class StrimziOperatorTools {
         name = "list_strimzi_operators",
         description = "List Strimzi cluster operators with deployment status and health."
             + " Optionally filter by namespace.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -72,13 +76,14 @@ public class StrimziOperatorTools {
             openWorldHint = false
         )
     )
-    public List<StrimziOperatorResponse> listStrimziOperators(
+    public StrimziOperatorListResponse listStrimziOperators(
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
         ) final String namespace
     ) {
-        return operatorService.listOperators(namespace);
+        List<StrimziOperatorResponse> items = operatorService.listOperators(namespace);
+        return new StrimziOperatorListResponse(items, items.size());
     }
 
     /**
@@ -93,6 +98,7 @@ public class StrimziOperatorTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)
     @Tool(
         name = "get_strimzi_operator",
+        structuredContent = true,
         description = "Get detailed information about a specific Strimzi operator"
             + " including status, version, image, and uptime.",
         annotations = @Tool.Annotations(
@@ -103,7 +109,7 @@ public class StrimziOperatorTools {
         )
     )
     public StrimziOperatorResponse getStrimziOperator(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = "Name of the operator deployment (e.g., 'strimzi-cluster-operator')."
         ) final String operatorName,
         @ToolArg(
@@ -135,6 +141,7 @@ public class StrimziOperatorTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)
     @Tool(
         name = "get_strimzi_operator_logs",
+        structuredContent = true,
         description = "Get logs from Strimzi operator pods with error analysis."
             + " Returns logs from all operator pods.",
         annotations = @Tool.Annotations(
@@ -158,7 +165,7 @@ public class StrimziOperatorTools {
             description = StrimziToolsPrompts.KEYWORDS_DESC,
             required = false
         ) final List<String> keywords,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.SINCE_MINUTES_DESC,
             required = false
         ) final Integer sinceMinutes,
@@ -170,7 +177,7 @@ public class StrimziOperatorTools {
             description = StrimziToolsPrompts.END_TIME_DESC,
             required = false
         ) final String endTime,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.TAIL_LINES_DESC,
             required = false
         ) final Integer tailLines,
@@ -217,6 +224,7 @@ public class StrimziOperatorTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)
     @Tool(
         name = "get_strimzi_operator_pod",
+        structuredContent = true,
         description = "Get detailed description of a Strimzi operator pod including"
             + " environment, resources, volumes, and conditions.",
         annotations = @Tool.Annotations(
@@ -227,10 +235,10 @@ public class StrimziOperatorTools {
         )
     )
     public PodSummaryResponse getStrimziOperatorPod(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = "Kubernetes namespace where the operator pod is deployed."
         ) final String namespace,
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = "Name of the pod (e.g., 'strimzi-cluster-operator-557fd4bbc-666r6')."
         ) final String podName,
         @ToolArg(

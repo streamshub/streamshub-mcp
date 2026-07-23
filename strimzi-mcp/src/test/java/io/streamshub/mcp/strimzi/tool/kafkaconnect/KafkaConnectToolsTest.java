@@ -72,7 +72,7 @@ class KafkaConnectToolsTest {
         client.when()
             .toolsCall("list_kafka_connects", Map.of(), response -> {
                 assertFalse(response.isError());
-                String json = response.content().getFirst().asText().text();
+                String json = response.structuredContent().toString();
                 assertTrue(json.contains("my-connect"));
                 assertTrue(json.contains("Ready"));
             })

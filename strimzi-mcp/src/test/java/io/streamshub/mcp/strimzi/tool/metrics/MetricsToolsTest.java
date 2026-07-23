@@ -147,10 +147,11 @@ class MetricsToolsTest {
         client.when()
             .toolsCall("list_kafka_clusters", Map.of(), response -> {
                 assertFalse(response.isError());
-                String json = response.content().getFirst().asText().text();
+                String json = response.structuredContent().toString();
                 assertTrue(json.contains("my-cluster"));
                 assertTrue(json.contains("kafka"));
                 assertTrue(json.contains("Ready"));
+                assertTrue(json.contains("\"count\":1"));
             })
             .thenAssertResults();
     }
@@ -262,9 +263,10 @@ class MetricsToolsTest {
         client.when()
             .toolsCall("list_kafka_node_pools", Map.of("clusterName", "my-cluster"), response -> {
                 assertFalse(response.isError());
-                String json = response.content().getFirst().asText().text();
+                String json = response.structuredContent().toString();
                 assertTrue(json.contains("broker"));
                 assertTrue(json.contains("my-cluster"));
+                assertTrue(json.contains("\"count\":1"));
             })
             .thenAssertResults();
     }
@@ -297,9 +299,10 @@ class MetricsToolsTest {
             .toolsCall("get_kafka_node_pool_pods",
                 Map.of("clusterName", "my-cluster", "nodePoolName", "broker"), response -> {
                     assertFalse(response.isError());
-                    String json = response.content().getFirst().asText().text();
+                    String json = response.structuredContent().toString();
                     assertTrue(json.contains("my-cluster-broker-0"));
                     assertTrue(json.contains("Running"));
+                    assertTrue(json.contains("\"count\":1"));
                 })
             .thenAssertResults();
     }
@@ -314,9 +317,10 @@ class MetricsToolsTest {
         client.when()
             .toolsCall("list_strimzi_operators", Map.of(), response -> {
                 assertFalse(response.isError());
-                String json = response.content().getFirst().asText().text();
+                String json = response.structuredContent().toString();
                 assertTrue(json.contains("strimzi-cluster-operator"));
                 assertTrue(json.contains("HEALTHY"));
+                assertTrue(json.contains("\"count\":1"));
             })
             .thenAssertResults();
     }
@@ -414,7 +418,9 @@ class MetricsToolsTest {
         client.when()
             .toolsCall("list_kafka_clusters", Map.of(), response -> {
                 assertFalse(response.isError());
-                assertTrue(response.content().isEmpty());
+                String json = response.structuredContent().toString();
+                assertTrue(json.contains("\"items\":[]"));
+                assertTrue(json.contains("\"count\":0"));
             })
             .thenAssertResults();
     }
@@ -489,7 +495,7 @@ class MetricsToolsTest {
         client.when()
             .toolsCall("list_kafka_clusters", Map.of("namespace", "production"), response -> {
                 assertFalse(response.isError());
-                String json = response.content().getFirst().asText().text();
+                String json = response.structuredContent().toString();
                 assertTrue(json.contains("prod-cluster"));
                 assertTrue(json.contains("production"));
             })

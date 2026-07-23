@@ -72,6 +72,11 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
+                <groupId>io.quarkiverse.mcp</groupId>
+                <artifactId>quarkus-mcp-server-hibernate-validator</artifactId>
+                <version>${quarkus.mcp.server.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>io.strimzi</groupId>
                 <artifactId>api</artifactId>
                 <version>${strimzi.version}</version>

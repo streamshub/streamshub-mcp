@@ -62,9 +62,10 @@ class KafkaNodePoolToolsTest {
         client.when()
             .toolsCall("list_kafka_node_pools", Map.of("clusterName", "my-cluster"), response -> {
                 assertFalse(response.isError());
-                String json = response.content().getFirst().asText().text();
+                String json = response.structuredContent().toString();
                 assertTrue(json.contains("broker"));
                 assertTrue(json.contains("my-cluster"));
+                assertTrue(json.contains("\"count\":1"));
             })
             .thenAssertResults();
     }
@@ -97,9 +98,10 @@ class KafkaNodePoolToolsTest {
             .toolsCall("get_kafka_node_pool_pods",
                 Map.of("clusterName", "my-cluster", "nodePoolName", "broker"), response -> {
                     assertFalse(response.isError());
-                    String json = response.content().getFirst().asText().text();
+                    String json = response.structuredContent().toString();
                     assertTrue(json.contains("my-cluster-broker-0"));
                     assertTrue(json.contains("Running"));
+                    assertTrue(json.contains("\"count\":1"));
                 })
             .thenAssertResults();
     }

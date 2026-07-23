@@ -127,7 +127,14 @@ public abstract class AbstractST {
      * @return the matching node, or {@code null} if not found
      */
     protected static JsonNode findByName(final JsonNode root, final String name) {
-        if (root.isArray()) {
+        JsonNode items = root.path("items");
+        if (items.isArray()) {
+            for (JsonNode node : items) {
+                if (name.equals(node.path("name").asText(""))) {
+                    return node;
+                }
+            }
+        } else if (root.isArray()) {
             for (JsonNode node : root) {
                 if (name.equals(node.path("name").asText(""))) {
                     return node;
