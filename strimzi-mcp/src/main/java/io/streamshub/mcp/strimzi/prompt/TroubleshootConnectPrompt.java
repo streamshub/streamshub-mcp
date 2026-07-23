@@ -66,17 +66,12 @@ public class TroubleshootConnectPrompt {
             ? " The reported symptom is: " + symptom + "."
             : "";
 
-        String instructions = """
-            You are troubleshooting KafkaConnect cluster `%s`%s.%s
+        String taskSteps = """
+            Troubleshoot KafkaConnect cluster `%s`%s.%s
 
             This is a **cluster-level** investigation focusing on the Connect platform, \
             not individual connector configuration. For individual connector issues, \
             use the `troubleshoot-connector` prompt instead.
-
-            Follow these steps in order. After each step, analyze the results \
-            before proceeding to the next.
-
-            %s
 
             ## Step 1: Check Connect cluster status
             Use `get_kafka_connect(connect_cluster='%s'%s)` to retrieve the cluster status.
@@ -147,7 +142,6 @@ public class TroubleshootConnectPrompt {
             - Severity assessment (CRITICAL if all connectors affected)
             - Specific remediation steps\
             """.formatted(connectCluster, nsClause, symptomClause,
-                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
                 connectCluster, nsArg,
                 nsArg.isEmpty() ? "" : "namespace='" + namespace + "'",
                 connectCluster, nsArg,
@@ -157,7 +151,8 @@ public class TroubleshootConnectPrompt {
                 connectCluster, nsArg);
 
         return PromptResponse.withMessages(List.of(
-            PromptMessage.withUserRole(instructions)
+            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("KafkaConnect troubleshooting")),
+            PromptMessage.withUserRole(taskSteps)
         ));
     }
 }

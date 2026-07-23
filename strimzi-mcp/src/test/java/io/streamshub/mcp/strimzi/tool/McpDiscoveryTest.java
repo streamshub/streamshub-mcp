@@ -305,7 +305,7 @@ class McpDiscoveryTest {
             .withArguments(Map.of("cluster_name", "my-cluster", "namespace", "kafka-prod"))
             .withAssert(response -> {
                 assertFalse(response.messages().isEmpty());
-                String content = response.messages().getFirst().content().asText().text();
+                String content = response.messages().get(1).content().asText().text();
                 assertTrue(content.contains("my-cluster"));
                 assertTrue(content.contains("kafka-prod"));
                 assertTrue(content.contains("get_kafka_cluster"));
@@ -324,7 +324,7 @@ class McpDiscoveryTest {
             .withArguments(Map.of("cluster_name", "my-cluster", "namespace", "kafka-prod"))
             .withAssert(response -> {
                 assertFalse(response.messages().isEmpty());
-                String content = response.messages().getFirst().content().asText().text();
+                String content = response.messages().get(1).content().asText().text();
                 assertTrue(content.contains("my-cluster"));
                 assertTrue(content.contains("get_kafka_metrics"));
                 assertTrue(content.contains("replication"));
@@ -348,7 +348,7 @@ class McpDiscoveryTest {
                 "namespace_1", "ns-a"))
             .withAssert(response -> {
                 assertFalse(response.messages().isEmpty());
-                String content = response.messages().getFirst().content().asText().text();
+                String content = response.messages().get(1).content().asText().text();
                 assertTrue(content.contains("cluster-a"));
                 assertTrue(content.contains("cluster-b"));
                 assertTrue(content.contains("get_kafka_cluster_config"));
@@ -367,7 +367,7 @@ class McpDiscoveryTest {
             .withArguments(Map.of("connector_name", "my-debezium", "namespace", "kafka-prod"))
             .withAssert(response -> {
                 assertFalse(response.messages().isEmpty());
-                String content = response.messages().getFirst().content().asText().text();
+                String content = response.messages().get(1).content().asText().text();
                 assertTrue(content.contains("my-debezium"));
                 assertTrue(content.contains("kafka-prod"));
                 assertTrue(content.contains("get_kafka_connector"));
@@ -388,7 +388,7 @@ class McpDiscoveryTest {
             .withArguments(Map.of("cluster_name", "my-cluster", "namespace", "kafka-prod"))
             .withAssert(response -> {
                 assertFalse(response.messages().isEmpty());
-                String content = response.messages().getFirst().content().asText().text();
+                String content = response.messages().get(1).content().asText().text();
                 assertTrue(content.contains("my-cluster"));
                 assertTrue(content.contains("kafka-prod"));
                 assertTrue(content.contains("list_kafka_users"));
@@ -410,7 +410,7 @@ class McpDiscoveryTest {
             .withArguments(Map.of("bridge_name", "my-bridge", "namespace", "kafka-prod"))
             .withAssert(response -> {
                 assertFalse(response.messages().isEmpty());
-                String content = response.messages().getFirst().content().asText().text();
+                String content = response.messages().get(1).content().asText().text();
                 assertTrue(content.contains("my-bridge"));
                 assertTrue(content.contains("kafka-prod"));
                 assertTrue(content.contains("get_kafka_bridge"));
@@ -432,7 +432,7 @@ class McpDiscoveryTest {
                 "namespace", "kafka-prod"))
             .withAssert(response -> {
                 assertFalse(response.messages().isEmpty());
-                String content = response.messages().getFirst().content().asText().text();
+                String content = response.messages().get(1).content().asText().text();
                 assertTrue(content.contains("my-topic"));
                 assertTrue(content.contains("my-cluster"));
                 assertTrue(content.contains("kafka-prod"));
@@ -454,7 +454,7 @@ class McpDiscoveryTest {
             .withArguments(Map.of("cluster_name", "my-cluster", "namespace", "kafka-prod"))
             .withAssert(response -> {
                 assertFalse(response.messages().isEmpty());
-                String content = response.messages().getFirst().content().asText().text();
+                String content = response.messages().get(1).content().asText().text();
                 assertTrue(content.contains("my-cluster"));
                 assertTrue(content.contains("kafka-prod"));
                 assertTrue(content.contains("get_kafka_cluster"));
@@ -475,7 +475,7 @@ class McpDiscoveryTest {
             .withArguments(Map.of("cluster_name", "my-cluster", "namespace", "kafka-prod"))
             .withAssert(response -> {
                 assertFalse(response.messages().isEmpty());
-                String content = response.messages().getFirst().content().asText().text();
+                String content = response.messages().get(1).content().asText().text();
                 assertTrue(content.contains("my-cluster"));
                 assertTrue(content.contains("kafka-prod"));
                 assertTrue(content.contains("get_kafka_cluster"));
@@ -497,7 +497,7 @@ class McpDiscoveryTest {
             .withArguments(Map.of("cluster_name", "my-cluster", "namespace", "kafka-prod"))
             .withAssert(response -> {
                 assertFalse(response.messages().isEmpty());
-                String content = response.messages().getFirst().content().asText().text();
+                String content = response.messages().get(1).content().asText().text();
                 assertTrue(content.contains("my-cluster"));
                 assertTrue(content.contains("kafka-prod"));
                 assertTrue(content.contains("get_kafka_cluster"));
@@ -518,7 +518,7 @@ class McpDiscoveryTest {
             .withArguments(Map.of("connect_cluster", "my-connect", "namespace", "kafka-prod"))
             .withAssert(response -> {
                 assertFalse(response.messages().isEmpty());
-                String content = response.messages().getFirst().content().asText().text();
+                String content = response.messages().get(1).content().asText().text();
                 assertTrue(content.contains("my-connect"));
                 assertTrue(content.contains("kafka-prod"));
                 assertTrue(content.contains("get_kafka_connect"));
@@ -539,7 +539,7 @@ class McpDiscoveryTest {
             .withArguments(Map.of("mirror_maker_name", "my-mm2", "namespace", "kafka-prod"))
             .withAssert(response -> {
                 assertFalse(response.messages().isEmpty());
-                String content = response.messages().getFirst().content().asText().text();
+                String content = response.messages().get(1).content().asText().text();
                 assertTrue(content.contains("my-mm2"));
                 assertTrue(content.contains("kafka-prod"));
                 assertTrue(content.contains("get_kafka_mirror_maker"));
@@ -560,7 +560,7 @@ class McpDiscoveryTest {
             .withArguments(Map.of("namespace", "kafka-system"))
             .withAssert(response -> {
                 assertFalse(response.messages().isEmpty());
-                String content = response.messages().getFirst().content().asText().text();
+                String content = response.messages().get(1).content().asText().text();
                 assertTrue(content.contains("kafka-system"));
                 assertTrue(content.contains("get_strimzi_operator_metrics"));
                 assertTrue(content.contains("reconciliation"));

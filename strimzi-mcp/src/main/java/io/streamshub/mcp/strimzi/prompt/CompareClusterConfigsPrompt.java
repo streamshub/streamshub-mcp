@@ -73,14 +73,9 @@ public class CompareClusterConfigsPrompt {
             ? ", namespace='" + namespace2 + "'"
             : "";
 
-        String instructions = """
-            You are comparing the configuration of two Kafka clusters: \
+        String taskSteps = """
+            Compare the configuration of two Kafka clusters: \
             `%s`%s and `%s`%s.
-
-            Follow these steps in order. After each step, analyze the results \
-            before proceeding to the next.
-
-            %s
 
             ## Step 1: Get configuration for cluster 1
             Use `get_kafka_cluster_config(clusterName='%s'%s)` to retrieve \
@@ -129,11 +124,11 @@ public class CompareClusterConfigsPrompt {
             Include recommendations for aligning the clusters where appropriate.\
             """.formatted(
                 clusterName1, ns1Clause, clusterName2, ns2Clause,
-                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
                 clusterName1, ns1Arg, clusterName2, ns2Arg);
 
         return PromptResponse.withMessages(List.of(
-            PromptMessage.withUserRole(instructions)
+            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("Kafka cluster configuration comparison")),
+            PromptMessage.withUserRole(taskSteps)
         ));
     }
 }

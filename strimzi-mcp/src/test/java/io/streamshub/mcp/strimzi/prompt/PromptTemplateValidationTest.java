@@ -5,8 +5,10 @@
 package io.streamshub.mcp.strimzi.prompt;
 
 import io.quarkiverse.mcp.server.PromptResponse;
+import io.quarkiverse.mcp.server.Role;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -23,8 +25,10 @@ class PromptTemplateValidationTest {
     @Test
     void testDiagnoseClusterIssueWithAllArgs() {
         DiagnoseClusterIssuePrompt prompt = new DiagnoseClusterIssuePrompt();
-        String content = extractContent(prompt.diagnoseClusterIssue("my-cluster", "kafka-prod", "high latency"));
+        PromptResponse response = prompt.diagnoseClusterIssue("my-cluster", "kafka-prod", "high latency");
+        String content = extractContent(response);
         assertValidPromptOutput(content, "diagnose-cluster-issue");
+        assertSystemMessage(response, "diagnose-cluster-issue");
         assertTrue(content.contains("my-cluster"));
         assertTrue(content.contains("kafka-prod"));
         assertTrue(content.contains("high latency"));
@@ -33,16 +37,20 @@ class PromptTemplateValidationTest {
     @Test
     void testDiagnoseClusterIssueWithRequiredOnly() {
         DiagnoseClusterIssuePrompt prompt = new DiagnoseClusterIssuePrompt();
-        String content = extractContent(prompt.diagnoseClusterIssue("my-cluster", null, null));
+        PromptResponse response = prompt.diagnoseClusterIssue("my-cluster", null, null);
+        String content = extractContent(response);
         assertValidPromptOutput(content, "diagnose-cluster-issue");
+        assertSystemMessage(response, "diagnose-cluster-issue");
         assertTrue(content.contains("my-cluster"));
     }
 
     @Test
     void testTroubleshootConnectivityWithAllArgs() {
         TroubleshootConnectivityPrompt prompt = new TroubleshootConnectivityPrompt();
-        String content = extractContent(prompt.troubleshootConnectivity("my-cluster", "kafka-prod", "tls-listener"));
+        PromptResponse response = prompt.troubleshootConnectivity("my-cluster", "kafka-prod", "tls-listener");
+        String content = extractContent(response);
         assertValidPromptOutput(content, "troubleshoot-connectivity");
+        assertSystemMessage(response, "troubleshoot-connectivity");
         assertTrue(content.contains("my-cluster"));
         assertTrue(content.contains("kafka-prod"));
     }
@@ -50,16 +58,20 @@ class PromptTemplateValidationTest {
     @Test
     void testTroubleshootConnectivityWithRequiredOnly() {
         TroubleshootConnectivityPrompt prompt = new TroubleshootConnectivityPrompt();
-        String content = extractContent(prompt.troubleshootConnectivity("my-cluster", null, null));
+        PromptResponse response = prompt.troubleshootConnectivity("my-cluster", null, null);
+        String content = extractContent(response);
         assertValidPromptOutput(content, "troubleshoot-connectivity");
+        assertSystemMessage(response, "troubleshoot-connectivity");
         assertTrue(content.contains("my-cluster"));
     }
 
     @Test
     void testAnalyzeKafkaMetricsWithAllArgs() {
         AnalyzeKafkaMetricsPrompt prompt = new AnalyzeKafkaMetricsPrompt();
-        String content = extractContent(prompt.analyzeKafkaMetrics("my-cluster", "kafka-prod", "disk usage"));
+        PromptResponse response = prompt.analyzeKafkaMetrics("my-cluster", "kafka-prod", "disk usage");
+        String content = extractContent(response);
         assertValidPromptOutput(content, "analyze-kafka-metrics");
+        assertSystemMessage(response, "analyze-kafka-metrics");
         assertTrue(content.contains("my-cluster"));
         assertTrue(content.contains("kafka-prod"));
     }
@@ -67,31 +79,39 @@ class PromptTemplateValidationTest {
     @Test
     void testAnalyzeKafkaMetricsWithRequiredOnly() {
         AnalyzeKafkaMetricsPrompt prompt = new AnalyzeKafkaMetricsPrompt();
-        String content = extractContent(prompt.analyzeKafkaMetrics("my-cluster", null, null));
+        PromptResponse response = prompt.analyzeKafkaMetrics("my-cluster", null, null);
+        String content = extractContent(response);
         assertValidPromptOutput(content, "analyze-kafka-metrics");
+        assertSystemMessage(response, "analyze-kafka-metrics");
         assertTrue(content.contains("my-cluster"));
     }
 
     @Test
     void testAnalyzeStrimziOperatorMetricsWithAllArgs() {
         AnalyzeStrimziOperatorMetricsPrompt prompt = new AnalyzeStrimziOperatorMetricsPrompt();
-        String content = extractContent(prompt.analyzeStrimziOperatorMetrics("kafka-system", "slow reconciliation"));
+        PromptResponse response = prompt.analyzeStrimziOperatorMetrics("kafka-system", "slow reconciliation");
+        String content = extractContent(response);
         assertValidPromptOutput(content, "analyze-strimzi-operator-metrics");
+        assertSystemMessage(response, "analyze-strimzi-operator-metrics");
         assertTrue(content.contains("kafka-system"));
     }
 
     @Test
     void testAnalyzeStrimziOperatorMetricsWithNoArgs() {
         AnalyzeStrimziOperatorMetricsPrompt prompt = new AnalyzeStrimziOperatorMetricsPrompt();
-        String content = extractContent(prompt.analyzeStrimziOperatorMetrics(null, null));
+        PromptResponse response = prompt.analyzeStrimziOperatorMetrics(null, null);
+        String content = extractContent(response);
         assertValidPromptOutput(content, "analyze-strimzi-operator-metrics");
+        assertSystemMessage(response, "analyze-strimzi-operator-metrics");
     }
 
     @Test
     void testCompareClusterConfigsWithAllArgs() {
         CompareClusterConfigsPrompt prompt = new CompareClusterConfigsPrompt();
-        String content = extractContent(prompt.compareClusterConfigs("cluster-a", "cluster-b", "ns-a", "ns-b"));
+        PromptResponse response = prompt.compareClusterConfigs("cluster-a", "cluster-b", "ns-a", "ns-b");
+        String content = extractContent(response);
         assertValidPromptOutput(content, "compare-cluster-configs");
+        assertSystemMessage(response, "compare-cluster-configs");
         assertTrue(content.contains("cluster-a"));
         assertTrue(content.contains("cluster-b"));
         assertTrue(content.contains("ns-a"));
@@ -101,8 +121,10 @@ class PromptTemplateValidationTest {
     @Test
     void testCompareClusterConfigsWithRequiredOnly() {
         CompareClusterConfigsPrompt prompt = new CompareClusterConfigsPrompt();
-        String content = extractContent(prompt.compareClusterConfigs("cluster-a", "cluster-b", null, null));
+        PromptResponse response = prompt.compareClusterConfigs("cluster-a", "cluster-b", null, null);
+        String content = extractContent(response);
         assertValidPromptOutput(content, "compare-cluster-configs");
+        assertSystemMessage(response, "compare-cluster-configs");
         assertTrue(content.contains("cluster-a"));
         assertTrue(content.contains("cluster-b"));
     }
@@ -110,8 +132,10 @@ class PromptTemplateValidationTest {
     @Test
     void testAuditSecurityWithAllArgs() {
         AuditSecurityPrompt prompt = new AuditSecurityPrompt();
-        String content = extractContent(prompt.auditSecurity("my-cluster", "kafka-prod"));
+        PromptResponse response = prompt.auditSecurity("my-cluster", "kafka-prod");
+        String content = extractContent(response);
         assertValidPromptOutput(content, "audit-security");
+        assertSystemMessage(response, "audit-security");
         assertTrue(content.contains("my-cluster"));
         assertTrue(content.contains("kafka-prod"));
     }
@@ -119,16 +143,20 @@ class PromptTemplateValidationTest {
     @Test
     void testAuditSecurityWithRequiredOnly() {
         AuditSecurityPrompt prompt = new AuditSecurityPrompt();
-        String content = extractContent(prompt.auditSecurity("my-cluster", null));
+        PromptResponse response = prompt.auditSecurity("my-cluster", null);
+        String content = extractContent(response);
         assertValidPromptOutput(content, "audit-security");
+        assertSystemMessage(response, "audit-security");
         assertTrue(content.contains("my-cluster"));
     }
 
     @Test
     void testAssessUpgradeReadinessWithAllArgs() {
         AssessUpgradeReadinessPrompt prompt = new AssessUpgradeReadinessPrompt();
-        String content = extractContent(prompt.assessUpgradeReadiness("my-cluster", "kafka-prod", "4.2.0"));
+        PromptResponse response = prompt.assessUpgradeReadiness("my-cluster", "kafka-prod", "4.2.0");
+        String content = extractContent(response);
         assertValidPromptOutput(content, "assess-upgrade-readiness");
+        assertSystemMessage(response, "assess-upgrade-readiness");
         assertTrue(content.contains("my-cluster"));
         assertTrue(content.contains("kafka-prod"));
         assertTrue(content.contains("4.2.0"));
@@ -137,16 +165,20 @@ class PromptTemplateValidationTest {
     @Test
     void testAssessUpgradeReadinessWithRequiredOnly() {
         AssessUpgradeReadinessPrompt prompt = new AssessUpgradeReadinessPrompt();
-        String content = extractContent(prompt.assessUpgradeReadiness("my-cluster", null, null));
+        PromptResponse response = prompt.assessUpgradeReadiness("my-cluster", null, null);
+        String content = extractContent(response);
         assertValidPromptOutput(content, "assess-upgrade-readiness");
+        assertSystemMessage(response, "assess-upgrade-readiness");
         assertTrue(content.contains("my-cluster"));
     }
 
     @Test
     void testAnalyzeCapacityWithAllArgs() {
         AnalyzeCapacityPrompt prompt = new AnalyzeCapacityPrompt();
-        String content = extractContent(prompt.analyzeCapacity("my-cluster", "kafka-prod", "storage"));
+        PromptResponse response = prompt.analyzeCapacity("my-cluster", "kafka-prod", "storage");
+        String content = extractContent(response);
         assertValidPromptOutput(content, "analyze-capacity");
+        assertSystemMessage(response, "analyze-capacity");
         assertTrue(content.contains("my-cluster"));
         assertTrue(content.contains("kafka-prod"));
     }
@@ -154,16 +186,20 @@ class PromptTemplateValidationTest {
     @Test
     void testAnalyzeCapacityWithRequiredOnly() {
         AnalyzeCapacityPrompt prompt = new AnalyzeCapacityPrompt();
-        String content = extractContent(prompt.analyzeCapacity("my-cluster", null, null));
+        PromptResponse response = prompt.analyzeCapacity("my-cluster", null, null);
+        String content = extractContent(response);
         assertValidPromptOutput(content, "analyze-capacity");
+        assertSystemMessage(response, "analyze-capacity");
         assertTrue(content.contains("my-cluster"));
     }
 
     @Test
     void testTroubleshootConnectorWithAllArgs() {
         TroubleshootConnectorPrompt prompt = new TroubleshootConnectorPrompt();
-        String content = extractContent(prompt.troubleshootConnector("my-connector", "kafka-prod", "my-connect", "failed tasks"));
+        PromptResponse response = prompt.troubleshootConnector("my-connector", "kafka-prod", "my-connect", "failed tasks");
+        String content = extractContent(response);
         assertValidPromptOutput(content, "troubleshoot-connector");
+        assertSystemMessage(response, "troubleshoot-connector");
         assertTrue(content.contains("my-connector"));
         assertTrue(content.contains("kafka-prod"));
     }
@@ -171,16 +207,20 @@ class PromptTemplateValidationTest {
     @Test
     void testTroubleshootConnectorWithRequiredOnly() {
         TroubleshootConnectorPrompt prompt = new TroubleshootConnectorPrompt();
-        String content = extractContent(prompt.troubleshootConnector("my-connector", null, null, null));
+        PromptResponse response = prompt.troubleshootConnector("my-connector", null, null, null);
+        String content = extractContent(response);
         assertValidPromptOutput(content, "troubleshoot-connector");
+        assertSystemMessage(response, "troubleshoot-connector");
         assertTrue(content.contains("my-connector"));
     }
 
     @Test
     void testTroubleshootBridgeWithAllArgs() {
         TroubleshootBridgePrompt prompt = new TroubleshootBridgePrompt();
-        String content = extractContent(prompt.troubleshootBridge("my-bridge", "kafka-prod", "connection refused"));
+        PromptResponse response = prompt.troubleshootBridge("my-bridge", "kafka-prod", "connection refused");
+        String content = extractContent(response);
         assertValidPromptOutput(content, "troubleshoot-bridge");
+        assertSystemMessage(response, "troubleshoot-bridge");
         assertTrue(content.contains("my-bridge"));
         assertTrue(content.contains("kafka-prod"));
     }
@@ -188,16 +228,20 @@ class PromptTemplateValidationTest {
     @Test
     void testTroubleshootBridgeWithRequiredOnly() {
         TroubleshootBridgePrompt prompt = new TroubleshootBridgePrompt();
-        String content = extractContent(prompt.troubleshootBridge("my-bridge", null, null));
+        PromptResponse response = prompt.troubleshootBridge("my-bridge", null, null);
+        String content = extractContent(response);
         assertValidPromptOutput(content, "troubleshoot-bridge");
+        assertSystemMessage(response, "troubleshoot-bridge");
         assertTrue(content.contains("my-bridge"));
     }
 
     @Test
     void testTroubleshootTopicWithAllArgs() {
         TroubleshootTopicPrompt prompt = new TroubleshootTopicPrompt();
-        String content = extractContent(prompt.troubleshootTopic("my-topic", "my-cluster", "kafka-prod", "under-replicated"));
+        PromptResponse response = prompt.troubleshootTopic("my-topic", "my-cluster", "kafka-prod", "under-replicated");
+        String content = extractContent(response);
         assertValidPromptOutput(content, "troubleshoot-topic");
+        assertSystemMessage(response, "troubleshoot-topic");
         assertTrue(content.contains("my-topic"));
         assertTrue(content.contains("my-cluster"));
         assertTrue(content.contains("kafka-prod"));
@@ -206,8 +250,10 @@ class PromptTemplateValidationTest {
     @Test
     void testTroubleshootTopicWithRequiredOnly() {
         TroubleshootTopicPrompt prompt = new TroubleshootTopicPrompt();
-        String content = extractContent(prompt.troubleshootTopic("my-topic", "my-cluster", null, null));
+        PromptResponse response = prompt.troubleshootTopic("my-topic", "my-cluster", null, null);
+        String content = extractContent(response);
         assertValidPromptOutput(content, "troubleshoot-topic");
+        assertSystemMessage(response, "troubleshoot-topic");
         assertTrue(content.contains("my-topic"));
         assertTrue(content.contains("my-cluster"));
     }
@@ -215,8 +261,10 @@ class PromptTemplateValidationTest {
     @Test
     void testTroubleshootConnectWithAllArgs() {
         TroubleshootConnectPrompt prompt = new TroubleshootConnectPrompt();
-        String content = extractContent(prompt.troubleshootConnect("my-connect", "kafka-prod", "OOM restarts"));
+        PromptResponse response = prompt.troubleshootConnect("my-connect", "kafka-prod", "OOM restarts");
+        String content = extractContent(response);
         assertValidPromptOutput(content, "troubleshoot-connect");
+        assertSystemMessage(response, "troubleshoot-connect");
         assertTrue(content.contains("my-connect"));
         assertTrue(content.contains("kafka-prod"));
     }
@@ -224,16 +272,20 @@ class PromptTemplateValidationTest {
     @Test
     void testTroubleshootConnectWithRequiredOnly() {
         TroubleshootConnectPrompt prompt = new TroubleshootConnectPrompt();
-        String content = extractContent(prompt.troubleshootConnect("my-connect", null, null));
+        PromptResponse response = prompt.troubleshootConnect("my-connect", null, null);
+        String content = extractContent(response);
         assertValidPromptOutput(content, "troubleshoot-connect");
+        assertSystemMessage(response, "troubleshoot-connect");
         assertTrue(content.contains("my-connect"));
     }
 
     @Test
     void testTroubleshootMirrorMakerWithAllArgs() {
         TroubleshootMirrorMakerPrompt prompt = new TroubleshootMirrorMakerPrompt();
-        String content = extractContent(prompt.troubleshootMirrorMaker("my-mm2", "kafka-prod", "replication lag"));
+        PromptResponse response = prompt.troubleshootMirrorMaker("my-mm2", "kafka-prod", "replication lag");
+        String content = extractContent(response);
         assertValidPromptOutput(content, "troubleshoot-mirror-maker");
+        assertSystemMessage(response, "troubleshoot-mirror-maker");
         assertTrue(content.contains("my-mm2"));
         assertTrue(content.contains("kafka-prod"));
     }
@@ -241,14 +293,21 @@ class PromptTemplateValidationTest {
     @Test
     void testTroubleshootMirrorMakerWithRequiredOnly() {
         TroubleshootMirrorMakerPrompt prompt = new TroubleshootMirrorMakerPrompt();
-        String content = extractContent(prompt.troubleshootMirrorMaker("my-mm2", null, null));
+        PromptResponse response = prompt.troubleshootMirrorMaker("my-mm2", null, null);
+        String content = extractContent(response);
         assertValidPromptOutput(content, "troubleshoot-mirror-maker");
+        assertSystemMessage(response, "troubleshoot-mirror-maker");
         assertTrue(content.contains("my-mm2"));
     }
 
     private static String extractContent(PromptResponse response) {
-        assertFalse(response.messages().isEmpty(), "Prompt response should contain messages");
-        return response.messages().getFirst().content().asText().text();
+        assertEquals(2, response.messages().size(),
+            "Prompt response should contain assistant and user messages");
+        assertEquals(Role.ASSISTANT, response.messages().get(0).role(),
+            "First message should have assistant role");
+        assertEquals(Role.USER, response.messages().get(1).role(),
+            "Second message should have user role");
+        return response.messages().get(1).content().asText().text();
     }
 
     private static void assertValidPromptOutput(String content, String promptName) {
@@ -260,7 +319,13 @@ class PromptTemplateValidationTest {
             promptName + " contains literal 'null' value in tool argument");
         assertFalse(content.contains("namespace='null'"),
             promptName + " injects null namespace into tool call");
-        assertTrue(content.contains("IMPORTANT: If any tool call fails"),
-            promptName + " missing ERROR_HANDLING_INSTRUCTION");
+    }
+
+    private static void assertSystemMessage(PromptResponse response, String promptName) {
+        String systemContent = response.messages().get(0).content().asText().text();
+        assertTrue(systemContent.contains("expert Kafka and Strimzi SRE assistant"),
+            promptName + " system message missing persona");
+        assertTrue(systemContent.contains("IMPORTANT: If any tool call fails"),
+            promptName + " system message missing ERROR_HANDLING_INSTRUCTION");
     }
 }

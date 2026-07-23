@@ -62,10 +62,8 @@ public class AnalyzeKafkaMetricsPrompt {
             ? " The specific concern is: " + concern + "."
             : "";
 
-        String instructions = """
-            You are analyzing metrics for Kafka cluster `%s`.%s
-
-            %s
+        String taskSteps = """
+            Analyze metrics for Kafka cluster `%s`.%s
 
             **Analysis Priority (check in this order):**
             1. **CRITICAL**: Replication health → data availability
@@ -146,14 +144,14 @@ public class AnalyzeKafkaMetricsPrompt {
             5. **Verification steps** (what to check next)\
             """.formatted(
                 clusterName, concernClause,
-                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
                 clusterName, nsArg,
                 clusterName, nsArg,
                 clusterName, nsArg,
                 clusterName, nsArg);
 
         return PromptResponse.withMessages(List.of(
-            PromptMessage.withUserRole(instructions)
+            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("Kafka metrics analysis")),
+            PromptMessage.withUserRole(taskSteps)
         ));
     }
 }

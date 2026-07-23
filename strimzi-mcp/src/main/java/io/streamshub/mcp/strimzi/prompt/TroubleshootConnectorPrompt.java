@@ -68,13 +68,8 @@ public class TroubleshootConnectorPrompt {
             ? " The reported symptom is: " + symptom + "."
             : "";
 
-        String instructions = """
-            You are troubleshooting KafkaConnector `%s`%s.%s
-
-            Follow these steps in order. After each step, analyze the results \
-            before proceeding to the next.
-
-            %s
+        String taskSteps = """
+            Troubleshoot KafkaConnector `%s`%s.%s
 
             ## Step 1: Check connector status
             Use `get_kafka_connector` to retrieve the connector's current state, \
@@ -131,11 +126,11 @@ public class TroubleshootConnectorPrompt {
             - Severity assessment
             - Specific remediation steps\
             """.formatted(connectorName, nsClause, symptomClause,
-                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
                 connectCluster != null ? connectCluster : "the value from the connector's connect_cluster field");
 
         return PromptResponse.withMessages(List.of(
-            PromptMessage.withUserRole(instructions)
+            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("KafkaConnector troubleshooting")),
+            PromptMessage.withUserRole(taskSteps)
         ));
     }
 }

@@ -57,10 +57,8 @@ public class AnalyzeStrimziOperatorMetricsPrompt {
             ? " The specific concern is: " + concern + "."
             : "";
 
-        String instructions = """
-            You are analyzing metrics for the Strimzi cluster operator.%s
-
-            %s
+        String taskSteps = """
+            Analyze metrics for the Strimzi cluster operator.%s
 
             Each `get_strimzi_operator_metrics` response includes an `interpretation` field \
             with metric descriptions and thresholds — use it to interpret values.
@@ -103,13 +101,13 @@ public class AnalyzeStrimziOperatorMetricsPrompt {
             5. Actionable recommendations if issues are found\
             """.formatted(
                 concernClause,
-                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
                 nsArg.isEmpty() ? "" : "namespace='" + namespace + "', ",
                 nsArg.isEmpty() ? "" : "namespace='" + namespace + "', ",
                 nsArg.isEmpty() ? "" : "namespace='" + namespace + "', ");
 
         return PromptResponse.withMessages(List.of(
-            PromptMessage.withUserRole(instructions)
+            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("Strimzi operator metrics analysis")),
+            PromptMessage.withUserRole(taskSteps)
         ));
     }
 }

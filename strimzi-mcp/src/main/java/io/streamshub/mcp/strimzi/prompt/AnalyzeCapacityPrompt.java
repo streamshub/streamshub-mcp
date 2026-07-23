@@ -67,16 +67,11 @@ public class AnalyzeCapacityPrompt {
             ? " The specific concern is: " + concern + "."
             : "";
 
-        String instructions = """
-            You are performing a capacity analysis of Kafka cluster `%s`%s.%s
+        String taskSteps = """
+            Perform a capacity analysis of Kafka cluster `%s`%s.%s
 
             The goal is to assess whether the cluster has sufficient resources for \
             its current workload and identify constraints before they cause outages.
-
-            Follow these steps in order. After each step, analyze the results \
-            before proceeding to the next.
-
-            %s
 
             ## Step 1: Cluster topology and resource allocation
             Use `get_kafka_cluster(cluster_name='%s'%s)` to get the cluster overview.
@@ -182,7 +177,6 @@ public class AnalyzeCapacityPrompt {
             - Trade-offs (cost, complexity, downtime required)\
             """.formatted(
                 clusterName, nsClause, concernClause,
-                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
                 clusterName, nsArg,
                 clusterName, nsArg,
                 clusterName, nsArg,
@@ -195,7 +189,8 @@ public class AnalyzeCapacityPrompt {
                 clusterName, nsArg);
 
         return PromptResponse.withMessages(List.of(
-            PromptMessage.withUserRole(instructions)
+            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("Kafka capacity analysis")),
+            PromptMessage.withUserRole(taskSteps)
         ));
     }
 }

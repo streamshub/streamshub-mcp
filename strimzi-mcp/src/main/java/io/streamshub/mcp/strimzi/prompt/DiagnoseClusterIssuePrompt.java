@@ -65,26 +65,23 @@ public class DiagnoseClusterIssuePrompt {
             ? " The reported symptom is: " + symptom + "."
             : "";
 
-        String instructions = """
-            You are diagnosing a Kafka cluster issue for cluster `%s`%s.%s
+        String taskSteps = """
+            Diagnose Kafka cluster `%s`%s.%s
 
             **CRITICAL CONTEXT FOR INCIDENT RESPONSE:**
             - Kafka clusters can experience cascading failures
             - Data availability issues (offline partitions) are CRITICAL
             - Pod failures may be symptoms, not root causes
             - Operator reconciliation issues can prevent recovery
-            
+
             **Diagnostic Priority:**
             1. **CRITICAL**: Data availability (offline partitions, cluster NotReady)
             2. **HIGH**: Pod health (crashes, OOM, restarts)
             3. **MEDIUM**: Operator reconciliation (stuck, errors)
             4. **LOW**: Performance degradation (if cluster is otherwise healthy)
 
-            Follow these steps in order. After each step, analyze the results \
-            before proceeding to the next. **Stop and escalate immediately if you find \
+            **Stop and escalate immediately if you find \
             offline partitions or cluster-wide unavailability.**
-
-            %s
 
             ## Step 1: Check Kafka cluster status [CRITICAL - cluster availability]
             Use `get_kafka_cluster` to retrieve the cluster status and conditions.
@@ -289,12 +286,12 @@ public class DiagnoseClusterIssuePrompt {
             **Remember:** Symptoms are not root causes. Pod restarts are symptoms; \
             OOM or disk full are root causes. Offline partitions are symptoms; \
             broker failures or controller issues are root causes.\
-            """.formatted(clusterName, nsClause, symptomClause,
-                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION, clusterName,
+            """.formatted(clusterName, nsClause, symptomClause, clusterName,
                 clusterName, nsArg);
 
         return PromptResponse.withMessages(List.of(
-            PromptMessage.withUserRole(instructions)
+            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("Kafka cluster diagnostics")),
+            PromptMessage.withUserRole(taskSteps)
         ));
     }
 }

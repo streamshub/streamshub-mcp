@@ -65,13 +65,8 @@ public class TroubleshootBridgePrompt {
             ? " The reported symptom is: " + symptom + "."
             : "";
 
-        String instructions = """
-            You are troubleshooting KafkaBridge `%s`%s.%s
-
-            Follow these steps in order. After each step, analyze the results \
-            before proceeding to the next.
-
-            %s
+        String taskSteps = """
+            Troubleshoot KafkaBridge `%s`%s.%s
 
             ## Step 1: Check bridge status and configuration
             Use `get_kafka_bridge` to retrieve the bridge's current state, \
@@ -134,11 +129,11 @@ public class TroubleshootBridgePrompt {
             - Severity assessment
             - Specific remediation steps\
             """.formatted(bridgeName, nsClause, symptomClause,
-                StrimziToolsPrompts.ERROR_HANDLING_INSTRUCTION,
                 bridgeName, nsArg);
 
         return PromptResponse.withMessages(List.of(
-            PromptMessage.withUserRole(instructions)
+            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("KafkaBridge troubleshooting")),
+            PromptMessage.withUserRole(taskSteps)
         ));
     }
 }
