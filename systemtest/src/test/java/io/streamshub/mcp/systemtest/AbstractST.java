@@ -171,8 +171,7 @@ public abstract class AbstractST {
         boolean useStructured = RESPONSE_PARSE_COUNTER.getAndIncrement() % 2 == 0;
         if (useStructured && response.structuredContent() != null) {
             LOGGER.debug("Parsing response via structuredContent (round-robin)");
-            ObjectMapper mapper = new ObjectMapper();
-            return mapper.valueToTree(response.structuredContent());
+            return parseJson(response.structuredContent().toString());
         } else if (!response.content().isEmpty()) {
             LOGGER.debug("Parsing response via content text (round-robin)");
             return parseJson(response.content().getFirst().asText().text());
