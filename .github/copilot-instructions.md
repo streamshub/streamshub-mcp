@@ -9,7 +9,6 @@ Java 21, Quarkus 3.x.
 - **Shared coding skills**: [.agents/skills/](../.agents/skills/)
   - `code-review.md` -- PR review checklist
   - `test-coverage-check.md` -- test coverage analysis
-  - `java-best-practices.md` -- project Java conventions
   - `add-mcp-tool.md` -- guide for adding MCP tools
   - `add-diagnostic-tool.md` -- guide for adding diagnostic tools
   - `add-system-test.md` -- guide for writing e2e system tests

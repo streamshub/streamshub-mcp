@@ -1,8 +1,0 @@
----
-description: StreamsHub MCP Java conventions and best practices
-globs:
-  - "**/*.java"
-alwaysApply: false
----
-
-Read and follow the shared checklist at `.agents/skills/java-best-practices.md`.

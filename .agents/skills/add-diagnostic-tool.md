@@ -10,7 +10,7 @@ Create the report record in the appropriate domain sub-package under `strimzi-mc
 (e.g., `dto/kafka/`, `dto/kafkaconnect/`, `dto/kafkatopic/`, `dto/operator/`).
 
 Follow the naming pattern `*DiagnosticReport` — use the resource domain as prefix
-(e.g., `KafkaClusterDiagnosticReport`, `OperatorMetricsDiagnosticReport`). Compose existing DTOs into a single report:
+(e.g., `ClusterDiagnosticReport`, `OperatorMetricsDiagnosticReport`). Compose existing DTOs into a single report:
 
 ```java
 /**
@@ -25,7 +25,7 @@ Follow the naming pattern `*DiagnosticReport` — use the resource domain as pre
  * @param message human-readable summary
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record KafkaXxxDiagnosticReport(
+public record XxxDiagnosticReport(
     @JsonProperty("resource_name") String resourceName,
     @JsonProperty("namespace") String namespace,
     @JsonProperty("steps_completed") List<String> stepsCompleted,
@@ -58,22 +58,22 @@ Create in the appropriate domain sub-package under `strimzi-mcp/src/main/java/io
 
 ```java
 @ApplicationScoped
-public class KafkaXxxDiagnosticService extends BaseDiagnosticService {
+public class XxxDiagnosticService extends BaseDiagnosticService {
 
-    private static final Logger LOG = Logger.getLogger(KafkaXxxDiagnosticService.class);
+    private static final Logger LOG = Logger.getLogger(XxxDiagnosticService.class);
 
     @Inject
     KafkaService kafkaService;
     // inject other domain services as needed
 
-    KafkaXxxDiagnosticService() {
+    XxxDiagnosticService() {
         // package-private no-arg constructor for CDI
     }
 
     /**
      * Runs the full diagnostic workflow.
      */
-    public KafkaXxxDiagnosticReport diagnose(
+    public XxxDiagnosticReport diagnose(
             final String namespace,
             final String name,
             final Sampling sampling,
@@ -164,12 +164,12 @@ Follow the pattern `diagnose.{domain}.{step}`:
 Add the tool method to `strimzi-mcp/src/main/java/io/streamshub/mcp/strimzi/tool/diagnostic/DiagnosticTools.java`:
 
 ```java
-@WithSpan("tool.diagnose_kafka_xxx")
+@WithSpan("tool.diagnose_xxx")
 @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
 @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.XXX)
 @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
 @Tool(
-    name = "diagnose_kafka_xxx",
+    name = "diagnose_xxx",
     description = "Runs a multi-step diagnostic on a <resource>."
         + " Gathers status, investigates issues, and provides analysis.",
     annotations = @Tool.Annotations(
@@ -179,7 +179,7 @@ Add the tool method to `strimzi-mcp/src/main/java/io/streamshub/mcp/strimzi/tool
         openWorldHint = false
     )
 )
-public KafkaXxxDiagnosticReport diagnoseKafkaXxx(
+public XxxDiagnosticReport diagnoseXxx(
     @ToolArg(description = StrimziToolsPrompts.CLUSTER_DESC) final String clusterName,
     @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
     final Sampling sampling,
@@ -200,18 +200,18 @@ Note: `DiagnosticTools` class has `@Guarded` at class level.
 
 Edit `strimzi-mcp/src/test/java/io/streamshub/mcp/strimzi/tool/McpDiscoveryTest.java`:
 
-1. Add `"diagnose_kafka_xxx"` to the `expectedTools` list in `testToolDiscovery()`
+1. Add `"diagnose_xxx"` to the `expectedTools` list in `testToolDiscovery()`
 
 2. Add metadata to `expectedToolMetadata()`:
    ```java
-   map.put("diagnose_kafka_xxx", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.XXX});
+   map.put("diagnose_xxx", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.XXX});
    ```
 
 3. Add to `compositeToolNames()`:
    ```java
    return Set.of(
        // ... existing composite tools ...
-       "diagnose_kafka_xxx"
+       "diagnose_xxx"
    );
    ```
 
@@ -219,7 +219,7 @@ Edit `strimzi-mcp/src/test/java/io/streamshub/mcp/strimzi/tool/McpDiscoveryTest.
 
 ## Step 6 — Write Tests
 
-Create `strimzi-mcp/src/test/java/.../service/KafkaXxxDiagnosticServiceTest.java`:
+Create `strimzi-mcp/src/test/java/.../service/XxxDiagnosticServiceTest.java`:
 
 - Test full workflow with Sampling supported (all 3 phases)
 - Test graceful degradation without Sampling (raw data returned)

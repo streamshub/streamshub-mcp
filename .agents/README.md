@@ -9,7 +9,6 @@ The skills are agent-agnostic markdown files. Each agent references them via sym
 |---|---|
 | `code-review.md` | PR/code review checklist covering architecture, tools, services, DTOs, style, security, tests, docs |
 | `test-coverage-check.md` | Identify untested code, verify test patterns, check McpDiscoveryTest registration |
-| `java-best-practices.md` | Project-specific Java conventions: types, CDI, input handling, error handling, style |
 | `add-mcp-tool.md` | Step-by-step guide for adding a new MCP tool |
 | `add-diagnostic-tool.md` | Step-by-step guide for adding a composite diagnostic tool |
 | `add-system-test.md` | Step-by-step guide for writing e2e system tests in systemtest/ |

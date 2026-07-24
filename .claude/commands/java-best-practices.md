@@ -1,1 +1,0 @@
-../../.agents/skills/java-best-practices.md
