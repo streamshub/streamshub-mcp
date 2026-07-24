@@ -1,0 +1,7 @@
+---
+description: Code review checklist for StreamsHub MCP pull requests
+globs:
+alwaysApply: false
+---
+
+Read and follow the shared checklist at `.agents/skills/code-review.md`.

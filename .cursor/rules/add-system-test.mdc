@@ -1,0 +1,8 @@
+---
+description: Step-by-step guide for writing e2e system tests
+globs:
+  - "**/systemtest/**/*.java"
+alwaysApply: false
+---
+
+Read and follow the step-by-step guide at `.agents/skills/add-system-test.md`.

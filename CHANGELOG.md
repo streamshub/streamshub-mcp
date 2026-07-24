@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Shared coding agent skills** -- Added `.agents/skills/` directory with 5 reusable skills (code review, test coverage, add MCP tool, add diagnostic tool, add system test) consumed by Claude Code, Bob, Cursor, GitHub Copilot, and Windsurf via symlinks or agent-specific references
 - **E2E Coverage** -- Added e2e coverage that now covers most of the user's scenarios
 - **Tool metadata** -- tools now include `_meta` fields (`type`, `resource`, `composite`) in `tools/list` responses, enabling AI agents and clients to discover and filter tools by purpose and target resource (#151)
 - **Fleet overview tool** -- `get_kafka_fleet_overview` returns aggregated health across all Kafka clusters in a single call, including status distribution, total broker count, per-cluster summaries with cross-resource relationship counts (topics, users, active rebalances, connected KafkaConnect/Bridge/MirrorMaker2), and warnings for clusters that need attention

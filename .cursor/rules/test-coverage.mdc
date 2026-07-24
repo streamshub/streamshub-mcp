@@ -1,0 +1,7 @@
+---
+description: Test coverage analysis for StreamsHub MCP
+globs:
+alwaysApply: false
+---
+
+Read and follow the shared checklist at `.agents/skills/test-coverage-check.md`.

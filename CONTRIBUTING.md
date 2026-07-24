@@ -92,6 +92,19 @@ Key points:
 - Use `InputUtils.normalizeInput()` for all user-supplied input
 - Every file must end with a newline
 
+## Coding agent skills
+
+Shared skills for coding agents (code review, test coverage, MCP tool guides)
+live in [`.agents/skills/`](.agents/skills/). These are consumed by multiple tools:
+
+- **Claude Code**: symlinks in `.claude/commands/` (slash commands)
+- **Bob**: wrapper SKILL.md files in `.bob/skills/`
+- **Cursor**: rules in `.cursor/rules/`
+- **GitHub Copilot**: `.github/copilot-instructions.md`
+- **Windsurf**: `.windsurfrules`
+
+When adding a new skill, see [`.agents/README.md`](.agents/README.md) for instructions.
+
 ## Pull request guidelines
 
 Before submitting:
