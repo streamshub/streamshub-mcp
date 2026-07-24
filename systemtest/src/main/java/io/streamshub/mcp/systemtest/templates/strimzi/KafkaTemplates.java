@@ -37,7 +37,7 @@ public final class KafkaTemplates {
         Path.of(Constants.STRIMZI_MANIFESTS_DIR, "kafka", "020-PodMonitor.yaml");
 
     /** Default Kafka version for test clusters. */
-    public static final String DEFAULT_KAFKA_VERSION = "4.2.0";
+    public static final String DEFAULT_KAFKA_VERSION = "4.3.0";
 
     /** Maximum replication factor for Kafka internal topics. */
     private static final int MAX_REPLICATION_FACTOR = 3;

@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: kafka-consumer
-          image: quay.io/strimzi-test-clients/test-clients:latest-kafka-4.2.0
+          image: quay.io/strimzi-test-clients/test-clients:latest-kafka-4.3.0
           env:
             - name: CLIENT_TYPE
               value: KafkaConsumer
