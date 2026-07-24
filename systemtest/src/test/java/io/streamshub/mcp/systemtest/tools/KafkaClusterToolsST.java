@@ -635,8 +635,8 @@ class KafkaClusterToolsST extends AbstractST {
                             hasMore.set(root.path("has_more").asBoolean());
                         })
                         .thenAssertResults();
-                } catch (Exception e) {
-                    LOGGER.debug("Tool call attempt failed, retrying: {}", e.getMessage());
+                } catch (Exception | AssertionError ignored) {
+                    LOGGER.debug("Tool call attempt failed, retrying: {}", ignored.getMessage());
                     return false;
                 }
                 return hasMore.get();

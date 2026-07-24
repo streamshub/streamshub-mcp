@@ -68,6 +68,15 @@ class LogRedactionFilterTest {
     }
 
     @Test
+    void testDoesNotRedactAcrossNewlines() {
+        String multiline = "connecting to server://hostname\nother_user:not_a_password@elsewhere";
+        assertEquals(multiline, filter.applyRedaction(multiline), "Should not redact across newlines");
+
+        String crlf = "connecting to server://hostname\r\nother_user:not_a_password@elsewhere";
+        assertEquals(crlf, filter.applyRedaction(crlf), "Should not redact across CRLF");
+    }
+
+    @Test
     void testRedactsBase64Token() {
         String longToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9eyJhbGciOiJSUzI1Ni";
         String result = filter.applyRedaction("token: " + longToken);
