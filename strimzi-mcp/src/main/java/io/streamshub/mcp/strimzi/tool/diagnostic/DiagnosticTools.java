@@ -41,6 +41,8 @@ import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicDiagnosticService;
 import io.streamshub.mcp.strimzi.service.operator.OperatorMetricsDiagnosticService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 /**
  * MCP tool for composite Kafka cluster diagnosis.
  *
@@ -107,6 +109,7 @@ public class DiagnosticTools {
         name = "diagnose_kafka_connect",
         description = "Multi-step diagnostic workflow for a KafkaConnect cluster."
             + " Gathers cluster status, connector inventory, pod health, logs, and events.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -115,10 +118,10 @@ public class DiagnosticTools {
         )
     )
     public KafkaConnectDiagnosticReport diagnoseKafkaConnect(
-        @ToolArg(description = StrimziToolsPrompts.CONNECT_CLUSTER_DESC) final String connectName,
+        @NotBlank @ToolArg(description = StrimziToolsPrompts.CONNECT_CLUSTER_DESC) final String connectName,
         @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
         @ToolArg(description = StrimziToolsPrompts.SYMPTOM_DESC, required = false) final String symptom,
-        @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
+        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
             required = false) final Integer sinceMinutes,
         final Sampling sampling,
         final Elicitation elicitation,
@@ -156,6 +159,7 @@ public class DiagnosticTools {
             + " Connect pod status, logs, and events in a single call."
             + " Uses Sampling for LLM analysis and Elicitation for disambiguation."
             + " Falls back to gathering all data when Sampling is not supported.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -164,7 +168,7 @@ public class DiagnosticTools {
         )
     )
     public KafkaConnectorDiagnosticReport diagnoseKafkaConnector(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CONNECTOR_NAME_DESC
         ) final String connectorName,
         @ToolArg(
@@ -175,7 +179,7 @@ public class DiagnosticTools {
             description = StrimziToolsPrompts.SYMPTOM_DESC,
             required = false
         ) final String symptom,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.SINCE_MINUTES_DESC,
             required = false
         ) final Integer sinceMinutes,
@@ -216,6 +220,7 @@ public class DiagnosticTools {
             + " Uses Sampling to get LLM analysis of intermediate results"
             + " and Elicitation to resolve ambiguity (e.g., multiple namespaces)."
             + " Falls back to gathering all data when Sampling is not supported.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -224,7 +229,7 @@ public class DiagnosticTools {
         )
     )
     public KafkaClusterDiagnosticReport diagnoseKafkaCluster(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @ToolArg(
@@ -235,7 +240,7 @@ public class DiagnosticTools {
             description = StrimziToolsPrompts.SYMPTOM_DESC,
             required = false
         ) final String symptom,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.SINCE_MINUTES_DESC,
             required = false
         ) final Integer sinceMinutes,
@@ -275,6 +280,7 @@ public class DiagnosticTools {
             + " and component settings for both clusters."
             + " Uses Sampling to analyze differences by impact."
             + " Returns both configs side-by-side when Sampling is not supported.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -283,14 +289,14 @@ public class DiagnosticTools {
         )
     )
     public KafkaConfigComparisonReport compareKafkaClusters(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName1,
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
         ) final String namespace1,
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER2_DESC
         ) final String clusterName2,
         @ToolArg(
@@ -332,6 +338,7 @@ public class DiagnosticTools {
             + " authentication, pod health, and connection-related logs."
             + " Uses Sampling for analysis and Elicitation for disambiguation."
             + " Falls back to gathering all data when Sampling is not supported.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -340,7 +347,7 @@ public class DiagnosticTools {
         )
     )
     public KafkaConnectivityDiagnosticReport diagnoseKafkaConnectivity(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @ToolArg(
@@ -390,6 +397,7 @@ public class DiagnosticTools {
             + " replication, performance, resource, and throughput metrics."
             + " Uses Sampling for analysis and Elicitation for disambiguation."
             + " Falls back to gathering all metric categories when Sampling is not supported.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -398,7 +406,7 @@ public class DiagnosticTools {
         )
     )
     public KafkaMetricsDiagnosticReport diagnoseKafkaMetrics(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @ToolArg(
@@ -409,7 +417,7 @@ public class DiagnosticTools {
             description = StrimziToolsPrompts.CONCERN_DESC,
             required = false
         ) final String concern,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.RANGE_MINUTES_DESC,
             required = false
         ) final Integer rangeMinutes,
@@ -421,7 +429,7 @@ public class DiagnosticTools {
             description = StrimziToolsPrompts.END_TIME_DESC,
             required = false
         ) final String endTime,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.STEP_SECONDS_DESC,
             required = false
         ) final Integer stepSeconds,
@@ -465,6 +473,7 @@ public class DiagnosticTools {
             + " resource, and JVM metrics along with operator logs."
             + " Uses Sampling for analysis."
             + " Falls back to gathering all data when Sampling is not supported.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -489,7 +498,7 @@ public class DiagnosticTools {
             description = StrimziToolsPrompts.CONCERN_DESC,
             required = false
         ) final String concern,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.RANGE_MINUTES_DESC,
             required = false
         ) final Integer rangeMinutes,
@@ -501,7 +510,7 @@ public class DiagnosticTools {
             description = StrimziToolsPrompts.END_TIME_DESC,
             required = false
         ) final String endTime,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.STEP_SECONDS_DESC,
             required = false
         ) final Integer stepSeconds,
@@ -541,6 +550,7 @@ public class DiagnosticTools {
             + " operator logs, events, and Kafka Exporter metrics in a single call."
             + " Uses Sampling for LLM analysis and Elicitation for disambiguation."
             + " Falls back to gathering all data when Sampling is not supported.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -549,7 +559,7 @@ public class DiagnosticTools {
         )
     )
     public KafkaTopicDiagnosticReport diagnoseKafkaTopic(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = "KafkaTopic name (e.g., 'my-topic')."
         ) final String topicName,
         @ToolArg(
@@ -599,6 +609,7 @@ public class DiagnosticTools {
             + " resource headroom, Drain Cleaner, and certificates."
             + " Uses Sampling for GO/NO-GO verdict and Elicitation for disambiguation."
             + " Falls back to gathering all data when Sampling is not supported.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -607,7 +618,7 @@ public class DiagnosticTools {
         )
     )
     public UpgradeReadinessReport assessUpgradeReadiness(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @ToolArg(
@@ -652,6 +663,7 @@ public class DiagnosticTools {
         name = "diagnose_kafka_mirror_maker",
         description = "Multi-step diagnostic workflow for KafkaMirrorMaker2."
             + " Gathers MM2 status, connector health, pod status, logs, and events.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -660,10 +672,10 @@ public class DiagnosticTools {
         )
     )
     public KafkaMirrorMaker2DiagnosticReport diagnoseKafkaMirrorMaker(
-        @ToolArg(description = StrimziToolsPrompts.MIRROR_MAKER_NAME_DESC) final String mirrorMakerName,
+        @NotBlank @ToolArg(description = StrimziToolsPrompts.MIRROR_MAKER_NAME_DESC) final String mirrorMakerName,
         @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
         @ToolArg(description = StrimziToolsPrompts.SYMPTOM_DESC, required = false) final String symptom,
-        @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
+        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
             required = false) final Integer sinceMinutes,
         final Sampling sampling,
         final Elicitation elicitation,

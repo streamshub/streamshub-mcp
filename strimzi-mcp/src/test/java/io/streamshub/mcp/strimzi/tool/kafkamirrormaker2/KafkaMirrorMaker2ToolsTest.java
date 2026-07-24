@@ -70,7 +70,7 @@ class KafkaMirrorMaker2ToolsTest {
         client.when()
             .toolsCall("list_kafka_mirror_makers", Map.of(), response -> {
                 assertFalse(response.isError());
-                String json = response.content().getFirst().asText().text();
+                String json = response.structuredContent().toString();
                 assertTrue(json.contains("my-mm2"));
                 assertTrue(json.contains("target-cluster"));
                 assertTrue(json.contains("source-cluster"));

@@ -19,12 +19,15 @@ import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeListResponse;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgePodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeResponse;
 import io.streamshub.mcp.strimzi.service.kafkabridge.KafkaBridgeService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.List;
@@ -57,6 +60,7 @@ public class KafkaBridgeTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)
     @Tool(
         name = "list_kafka_bridges",
+        structuredContent = true,
         description = "List KafkaBridge resources with status,"
             + " replicas, bootstrap servers, and HTTP URL."
             + " Optionally filter by namespace.",
@@ -67,13 +71,14 @@ public class KafkaBridgeTools {
             openWorldHint = false
         )
     )
-    public List<KafkaBridgeResponse> listKafkaBridges(
+    public KafkaBridgeListResponse listKafkaBridges(
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
         ) final String namespace
     ) {
-        return bridgeService.listBridges(namespace);
+        List<KafkaBridgeResponse> items = bridgeService.listBridges(namespace);
+        return new KafkaBridgeListResponse(items, items.size());
     }
 
     /**
@@ -87,6 +92,7 @@ public class KafkaBridgeTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)
     @Tool(
         name = "get_kafka_bridge",
+        structuredContent = true,
         description = "Get detailed information about a specific"
             + " KafkaBridge including status, HTTP configuration,"
             + " CORS, producer/consumer config, authentication, and TLS.",
@@ -98,7 +104,7 @@ public class KafkaBridgeTools {
         )
     )
     public KafkaBridgeResponse getKafkaBridge(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.BRIDGE_NAME_DESC
         ) final String bridgeName,
         @ToolArg(
@@ -120,6 +126,7 @@ public class KafkaBridgeTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)
     @Tool(
         name = "get_kafka_bridge_pods",
+        structuredContent = true,
         description = "Get pod summaries for a KafkaBridge"
             + " with phase, readiness, restarts, and age.",
         annotations = @Tool.Annotations(
@@ -130,7 +137,7 @@ public class KafkaBridgeTools {
         )
     )
     public KafkaBridgePodsResponse getKafkaBridgePods(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.BRIDGE_NAME_DESC
         ) final String bridgeName,
         @ToolArg(
@@ -162,6 +169,7 @@ public class KafkaBridgeTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)
     @Tool(
         name = "get_kafka_bridge_logs",
+        structuredContent = true,
         description = "Get logs from KafkaBridge pods with error analysis."
             + " Returns logs from all pods belonging to the bridge.",
         annotations = @Tool.Annotations(
@@ -173,7 +181,7 @@ public class KafkaBridgeTools {
     )
     @RateCategory("log")
     public KafkaBridgeLogsResponse getKafkaBridgeLogs(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.BRIDGE_NAME_DESC
         ) final String bridgeName,
         @ToolArg(
@@ -188,7 +196,7 @@ public class KafkaBridgeTools {
             description = StrimziToolsPrompts.KEYWORDS_DESC,
             required = false
         ) final List<String> keywords,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.SINCE_MINUTES_DESC,
             required = false
         ) final Integer sinceMinutes,
@@ -200,7 +208,7 @@ public class KafkaBridgeTools {
             description = StrimziToolsPrompts.END_TIME_DESC,
             required = false
         ) final String endTime,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.TAIL_LINES_DESC,
             required = false
         ) final Integer tailLines,

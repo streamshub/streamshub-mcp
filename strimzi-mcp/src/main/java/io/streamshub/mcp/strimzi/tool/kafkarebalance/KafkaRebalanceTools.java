@@ -14,10 +14,12 @@ import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.dto.kafkarebalance.KafkaRebalanceListResponse;
 import io.streamshub.mcp.strimzi.dto.kafkarebalance.KafkaRebalanceResponse;
 import io.streamshub.mcp.strimzi.service.kafkarebalance.KafkaRebalanceService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
 /**
@@ -46,6 +48,7 @@ public class KafkaRebalanceTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_REBALANCE)
     @Tool(
         name = "list_kafka_rebalances",
+        structuredContent = true,
         description = "List KafkaRebalance resources with state, mode,"
             + " cluster association, and optimization summary."
             + " Optionally filter by Kafka cluster.",
@@ -56,7 +59,7 @@ public class KafkaRebalanceTools {
             openWorldHint = false
         )
     )
-    public List<KafkaRebalanceResponse> listKafkaRebalances(
+    public KafkaRebalanceListResponse listKafkaRebalances(
         @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_FILTER_REBALANCE_DESC,
             required = false
@@ -66,7 +69,8 @@ public class KafkaRebalanceTools {
             required = false
         ) final String namespace
     ) {
-        return rebalanceService.listRebalances(namespace, clusterName);
+        List<KafkaRebalanceResponse> items = rebalanceService.listRebalances(namespace, clusterName);
+        return new KafkaRebalanceListResponse(items, items.size());
     }
 
     /**
@@ -81,6 +85,7 @@ public class KafkaRebalanceTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_REBALANCE)
     @Tool(
         name = "get_kafka_rebalance",
+        structuredContent = true,
         description = "Get detailed KafkaRebalance information including"
             + " rebalance spec, optimization metrics (data to move,"
             + " replica/leader movements, balancedness scores),"
@@ -93,7 +98,7 @@ public class KafkaRebalanceTools {
         )
     )
     public KafkaRebalanceResponse getKafkaRebalance(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.REBALANCE_NAME_DESC
         ) final String rebalanceName,
         @ToolArg(

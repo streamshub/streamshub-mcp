@@ -68,9 +68,10 @@ class StrimziOperatorToolsTest {
         client.when()
             .toolsCall("list_strimzi_operators", Map.of(), response -> {
                 assertFalse(response.isError());
-                String json = response.content().getFirst().asText().text();
+                String json = response.structuredContent().toString();
                 assertTrue(json.contains("strimzi-cluster-operator"));
                 assertTrue(json.contains("HEALTHY"));
+                assertTrue(json.contains("\"count\":1"));
             })
             .thenAssertResults();
     }

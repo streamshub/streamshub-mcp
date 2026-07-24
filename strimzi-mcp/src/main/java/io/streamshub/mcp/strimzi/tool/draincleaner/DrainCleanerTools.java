@@ -20,12 +20,15 @@ import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerListResponse;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerLogsResponse;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerReadinessResponse;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerResponse;
 import io.streamshub.mcp.strimzi.service.draincleaner.DrainCleanerService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.List;
@@ -61,6 +64,7 @@ public class DrainCleanerTools {
         name = "list_drain_cleaners",
         description = "List Strimzi Drain Cleaner deployments with status and webhook configuration."
             + " Drain Cleaner handles graceful pod evictions during node drains.",
+        structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,
@@ -68,13 +72,14 @@ public class DrainCleanerTools {
             openWorldHint = false
         )
     )
-    public List<DrainCleanerResponse> listDrainCleaners(
+    public DrainCleanerListResponse listDrainCleaners(
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
         ) final String namespace
     ) {
-        return drainCleanerService.listDrainCleaners(namespace);
+        List<DrainCleanerResponse> items = drainCleanerService.listDrainCleaners(namespace);
+        return new DrainCleanerListResponse(items, items.size());
     }
 
     /**
@@ -89,6 +94,7 @@ public class DrainCleanerTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.DRAIN_CLEANER)
     @Tool(
         name = "get_drain_cleaner",
+        structuredContent = true,
         description = "Get detailed information about a Strimzi Drain Cleaner deployment"
             + " including webhook configuration, failure policy, operating mode, and TLS certificate status.",
         annotations = @Tool.Annotations(
@@ -99,7 +105,7 @@ public class DrainCleanerTools {
         )
     )
     public DrainCleanerResponse getDrainCleaner(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.DRAIN_CLEANER_NAME_DESC
         ) final String drainCleanerName,
         @ToolArg(
@@ -131,6 +137,7 @@ public class DrainCleanerTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.DRAIN_CLEANER)
     @Tool(
         name = "get_drain_cleaner_logs",
+        structuredContent = true,
         description = "Get logs from Strimzi Drain Cleaner pods."
             + " Useful for checking behavior during node drains and rolling updates.",
         annotations = @Tool.Annotations(
@@ -154,7 +161,7 @@ public class DrainCleanerTools {
             description = StrimziToolsPrompts.KEYWORDS_DESC,
             required = false
         ) final List<String> keywords,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.SINCE_MINUTES_DESC,
             required = false
         ) final Integer sinceMinutes,
@@ -166,7 +173,7 @@ public class DrainCleanerTools {
             description = StrimziToolsPrompts.END_TIME_DESC,
             required = false
         ) final String endTime,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.TAIL_LINES_DESC,
             required = false
         ) final Integer tailLines,
@@ -210,6 +217,7 @@ public class DrainCleanerTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.DRAIN_CLEANER)
     @Tool(
         name = "check_drain_cleaner_readiness",
+        structuredContent = true,
         description = "Check readiness of Strimzi Drain Cleaner."
             + " Assesses deployment health, webhook configuration, TLS certificates,"
             + " operating mode, and failure policy.",

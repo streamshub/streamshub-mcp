@@ -258,7 +258,7 @@ class CrossNamespaceAdminST extends AbstractST {
                     JsonNode cluster = findByName(root, Constants.KAFKA_CLUSTER_NAME);
                     assertNotNull(cluster, "Should find cluster in namespace 1");
                     assertEquals(Constants.KAFKA_NAMESPACE, cluster.path("namespace").asText());
-                    assertEquals(1, response.content().size(),
+                    assertEquals(1, root.path("items").size(),
                         "Should return exactly one cluster for this namespace");
                     assertNotEquals(Constants.KAFKA_NAMESPACE_2, cluster.path("namespace").asText(),
                         "Should not contain cluster from namespace 2");
@@ -276,7 +276,7 @@ class CrossNamespaceAdminST extends AbstractST {
                     JsonNode cluster = findByName(root, Constants.KAFKA_CLUSTER_NAME);
                     assertNotNull(cluster, "Should find cluster in namespace 2");
                     assertEquals(Constants.KAFKA_NAMESPACE_2, cluster.path("namespace").asText());
-                    assertEquals(1, response.content().size(),
+                    assertEquals(1, root.path("items").size(),
                         "Should return exactly one cluster for this namespace");
                     assertNotEquals(Constants.KAFKA_NAMESPACE, cluster.path("namespace").asText(),
                         "Should not contain cluster from namespace 1");

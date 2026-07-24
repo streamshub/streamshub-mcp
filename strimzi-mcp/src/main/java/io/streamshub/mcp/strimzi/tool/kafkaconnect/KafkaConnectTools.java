@@ -20,12 +20,15 @@ import io.streamshub.mcp.common.guardrail.RateCategory;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectListResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectResponse;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.List;
@@ -59,6 +62,7 @@ public class KafkaConnectTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)
     @Tool(
         name = "list_kafka_connects",
+        structuredContent = true,
         description = "List KafkaConnect clusters with status,"
             + " replicas, and connector plugin counts."
             + " Optionally filter by namespace.",
@@ -69,13 +73,14 @@ public class KafkaConnectTools {
             openWorldHint = false
         )
     )
-    public List<KafkaConnectResponse> listKafkaConnects(
+    public KafkaConnectListResponse listKafkaConnects(
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
             required = false
         ) final String namespace
     ) {
-        return connectService.listConnects(namespace);
+        List<KafkaConnectResponse> items = connectService.listConnects(namespace);
+        return new KafkaConnectListResponse(items, items.size());
     }
 
     /**
@@ -90,6 +95,7 @@ public class KafkaConnectTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)
     @Tool(
         name = "get_kafka_connect",
+        structuredContent = true,
         description = "Get detailed information about a specific"
             + " KafkaConnect cluster including status, bootstrap"
             + " servers, REST API URL, and available connector plugins.",
@@ -101,7 +107,7 @@ public class KafkaConnectTools {
         )
     )
     public KafkaConnectResponse getKafkaConnect(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CONNECT_CLUSTER_DESC
         ) final String connectName,
         @ToolArg(
@@ -124,6 +130,7 @@ public class KafkaConnectTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)
     @Tool(
         name = "get_kafka_connect_pods",
+        structuredContent = true,
         description = "Get pod summaries for a KafkaConnect cluster"
             + " with phase, readiness, restarts, and age.",
         annotations = @Tool.Annotations(
@@ -134,7 +141,7 @@ public class KafkaConnectTools {
         )
     )
     public KafkaConnectPodsResponse getKafkaConnectPods(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CONNECT_CLUSTER_DESC
         ) final String connectName,
         @ToolArg(
@@ -167,6 +174,7 @@ public class KafkaConnectTools {
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)
     @Tool(
         name = "get_kafka_connect_logs",
+        structuredContent = true,
         description = "Get logs from KafkaConnect pods with error analysis."
             + " Returns logs from all pods belonging to the Connect cluster.",
         annotations = @Tool.Annotations(
@@ -178,7 +186,7 @@ public class KafkaConnectTools {
     )
     @RateCategory("log")
     public KafkaConnectLogsResponse getKafkaConnectLogs(
-        @ToolArg(
+        @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CONNECT_CLUSTER_DESC
         ) final String connectName,
         @ToolArg(
@@ -193,7 +201,7 @@ public class KafkaConnectTools {
             description = StrimziToolsPrompts.KEYWORDS_DESC,
             required = false
         ) final List<String> keywords,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.SINCE_MINUTES_DESC,
             required = false
         ) final Integer sinceMinutes,
@@ -205,7 +213,7 @@ public class KafkaConnectTools {
             description = StrimziToolsPrompts.END_TIME_DESC,
             required = false
         ) final String endTime,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.TAIL_LINES_DESC,
             required = false
         ) final Integer tailLines,

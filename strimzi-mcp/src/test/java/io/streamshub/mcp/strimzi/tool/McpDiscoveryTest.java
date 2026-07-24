@@ -151,6 +151,44 @@ class McpDiscoveryTest {
             .thenAssertResults();
     }
 
+    /**
+     * Verify all tools expose an output schema (structuredContent enabled).
+     */
+    @Test
+    void testToolOutputSchemas() {
+        client.when()
+            .toolsList(page -> {
+                for (McpAssured.ToolInfo tool : page.tools()) {
+                    assertNotNull(tool.outputSchema(),
+                        "Tool '" + tool.name() + "' should have an outputSchema");
+                    assertTrue(tool.outputSchema().containsKey("type"),
+                        "Tool '" + tool.name() + "' outputSchema should have a 'type' field");
+                }
+            })
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify tool input schemas define required properties correctly.
+     */
+    @Test
+    void testToolInputSchemaProperties() {
+        client.when()
+            .toolsList(page -> {
+                McpAssured.ToolInfo tool = page.findByName("get_kafka_cluster");
+                assertNotNull(tool, "Tool 'get_kafka_cluster' should be registered");
+                assertNotNull(tool.inputSchema(), "Tool should have inputSchema");
+                io.vertx.core.json.JsonObject properties = tool.inputSchema()
+                    .getJsonObject("properties");
+                assertNotNull(properties, "inputSchema should have properties");
+                assertNotNull(properties.getJsonObject("clusterName"),
+                    "inputSchema should have clusterName property");
+                assertTrue(tool.inputSchema().getJsonArray("required").contains("clusterName"),
+                    "clusterName should be required");
+            })
+            .thenAssertResults();
+    }
+
     @SuppressWarnings("checkstyle:MethodLength")
     private static Map<String, String[]> expectedToolMetadata() {
         Map<String, String[]> map = new HashMap<>();
