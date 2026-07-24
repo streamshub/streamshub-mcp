@@ -94,7 +94,7 @@ Key points:
 
 ## Coding agent skills
 
-Shared skills for coding agents (code review, test coverage, Java best practices, MCP tool guides)
+Shared skills for coding agents (code review, test coverage, MCP tool guides)
 live in [`.agents/skills/`](.agents/skills/). These are consumed by multiple tools:
 
 - **Claude Code**: symlinks in `.claude/commands/` (slash commands)

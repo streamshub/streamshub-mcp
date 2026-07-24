@@ -7,7 +7,7 @@ streaming platforms. Java 21, Quarkus 3.x, Strimzi API 1.0.x, Fabric8 Kubernetes
 
 - **User docs**: `docs/` -- Installation, configuration, usage, and troubleshooting for end users. Each MCP server has its own subdirectory (e.g., `docs/strimzi-mcp/`).
 - **Developer docs**: This file (`AGENTS.md`) -- Architecture, patterns, and conventions for developers
-- **Coding agent skills**: `.agents/skills/` -- Reusable skill files for coding agents (code review, test coverage, Java best practices, tool creation guides, system test guide). Referenced by Claude Code, Bob, Cursor, GitHub Copilot, and Windsurf.
+- **Coding agent skills**: `.agents/skills/` -- Reusable skill files for coding agents (code review, test coverage, tool creation guides, system test guide). Referenced by Claude Code, Bob, Cursor, GitHub Copilot, and Windsurf.
 
 ### Documentation Update Requirements
 
