@@ -24,7 +24,7 @@ Configure basic server identity and network settings.
 | Property | Default | Description |
 |----------|---------|-------------|
 | `quarkus.mcp.server.server-info.name` | `strimzi-mcp` | MCP server name shown to clients |
-| `quarkus.mcp.server.server-info.version` | `1.0.0` | Server version |
+| `quarkus.mcp.server.server-info.version` | build version (e.g. `0.2.0`) | Server version reported to MCP clients. Set automatically from the build — override only if needed. |
 | `quarkus.http.port` | `8080` | HTTP port the server listens on |
 | `quarkus.mcp.server.tools.structured-content.compatibility-mode` | `true` | Controls how tool responses are delivered. See [Structured content](#structured-content) below. |
 
