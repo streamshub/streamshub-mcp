@@ -170,7 +170,7 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
                 assertEquals(1, root.path("replicas").path("expected").asInt(), "Expected replicas should be 1");
                 assertEquals(1, root.path("replicas").path("ready").asInt(), "Ready replicas should be 1");
                 assertEquals("target", root.path("target_cluster").asText(), "Target cluster should be 'target'");
-                assertEquals("4.2.0", root.path("version").asText(), "Version should be 4.2.0");
+                assertEquals("4.3.0", root.path("version").asText(), "Version should be 4.3.0");
                 JsonNode mirrors = root.path("mirrors");
                 assertTrue(mirrors.isArray() && mirrors.size() == 1, "Should have exactly 1 mirror");
                 assertEquals("source", mirrors.get(0).path("source_cluster").asText(), "Mirror source cluster should be 'source'");
