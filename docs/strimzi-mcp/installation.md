@@ -4,7 +4,7 @@ weight = 1
 +++
 
 This guide describes how to deploy the MCP Server for Strimzi to a Kubernetes cluster.
-For a local development setup using `quarkus:dev`, see the [getting started guide](../getting-started.md).
+For a local setup or quick evaluation (no build required), see the [getting started guide](../getting-started.md).
 
 ## Prerequisites
 

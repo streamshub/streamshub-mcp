@@ -95,10 +95,12 @@ The server supports metrics queries with the following capabilities:
 
 ### Resource monitoring
 
-The server watches Kafka, KafkaNodePool, and KafkaTopic custom resources and Strimzi operator Deployments.
-When resource state changes, the server sends `notifications/resources/updated` to subscribed MCP clients.
+The server can watch Kafka, KafkaNodePool, and KafkaTopic custom resources and Strimzi operator Deployments.
+When resource state changes, it sends `notifications/resources/updated` to subscribed MCP clients.
 
-To disable resource watches, see the [`mcp.resource-watches.enabled`](configuration.md#resource-watch-configuration) configuration option.
+> **Disabled by default:** Resource watches are off by default because most AI clients do not yet support MCP resource subscriptions.
+> Resource templates still work for on-demand queries regardless of this setting.
+> To enable, set [`mcp.resource-watches.enabled=true`](configuration.md#resource-watch-configuration).
 
 ### Security guardrails
 
@@ -135,8 +137,8 @@ See [configuration](configuration.md) for setup instructions.
 
 - A Kubernetes cluster with `kubectl` access
 - The Strimzi operator deployed to your Kubernetes cluster
-- Java 21 or later and Maven 3.8 or later (for local development)
 - An AI assistant that supports MCP (see [MCP clients](https://modelcontextprotocol.io/clients))
+- Java 21 or later and Maven 3.8 or later (for local development only — not needed when using the published container image)
 
 ### Optional
 
