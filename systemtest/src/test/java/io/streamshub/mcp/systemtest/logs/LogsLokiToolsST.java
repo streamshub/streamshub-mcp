@@ -160,7 +160,7 @@ class LogsLokiToolsST extends AbstractST {
                         .thenAssertResults();
                     return true;
                 } catch (Exception | AssertionError ignored) {
-                    LOGGER.info("Loki doesn't have logs yet (Promtail ingestion delay), retrying...");
+                    LOGGER.info("Loki doesn't have logs yet, retrying...");
                     return false;
                 }
             }
