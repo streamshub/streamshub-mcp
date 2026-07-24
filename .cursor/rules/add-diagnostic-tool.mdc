@@ -1,0 +1,9 @@
+---
+description: Step-by-step guide for adding a composite diagnostic tool
+globs:
+  - "**/diagnostic/**/*.java"
+  - "**/service/**/*DiagnosticService.java"
+alwaysApply: false
+---
+
+Read and follow the step-by-step guide at `.agents/skills/add-diagnostic-tool.md`.

@@ -7,6 +7,7 @@ streaming platforms. Java 21, Quarkus 3.x, Strimzi API 1.0.x, Fabric8 Kubernetes
 
 - **User docs**: `docs/` -- Installation, configuration, usage, and troubleshooting for end users. Each MCP server has its own subdirectory (e.g., `docs/strimzi-mcp/`).
 - **Developer docs**: This file (`AGENTS.md`) -- Architecture, patterns, and conventions for developers
+- **Coding agent skills**: `.agents/skills/` -- Reusable skill files for coding agents (code review, test coverage, Java best practices, tool creation guides, system test guide). Referenced by Claude Code, Bob, Cursor, GitHub Copilot, and Windsurf.
 
 ### Documentation Update Requirements
 
@@ -148,22 +149,28 @@ io.streamshub.mcp.strimzi.
 │   ├── operator/      → StrimziOperatorTools, StrimziEventsTools
 │   ├── diagnostic/    → DiagnosticTools (composite diagnostic tools)
 │   └── metrics/       → MetricsTools
-├── service/           → Business logic (KafkaService, KafkaTopicService, KafkaNodePoolService,
-│                        KafkaCertificateService, KafkaConfigService, KafkaConfigComparisonService,
-│                        KafkaRebalanceService, KafkaClusterOverviewService, KafkaFleetOverviewService,
-│                        BootstrapMatcher, StrimziOperatorService, StrimziEventsService,
-│                        DrainCleanerService, CompletionService)
-│                        Diagnostic orchestrators: KafkaClusterDiagnosticService,
-│                        KafkaConnectivityDiagnosticService, KafkaMetricsDiagnosticService,
-│                        OperatorMetricsDiagnosticService
+├── service/           → Business logic, organized by domain sub-packages
+│   ├── kafka/         → KafkaService, KafkaCertificateService, KafkaConfigService,
+│   │                    KafkaConfigComparisonService, KafkaClusterOverviewService,
+│   │                    KafkaFleetOverviewService, BootstrapMatcher,
+│   │                    KafkaClusterDiagnosticService, KafkaConnectivityDiagnosticService,
+│   │                    KafkaMetricsDiagnosticService, UpgradeReadinessDiagnosticService
+│   ├── kafkatopic/    → KafkaTopicService, KafkaTopicDiagnosticService
+│   ├── kafkauser/     → KafkaUserService
+│   ├── kafkanodepool/ → KafkaNodePoolService
+│   ├── kafkarebalance/ → KafkaRebalanceService
+│   ├── draincleaner/  → DrainCleanerService
+│   ├── operator/      → StrimziOperatorService, StrimziEventsService,
+│   │                    OperatorMetricsDiagnosticService
 │   ├── kafkabridge/   → KafkaBridgeService
 │   ├── kafkaconnect/  → KafkaConnectService, KafkaConnectorService,
 │   │                    KafkaConnectDiagnosticService, KafkaConnectorDiagnosticService
 │   ├── kafkamirrormaker2/ → KafkaMirrorMaker2Service,
 │   │                    KafkaMirrorMaker2DiagnosticService
-│   └── metrics/       → KafkaMetricsService, KafkaExporterMetricsService,
-│                        KafkaBridgeMetricsService, KafkaConnectMetricsService,
-│                        StrimziOperatorMetricsService
+│   ├── metrics/       → KafkaMetricsService, KafkaExporterMetricsService,
+│   │                    KafkaBridgeMetricsService, KafkaConnectMetricsService,
+│   │                    StrimziOperatorMetricsService
+│   └── (root)         → CompletionService
 ├── dto/               → Strimzi response records and diagnostic reports
 │   ├── kafkabridge/   → KafkaBridgeResponse, etc.
 │   ├── kafkaconnect/  → KafkaConnectResponse, KafkaConnectorResponse, etc.
@@ -214,6 +221,7 @@ io.streamshub.mcp.strimzi.
 
 ```java
 @Singleton
+@Guarded
 @WrapBusinessError(value = Exception.class, unless = ToolCallException.class)
 public class XxxTools {
 
@@ -227,7 +235,13 @@ public class XxxTools {
     @Tool(
         name = "verb_noun",
         description = "Short description of what the tool does."
-            + " Additional sentence if needed."
+            + " Additional sentence if needed.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
     )
     public TypedResponse toolMethod(
         @ToolArg(description = "...") final String requiredParam,
@@ -245,10 +259,28 @@ matches the `@Tool(name = ...)` value. This creates a named parent span for each
 
 ### Tool Annotations
 
-All tools declare `@Tool.Annotations` with `readOnlyHint = true`, `destructiveHint = false`,
-`idempotentHint = true`, `openWorldHint = false` since all tools are read-only Kubernetes queries.
-When adding new tools, always include these annotations — MCP clients like ChatGPT default
-tools to "write" mode without them.
+All tools declare `@Tool.Annotations` nested inside `@Tool(... annotations = @Tool.Annotations(...))`
+with `readOnlyHint = true`, `destructiveHint = false`, `idempotentHint = true`, `openWorldHint = false`
+since all tools are read-only Kubernetes queries. When adding new tools, always include these
+annotations — MCP clients like ChatGPT default tools to "write" mode without them.
+
+### Guardrails
+
+All tool classes are annotated with `@Guarded`, which enables the guardrail filter chain
+(input validation, rate limiting, response size limits, log redaction, metrics collection).
+
+### Tool rate limiting
+
+Tool methods may be annotated with `@RateCategory` to assign them to a rate limit category:
+
+```java
+@RateCategory("log")
+@Tool(name = "get_kafka_cluster_logs", description = "...")
+public KafkaClusterLogsResponse getKafkaClusterLogs(...) { ... }
+```
+
+Standard categories: `"log"`, `"metrics"`, `"general"`. Methods without `@RateCategory` default
+to `"general"`. When `RateLimitFilter` is active, tool calls are throttled per category.
 
 ### Tool metadata
 

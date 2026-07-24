@@ -1,0 +1,15 @@
+# StreamsHub MCP -- Copilot Instructions
+
+Multi-module Quarkus monorepo providing MCP servers for Kubernetes-based streaming platforms.
+Java 21, Quarkus 3.x.
+
+## References
+
+- **Architecture and conventions**: [AGENTS.md](../AGENTS.md)
+- **Shared coding skills**: [.agents/skills/](../.agents/skills/)
+  - `code-review.md` -- PR review checklist
+  - `test-coverage-check.md` -- test coverage analysis
+  - `java-best-practices.md` -- project Java conventions
+  - `add-mcp-tool.md` -- guide for adding MCP tools
+  - `add-diagnostic-tool.md` -- guide for adding diagnostic tools
+  - `add-system-test.md` -- guide for writing e2e system tests

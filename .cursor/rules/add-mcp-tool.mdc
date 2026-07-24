@@ -1,0 +1,10 @@
+---
+description: Step-by-step guide for adding a new MCP tool to StreamsHub
+globs:
+  - "**/tool/**/*.java"
+  - "**/service/**/*.java"
+  - "**/dto/**/*.java"
+alwaysApply: false
+---
+
+Read and follow the step-by-step guide at `.agents/skills/add-mcp-tool.md`.
