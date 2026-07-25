@@ -129,7 +129,7 @@ class KafkaConnectToolsST extends AbstractST {
                 assertEquals("Ready", connect.path("readiness").asText(), "Connect should be Ready");
                 assertEquals(1, connect.path("replicas").path("expected").asInt(), "Expected replicas should be 1");
                 assertEquals(1, connect.path("replicas").path("ready").asInt(), "Ready replicas should be 1");
-                assertEquals("4.2.0", connect.path("version").asText(), "Version should be 4.2.0");
+                assertEquals("4.3.0", connect.path("version").asText(), "Version should be 4.3.0");
                 assertTrue(connect.has("conditions"), "Should have conditions");
                 assertEquals("Ready", connect.path("conditions").get(0).path("type").asText(), "First condition type should be Ready");
             })
@@ -157,7 +157,7 @@ class KafkaConnectToolsST extends AbstractST {
                 assertTrue(connect.has("replicas"), "Should have replicas info");
                 assertEquals(1, connect.path("replicas").path("expected").asInt(), "Expected replicas should be 1");
                 assertEquals(1, connect.path("replicas").path("ready").asInt(), "Ready replicas should be 1");
-                assertEquals("4.2.0", connect.path("version").asText(), "Version should be 4.2.0");
+                assertEquals("4.3.0", connect.path("version").asText(), "Version should be 4.3.0");
                 assertEquals(6, connect.path("connector_plugins_count").asInt(), "Should have 6 connector plugins");
                 assertFalse(connect.path("creation_time").isMissingNode(), "Should have creation_time");
             })

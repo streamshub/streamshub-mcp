@@ -158,7 +158,7 @@ class DiagnoseToolsST extends AbstractST {
                     "Should have events section");
                 assertFalse(root.path("metrics").isMissingNode(),
                     "Should have metrics section");
-                assertEquals("4.2.0", root.path("cluster").path("kafka_version").asText(), "Kafka version should be 4.2.0");
+                assertEquals("4.3.0", root.path("cluster").path("kafka_version").asText(), "Kafka version should be 4.3.0");
                 assertEquals(4, root.path("pods").path("pod_summary").path("total_pods").asInt(), "Should have 4 total pods");
                 assertEquals("HEALTHY", root.path("pods").path("pod_summary").path("health_status").asText(), "Pod health should be HEALTHY");
                 assertEquals("strimzi-cluster-operator", root.path("operator").path("name").asText(), "Operator name should match");

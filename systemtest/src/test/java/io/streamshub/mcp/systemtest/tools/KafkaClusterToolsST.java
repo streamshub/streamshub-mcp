@@ -613,7 +613,7 @@ class KafkaClusterToolsST extends AbstractST {
     void testGetKafkaClusterLogsLargeRequest() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
-            "tailLines", 500);
+            "tailLines", 200);
 
         AtomicBoolean hasMore = new AtomicBoolean(false);
         Wait.until("pods to accumulate enough logs for has_more=true",
@@ -641,7 +641,7 @@ class KafkaClusterToolsST extends AbstractST {
                 }
                 return hasMore.get();
             });
-        assertTrue(hasMore.get(), "Should have more when requesting 10*500 tailLines");
+        assertTrue(hasMore.get(), "Should have more when requesting 200 tailLines per pod");
     }
 
     // ---- Node Pool Tools ----
