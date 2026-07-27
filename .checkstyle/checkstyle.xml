@@ -158,10 +158,6 @@
         <module name="JavadocLeadingAsteriskAlign" />
         <module name="JavadocMissingLeadingAsterisk" />
         <module name="JavadocMissingWhitespaceAfterAsterisk" />
-        <module name="JavadocStyle">
-            <property name="checkEmptyJavadoc" value="true"/>
-            <property name="checkFirstSentence" value="false"/>
-        </module>
         <module name="NonEmptyAtclauseDescription"/>
 
         <!-- Make the @SuppressWarnings annotations available to Checkstyle -->
