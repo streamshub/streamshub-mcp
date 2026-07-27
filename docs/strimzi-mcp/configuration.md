@@ -303,10 +303,9 @@ See [Diagnostic tools](tools/diagnostics.md) for more information.
 
 ### Server metrics (Micrometer / Prometheus)
 
-The MCP server exposes its own operational metrics via Micrometer in Prometheus scrape format at `/q/metrics`.
-This is enabled automatically by the `quarkus-micrometer-registry-prometheus` dependency.
+The Prometheus scrape endpoint at `/q/metrics` is provided by the `quarkus-micrometer-registry-prometheus` dependency.
 
-**Exposed metrics:**
+**Application-level metrics** are recorded by the StreamsHub `MetricsFilter` whenever Micrometer is on the classpath:
 
 | Metric | Type | Tags | Description |
 |--------|------|------|-------------|
@@ -315,10 +314,25 @@ This is enabled automatically by the `quarkus-micrometer-registry-prometheus` de
 
 The `server` tag is the MCP server name from `quarkus.mcp.server.server-info.name` (e.g., `strimzi-mcp`), allowing metrics from different MCP servers to be distinguished in a shared Prometheus instance. The `status` tag is `success` or `error`. The `tool` tag is the tool method name (e.g., `listKafkaClusters`).
 
-**Disable server metrics:**
+**Protocol-level metrics** from the upstream quarkus-mcp-server extension are enabled by `quarkus.mcp.server.metrics.enabled=true`:
+
+| Metric | Type | Tags | Description |
+|--------|------|------|-------------|
+| `mcp.server.connections.active` | gauge | - | Current active MCP connections |
+| `mcp.server.requests.<method>` | timer | `mcp.server`, `failure`, method-specific | Per JSON-RPC method request duration and count |
+
+Method-specific tags: `tools/call` adds `tool.name`, `resources/read` adds `resource.uri`, `prompts/get` adds `prompt.name`. The `failure` tag is `none` on success or the exception class name on error.
+
+**Disable the Prometheus endpoint entirely:**
 
 ```bash
 QUARKUS_MICROMETER_EXPORT_PROMETHEUS_ENABLED=false
+```
+
+**Disable only protocol-level MCP metrics (keep application and Quarkus/JVM metrics):**
+
+```bash
+QUARKUS_MCP_SERVER_METRICS_ENABLED=false
 ```
 
 **Prometheus scrape config example:**

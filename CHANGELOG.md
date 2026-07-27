@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed Prometheus metrics system tests failing on OpenShift: added optional `cluster-monitoring-view` ClusterRoleBinding for querying the Thanos querier, enabled `metricsConfig` on test Kafka CRs, and deployed PodMonitors for metrics scraping
 - Fixed `get_kafka_cluster` and `get_kafka_fleet_overview` counting all node pool replicas (brokers + controllers) as a single combined total; now reports separate `broker_replicas` and `controller_replicas` with per-role storage information (#171)
 - Replaced deprecated `Elicitation.isSupported()` with `isFormModeSupported()` across all diagnostic services
+- Fixed MCP server metrics config key typo (`quarkus.mcp-server` → `quarkus.mcp.server`); tool-call metrics were silently disabled
 - Fixed `auth-mode` documentation to use correct values (`sa-token` and `bearer-token`) matching the actual implementation
 - Fixed diagnostic services and prompt templates incorrectly passing KafkaConnect/KafkaMirrorMaker2 names to `get_strimzi_events` as Kafka cluster names (#145)
 - Fixed cluster overview Drain Cleaner summary missing namespace, readiness, and replica count
