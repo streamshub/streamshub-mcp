@@ -138,7 +138,7 @@ The image is available for both `linux/amd64` and `linux/arm64` (Apple Silicon).
 docker run -i --rm \
   -p 8080:8080 \
   -v "$HOME/.kube:/home/jboss/.kube:ro" \
-  -e QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true \
+  -e QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true `# WARNING: disables TLS verification — dev/evaluation only` \
   quay.io/streamshub/strimzi-mcp:latest
 ```
 
@@ -148,7 +148,7 @@ docker run -i --rm \
 podman run -i --rm \
   -p 8080:8080 \
   -v "$HOME/.kube:/home/jboss/.kube:ro,z" \
-  -e QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true \
+  -e QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true `# WARNING: disables TLS verification — dev/evaluation only` \
   quay.io/streamshub/strimzi-mcp:latest
 ```
 
