@@ -872,6 +872,7 @@ See [Loki authentication](#loki-authentication) and [Prometheus authentication](
 ### Rate limiting
 
 All rate limits default to `0` (unlimited).
+The server uses three categories: `log` (log collection tools), `metrics` (metrics tools), and `general` (all other tools).
 Set per-category limits to prevent resource exhaustion:
 
 ```bash
@@ -880,7 +881,7 @@ MCP_GUARDRAIL_RATE_LIMIT_METRICS_RPM=60
 MCP_GUARDRAIL_RATE_LIMIT_GENERAL_RPM=120
 ```
 
-See [Rate limiting](#rate-limiting) for details.
+See [Rate limiting](#rate-limiting) for category definitions, default values, and burst configuration.
 
 ### CORS origins
 

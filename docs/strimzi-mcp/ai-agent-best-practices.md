@@ -70,6 +70,7 @@ Available diagnostic tools:
 - `diagnose_kafka_cluster`
 - `diagnose_kafka_connectivity`
 - `diagnose_kafka_metrics`
+- `diagnose_operator_metrics`
 - `diagnose_kafka_connect`
 - `diagnose_kafka_connector`
 - `diagnose_kafka_topic`

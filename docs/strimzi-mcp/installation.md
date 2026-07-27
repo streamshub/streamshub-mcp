@@ -279,6 +279,10 @@ It inherits the Kubernetes identity of its runtime environment:
 The MCP HTTP endpoint (`/mcp`) does not require credentials.
 Any client that can reach the endpoint can invoke all tools.
 
+> **Warning:** The endpoint is unauthenticated by design and is live as soon as the server starts.
+> Apply at least one of the controls below (a NetworkPolicy is the minimum recommended step) before exposing the server in any shared or production environment.
+> See also the [production deployment checklist](configuration.md#production-deployment-checklist) in the configuration guide.
+
 ### Securing the MCP endpoint
 
 In production, restrict access to the MCP endpoint using infrastructure-level controls:
