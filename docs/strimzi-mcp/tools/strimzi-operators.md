@@ -62,8 +62,8 @@ Get logs from Strimzi operator pods with error analysis and advanced filtering.
 - `filter` (optional) -- Log level filter (e.g., "ERROR", "WARN", "INFO")
 - `keywords` (optional) -- List of keywords to search for in logs
 - `sinceMinutes` (optional) -- Time window in minutes
-- `startTime` (optional) -- Start time (ISO 8601 format or relative like "-1h")
-- `endTime` (optional) -- End time (ISO 8601 format or "now")
+- `startTime` (optional) -- Start time (ISO 8601 format, e.g., `2025-01-15T10:00:00Z`)
+- `endTime` (optional) -- End time (ISO 8601 format, e.g., `2025-01-15T12:00:00Z`)
 - `tailLines` (optional) -- Number of lines to tail from each pod
 - `previous` (optional) -- Get logs from previous container instance
 - `operatorName` (optional) -- Specific operator deployment name
