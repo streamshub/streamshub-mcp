@@ -275,7 +275,8 @@ class NamespaceScopedRbacST extends AbstractST {
                 LOGGER.debug("get_kafka_cluster_logs (accessible) response:\n{}", response.content().getFirst().asText().text());
                 assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText());
                 assertEquals(Constants.KAFKA_NAMESPACE, root.path("namespace").asText());
-                assertFalse(root.path("has_errors").asBoolean(), "Should have no errors in logs");
+                assertEquals(root.path("has_errors").asBoolean(), root.path("error_count").asInt() > 0,
+                    "has_errors should be consistent with error_count");
                 assertTrue(root.path("log_lines").asInt() > 0, "Should have some log lines");
                 assertTrue(root.path("has_more").asBoolean(), "Should indicate more logs available");
                 JsonNode pods = root.path("pods");

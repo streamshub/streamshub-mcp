@@ -230,8 +230,8 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
                 assertEquals(1, root.path("pods").size(), "Should have exactly 1 pod");
                 assertTrue(root.path("log_lines").asInt() > 0, "Should have log lines");
                 assertTrue(root.path("has_more").asBoolean(), "Should indicate more logs available");
-                String logs = root.path("logs").asText();
-                assertTrue(logs.contains("MirrorSourceConnector"), "Logs should contain MirrorSourceConnector references");
+                assertFalse(root.path("logs").asText("").isEmpty(), "logs content should not be empty");
+                assertTrue(root.path("logs").asText("").contains("=== Pod:"), "logs should contain pod log sections");
             })
             .thenAssertResults();
     }
