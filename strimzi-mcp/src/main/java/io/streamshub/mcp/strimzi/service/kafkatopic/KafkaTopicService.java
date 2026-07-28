@@ -20,6 +20,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.List;
+import java.util.Map;
 /**
  * Service for Kafka topic operations.
  */
@@ -154,17 +155,20 @@ public class KafkaTopicService {
 
         Integer partitions = null;
         Integer replicas = null;
+        Map<String, Object> config = null;
 
         if (topic.getSpec() != null) {
             partitions = topic.getSpec().getPartitions();
             replicas = topic.getSpec().getReplicas();
+            Map<String, Object> specConfig = topic.getSpec().getConfig();
+            config = (specConfig != null && !specConfig.isEmpty()) ? specConfig : null;
         }
 
         String status = topic.getStatus() != null
             ? determineResourceStatus(topic.getStatus().getConditions())
             : KubernetesConstants.ResourceStatus.UNKNOWN;
 
-        return KafkaTopicResponse.of(topicName, cluster, partitions, replicas, status);
+        return KafkaTopicResponse.of(topicName, cluster, partitions, replicas, status, config);
     }
 
     private String determineResourceStatus(final List<Condition> conditions) {

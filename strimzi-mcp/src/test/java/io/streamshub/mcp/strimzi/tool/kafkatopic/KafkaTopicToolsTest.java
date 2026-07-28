@@ -56,7 +56,7 @@ class KafkaTopicToolsTest {
     void testListKafkaTopics() {
         when(topicService.listTopics(null, "my-cluster", null, null)).thenReturn(
             PaginatedResponse.of(
-                List.of(new KafkaTopicResponse("user-events", "my-cluster", 12, 3, "Ready")),
+                List.of(KafkaTopicResponse.of("user-events", "my-cluster", 12, 3, "Ready", null)),
                 1, 0, 100, false)
         );
 
@@ -75,7 +75,8 @@ class KafkaTopicToolsTest {
     @Test
     void testGetKafkaTopic() {
         when(topicService.getTopic(null, "my-cluster", "user-events")).thenReturn(
-            new KafkaTopicResponse("user-events", "my-cluster", 12, 3, "Ready")
+            KafkaTopicResponse.of("user-events", "my-cluster", 12, 3, "Ready",
+                Map.of("retention.ms", "604800000", "cleanup.policy", "delete"))
         );
 
         client.when()

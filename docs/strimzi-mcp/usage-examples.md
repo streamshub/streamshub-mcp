@@ -736,7 +736,7 @@ Showing 101-200:
 The AI assistant automatically handles pagination by calling `list_kafka_topics` with `offset` and `limit` parameters.
 You can also ask for specific subsets:
 
-- *"List topics matching 'order-*'"* — uses the `nameContains` filter
+- *"List topics matching 'order-*'"* — the AI filters results by name
 - *"Show me only NotReady topics"* — the AI filters results
 - *"How many topics are in prod-cluster?"* — returns just the count
 

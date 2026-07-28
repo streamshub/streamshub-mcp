@@ -19,7 +19,7 @@ Returns samples with an interpretation guide for thresholds and diagnostics.
 - `startTime` (optional) -- Absolute start time (ISO 8601 format)
 - `endTime` (optional) -- Absolute end time (ISO 8601 format)
 - `stepSeconds` (optional) -- Range query step in seconds
-- `aggregation` (optional) -- Aggregation level: "partition" (full detail), "topic" (avg across partitions), "broker" (avg across topics+partitions, default), or "cluster" (single avg across all dimensions). Automatically clamped to the finest level supported by the requested category.
+- `aggregation` (optional) -- Aggregation level: "partition" (full detail), "topic" (avg across partitions), "broker" (avg across topics+partitions), or "cluster" (single avg across all dimensions, default). Automatically clamped to the finest level supported by the requested category.
 - `requestTypes` (optional) -- Comma-separated list of Kafka request types to include (e.g., "Produce,Fetch,FindCoordinator"). Filters performance metrics that have a "request" label. Omit to include all request types.
 
 **Returns**: Aggregated metrics with summary statistics (min, max, avg, latest), interpretation guide, and diagnostic thresholds
@@ -37,13 +37,13 @@ Returns consumer group lag, topic partition offsets, and JVM metrics with interp
 **Parameters**:
 - `clusterName` (required) -- Name of the Kafka cluster
 - `namespace` (optional) -- Kubernetes namespace
-- `category` (optional) -- Metric category: "consumer_lag", "topic_partition", "jvm"
+- `category` (optional) -- Metric category: "consumer_lag", "partitions", "resources"
 - `metricNames` (optional) -- Comma-separated list of explicit metric names
 - `rangeMinutes` (optional) -- Range duration in minutes
 - `startTime` (optional) -- Absolute start time (ISO 8601 format)
 - `endTime` (optional) -- Absolute end time (ISO 8601 format)
 - `stepSeconds` (optional) -- Range query step in seconds
-- `aggregation` (optional) -- Aggregation level: "partition" (full detail), "topic" (avg across partitions), "broker" (avg across topics+partitions, default), or "cluster" (single avg across all dimensions). Automatically clamped to the finest level supported by the requested category.
+- `aggregation` (optional) -- Aggregation level: "partition" (full detail), "topic" (avg across partitions), "broker" (avg across topics+partitions), or "cluster" (single avg across all dimensions, default). Automatically clamped to the finest level supported by the requested category.
 
 **Returns**: Aggregated Kafka Exporter metrics with summary statistics and interpretation guide
 
@@ -66,6 +66,7 @@ Returns HTTP request, producer, consumer, and JVM metrics with interpretation gu
 - `startTime` (optional) -- Absolute start time (ISO 8601 format)
 - `endTime` (optional) -- Absolute end time (ISO 8601 format)
 - `stepSeconds` (optional) -- Range query step in seconds
+- `aggregation` (optional) -- Aggregation level (automatically clamped to supported levels for bridge categories)
 
 **Returns**: KafkaBridge metrics with samples and interpretation guide
 
@@ -112,7 +113,7 @@ When clusterName is provided, also includes entity operator (user-operator and t
 - `startTime` (optional) -- Absolute start time (ISO 8601 format)
 - `endTime` (optional) -- Absolute end time (ISO 8601 format)
 - `stepSeconds` (optional) -- Range query step in seconds
-- `aggregation` (optional) -- Aggregation level: "partition" (full detail), "topic" (avg across partitions), "broker" (avg across topics+partitions, default), or "cluster" (single avg across all dimensions). Automatically clamped to the finest level supported by the requested category.
+- `aggregation` (optional) -- Aggregation level: "partition" (full detail), "topic" (avg across partitions), "broker" (avg across topics+partitions), or "cluster" (single avg across all dimensions, default). Automatically clamped to the finest level supported by the requested category.
 
 **Returns**: Aggregated operator metrics with summary statistics and interpretation guide
 

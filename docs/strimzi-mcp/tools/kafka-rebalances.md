@@ -36,7 +36,7 @@ Get detailed KafkaRebalance information including rebalance spec, optimization m
 - **State and mode** -- Current rebalance state and mode (full, add-brokers, remove-brokers, remove-disks)
 - **Optimization result** -- Data to move (MB), replica movements, leader movements, intra-broker movements, monitored partitions percentage, balancedness scores before/after
 - **Spec details** -- Goals, excluded topics, broker list, concurrency settings, replication throttle, skip hard goal check, rebalance disk
-- **Annotations** -- Auto-approval status, last rebalance action (approve/stop/refresh)
+- **Auto-approval** -- Whether auto-approval is enabled
 - **Session** -- Cruise Control session ID and progress ConfigMap reference
 
 **Example**:

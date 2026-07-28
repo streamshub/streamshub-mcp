@@ -95,7 +95,7 @@ The server supports metrics queries with the following capabilities:
 
 ### Resource monitoring
 
-The server can watch Kafka, KafkaNodePool, and KafkaTopic custom resources and Strimzi operator Deployments.
+The server can watch Kafka, KafkaNodePool, KafkaTopic, and KafkaUser custom resources and Strimzi operator Deployments.
 When resource state changes, it sends `notifications/resources/updated` to subscribed MCP clients.
 
 > **Disabled by default:** Resource watches are off by default because most AI clients do not yet support MCP resource subscriptions.

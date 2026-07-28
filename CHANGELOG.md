@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Topic configuration** -- Added topic configuration (e.g., retention.ms, cleanup.policy) to `KafkaTopicResponse`
 - **Shared coding agent skills** -- Added `.agents/skills/` directory with 5 reusable skills (code review, test coverage, add MCP tool, add diagnostic tool, add system test) consumed by Claude Code, Bob, Cursor, GitHub Copilot, and Windsurf via symlinks or agent-specific references
 - **E2E Coverage** -- Added e2e coverage that now covers most of the user's scenarios
 - **Tool metadata** -- tools now include `_meta` fields (`type`, `resource`, `composite`) in `tools/list` responses, enabling AI agents and clients to discover and filter tools by purpose and target resource (#151)

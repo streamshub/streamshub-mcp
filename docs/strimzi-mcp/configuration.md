@@ -446,7 +446,7 @@ QUARKUS_TLS_OTLP_KEY_STORE_PEM_0_KEY=/etc/otel-tls/tls.key
 ./dev/scripts/setup-jaeger.sh teardown
 ```
 
-Tracing is disabled by default and enabled automatically in the `prod` profile.
+Tracing is disabled by default (`quarkus.otel.sdk.disabled=true`). Set `QUARKUS_OTEL_SDK_DISABLED=false` to enable it.
 
 ### Resource watch configuration
 
@@ -603,8 +603,8 @@ Increase if you have multiple concurrent users or automated pipelines calling th
 
 Rate limits are enforced per tool category:
 
-- **Log category** — [`get_kafka_cluster_logs`](tools/kafka-clusters.md#get_kafka_cluster_logs), [`get_strimzi_operator_logs`](tools/strimzi-operators.md#get_strimzi_operator_logs)
-- **Metrics category** — [`get_kafka_metrics`](tools/metrics.md#get_kafka_metrics), [`get_kafka_exporter_metrics`](tools/metrics.md#get_kafka_exporter_metrics), [`get_strimzi_operator_metrics`](tools/metrics.md#get_strimzi_operator_metrics)
+- **Log category** — [`get_kafka_cluster_logs`](tools/kafka-clusters.md#get_kafka_cluster_logs), [`get_strimzi_operator_logs`](tools/strimzi-operators.md#get_strimzi_operator_logs), [`get_kafka_connect_logs`](tools/kafka-connect.md#get_kafka_connect_logs), [`get_kafka_bridge_logs`](tools/kafka-bridge.md#get_kafka_bridge_logs), [`get_kafka_mirror_maker_logs`](tools/kafka-mirror-maker.md#get_kafka_mirror_maker_logs), [`get_drain_cleaner_logs`](tools/drain-cleaner.md#get_drain_cleaner_logs)
+- **Metrics category** — [`get_kafka_metrics`](tools/metrics.md#get_kafka_metrics), [`get_kafka_exporter_metrics`](tools/metrics.md#get_kafka_exporter_metrics), [`get_kafka_connect_metrics`](tools/metrics.md#get_kafka_connect_metrics), [`get_kafka_bridge_metrics`](tools/metrics.md#get_kafka_bridge_metrics), [`get_strimzi_operator_metrics`](tools/metrics.md#get_strimzi_operator_metrics)
 - **General category** — All other tools
 
 To enable rate limiting:
@@ -895,7 +895,7 @@ MCP_GUARDRAIL_RATE_LIMIT_METRICS_RPM=60
 MCP_GUARDRAIL_RATE_LIMIT_GENERAL_RPM=120
 ```
 
-See [Rate limiting](#rate-limiting) for category definitions, default values, and burst configuration.
+See [Rate limiting](#rate-limiting) for category definitions and default values.
 
 ### CORS origins
 
