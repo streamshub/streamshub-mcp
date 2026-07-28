@@ -48,6 +48,7 @@ Available prompt templates:
 - `troubleshoot-mirror-maker`
 - `troubleshoot-bridge`
 - `analyze-capacity`
+- `analyze-strimzi-operator-metrics`
 - `compare-cluster-configs`
 - `assess-upgrade-readiness`
 

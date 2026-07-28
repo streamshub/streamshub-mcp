@@ -66,8 +66,6 @@ Get logs from Strimzi operator pods with error analysis and advanced filtering.
 - `endTime` (optional) -- End time (ISO 8601 format, e.g., `2025-01-15T12:00:00Z`)
 - `tailLines` (optional) -- Number of lines to tail from each pod
 - `previous` (optional) -- Get logs from previous container instance
-- `operatorName` (optional) -- Specific operator deployment name
-
 **Returns**: Aggregated operator logs with error analysis and statistics
 
 **Example**:
@@ -84,7 +82,7 @@ Get Kubernetes events for a Strimzi resource and all related pods. For Kafka clu
 **Parameters**:
 - `resourceName` (required) -- Name of the Strimzi resource
 - `namespace` (optional) -- Kubernetes namespace. Auto-discovered for Kafka, StrimziOperator, and DrainCleaner
-- `sinceMinutes` (optional) -- Time window in minutes (default: 30)
+- `sinceMinutes` (optional) -- Time window in minutes (omit for all available events)
 - `resourceKind` (required) -- Strimzi resource kind: `Kafka`, `KafkaConnect`, `KafkaMirrorMaker2`, `KafkaBridge`, `StrimziOperator`, or `DrainCleaner`
 
 **Returns**: Events grouped by resource type showing scheduling, restarts, volume issues, and operator reconciliation events

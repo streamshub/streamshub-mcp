@@ -122,7 +122,7 @@ curl -X POST http://localhost:8080/mcp \
    kubectl auth can-i list kafkas --all-namespaces
    
    # For in-Kubernetes-cluster deployment, check ServiceAccount permissions
-   kubectl describe clusterrole streamshub-mcp-reader
+   kubectl describe clusterrole streamshub-mcp-strimzi
    ```
 
 3. **"Namespace not found"**
@@ -191,7 +191,7 @@ kubectl -n streamshub-mcp logs <pod-name>
    **Solution**:
    ```bash
    # Verify ClusterRoleBinding exists
-   kubectl get clusterrolebinding streamshub-mcp-reader
+   kubectl get clusterrolebinding streamshub-mcp-strimzi
    
    # Recreate if missing
    kubectl apply -k install/strimzi-mcp/base/
@@ -434,7 +434,7 @@ kubectl -n streamshub-mcp exec <mcp-pod> -- \
    ```bash
    # Set environment variable
    kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
-     LOKI_URL=http://loki.monitoring:3100
+     QUARKUS_REST_CLIENT_LOKI_URL=http://loki.monitoring:3100
    ```
 
 2. **Loki not accessible**
@@ -453,8 +453,7 @@ kubectl -n streamshub-mcp exec <mcp-pod> -- \
      --from-literal=token=your-token
    
    kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
-     LOKI_AUTH_ENABLED=true \
-     --from=secret/loki-auth
+     MCP_LOG_LOKI_AUTH_MODE=sa-token
    ```
 
 4. **403 Forbidden on OpenShift Logging v6.x**
@@ -572,7 +571,7 @@ kubectl -n streamshub-mcp get deployment streamshub-mcp-strimzi -o yaml | grep -
 
 **Solutions**:
 
-1. **Prometheus not configured**: Set `PROMETHEUS_URL`
+1. **Prometheus not configured**: Set `QUARKUS_REST_CLIENT_PROMETHEUS_URL`
 2. **Metrics not scraped**: Check Prometheus targets
    ```bash
    curl http://prometheus.monitoring:9090/api/v1/targets

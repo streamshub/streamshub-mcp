@@ -50,7 +50,7 @@ public class KafkaTopicTools {
     @Tool(
         name = "list_kafka_topics",
         structuredContent = true,
-        description = "List Kafka topics for a cluster with partitions, replicas, and status."
+        description = "List Kafka topics for a cluster with configuration, partitions, replicas, and status."
             + " Returns paginated results (default 100 per page). Use offset to get more.",
         annotations = @Tool.Annotations(
             readOnlyHint = true,

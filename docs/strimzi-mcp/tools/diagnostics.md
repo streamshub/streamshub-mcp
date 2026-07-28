@@ -62,6 +62,10 @@ Analyzes replication, throughput, performance, and resource metrics to identify 
 - `clusterName` (required) -- Name of the Kafka cluster
 - `namespace` (optional) -- Kubernetes namespace
 - `concern` (optional) -- Specific concern (e.g., "replication", "performance", "resources")
+- `rangeMinutes` (optional) -- Range duration in minutes
+- `startTime` (optional) -- Absolute start time (ISO 8601 format)
+- `endTime` (optional) -- Absolute end time (ISO 8601 format)
+- `stepSeconds` (optional) -- Range query step in seconds
 
 **Uses Sampling**: Yes
 **Uses Elicitation**: Yes
@@ -81,9 +85,13 @@ Analyzes reconciliation, resource, and JVM metrics, correlating with operator lo
 - `operatorName` (optional) -- Operator deployment name
 - `clusterName` (optional) -- Specific cluster to analyze
 - `concern` (optional) -- Specific concern (e.g., "reconciliation", "resources", "jvm")
+- `rangeMinutes` (optional) -- Range duration in minutes
+- `startTime` (optional) -- Absolute start time (ISO 8601 format)
+- `endTime` (optional) -- Absolute end time (ISO 8601 format)
+- `stepSeconds` (optional) -- Range query step in seconds
 
 **Uses Sampling**: Yes
-**Uses Elicitation**: Yes
+**Uses Elicitation**: No
 
 **Example**:
 ```

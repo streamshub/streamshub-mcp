@@ -185,7 +185,7 @@ io.streamshub.mcp.strimzi.
 │                        AnalyzeCapacityPrompt, CompareClusterConfigsPrompt, AuditSecurityPrompt,
 │                        AssessUpgradeReadinessPrompt, PromptCompletions)
 ├── resource/          → ResourceSubscriptionManager (Kubernetes watches → MCP notifications)
-├── resource/template/ → MCP resource templates and completions (5 templates)
+├── resource/template/ → MCP resource templates and completions (6 templates)
 ├── config/            → StrimziConstants (labels, resource URIs), StrimziToolsPrompts
 │   └── metrics/       → KafkaMetricCategories, KafkaExporterMetricCategories,
 │                        KafkaBridgeMetricCategories, KafkaConnectMetricCategories,

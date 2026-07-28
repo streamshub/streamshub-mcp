@@ -14,7 +14,7 @@ List KafkaConnect clusters with status, replicas, and connector plugin counts.
 **Parameters**:
 - `namespace` (optional) -- Limit search to specific namespace
 
-**Returns**: List of KafkaConnect clusters with name, namespace, status, replicas, and available connector plugins
+**Returns**: List of KafkaConnect clusters with name, namespace, readiness, replicas, and available connector plugins
 
 **Example**:
 ```
@@ -29,7 +29,7 @@ Get detailed information about a specific KafkaConnect cluster including status,
 - `connectName` (required) -- Name of the KafkaConnect cluster
 - `namespace` (optional) -- Kubernetes namespace
 
-**Returns**: Detailed KafkaConnect information including status, bootstrap servers, REST API URL, replicas, and connector plugins
+**Returns**: Detailed KafkaConnect information including readiness, bootstrap servers, REST API URL, replicas, and connector plugins
 
 **Example**:
 ```
@@ -83,7 +83,7 @@ List KafkaConnectors with class, state, and task configuration. Optionally filte
 - `namespace` (optional) -- Limit search to specific namespace
 - `connectCluster` (optional) -- Filter by parent KafkaConnect cluster name
 
-**Returns**: List of connectors with name, class, state, task count, and parent Connect cluster
+**Returns**: List of connectors with name, class_name, state, tasks_max, and parent Connect cluster
 
 **Example**:
 ```
@@ -98,7 +98,7 @@ Get detailed information about a specific KafkaConnector including class, state,
 - `connectorName` (required) -- Name of the KafkaConnector
 - `namespace` (optional) -- Kubernetes namespace
 
-**Returns**: Detailed connector information including class, state, tasks, auto-restart status, topics, and configuration
+**Returns**: Detailed connector information including class_name, state, tasks_max, auto-restart status, topics, and config
 
 **Example**:
 ```

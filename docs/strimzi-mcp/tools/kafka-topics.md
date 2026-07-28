@@ -9,7 +9,7 @@ Tools for listing and inspecting Kafka topics and KafkaNodePool resources.
 
 ### list_kafka_topics
 
-List Kafka topics for a cluster with partitions, replicas, and status.
+List Kafka topics for a cluster with configuration, partitions, replicas, and status.
 Returns paginated results.
 
 **Parameters**:
@@ -18,7 +18,7 @@ Returns paginated results.
 - `limit` (optional) -- Maximum number of topics to return per page (default: 100)
 - `offset` (optional) -- Zero-based offset for pagination (default: 0)
 
-**Returns**: Paginated list of topics with name, partitions, replication factor, status, and pagination metadata
+**Returns**: Paginated list of topics with name, configuration, partitions, replicas, status, and pagination metadata
 
 **Example**:
 ```
@@ -34,7 +34,7 @@ Get detailed information for a specific Kafka topic including configuration, par
 - `topicName` (required) -- Name of the topic
 - `namespace` (optional) -- Kubernetes namespace
 
-**Returns**: Detailed topic information including configuration, partition count, replication factor, and status
+**Returns**: Detailed topic information including partition count, replicas, status, and configuration (e.g., retention.ms, cleanup.policy)
 
 **Example**:
 ```
@@ -51,7 +51,7 @@ List KafkaNodePools for a cluster showing roles, replicas, and storage configura
 - `clusterName` (required) -- Name of the Kafka cluster
 - `namespace` (optional) -- Kubernetes namespace
 
-**Returns**: List of node pools with name, roles (broker/controller), replica counts, storage, and resource allocation
+**Returns**: List of node pools with name, roles (broker/controller), replica counts, and storage configuration
 
 **Example**:
 ```
@@ -67,7 +67,7 @@ Get detailed information about a specific KafkaNodePool including roles, replica
 - `nodePoolName` (required) -- Name of the node pool
 - `namespace` (optional) -- Kubernetes namespace
 
-**Returns**: Detailed node pool information including roles, ready replicas, storage configuration, and resource allocation
+**Returns**: Detailed node pool information including roles, replicas, and storage configuration
 
 **Example**:
 ```

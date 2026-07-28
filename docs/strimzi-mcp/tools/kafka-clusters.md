@@ -117,6 +117,7 @@ Get TLS certificate information for a Kafka cluster.
 **Parameters**:
 - `clusterName` (required) -- Name of the Kafka cluster
 - `namespace` (optional) -- Kubernetes namespace
+- `listenerName` (optional) -- Filter certificates by listener name
 
 **Returns**: Certificate details including CA certificates and listener certificates (requires sensitive RBAC permissions)
 

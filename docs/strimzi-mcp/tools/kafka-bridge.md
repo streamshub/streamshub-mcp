@@ -14,7 +14,7 @@ List KafkaBridge resources with status, replicas, bootstrap servers, and HTTP UR
 **Parameters**:
 - `namespace` (optional) -- Limit search to specific namespace
 
-**Returns**: List of KafkaBridge resources with name, namespace, status, replicas, bootstrap servers, and HTTP URL
+**Returns**: List of KafkaBridge resources with name, namespace, readiness, replicas, bootstrap servers, and HTTP URL
 
 **Example**:
 ```
@@ -29,7 +29,7 @@ Get detailed information about a specific KafkaBridge including status, HTTP con
 - `bridgeName` (required) -- Name of the KafkaBridge
 - `namespace` (optional) -- Kubernetes namespace
 
-**Returns**: Detailed KafkaBridge information including status, HTTP port, CORS configuration, producer/consumer/admin client config, authentication type, TLS, and logging
+**Returns**: Detailed KafkaBridge information including readiness, HTTP port, CORS configuration, producer/consumer/admin client config, authentication type, TLS, and logging
 
 **Example**:
 ```

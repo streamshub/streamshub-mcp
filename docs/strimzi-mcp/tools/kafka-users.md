@@ -30,7 +30,7 @@ Get detailed KafkaUser information including ACL rules, quotas, and Kafka princi
 - `userName` (required) -- Name of the KafkaUser
 - `namespace` (optional) -- Kubernetes namespace
 
-**Returns**: Detailed user information including authentication type, ACL rules (resource type, name, pattern, operations, host), quotas (producer/consumer byte rates, request percentage, controller mutation rate), Kafka principal name, credential secret name (not the secret data), and status conditions
+**Returns**: Detailed user information including authentication type, ACL rules (type, resource type, name, pattern, operations, host), quotas (producer/consumer byte rates, request percentage, controller mutation rate), Kafka principal name, credential secret name (not the secret data), readiness, and status conditions
 
 **Example**:
 ```
