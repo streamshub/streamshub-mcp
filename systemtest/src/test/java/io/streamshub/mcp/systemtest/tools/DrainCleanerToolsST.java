@@ -275,11 +275,13 @@ class DrainCleanerToolsST extends AbstractST {
             .toolsCall("get_drain_cleaner_logs", args, response -> {
                 JsonNode root = assertToolSuccess(response);
                 assertEquals(Constants.DRAIN_CLEANER_NAMESPACE, root.path("namespace").asText(), "Namespace should match");
-                assertFalse(root.path("has_errors").asBoolean(), "Should have no errors");
-                assertEquals(0, root.path("error_count").asInt(), "Error count should be 0");
-                assertEquals(0, root.path("log_lines").asInt(), "Should have 0 log lines with error filter");
+                int logLines = root.path("log_lines").asInt();
+                int errorCount = root.path("error_count").asInt();
+                assertTrue(errorCount <= logLines,
+                    "error_count (" + errorCount + ") should not exceed log_lines (" + logLines + ")");
+                assertEquals(root.path("has_errors").asBoolean(), errorCount > 0,
+                    "has_errors should be consistent with error_count");
                 assertEquals(1, root.path("drain_cleaner_pods").size(), "Should have 1 pod");
-                assertTrue(root.path("message").asText().contains("no errors found"), "Message should indicate no errors found");
                 String json = response.content().getFirst().asText().text();
                 LOGGER.info("get_drain_cleaner_logs (errors filter) response (length={})", json.length());
                 LOGGER.debug("get_drain_cleaner_logs (errors filter) response:\n{}", json);

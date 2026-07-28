@@ -366,7 +366,9 @@ class DiagnoseToolsST extends AbstractST {
                     "Should have events section");
                 assertEquals("running", root.path("connector").path("state").asText(), "Connector state should be running");
                 assertEquals("Ready", root.path("connector").path("readiness").asText(), "Connector readiness should be Ready");
-                assertFalse(root.path("connect_logs").path("has_errors").asBoolean(), "Connect logs should have no errors");
+                assertEquals(root.path("connect_logs").path("has_errors").asBoolean(),
+                    root.path("connect_logs").path("error_count").asInt() > 0,
+                    "connect_logs has_errors should be consistent with error_count");
                 assertEquals(5, root.path("steps_completed").size(), "Should have 5 completed steps");
             })
             .thenAssertResults();

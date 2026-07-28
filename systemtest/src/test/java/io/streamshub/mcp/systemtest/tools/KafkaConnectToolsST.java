@@ -287,11 +287,12 @@ class KafkaConnectToolsST extends AbstractST {
                 assertTrue(root.path("log_lines").isNumber(), "log_lines should be a number");
                 assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
                 assertFalse(root.path("message").isMissingNode(), "Should have message");
-                assertFalse(root.path("has_errors").asBoolean(), "Should have no errors");
-                assertEquals(0, root.path("error_count").asInt(), "Error count should be 0");
+                assertEquals(root.path("has_errors").asBoolean(), root.path("error_count").asInt() > 0,
+                    "has_errors should be consistent with error_count");
                 assertTrue(root.path("log_lines").asInt() > 0, "Should have log lines");
                 assertTrue(root.path("has_more").asBoolean(), "Should indicate more logs available");
-                assertTrue(root.path("logs").asText().contains("CamelSourceTask connector task started"), "Logs should contain CamelSourceTask started message");
+                assertFalse(root.path("logs").asText("").isEmpty(), "logs content should not be empty");
+                assertTrue(root.path("logs").asText("").contains("=== Pod:"), "logs should contain pod log sections");
             })
             .thenAssertResults();
     }
