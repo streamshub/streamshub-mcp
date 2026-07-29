@@ -64,7 +64,7 @@ class LogCollectionServiceTest {
         List<int[]> progressCalls = new ArrayList<>();
 
         LogCollectionParams options = LogCollectionParams.builder(100)
-            .progressCallback((completed, total) -> progressCalls.add(new int[]{completed, total}))
+            .progressCallback((podName, completed, total) -> progressCalls.add(new int[]{completed, total}))
             .build();
 
         assertThrows(LogQueryException.class, () ->
@@ -78,20 +78,22 @@ class LogCollectionServiceTest {
     }
 
     @Test
-    void testCollectLogsNotifierCalledPerPod() {
-        Pod pod = createSimplePod("test-pod");
+    void testCollectLogsProgressCallbackReceivesPodName() {
+        Pod pod1 = createSimplePod("broker-0");
+        Pod pod2 = createSimplePod("broker-1");
 
-        List<String> notifications = new ArrayList<>();
+        List<String> receivedPodNames = new ArrayList<>();
 
         LogCollectionParams options = LogCollectionParams.builder(100)
-            .notifier(notifications::add)
+            .progressCallback((podName, completed, total) -> receivedPodNames.add(podName))
             .build();
 
         assertThrows(LogQueryException.class, () ->
-            logCollectionService.collectLogs("kafka", List.of(pod), options));
+            logCollectionService.collectLogs("kafka", List.of(pod1, pod2), options));
 
-        assertEquals(1, notifications.size());
-        assertTrue(notifications.getFirst().contains("test-pod (1/1)"));
+        assertEquals(2, receivedPodNames.size());
+        assertTrue(receivedPodNames.contains("broker-0"));
+        assertTrue(receivedPodNames.contains("broker-1"));
     }
 
     @Test

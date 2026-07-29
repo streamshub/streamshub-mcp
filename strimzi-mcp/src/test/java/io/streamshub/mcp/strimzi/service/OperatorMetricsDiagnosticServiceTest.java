@@ -63,7 +63,7 @@ class OperatorMetricsDiagnosticServiceTest {
         assertThrows(ToolCallException.class, () ->
             diagnosticService.diagnose("kafka", null, null, null,
                 null, null, null, null,
-                null, null, null, null));
+                null, null, null));
     }
 
     /**
@@ -76,7 +76,7 @@ class OperatorMetricsDiagnosticServiceTest {
         OperatorMetricsDiagnosticReport report = diagnosticService.diagnose(
             "kafka", "strimzi-cluster-operator", null, null,
             null, null, null, null,
-            null, null, null, null);
+            null, null, null);
 
         assertNotNull(report);
         assertEquals("strimzi-cluster-operator", report.operator().name());
@@ -98,7 +98,7 @@ class OperatorMetricsDiagnosticServiceTest {
         OperatorMetricsDiagnosticReport report = diagnosticService.diagnose(
             "kafka", "strimzi-cluster-operator", null, "high memory",
             null, null, null, null,
-            null, null, null, null);
+            null, null, null);
 
         assertNotNull(report);
         assertTrue(report.stepsCompleted().contains("operator_status"));
@@ -114,7 +114,7 @@ class OperatorMetricsDiagnosticServiceTest {
         OperatorMetricsDiagnosticReport report = diagnosticService.diagnose(
             "kafka", "strimzi-cluster-operator", null, "reconciliation failures",
             null, null, null, null,
-            null, null, null, null);
+            null, null, null);
 
         assertNotNull(report);
         assertNotNull(report.message());

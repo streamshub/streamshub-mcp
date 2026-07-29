@@ -86,14 +86,14 @@ class KafkaClusterDiagnosticServiceTest {
     void testThrowsWhenClusterNameMissing() {
         assertThrows(ToolCallException.class, () ->
             diagnosticService.diagnose("kafka", null, null, null,
-                null, null, null, null, null));
+                null, null, null, null));
     }
 
     @Test
     void testThrowsWhenClusterNotFound() {
         assertThrows(ToolCallException.class, () ->
             diagnosticService.diagnose("kafka", "missing-cluster", null, null,
-                null, null, null, null, null));
+                null, null, null, null));
     }
 
     @Test
@@ -103,7 +103,7 @@ class KafkaClusterDiagnosticServiceTest {
 
         KafkaClusterDiagnosticReport report = diagnosticService.diagnose(
             "kafka", "my-cluster", null, null,
-            null, null, null, null, null);
+            null, null, null, null);
 
         assertNotNull(report);
         assertEquals("my-cluster", report.cluster().name());
@@ -128,7 +128,7 @@ class KafkaClusterDiagnosticServiceTest {
 
         KafkaClusterDiagnosticReport report = diagnosticService.diagnose(
             "kafka", "my-cluster", "NotReady", 15,
-            null, null, null, null, null);
+            null, null, null, null);
 
         assertNotNull(report);
         assertNotNull(report.cluster());
@@ -143,7 +143,7 @@ class KafkaClusterDiagnosticServiceTest {
 
         KafkaClusterDiagnosticReport report = diagnosticService.diagnose(
             "kafka", "my-cluster", "pods restarting", null,
-            null, null, null, null, null);
+            null, null, null, null);
 
         assertNotNull(report);
         assertNotNull(report.message());

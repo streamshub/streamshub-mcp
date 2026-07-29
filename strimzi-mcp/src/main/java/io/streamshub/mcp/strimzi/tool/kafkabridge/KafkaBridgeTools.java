@@ -5,7 +5,6 @@
 package io.streamshub.mcp.strimzi.tool.kafkabridge;
 
 import io.quarkiverse.mcp.server.Cancellation;
-import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
@@ -160,7 +159,6 @@ public class KafkaBridgeTools {
      * @param endTime      optional absolute end time (ISO 8601)
      * @param tailLines    optional number of lines to tail
      * @param previous     optional flag for previous container logs
-     * @param mcpLog       MCP log for client notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return the bridge logs response with error analysis
@@ -216,7 +214,6 @@ public class KafkaBridgeTools {
             description = StrimziToolsPrompts.PREVIOUS_DESC,
             required = false
         ) final Boolean previous,
-        final McpLog mcpLog,
         final Progress progress,
         final Cancellation cancellation
     ) {
@@ -229,12 +226,11 @@ public class KafkaBridgeTools {
             .startTime(startTime)
             .endTime(endTime)
             .previous(previous)
-            .notifier(mcpLog::info)
             .cancelCheck(cancellation::skipProcessingIfCancelled)
             .progressCallback(progress.token().isPresent()
-                ? (completed, total) -> progress.notificationBuilder()
+                ? (podName, completed, total) -> progress.notificationBuilder()
                     .setProgress(completed).setTotal(total)
-                    .setMessage(String.format("Collected logs from %d/%d pods", completed, total))
+                    .setMessage(String.format("Collecting logs from pod %s (%d/%d)", podName, completed, total))
                     .build().sendAndForget()
                 : null)
             .build();

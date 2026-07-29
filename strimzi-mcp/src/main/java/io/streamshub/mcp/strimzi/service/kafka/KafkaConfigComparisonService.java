@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
-import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.SamplingMessage;
@@ -40,7 +39,6 @@ public class KafkaConfigComparisonService {
 
     private static final Logger LOG = Logger.getLogger(KafkaConfigComparisonService.class);
     private static final int TOTAL_STEPS = 2;
-    private static final String DIAGNOSTIC_LABEL = "Kafka cluster comparison";
     private static final String STEP_CLUSTER1_CONFIG = "cluster1_config";
     private static final String STEP_CLUSTER2_CONFIG = "cluster2_config";
 
@@ -69,7 +67,6 @@ public class KafkaConfigComparisonService {
      * @param clusterName2 the second cluster name
      * @param sampling     MCP Sampling for LLM analysis
      * @param elicitation  MCP Elicitation for namespace disambiguation
-     * @param mcpLog       MCP log for progress notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return a configuration comparison report
@@ -82,7 +79,6 @@ public class KafkaConfigComparisonService {
                                                final String clusterName2,
                                                final Sampling sampling,
                                                final Elicitation elicitation,
-                                               final McpLog mcpLog,
                                                final Progress progress,
                                                final Cancellation cancellation) {
         String ns1 = InputUtils.normalizeInput(namespace1);
@@ -110,13 +106,19 @@ public class KafkaConfigComparisonService {
 
         // Phase 1: Gather configs
         KafkaEffectiveConfigResponse config1 = gatherConfig(
-            ns1, name1, "diagnosed (cluster 1)", elicitation, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            ns1, name1, "diagnosed (cluster 1)", elicitation, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS,
+            config1 != null
+                ? String.format("Gathered configuration for Kafka cluster '%s'", name1)
+                : "Failed to gather config for cluster 1");
         DiagnosticHelper.checkCancellation(cancellation);
 
         KafkaEffectiveConfigResponse config2 = gatherConfig(
-            ns2, name2, "diagnosed (cluster 2)", elicitation, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            ns2, name2, "diagnosed (cluster 2)", elicitation, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS,
+            config2 != null
+                ? String.format("Gathered configuration for Kafka cluster '%s'", name2)
+                : "Failed to gather config for cluster 2");
         DiagnosticHelper.checkCancellation(cancellation);
 
         // Phase 2: Sampling analysis
@@ -132,22 +134,19 @@ public class KafkaConfigComparisonService {
                                                       final String elicitationContext,
                                                       final Elicitation elicitation,
                                                       final List<String> completed,
-                                                      final List<String> failed,
-                                                      final McpLog mcpLog) {
+                                                      final List<String> failed) {
         String step = clusterName.equals(completed.isEmpty() ? "" : "x")
             ? STEP_CLUSTER1_CONFIG : (completed.isEmpty() ? STEP_CLUSTER1_CONFIG : STEP_CLUSTER2_CONFIG);
 
         try {
             KafkaEffectiveConfigResponse result = kafkaConfigService.getEffectiveConfig(namespace, clusterName);
             completed.add(step);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                String.format("Gathered configuration for Kafka cluster '%s'", result.name()));
             return result;
         } catch (ToolCallException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, elicitationContext);
-                return gatherConfigResolved(resolved, clusterName, step, completed, failed, mcpLog);
+                return gatherConfigResolved(resolved, clusterName, step, completed, failed);
             }
             throw e;
         }
@@ -157,13 +156,10 @@ public class KafkaConfigComparisonService {
                                                               final String clusterName,
                                                               final String step,
                                                               final List<String> completed,
-                                                              final List<String> failed,
-                                                              final McpLog mcpLog) {
+                                                              final List<String> failed) {
         try {
             KafkaEffectiveConfigResponse result = kafkaConfigService.getEffectiveConfig(namespace, clusterName);
             completed.add(step);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                String.format("Gathered configuration for Kafka cluster '%s'", result.name()));
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather config for cluster '%s': %s", clusterName, e.getMessage());

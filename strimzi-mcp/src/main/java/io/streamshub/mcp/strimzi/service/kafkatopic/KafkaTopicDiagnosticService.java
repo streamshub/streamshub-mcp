@@ -7,7 +7,6 @@ package io.streamshub.mcp.strimzi.service.kafkatopic;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
-import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.ToolCallException;
@@ -52,8 +51,6 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
     private static final Logger LOG = Logger.getLogger(KafkaTopicDiagnosticService.class);
     private static final int PHASE1_STEPS = 3;
     private static final int MAX_PHASE2_STEPS = 3;
-    private static final String DIAGNOSTIC_LABEL = "KafkaTopic diagnostic";
-
     private static final String STEP_TOPIC_STATUS = "topic_status";
     private static final String STEP_RELATED_TOPICS = "related_topics";
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
@@ -98,19 +95,17 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
      * @param symptom      optional symptom description for context
      * @param sampling     MCP Sampling for LLM analysis (may be unsupported)
      * @param elicitation  MCP Elicitation for user input (may be unsupported)
-     * @param mcpLog       MCP log for progress notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return a consolidated diagnostic report
      */
-    @SuppressWarnings("checkstyle:ParameterNumber")
+    @SuppressWarnings({"checkstyle:ParameterNumber", "checkstyle:NPathComplexity"})
     public KafkaTopicDiagnosticReport diagnose(final String namespace,
                                                 final String topicName,
                                                 final String clusterName,
                                                 final String symptom,
                                                 final Sampling sampling,
                                                 final Elicitation elicitation,
-                                                final McpLog mcpLog,
                                                 final Progress progress,
                                                 final Cancellation cancellation) {
         String ns = InputUtils.normalizeInput(namespace);
@@ -131,20 +126,23 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         // === Phase 1: Initial data gathering ===
         int maxSteps = PHASE1_STEPS + MAX_PHASE2_STEPS;
         KafkaTopicResponse topic = gatherTopicStatus(
-            ns, cluster, name, elicitation, completed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            ns, cluster, name, elicitation, completed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            "Checked KafkaTopic status: " + topic.status() + " (partitions: " + topic.partitions() + ", replicas: " + topic.replicas() + ")");
         DiagnosticHelper.checkCancellation(cancellation);
 
         String resolvedCluster = cluster != null ? cluster : topic.cluster();
 
         PaginatedResponse<KafkaTopicResponse> relatedTopics = gatherRelatedTopics(
-            ns, resolvedCluster, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            ns, resolvedCluster, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            relatedTopics != null ? String.format("Found %d related topics for cluster '%s'", relatedTopics.total(), resolvedCluster) : "Failed to gather related topics");
         DiagnosticHelper.checkCancellation(cancellation);
 
         KafkaClusterResponse clusterStatus = gatherClusterStatus(
-            ns, resolvedCluster, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            ns, resolvedCluster, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            clusterStatus != null ? "Checked Kafka cluster '" + resolvedCluster + "' status: " + clusterStatus.readiness() : "Failed to check cluster status");
         DiagnosticHelper.checkCancellation(cancellation);
 
         String resolvedNs = clusterStatus != null ? clusterStatus.namespace() : ns;
@@ -158,24 +156,27 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         StrimziOperatorLogsResponse operatorLogs = null;
         if (areas.operatorLogs) {
             operatorLogs = gatherOperatorLogs(
-                null, name, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                null, name, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                operatorLogs != null ? "Collected Strimzi operator logs" : "Failed to collect operator logs");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         StrimziEventsResponse events = null;
         if (areas.events) {
             events = gatherEvents(
-                resolvedNs, resolvedCluster, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                resolvedNs, resolvedCluster, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                events != null ? String.format("Found %d KafkaTopic related events", events.totalEvents()) : "Failed to gather events");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         KafkaExporterMetricsResponse exporterMetrics = null;
         if (areas.exporterMetrics) {
             exporterMetrics = gatherExporterMetrics(
-                resolvedNs, resolvedCluster, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                resolvedNs, resolvedCluster, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                exporterMetrics != null ? "Collected Kafka Exporter partition metrics" : "Failed to gather exporter metrics");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -194,20 +195,16 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
                                           final String clusterName,
                                           final String topicName,
                                           final Elicitation elicitation,
-                                          final List<String> completed,
-                                          final McpLog mcpLog) {
+                                          final List<String> completed) {
         try {
             KafkaTopicResponse result = topicService.getTopic(namespace, clusterName, topicName);
             completed.add(STEP_TOPIC_STATUS);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                "Checked KafkaTopic status: " + result.status()
-                    + " (partitions: " + result.partitions() + ", replicas: " + result.replicas() + ")");
             return result;
         } catch (ToolCallException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "diagnosed");
-                return gatherTopicStatus(resolved, clusterName, topicName, null, completed, mcpLog);
+                return gatherTopicStatus(resolved, clusterName, topicName, null, completed);
             }
             throw e;
         }
@@ -217,8 +214,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
     PaginatedResponse<KafkaTopicResponse> gatherRelatedTopics(final String namespace,
                                                 final String clusterName,
                                                 final List<String> completed,
-                                                final List<String> failed,
-                                                final McpLog mcpLog) {
+                                                final List<String> failed) {
         if (clusterName == null) {
             failed.add(STEP_RELATED_TOPICS + ": no cluster name available");
             return null;
@@ -226,8 +222,6 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         try {
             PaginatedResponse<KafkaTopicResponse> result = topicService.listTopics(namespace, clusterName, null, null);
             completed.add(STEP_RELATED_TOPICS);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                String.format("Found %d related topics for cluster '%s'", result.total(), clusterName));
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather related topics: %s", e.getMessage());
@@ -240,8 +234,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
     KafkaClusterResponse gatherClusterStatus(final String namespace,
                                               final String clusterName,
                                               final List<String> completed,
-                                              final List<String> failed,
-                                              final McpLog mcpLog) {
+                                              final List<String> failed) {
         if (clusterName == null) {
             failed.add(STEP_CLUSTER_STATUS + ": no strimzi.io/cluster label on topic");
             return null;
@@ -249,8 +242,6 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         try {
             KafkaClusterResponse result = kafkaService.getCluster(namespace, clusterName);
             completed.add(STEP_CLUSTER_STATUS);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                "Checked Kafka cluster '" + clusterName + "' status: " + result.readiness());
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Kafka cluster status: %s", e.getMessage());
@@ -265,8 +256,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
     StrimziOperatorLogsResponse gatherOperatorLogs(final String namespace,
                                                     final String topicName,
                                                     final List<String> completed,
-                                                    final List<String> failed,
-                                                    final McpLog mcpLog) {
+                                                    final List<String> failed) {
         try {
             LogCollectionParams params = LogCollectionParams.builder(defaultTailLines)
                 .filter("errors")
@@ -276,7 +266,6 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
             StrimziOperatorLogsResponse result = operatorService.getOperatorLogs(
                 namespace, null, params);
             completed.add(STEP_OPERATOR_LOGS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Collected Strimzi operator logs");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Strimzi operator logs: %s", e.getMessage());
@@ -289,14 +278,11 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
     StrimziEventsResponse gatherEvents(final String namespace,
                                         final String clusterName,
                                         final List<String> completed,
-                                        final List<String> failed,
-                                        final McpLog mcpLog) {
+                                        final List<String> failed) {
         try {
             StrimziEventsResponse result = eventsService.getEvents(
                 namespace, clusterName, StrimziConstants.KindValues.KAFKA, null);
             completed.add(STEP_EVENTS);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                String.format("Found %d KafkaTopic related events", result.totalEvents()));
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather KafkaTopic related events: %s", e.getMessage());
@@ -309,13 +295,11 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
     KafkaExporterMetricsResponse gatherExporterMetrics(final String namespace,
                                                         final String clusterName,
                                                         final List<String> completed,
-                                                        final List<String> failed,
-                                                        final McpLog mcpLog) {
+                                                        final List<String> failed) {
         try {
             KafkaExporterMetricsResponse result = exporterMetricsService.getKafkaExporterMetrics(
                 namespace, clusterName, "partitions", null, null, null, null, null, null);
             completed.add(STEP_EXPORTER_METRICS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Collected Kafka Exporter partition metrics");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Kafka Exporter metrics: %s", e.getMessage());

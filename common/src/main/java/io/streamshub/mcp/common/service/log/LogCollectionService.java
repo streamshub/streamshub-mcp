@@ -93,10 +93,6 @@ public class LogCollectionService {
             }
             String podName = pod.getMetadata().getName();
             podIndex++;
-            if (options.notifier() != null) {
-                options.notifier().accept(String.format("Collecting logs from pod %s (%d/%d)",
-                    podName, podIndex, pods.size()));
-            }
             try {
                 String podLog = logProvider.get().fetchLogs(namespace, podName, options.tailLines(),
                     options.sinceSeconds(), options.previous(), options.filter(), options.keywords(),
@@ -132,7 +128,7 @@ public class LogCollectionService {
                     .append(" === (logs unavailable: ").append(e.getMessage()).append(")\n");
             }
             if (options.progressCallback() != null) {
-                options.progressCallback().accept(podIndex, pods.size());
+                options.progressCallback().onPodCompleted(podName, podIndex, pods.size());
             }
         }
 

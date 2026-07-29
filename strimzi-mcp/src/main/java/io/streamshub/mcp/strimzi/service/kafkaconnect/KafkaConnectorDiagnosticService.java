@@ -7,7 +7,6 @@ package io.streamshub.mcp.strimzi.service.kafkaconnect;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
-import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.ToolCallException;
@@ -49,8 +48,6 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
     private static final int SECONDS_PER_MINUTE = 60;
     private static final int PHASE1_STEPS = 2;
     private static final int MAX_PHASE2_STEPS = 3;
-    private static final String DIAGNOSTIC_LABEL = "KafkaConnector diagnostic";
-
     private static final String STEP_CONNECTOR_STATUS = "connector_status";
     private static final String STEP_CONNECT_CLUSTER = "connect_cluster";
     private static final String STEP_CONNECT_PODS = "connect_pods";
@@ -88,7 +85,6 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
      * @param sinceMinutes  optional time window for logs and events
      * @param sampling      MCP Sampling for LLM analysis (may be unsupported)
      * @param elicitation   MCP Elicitation for user input (may be unsupported)
-     * @param mcpLog        MCP log for progress notifications
      * @param progress      MCP progress tracking
      * @param cancellation  MCP cancellation checking
      * @return a consolidated diagnostic report
@@ -100,7 +96,6 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
                                                     final Integer sinceMinutes,
                                                     final Sampling sampling,
                                                     final Elicitation elicitation,
-                                                    final McpLog mcpLog,
                                                     final Progress progress,
                                                     final Cancellation cancellation) {
         String ns = InputUtils.normalizeInput(namespace);
@@ -120,16 +115,18 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
         // === Phase 1: Initial data gathering ===
         int maxSteps = PHASE1_STEPS + MAX_PHASE2_STEPS;
         KafkaConnectorResponse connector = gatherConnectorStatus(
-            ns, name, elicitation, completed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            ns, name, elicitation, completed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            "Checked KafkaConnector status: " + connector.readiness() + " (state: " + connector.state() + ")");
         DiagnosticHelper.checkCancellation(cancellation);
 
         String resolvedNs = connector.namespace();
         String connectClusterName = connector.connectCluster();
 
         KafkaConnectResponse connectCluster = gatherConnectCluster(
-            resolvedNs, connectClusterName, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            resolvedNs, connectClusterName, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            connectCluster != null ? "Checked KafkaConnect cluster '" + connectClusterName + "' status: " + connectCluster.readiness() : "Failed to gather KafkaConnect cluster status");
         DiagnosticHelper.checkCancellation(cancellation);
 
         // === Phase 2: Deep investigation ===
@@ -141,8 +138,9 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
         KafkaConnectPodsResponse connectPods = null;
         if (areas.connectPods) {
             connectPods = gatherConnectPods(
-                resolvedNs, connectClusterName, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                resolvedNs, connectClusterName, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                connectPods != null ? "Checked KafkaConnect pod health" : "Failed to check pod health");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -150,16 +148,18 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
         if (areas.connectLogs) {
             connectLogs = gatherConnectLogs(
                 resolvedNs, connectClusterName, connector.className(),
-                sinceMinutes, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                sinceMinutes, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                connectLogs != null ? "Collected KafkaConnect logs" : "Failed to collect logs");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         StrimziEventsResponse events = null;
         if (areas.events) {
             events = gatherEvents(
-                resolvedNs, connectClusterName, sinceMinutes, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                resolvedNs, connectClusterName, sinceMinutes, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                events != null ? String.format("Found %d KafkaConnect related events", events.totalEvents()) : "Failed to gather events");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -177,19 +177,16 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
     KafkaConnectorResponse gatherConnectorStatus(final String namespace,
                                                   final String connectorName,
                                                   final Elicitation elicitation,
-                                                  final List<String> completed,
-                                                  final McpLog mcpLog) {
+                                                  final List<String> completed) {
         try {
             KafkaConnectorResponse result = connectorService.getConnector(namespace, connectorName);
             completed.add(STEP_CONNECTOR_STATUS);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                "Checked KafkaConnector status: " + result.readiness() + " (state: " + result.state() + ")");
             return result;
         } catch (ToolCallException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "diagnosed");
-                return gatherConnectorStatus(resolved, connectorName, null, completed, mcpLog);
+                return gatherConnectorStatus(resolved, connectorName, null, completed);
             }
             throw e;
         }
@@ -199,8 +196,7 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
     KafkaConnectResponse gatherConnectCluster(final String namespace,
                                                final String connectClusterName,
                                                final List<String> completed,
-                                               final List<String> failed,
-                                               final McpLog mcpLog) {
+                                               final List<String> failed) {
         if (connectClusterName == null) {
             failed.add(STEP_CONNECT_CLUSTER + ": no strimzi.io/cluster label on connector");
             return null;
@@ -208,8 +204,6 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
         try {
             KafkaConnectResponse result = connectService.getConnect(namespace, connectClusterName);
             completed.add(STEP_CONNECT_CLUSTER);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                "Checked KafkaConnect cluster '" + connectClusterName + "' status: " + result.readiness());
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather KafkaConnect cluster status: %s", e.getMessage());
@@ -224,12 +218,10 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
     KafkaConnectPodsResponse gatherConnectPods(final String namespace,
                                                 final String connectClusterName,
                                                 final List<String> completed,
-                                                final List<String> failed,
-                                                final McpLog mcpLog) {
+                                                final List<String> failed) {
         try {
             KafkaConnectPodsResponse result = connectService.getConnectPods(namespace, connectClusterName);
             completed.add(STEP_CONNECT_PODS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked KafkaConnect pod health");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather KafkaConnect pod health: %s", e.getMessage());
@@ -244,8 +236,7 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
                                                 final String connectorClassName,
                                                 final Integer sinceMinutes,
                                                 final List<String> completed,
-                                                final List<String> failed,
-                                                final McpLog mcpLog) {
+                                                final List<String> failed) {
         try {
             LogCollectionParams.Builder builder = LogCollectionParams.builder(defaultTailLines)
                 .filter("errors")
@@ -261,7 +252,6 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
             KafkaConnectLogsResponse result = connectService.getConnectLogs(
                 namespace, connectClusterName, builder.build());
             completed.add(STEP_CONNECT_LOGS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Collected KafkaConnect logs");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather KafkaConnect logs: %s", e.getMessage());
@@ -275,14 +265,11 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
                                         final String connectClusterName,
                                         final Integer sinceMinutes,
                                         final List<String> completed,
-                                        final List<String> failed,
-                                        final McpLog mcpLog) {
+                                        final List<String> failed) {
         try {
             StrimziEventsResponse result = eventsService.getEvents(
                 namespace, connectClusterName, StrimziConstants.KindValues.KAFKA_CONNECT, sinceMinutes);
             completed.add(STEP_EVENTS);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                String.format("Found %d KafkaConnect related events", result.totalEvents()));
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather KafkaConnect related events: %s", e.getMessage());

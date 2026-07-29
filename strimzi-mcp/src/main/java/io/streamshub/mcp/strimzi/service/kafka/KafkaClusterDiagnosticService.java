@@ -7,7 +7,6 @@ package io.streamshub.mcp.strimzi.service.kafka;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
-import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.ToolCallException;
@@ -69,8 +68,6 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
     private static final int DEFAULT_TIME_WINDOW_MINUTES = 30;
     private static final int ESCALATED_TIME_WINDOW_MINUTES = 60;
     private static final int ABSOLUTE_WINDOW_EXPANSION_MINUTES = 30;
-    private static final String DIAGNOSTIC_LABEL = "Kafka cluster diagnostic";
-
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
     private static final String STEP_NODE_POOLS = "node_pools";
     private static final String STEP_POD_HEALTH = "pod_health";
@@ -130,19 +127,17 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
      * @param sinceMinutes optional time window for logs and events
      * @param sampling     MCP Sampling for LLM analysis (may be unsupported)
      * @param elicitation  MCP Elicitation for user input (may be unsupported)
-     * @param mcpLog       MCP log for progress notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return a consolidated diagnostic report
      */
-    @SuppressWarnings("checkstyle:ParameterNumber")
+    @SuppressWarnings({"checkstyle:ParameterNumber", "checkstyle:NPathComplexity"})
     public KafkaClusterDiagnosticReport diagnose(final String namespace,
                                                  final String clusterName,
                                                  final String symptom,
                                                  final Integer sinceMinutes,
                                                  final Sampling sampling,
                                                  final Elicitation elicitation,
-                                                 final McpLog mcpLog,
                                                  final Progress progress,
                                                  final Cancellation cancellation) {
         String ns = InputUtils.normalizeInput(namespace);
@@ -162,26 +157,31 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
         // === Phase 1: Initial data gathering ===
         int maxSteps = PHASE1_STEPS + MAX_PHASE2_STEPS;
         KafkaClusterResponse cluster = gatherClusterStatus(
-            ns, name, elicitation, completed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            ns, name, elicitation, completed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            "Checked Kafka cluster status: " + cluster.readiness());
         DiagnosticHelper.checkCancellation(cancellation);
 
         // Resolve namespace from cluster response for subsequent calls
         String resolvedNs = cluster.namespace();
 
         List<KafkaNodePoolResponse> nodePools = gatherNodePools(
-            resolvedNs, name, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            resolvedNs, name, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            String.format("Found %d KafkaNodePools", nodePools.size()));
         DiagnosticHelper.checkCancellation(cancellation);
 
         KafkaClusterPodsResponse pods = gatherClusterPods(
-            resolvedNs, name, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            resolvedNs, name, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            pods != null ? "Checked Kafka pod health" : "Failed to check pod health");
         DiagnosticHelper.checkCancellation(cancellation);
 
         DrainCleanerReadinessResponse drainCleaner = gatherDrainCleanerStatus(
-            completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            "Checked Strimzi Drain Cleaner readiness: "
+                + (drainCleaner.deployed() ? (drainCleaner.overallReady() ? "ready" : "not ready") : "not deployed"));
         DiagnosticHelper.checkCancellation(cancellation);
 
         // === Phase 2: Deep investigation ===
@@ -189,16 +189,19 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
             sampling, cluster, nodePools, pods, drainCleaner, symptom);
 
         int totalSteps = PHASE1_STEPS + areas.enabledCount();
-        LogCollectionParams logParams = resolveLogParams(sinceMinutes, areas, mcpLog);
+        LogCollectionParams logParams = resolveLogParams(sinceMinutes, areas);
         Integer effectiveSinceMinutes = resolveEffectiveSinceMinutes(sinceMinutes, areas);
 
         StrimziOperatorResponse operator = null;
         StrimziOperatorLogsResponse operatorLogs = null;
         if (areas.operatorLogs) {
-            operator = gatherOperatorStatus(null, completed, failed, mcpLog);
+            operator = gatherOperatorStatus(null, completed, failed);
             operatorLogs = gatherOperatorLogs(
-                null, effectiveSinceMinutes, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                null, effectiveSinceMinutes, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                operator != null
+                    ? String.format("Checked operator '%s' status: %s", operator.name(), operator.status())
+                    : "Collected operator logs");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -206,39 +209,44 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
         if (areas.clusterLogs) {
             clusterLogs = gatherClusterLogs(
                 resolvedNs, name, logParams, pods, elicitation,
-                completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                clusterLogs != null ? "Collected Kafka cluster logs" : "Failed to collect cluster logs");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         StrimziEventsResponse events = null;
         if (areas.events) {
             events = gatherEvents(
-                resolvedNs, name, effectiveSinceMinutes, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                resolvedNs, name, effectiveSinceMinutes, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                events != null ? String.format("Found %d events", events.totalEvents()) : "Failed to gather events");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         List<KafkaUserResponse> users = null;
         if (areas.users) {
-            users = gatherUsers(resolvedNs, name, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+            users = gatherUsers(resolvedNs, name, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                users != null ? String.format("Found %d KafkaUsers for cluster", users.size()) : "Failed to gather users");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         KafkaMetricsResponse metrics = null;
         if (areas.metrics) {
             metrics = gatherMetrics(
-                resolvedNs, name, logParams, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                resolvedNs, name, logParams, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                metrics != null ? "Retrieved Kafka replication metrics" : "Failed to gather metrics");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         DrainCleanerLogsResponse drainCleanerLogs = null;
         if (areas.drainCleanerLogs) {
             drainCleanerLogs = gatherDrainCleanerLogs(
-                effectiveSinceMinutes, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                effectiveSinceMinutes, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                drainCleanerLogs != null ? "Collected Strimzi Drain Cleaner logs" : "Failed to collect Drain Cleaner logs");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -258,19 +266,17 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
     KafkaClusterResponse gatherClusterStatus(final String namespace,
                                              final String clusterName,
                                              final Elicitation elicitation,
-                                             final List<String> completed,
-                                             final McpLog mcpLog) {
+                                             final List<String> completed) {
         try {
             KafkaClusterResponse result = kafkaService.getCluster(namespace, clusterName);
             completed.add(STEP_CLUSTER_STATUS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked Kafka cluster status: " + result.readiness());
             return result;
         } catch (ToolCallException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "diagnosed");
                 return gatherClusterStatus(resolved, clusterName, null,
-                    completed, mcpLog);
+                    completed);
             }
             throw e;
         }
@@ -280,12 +286,10 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
     List<KafkaNodePoolResponse> gatherNodePools(final String namespace,
                                                 final String clusterName,
                                                 final List<String> completed,
-                                                final List<String> failed,
-                                                final McpLog mcpLog) {
+                                                final List<String> failed) {
         try {
             List<KafkaNodePoolResponse> result = nodePoolService.listNodePools(namespace, clusterName);
             completed.add(STEP_NODE_POOLS);
-            DiagnosticHelper.sendClientNotification(mcpLog, String.format("Found %d KafkaNodePools", result.size()));
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather KafkaNodePools: %s", e.getMessage());
@@ -298,12 +302,10 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
     KafkaClusterPodsResponse gatherClusterPods(final String namespace,
                                                final String clusterName,
                                                final List<String> completed,
-                                               final List<String> failed,
-                                               final McpLog mcpLog) {
+                                               final List<String> failed) {
         try {
             KafkaClusterPodsResponse result = kafkaService.getClusterPods(namespace, clusterName);
             completed.add(STEP_POD_HEALTH);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked Kafka pod health");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Kafka pod health: %s", e.getMessage());
@@ -313,14 +315,10 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
     }
 
     private DrainCleanerReadinessResponse gatherDrainCleanerStatus(final List<String> completed,
-                                                                    final List<String> failed,
-                                                                    final McpLog mcpLog) {
+                                                                    final List<String> failed) {
         try {
             DrainCleanerReadinessResponse result = drainCleanerService.checkReadiness(null);
             completed.add(STEP_DRAIN_CLEANER);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                "Checked Strimzi Drain Cleaner readiness: "
-                    + (result.deployed() ? (result.overallReady() ? "ready" : "not ready") : "not deployed"));
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Drain Cleaner status: %s", e.getMessage());
@@ -334,16 +332,12 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
     @WithSpan("diagnose.cluster.operator_status")
     StrimziOperatorResponse gatherOperatorStatus(final String namespace,
                                                  final List<String> completed,
-                                                 final List<String> failed,
-                                                 final McpLog mcpLog) {
+                                                 final List<String> failed) {
         try {
             List<StrimziOperatorResponse> operators = operatorService.listOperators(namespace);
             if (!operators.isEmpty()) {
                 completed.add(STEP_OPERATOR_STATUS);
-                StrimziOperatorResponse op = operators.getFirst();
-                DiagnosticHelper.sendClientNotification(mcpLog,
-                    String.format("Checked Strimzi operator '%s' status: %s", op.name(), op.status()));
-                return op;
+                return operators.getFirst();
             }
             return null;
         } catch (Exception e) {
@@ -357,13 +351,11 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
     StrimziOperatorLogsResponse gatherOperatorLogs(final String namespace,
                                                    final Integer sinceMinutes,
                                                    final List<String> completed,
-                                                   final List<String> failed,
-                                                   final McpLog mcpLog) {
+                                                   final List<String> failed) {
         try {
             StrimziOperatorLogsResponse result = operatorService.getOperatorLogs(
                 namespace, null, buildErrorLogParams(sinceMinutes));
             completed.add(STEP_OPERATOR_LOGS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Collected Strimzi operator logs");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Strimzi operator logs: %s", e.getMessage());
@@ -380,19 +372,18 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
                                                final KafkaClusterPodsResponse pods,
                                                final Elicitation elicitation,
                                                final List<String> completed,
-                                               final List<String> failed,
-                                               final McpLog mcpLog) {
+                                               final List<String> failed) {
         try {
             Set<String> problematicPods = identifyProblematicPods(pods);
 
             KafkaClusterLogsResponse result = collectClusterLogs(
-                namespace, clusterName, logParams, problematicPods, pods, mcpLog);
+                namespace, clusterName, logParams, problematicPods, pods);
 
             // Escalation: if no errors found, try a broader time window
             if (result != null && !result.hasErrors()) {
                 result = escalateLogCollection(
                     namespace, clusterName, logParams, problematicPods, pods,
-                    elicitation, mcpLog);
+                    elicitation);
             }
 
             completed.add(STEP_CLUSTER_LOGS);
@@ -429,13 +420,11 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
                                        final String clusterName,
                                        final Integer sinceMinutes,
                                        final List<String> completed,
-                                       final List<String> failed,
-                                       final McpLog mcpLog) {
+                                       final List<String> failed) {
         try {
             StrimziEventsResponse result = eventsService.getEvents(
                 namespace, clusterName, StrimziConstants.KindValues.KAFKA, sinceMinutes);
             completed.add(STEP_EVENTS);
-            DiagnosticHelper.sendClientNotification(mcpLog, String.format("Found %d events", result.totalEvents()));
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Kafka related events: %s", e.getMessage());
@@ -449,8 +438,7 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
                                        final String clusterName,
                                        final LogCollectionParams timeWindow,
                                        final List<String> completed,
-                                       final List<String> failed,
-                                       final McpLog mcpLog) {
+                                       final List<String> failed) {
         try {
             Integer rangeMinutes = timeWindow.sinceSeconds() != null
                 ? timeWindow.sinceSeconds() / SECONDS_PER_MINUTE : null;
@@ -459,7 +447,6 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
                 rangeMinutes, timeWindow.startTime(), timeWindow.endTime(),
                 null, null, null);
             completed.add(STEP_METRICS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Retrieved Kafka replication metrics");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Kafka metrics: %s", e.getMessage());
@@ -471,13 +458,10 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
     private List<KafkaUserResponse> gatherUsers(final String namespace,
                                                     final String clusterName,
                                                     final List<String> completed,
-                                                    final List<String> failed,
-                                                    final McpLog mcpLog) {
+                                                    final List<String> failed) {
         try {
             List<KafkaUserResponse> result = kafkaUserService.listUsers(namespace, clusterName);
             completed.add(STEP_USERS);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                String.format("Found %d KafkaUsers for cluster", result.size()));
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather KafkaUsers: %s", e.getMessage());
@@ -488,13 +472,11 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
 
     private DrainCleanerLogsResponse gatherDrainCleanerLogs(final Integer sinceMinutes,
                                                               final List<String> completed,
-                                                              final List<String> failed,
-                                                              final McpLog mcpLog) {
+                                                              final List<String> failed) {
         try {
             DrainCleanerLogsResponse result = drainCleanerService.getDrainCleanerLogs(
                 null, null, buildErrorLogParams(sinceMinutes));
             completed.add(STEP_DRAIN_CLEANER_LOGS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Collected Strimzi Drain Cleaner logs");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Drain Cleaner logs: %s", e.getMessage());
@@ -551,15 +533,13 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
      * Priority: user sinceMinutes > triage absolute window > triage relative window > default 30 min.
      */
     LogCollectionParams resolveLogParams(final Integer userSinceMinutes,
-                                         final InvestigationAreas areas,
-                                         final McpLog mcpLog) {
+                                         final InvestigationAreas areas) {
         if (userSinceMinutes != null) {
             return buildErrorLogParams(userSinceMinutes);
         }
         if (areas.hasAbsoluteWindow()) {
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                String.format("Using triage-recommended time window: %s to %s",
-                    areas.windowStartTime(), areas.windowEndTime()));
+            LOG.infof("Using triage-recommended time window: %s to %s",
+                areas.windowStartTime(), areas.windowEndTime());
             return LogCollectionParams.builder(defaultTailLines)
                 .filter("errors")
                 .startTime(areas.windowStartTime())
@@ -568,8 +548,7 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
         }
         int window = areas.hasRelativeWindow()
             ? areas.timeWindowMinutes() : DEFAULT_TIME_WINDOW_MINUTES;
-        DiagnosticHelper.sendClientNotification(mcpLog,
-            String.format("Using time window: last %d minutes", window));
+        LOG.infof("Using time window: last %d minutes", window);
         return buildErrorLogParams(window);
     }
 
@@ -594,18 +573,14 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
                                                          final String clusterName,
                                                          final LogCollectionParams logParams,
                                                          final Set<String> problematicPods,
-                                                         final KafkaClusterPodsResponse pods,
-                                                         final McpLog mcpLog) {
+                                                         final KafkaClusterPodsResponse pods) {
         if (problematicPods.isEmpty()) {
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                "Collecting Kafka cluster logs (all pods healthy, collecting from all)");
             return kafkaService.getClusterLogs(namespace, clusterName, logParams);
         }
         int totalPods = pods != null && pods.podSummary() != null
             ? pods.podSummary().totalPods() : 0;
-        DiagnosticHelper.sendClientNotification(mcpLog,
-            String.format("Collecting logs from %d problematic pods (out of %d total): %s",
-                problematicPods.size(), totalPods, problematicPods));
+        LOG.infof("Collecting logs from %d problematic pods (out of %d total): %s",
+            problematicPods.size(), totalPods, problematicPods);
         return kafkaService.getClusterLogs(namespace, clusterName, logParams, problematicPods);
     }
 
@@ -615,24 +590,22 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
                                                             final LogCollectionParams originalParams,
                                                             final Set<String> problematicPods,
                                                             final KafkaClusterPodsResponse pods,
-                                                            final Elicitation elicitation,
-                                                            final McpLog mcpLog) {
+                                                            final Elicitation elicitation) {
         // Auto-escalate once: expand the time window
         LogCollectionParams expandedParams = expandTimeWindow(originalParams);
         if (expandedParams == null) {
             return collectClusterLogs(namespace, clusterName, originalParams,
-                problematicPods, pods, mcpLog);
+                problematicPods, pods);
         }
 
-        DiagnosticHelper.sendClientNotification(mcpLog,
-            "No errors found in initial time window, expanding and re-collecting");
+        LOG.info("No errors found in initial time window, expanding and re-collecting");
         KafkaClusterLogsResponse result = collectClusterLogs(
-            namespace, clusterName, expandedParams, problematicPods, pods, mcpLog);
+            namespace, clusterName, expandedParams, problematicPods, pods);
 
         if (result != null && !result.hasErrors()) {
             // Still no errors — ask the user if they want to expand further
             result = elicitFurtherExpansion(namespace, clusterName, expandedParams,
-                problematicPods, pods, elicitation, mcpLog, result);
+                problematicPods, pods, elicitation, result);
         }
         return result;
     }
@@ -644,7 +617,6 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
                                                             final Set<String> problematicPods,
                                                             final KafkaClusterPodsResponse pods,
                                                             final Elicitation elicitation,
-                                                            final McpLog mcpLog,
                                                             final KafkaClusterLogsResponse currentResult) {
         if (elicitation == null || !elicitation.isFormModeSupported()) {
             return currentResult;
@@ -669,9 +641,8 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
             return currentResult;
         }
 
-        DiagnosticHelper.sendClientNotification(mcpLog,
-            String.format("Expanding time window by %d minutes on each side", expansionMinutes));
-        return collectClusterLogs(namespace, clusterName, widerParams, problematicPods, pods, mcpLog);
+        LOG.infof("Expanding time window by %d minutes on each side", expansionMinutes);
+        return collectClusterLogs(namespace, clusterName, widerParams, problematicPods, pods);
     }
 
     /**

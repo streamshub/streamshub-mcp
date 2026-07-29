@@ -7,7 +7,6 @@ package io.streamshub.mcp.strimzi.tool.diagnostic;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
-import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
@@ -96,7 +95,6 @@ public class DiagnosticTools {
      * @param sinceMinutes optional time window for logs and events
      * @param sampling     MCP Sampling for LLM analysis
      * @param elicitation  MCP Elicitation for namespace disambiguation
-     * @param mcpLog       MCP log for progress notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return a consolidated Connect cluster diagnostic report
@@ -125,13 +123,12 @@ public class DiagnosticTools {
             required = false) final Integer sinceMinutes,
         final Sampling sampling,
         final Elicitation elicitation,
-        final McpLog mcpLog,
         final Progress progress,
         final Cancellation cancellation
     ) {
         return connectDiagnosticService.diagnose(
             namespace, connectName, symptom, sinceMinutes,
-            sampling, elicitation, mcpLog, progress, cancellation);
+            sampling, elicitation, progress, cancellation);
     }
 
     /**
@@ -143,7 +140,6 @@ public class DiagnosticTools {
      * @param sinceMinutes  optional time window for logs and events
      * @param sampling      MCP Sampling for LLM analysis
      * @param elicitation   MCP Elicitation for user input
-     * @param mcpLog        MCP log for progress notifications
      * @param progress      MCP progress tracking
      * @param cancellation  MCP cancellation checking
      * @return a consolidated connector diagnostic report
@@ -185,13 +181,12 @@ public class DiagnosticTools {
         ) final Integer sinceMinutes,
         final Sampling sampling,
         final Elicitation elicitation,
-        final McpLog mcpLog,
         final Progress progress,
         final Cancellation cancellation
     ) {
         return connectorDiagnosticService.diagnose(
             namespace, connectorName, symptom, sinceMinutes,
-            sampling, elicitation, mcpLog, progress, cancellation);
+            sampling, elicitation, progress, cancellation);
     }
 
     /**
@@ -203,7 +198,6 @@ public class DiagnosticTools {
      * @param sinceMinutes optional time window for logs and events
      * @param sampling     MCP Sampling for LLM analysis
      * @param elicitation  MCP Elicitation for user input
-     * @param mcpLog       MCP log for progress notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return a consolidated diagnostic report
@@ -246,13 +240,12 @@ public class DiagnosticTools {
         ) final Integer sinceMinutes,
         final Sampling sampling,
         final Elicitation elicitation,
-        final McpLog mcpLog,
         final Progress progress,
         final Cancellation cancellation
     ) {
         return clusterDiagnosticService.diagnose(
             namespace, clusterName, symptom, sinceMinutes,
-            sampling, elicitation, mcpLog, progress, cancellation);
+            sampling, elicitation, progress, cancellation);
     }
 
     /**
@@ -264,7 +257,6 @@ public class DiagnosticTools {
      * @param namespace2   optional namespace for the second cluster
      * @param sampling     MCP Sampling for LLM analysis
      * @param elicitation  MCP Elicitation for namespace disambiguation
-     * @param mcpLog       MCP log for progress notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return a configuration comparison report
@@ -305,13 +297,12 @@ public class DiagnosticTools {
         ) final String namespace2,
         final Sampling sampling,
         final Elicitation elicitation,
-        final McpLog mcpLog,
         final Progress progress,
         final Cancellation cancellation
     ) {
         return configComparisonService.compare(
             namespace1, clusterName1, namespace2, clusterName2,
-            sampling, elicitation, mcpLog, progress, cancellation);
+            sampling, elicitation, progress, cancellation);
     }
 
     /**
@@ -322,7 +313,6 @@ public class DiagnosticTools {
      * @param listenerName optional listener to focus on
      * @param sampling     MCP Sampling for LLM analysis
      * @param elicitation  MCP Elicitation for user input
-     * @param mcpLog       MCP log for progress notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return a consolidated connectivity diagnostic report
@@ -360,13 +350,12 @@ public class DiagnosticTools {
         ) final String listenerName,
         final Sampling sampling,
         final Elicitation elicitation,
-        final McpLog mcpLog,
         final Progress progress,
         final Cancellation cancellation
     ) {
         return connectivityDiagnosticService.diagnose(
             namespace, clusterName, listenerName,
-            sampling, elicitation, mcpLog, progress, cancellation);
+            sampling, elicitation, progress, cancellation);
     }
 
     /**
@@ -381,7 +370,6 @@ public class DiagnosticTools {
      * @param stepSeconds  optional range query step interval in seconds
      * @param sampling     MCP Sampling for LLM analysis
      * @param elicitation  MCP Elicitation for user input
-     * @param mcpLog       MCP log for progress notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return a consolidated metrics diagnostic report
@@ -435,14 +423,13 @@ public class DiagnosticTools {
         ) final Integer stepSeconds,
         final Sampling sampling,
         final Elicitation elicitation,
-        final McpLog mcpLog,
         final Progress progress,
         final Cancellation cancellation
     ) {
         return metricsDiagnosticService.diagnose(
             namespace, clusterName, concern,
             rangeMinutes, startTime, endTime, stepSeconds,
-            sampling, elicitation, mcpLog, progress, cancellation);
+            sampling, elicitation, progress, cancellation);
     }
 
     /**
@@ -457,7 +444,6 @@ public class DiagnosticTools {
      * @param endTime      optional absolute end time (ISO 8601)
      * @param stepSeconds  optional range query step interval in seconds
      * @param sampling     MCP Sampling for LLM analysis
-     * @param mcpLog       MCP log for progress notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return a consolidated operator metrics diagnostic report
@@ -515,14 +501,13 @@ public class DiagnosticTools {
             required = false
         ) final Integer stepSeconds,
         final Sampling sampling,
-        final McpLog mcpLog,
         final Progress progress,
         final Cancellation cancellation
     ) {
         return operatorMetricsDiagnosticService.diagnose(
             namespace, operatorName, clusterName, concern,
             rangeMinutes, startTime, endTime, stepSeconds,
-            sampling, mcpLog, progress, cancellation);
+            sampling, progress, cancellation);
     }
 
     /**
@@ -534,7 +519,6 @@ public class DiagnosticTools {
      * @param symptom      optional symptom description
      * @param sampling     MCP Sampling for LLM analysis
      * @param elicitation  MCP Elicitation for user input
-     * @param mcpLog       MCP log for progress notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return a consolidated topic diagnostic report
@@ -576,13 +560,12 @@ public class DiagnosticTools {
         ) final String symptom,
         final Sampling sampling,
         final Elicitation elicitation,
-        final McpLog mcpLog,
         final Progress progress,
         final Cancellation cancellation
     ) {
         return topicDiagnosticService.diagnose(
             namespace, topicName, clusterName, symptom,
-            sampling, elicitation, mcpLog, progress, cancellation);
+            sampling, elicitation, progress, cancellation);
     }
 
     /**
@@ -593,7 +576,6 @@ public class DiagnosticTools {
      * @param targetVersion optional target version
      * @param sampling      MCP Sampling for LLM analysis
      * @param elicitation   MCP Elicitation for user input
-     * @param mcpLog        MCP log for progress notifications
      * @param progress      MCP progress tracking
      * @param cancellation  MCP cancellation checking
      * @return an upgrade readiness report with GO/NO-GO verdict
@@ -632,13 +614,12 @@ public class DiagnosticTools {
         ) final String targetVersion,
         final Sampling sampling,
         final Elicitation elicitation,
-        final McpLog mcpLog,
         final Progress progress,
         final Cancellation cancellation
     ) {
         return upgradeReadinessService.diagnose(
             namespace, clusterName, targetVersion,
-            sampling, elicitation, mcpLog, progress, cancellation);
+            sampling, elicitation, progress, cancellation);
     }
 
     /**
@@ -650,7 +631,6 @@ public class DiagnosticTools {
      * @param sinceMinutes    optional time window for logs and events
      * @param sampling        MCP Sampling for LLM analysis
      * @param elicitation     MCP Elicitation for namespace disambiguation
-     * @param mcpLog          MCP log for progress notifications
      * @param progress        MCP progress tracking
      * @param cancellation    MCP cancellation checking
      * @return a consolidated MM2 diagnostic report
@@ -679,12 +659,11 @@ public class DiagnosticTools {
             required = false) final Integer sinceMinutes,
         final Sampling sampling,
         final Elicitation elicitation,
-        final McpLog mcpLog,
         final Progress progress,
         final Cancellation cancellation
     ) {
         return mirrorMakerDiagnosticService.diagnose(
             namespace, mirrorMakerName, symptom, sinceMinutes,
-            sampling, elicitation, mcpLog, progress, cancellation);
+            sampling, elicitation, progress, cancellation);
     }
 }

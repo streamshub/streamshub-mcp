@@ -75,14 +75,14 @@ class KafkaTopicDiagnosticServiceTest {
     void testThrowsWhenTopicNameMissing() {
         assertThrows(ToolCallException.class, () ->
             topicDiagnosticService.diagnose("kafka", null, null, null,
-                null, null, null, null, null));
+                null, null, null, null));
     }
 
     @Test
     void testThrowsWhenTopicNotFound() {
         assertThrows(ToolCallException.class, () ->
             topicDiagnosticService.diagnose("kafka", "missing-topic", "my-cluster", null,
-                null, null, null, null, null));
+                null, null, null, null));
     }
 
     @Test
@@ -92,7 +92,7 @@ class KafkaTopicDiagnosticServiceTest {
 
         KafkaTopicDiagnosticReport report = topicDiagnosticService.diagnose(
             "kafka", "my-topic", "my-cluster", null,
-            null, null, null, null, null);
+            null, null, null, null);
 
         assertNotNull(report);
         assertNotNull(report.topic());
@@ -109,7 +109,7 @@ class KafkaTopicDiagnosticServiceTest {
 
         KafkaTopicDiagnosticReport report = topicDiagnosticService.diagnose(
             "kafka", "my-topic", "my-cluster", null,
-            null, null, null, null, null);
+            null, null, null, null);
 
         assertNotNull(report);
         assertTrue(report.stepsCompleted().contains("topic_status"));

@@ -328,15 +328,18 @@ for client feedback. These are injected by the framework — not user-supplied:
 public KafkaClusterLogsResponse getKafkaClusterLogs(
     @ToolArg(description = "...") final String clusterName,
     @ToolArg(description = "...", required = false) final String namespace,
-    final McpLog mcpLog,           // send log-level notifications to client
     final Progress progress,        // report completion percentage
     final Cancellation cancellation // check if client cancelled mid-operation
 ) {
     // Build options with callbacks
     LogCollectionParams options = LogCollectionParams.builder(...)
-        .notifier(mcpLog::info)
         .cancelCheck(cancellation::skipProcessingIfCancelled)
-        .progressCallback(...)
+        .progressCallback(progress.token().isPresent()
+            ? (podName, completed, total) -> progress.notificationBuilder()
+                .setProgress(completed).setTotal(total)
+                .setMessage(String.format("Collecting logs from pod %s (%d/%d)", podName, completed, total))
+                .build().sendAndForget()
+            : null)
         .build();
     return kafkaService.getClusterLogs(namespace, clusterName, options);
 }
@@ -363,7 +366,6 @@ public class DiagnosticTools {
         @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
         final Sampling sampling,       // LLM-guided selective investigation
         final Elicitation elicitation,  // namespace disambiguation
-        final McpLog mcpLog,
         final Progress progress,
         final Cancellation cancellation
     ) {
@@ -405,8 +407,7 @@ public class DiagnosticTools {
 ### DiagnosticHelper (common module)
 
 Shared MCP framework utilities in `common/src/.../service/DiagnosticHelper.java`:
-- `sendClientNotification(McpLog, String)` — log-level notification to MCP client
-- `sendProgress(Progress, step, totalSteps, label)` — progress update to MCP client
+- `sendProgress(Progress, step, totalSteps, message)` — progress update with descriptive message to MCP client
 - `checkCancellation(Cancellation)` — abort if client cancelled
 - `putIfNotNull(Map, String, Object)` — conditional map insertion
 - `elicitSelection(Elicitation, message, propertyName, description, options)` — generic single-select Elicitation
