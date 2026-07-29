@@ -7,7 +7,6 @@ package io.streamshub.mcp.strimzi.service.kafka;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
-import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.ToolCallException;
@@ -56,8 +55,6 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
     private static final Logger LOG = Logger.getLogger(UpgradeReadinessDiagnosticService.class);
     private static final int PHASE1_STEPS = 5;
     private static final int MAX_PHASE2_STEPS = 5;
-    private static final String DIAGNOSTIC_LABEL = "Upgrade readiness check";
-
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
     private static final String STEP_OPERATOR_STATUS = "operator_status";
     private static final String STEP_NODE_POOLS_AND_PODS = "node_pools_and_pods";
@@ -115,18 +112,16 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
      * @param targetVersion optional target Kafka version for context
      * @param sampling      MCP Sampling for LLM analysis (may be unsupported)
      * @param elicitation   MCP Elicitation for user input (may be unsupported)
-     * @param mcpLog        MCP log for progress notifications
      * @param progress      MCP progress tracking
      * @param cancellation  MCP cancellation checking
      * @return a consolidated upgrade readiness report
      */
-    @SuppressWarnings("checkstyle:ParameterNumber")
+    @SuppressWarnings({"checkstyle:ParameterNumber", "checkstyle:NPathComplexity", "checkstyle:CyclomaticComplexity"})
     public UpgradeReadinessReport diagnose(final String namespace,
                                             final String clusterName,
                                             final String targetVersion,
                                             final Sampling sampling,
                                             final Elicitation elicitation,
-                                            final McpLog mcpLog,
                                             final Progress progress,
                                             final Cancellation cancellation) {
         String ns = InputUtils.normalizeInput(namespace);
@@ -147,33 +142,44 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         // === Phase 1: Initial data gathering ===
         int maxSteps = PHASE1_STEPS + MAX_PHASE2_STEPS;
         KafkaClusterResponse cluster = gatherClusterStatus(
-            ns, name, elicitation, completed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            ns, name, elicitation, completed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            "Checked Kafka cluster status: " + cluster.readiness() + " (version: " + cluster.kafkaVersion() + ")");
         DiagnosticHelper.checkCancellation(cancellation);
 
         String resolvedNs = cluster.namespace();
 
         StrimziOperatorResponse operator = gatherOperatorStatus(
-            null, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            null, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            operator != null
+                ? "Checked Strimzi operator '" + operator.name() + "' status: " + operator.status()
+                    + " (version: " + operator.version() + ")"
+                : "No Strimzi operator found");
         DiagnosticHelper.checkCancellation(cancellation);
 
         List<KafkaNodePoolResponse> nodePools = gatherNodePoolsData(
-            resolvedNs, name, mcpLog);
+            resolvedNs, name);
         KafkaClusterPodsResponse pods = gatherPodsData(
-            resolvedNs, name, mcpLog);
-        recordNodePoolsAndPodsStep(nodePools, pods, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            resolvedNs, name);
+        recordNodePoolsAndPodsStep(nodePools, pods, completed, failed);
+        int poolCount = nodePools != null ? nodePools.size() : 0;
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            String.format("Gathered %d node pool(s) and cluster pod health", poolCount));
         DiagnosticHelper.checkCancellation(cancellation);
 
         KafkaMetricsResponse replicationMetrics = gatherReplicationMetrics(
-            resolvedNs, name, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            resolvedNs, name, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            replicationMetrics != null ? "Gathered replication health metrics" : "Failed to gather replication metrics");
         DiagnosticHelper.checkCancellation(cancellation);
 
         List<KafkaRebalanceResponse> activeRebalances = gatherActiveRebalances(
-            resolvedNs, name, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            resolvedNs, name, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            activeRebalances == null ? "Failed to check active rebalances"
+                : activeRebalances.isEmpty() ? "No active rebalances found (safe to proceed)"
+                : String.format("WARNING: %d active rebalance(s) found — upgrade blocked", activeRebalances.size()));
         DiagnosticHelper.checkCancellation(cancellation);
 
         // === Phase 2: Deep investigation ===
@@ -186,40 +192,49 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         KafkaMetricsResponse performanceMetrics = null;
         if (areas.performanceMetrics) {
             performanceMetrics = gatherPerformanceMetrics(
-                resolvedNs, name, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                resolvedNs, name, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                performanceMetrics != null ? "Gathered performance metrics" : "Failed to gather performance metrics");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         KafkaMetricsResponse resourceMetrics = null;
         if (areas.resourceMetrics) {
             resourceMetrics = gatherResourceMetrics(
-                resolvedNs, name, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                resolvedNs, name, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                resourceMetrics != null ? "Gathered resource metrics" : "Failed to gather resource metrics");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         DrainCleanerReadinessResponse drainCleaner = null;
         if (areas.drainCleaner) {
             drainCleaner = gatherDrainCleaner(
-                completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                drainCleaner != null
+                    ? "Checked Drain Cleaner readiness: " + (drainCleaner.overallReady() ? "ready" : "not ready")
+                    : "Failed to check Drain Cleaner readiness");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         KafkaCertificateResponse certificates = null;
         if (areas.certificates) {
             certificates = gatherCertificates(
-                resolvedNs, name, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                resolvedNs, name, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                certificates != null ? "Checked certificate expiry status" : "Failed to check certificates");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         StrimziEventsResponse events = null;
         if (areas.events) {
             events = gatherEvents(
-                resolvedNs, name, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                resolvedNs, name, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                events != null
+                    ? String.format("Found %d cluster-related events", events.totalEvents())
+                    : "Failed to gather cluster events");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -241,21 +256,17 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
     KafkaClusterResponse gatherClusterStatus(final String namespace,
                                               final String clusterName,
                                               final Elicitation elicitation,
-                                              final List<String> completed,
-                                              final McpLog mcpLog) {
+                                              final List<String> completed) {
         try {
             KafkaClusterResponse result = kafkaService.getCluster(namespace, clusterName);
             completed.add(STEP_CLUSTER_STATUS);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                "Checked Kafka cluster status: " + result.readiness()
-                    + " (version: " + result.kafkaVersion() + ")");
             return result;
         } catch (ToolCallException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(
                     e, elicitation, "checked for upgrade readiness");
-                return gatherClusterStatus(resolved, clusterName, null, completed, mcpLog);
+                return gatherClusterStatus(resolved, clusterName, null, completed);
             }
             throw e;
         }
@@ -264,21 +275,15 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
     @WithSpan("diagnose.upgrade.operator_status")
     StrimziOperatorResponse gatherOperatorStatus(final String namespace,
                                                   final List<String> completed,
-                                                  final List<String> failed,
-                                                  final McpLog mcpLog) {
+                                                  final List<String> failed) {
         try {
             List<StrimziOperatorResponse> operators = operatorService.listOperators(namespace);
             if (operators.isEmpty()) {
                 failed.add(STEP_OPERATOR_STATUS + ": no Strimzi operator found");
-                DiagnosticHelper.sendClientNotification(mcpLog,
-                    "No Strimzi operator found in namespace");
                 return null;
             }
             StrimziOperatorResponse result = operators.getFirst();
             completed.add(STEP_OPERATOR_STATUS);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                "Checked Strimzi operator '" + result.name() + "' status: " + result.status()
-                    + " (version: " + result.version() + ")");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Strimzi operator status: %s", e.getMessage());
@@ -289,13 +294,9 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
 
     @WithSpan("diagnose.upgrade.node_pools")
     List<KafkaNodePoolResponse> gatherNodePoolsData(final String namespace,
-                                                     final String clusterName,
-                                                     final McpLog mcpLog) {
+                                                     final String clusterName) {
         try {
-            List<KafkaNodePoolResponse> result = nodePoolService.listNodePools(namespace, clusterName);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                String.format("Found %d KafkaNodePools", result != null ? result.size() : 0));
-            return result;
+            return nodePoolService.listNodePools(namespace, clusterName);
         } catch (Exception e) {
             LOG.warnf("Failed to gather node pools: %s", e.getMessage());
             return null;
@@ -304,12 +305,9 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
 
     @WithSpan("diagnose.upgrade.cluster_pods")
     KafkaClusterPodsResponse gatherPodsData(final String namespace,
-                                             final String clusterName,
-                                             final McpLog mcpLog) {
+                                             final String clusterName) {
         try {
-            KafkaClusterPodsResponse result = kafkaService.getClusterPods(namespace, clusterName);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked Kafka cluster pod health");
-            return result;
+            return kafkaService.getClusterPods(namespace, clusterName);
         } catch (Exception e) {
             LOG.warnf("Failed to gather cluster pods: %s", e.getMessage());
             return null;
@@ -319,13 +317,9 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
     void recordNodePoolsAndPodsStep(final List<KafkaNodePoolResponse> nodePools,
                                      final KafkaClusterPodsResponse pods,
                                      final List<String> completed,
-                                     final List<String> failed,
-                                     final McpLog mcpLog) {
+                                     final List<String> failed) {
         if (nodePools != null || pods != null) {
             completed.add(STEP_NODE_POOLS_AND_PODS);
-            int poolCount = nodePools != null ? nodePools.size() : 0;
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                String.format("Gathered %d node pool(s) and cluster pod health", poolCount));
         } else {
             failed.add(STEP_NODE_POOLS_AND_PODS + ": failed to gather node pools and pods");
         }
@@ -335,14 +329,12 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
     KafkaMetricsResponse gatherReplicationMetrics(final String namespace,
                                                    final String clusterName,
                                                    final List<String> completed,
-                                                   final List<String> failed,
-                                                   final McpLog mcpLog) {
+                                                   final List<String> failed) {
         try {
             KafkaMetricsResponse result = metricsService.getKafkaMetrics(
                 namespace, clusterName, "replication",
                 null, null, null, null, null, null, null);
             completed.add(STEP_REPLICATION_METRICS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Gathered replication health metrics");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather replication metrics: %s", e.getMessage());
@@ -355,8 +347,7 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
     List<KafkaRebalanceResponse> gatherActiveRebalances(final String namespace,
                                                          final String clusterName,
                                                          final List<String> completed,
-                                                         final List<String> failed,
-                                                         final McpLog mcpLog) {
+                                                         final List<String> failed) {
         try {
             List<KafkaRebalanceResponse> all = rebalanceService.listRebalances(
                 namespace, clusterName);
@@ -364,14 +355,6 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
                 .filter(r -> KafkaRebalanceService.isActiveRebalanceState(r.state()))
                 .toList();
             completed.add(STEP_ACTIVE_REBALANCES);
-            if (active.isEmpty()) {
-                DiagnosticHelper.sendClientNotification(mcpLog,
-                    "No active rebalances found (safe to proceed)");
-            } else {
-                DiagnosticHelper.sendClientNotification(mcpLog,
-                    String.format("WARNING: %d active rebalance(s) found — upgrade blocked",
-                        active.size()));
-            }
             return active;
         } catch (Exception e) {
             LOG.warnf("Failed to check active rebalances: %s", e.getMessage());
@@ -386,14 +369,12 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
     KafkaMetricsResponse gatherPerformanceMetrics(final String namespace,
                                                    final String clusterName,
                                                    final List<String> completed,
-                                                   final List<String> failed,
-                                                   final McpLog mcpLog) {
+                                                   final List<String> failed) {
         try {
             KafkaMetricsResponse result = metricsService.getKafkaMetrics(
                 namespace, clusterName, "performance",
                 null, null, null, null, null, null, null);
             completed.add(STEP_PERFORMANCE_METRICS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Gathered performance metrics");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather performance metrics: %s", e.getMessage());
@@ -406,14 +387,12 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
     KafkaMetricsResponse gatherResourceMetrics(final String namespace,
                                                 final String clusterName,
                                                 final List<String> completed,
-                                                final List<String> failed,
-                                                final McpLog mcpLog) {
+                                                final List<String> failed) {
         try {
             KafkaMetricsResponse result = metricsService.getKafkaMetrics(
                 namespace, clusterName, "resources",
                 null, null, null, null, null, null, null);
             completed.add(STEP_RESOURCE_METRICS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Gathered resource metrics");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather resource metrics: %s", e.getMessage());
@@ -424,14 +403,10 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
 
     @WithSpan("diagnose.upgrade.drain_cleaner")
     DrainCleanerReadinessResponse gatherDrainCleaner(final List<String> completed,
-                                                      final List<String> failed,
-                                                      final McpLog mcpLog) {
+                                                      final List<String> failed) {
         try {
             DrainCleanerReadinessResponse result = drainCleanerService.checkReadiness(null);
             completed.add(STEP_DRAIN_CLEANER);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                "Checked Drain Cleaner readiness: "
-                    + (result.overallReady() ? "ready" : "not ready"));
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to check Drain Cleaner readiness: %s", e.getMessage());
@@ -444,13 +419,11 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
     KafkaCertificateResponse gatherCertificates(final String namespace,
                                                  final String clusterName,
                                                  final List<String> completed,
-                                                 final List<String> failed,
-                                                 final McpLog mcpLog) {
+                                                 final List<String> failed) {
         try {
             KafkaCertificateResponse result = certificateService.getCertificates(
                 namespace, clusterName, null);
             completed.add(STEP_CERTIFICATES);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked certificate expiry status");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather certificate info: %s", e.getMessage());
@@ -463,14 +436,11 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
     StrimziEventsResponse gatherEvents(final String namespace,
                                         final String clusterName,
                                         final List<String> completed,
-                                        final List<String> failed,
-                                        final McpLog mcpLog) {
+                                        final List<String> failed) {
         try {
             StrimziEventsResponse result = eventsService.getEvents(
                 namespace, clusterName, StrimziConstants.KindValues.KAFKA, null);
             completed.add(STEP_EVENTS);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                String.format("Found %d cluster-related events", result.totalEvents()));
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather cluster events: %s", e.getMessage());

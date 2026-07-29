@@ -7,7 +7,6 @@ package io.streamshub.mcp.strimzi.service.kafka;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
-import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.ToolCallException;
@@ -49,7 +48,6 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(KafkaMetricsDiagnosticService.class);
     private static final int TOTAL_STEPS = 3;
-    private static final String DIAGNOSTIC_LABEL = "Kafka metrics diagnostic";
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
     private static final String STEP_POD_HEALTH = "pod_health";
     private static final String STEP_REPLICATION_METRICS = "replication_metrics";
@@ -88,7 +86,6 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
      * @param stepSeconds  optional range query step interval in seconds
      * @param sampling     MCP Sampling for LLM analysis (may be unsupported)
      * @param elicitation  MCP Elicitation for user input (may be unsupported)
-     * @param mcpLog       MCP log for progress notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return a consolidated metrics diagnostic report
@@ -103,7 +100,6 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
                                                  final Integer stepSeconds,
                                                  final Sampling sampling,
                                                  final Elicitation elicitation,
-                                                 final McpLog mcpLog,
                                                  final Progress progress,
                                                  final Cancellation cancellation) {
         String ns = InputUtils.normalizeInput(namespace);
@@ -122,15 +118,15 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
 
         // === Phase 1: Initial data gathering ===
         KafkaClusterResponse cluster = gatherClusterStatus(
-            ns, name, elicitation, completed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            ns, name, elicitation, completed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, "Checked Kafka cluster status: " + cluster.readiness());
         DiagnosticHelper.checkCancellation(cancellation);
 
         String resolvedNs = cluster.namespace();
 
         KafkaClusterPodsResponse pods = gatherClusterPods(
-            resolvedNs, name, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            resolvedNs, name, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, pods != null ? "Checked Kafka pod health" : "Failed to check pod health");
         DiagnosticHelper.checkCancellation(cancellation);
 
         // === Phase 2: Metrics investigation (single scrape for all categories) ===
@@ -144,8 +140,8 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
 
         Map<String, KafkaMetricsResponse> categoryResults = gatherAllMetrics(
             resolvedNs, name, areas, rangeMinutes, startTime, endTime, stepSeconds,
-            completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, DIAGNOSTIC_LABEL);
+            completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, categoryResults != null ? String.format("Retrieved metrics for %d categories", categoryResults.size()) : "Failed to gather metrics");
         DiagnosticHelper.checkCancellation(cancellation);
 
         if (categoryResults != null) {
@@ -172,19 +168,17 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
     KafkaClusterResponse gatherClusterStatus(final String namespace,
                                              final String clusterName,
                                              final Elicitation elicitation,
-                                             final List<String> completed,
-                                             final McpLog mcpLog) {
+                                             final List<String> completed) {
         try {
             KafkaClusterResponse result = kafkaService.getCluster(namespace, clusterName);
             completed.add(STEP_CLUSTER_STATUS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked Kafka cluster status: " + result.readiness());
             return result;
         } catch (ToolCallException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "analyzed for metrics");
                 return gatherClusterStatus(resolved, clusterName, null,
-                    completed, mcpLog);
+                    completed);
             }
             throw e;
         }
@@ -194,12 +188,10 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
     KafkaClusterPodsResponse gatherClusterPods(final String namespace,
                                                final String clusterName,
                                                final List<String> completed,
-                                               final List<String> failed,
-                                               final McpLog mcpLog) {
+                                               final List<String> failed) {
         try {
             KafkaClusterPodsResponse result = kafkaService.getClusterPods(namespace, clusterName);
             completed.add(STEP_POD_HEALTH);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked Kafka pod health");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Kafka pod health: %s", e.getMessage());
@@ -220,8 +212,7 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
                                                                 final String endTime,
                                                                 final Integer stepSeconds,
                                                                 final List<String> completed,
-                                                                final List<String> failed,
-                                                                final McpLog mcpLog) {
+                                                                final List<String> failed) {
         // Collect all metric names from selected categories
         Map<String, List<String>> categoryMetricNames = new LinkedHashMap<>();
         if (areas.replication) {
@@ -279,8 +270,6 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
             completed.add(categoryStepName(category));
         }
 
-        DiagnosticHelper.sendClientNotification(mcpLog, String.format("Retrieved metrics for %d categories (single scrape)",
-            categoryMetricNames.size()));
         return results;
     }
 

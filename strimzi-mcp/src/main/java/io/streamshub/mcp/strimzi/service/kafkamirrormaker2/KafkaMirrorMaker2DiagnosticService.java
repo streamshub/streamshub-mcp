@@ -7,7 +7,6 @@ package io.streamshub.mcp.strimzi.service.kafkamirrormaker2;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
-import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.ToolCallException;
@@ -44,8 +43,6 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
     private static final Logger LOG = Logger.getLogger(KafkaMirrorMaker2DiagnosticService.class);
     private static final int PHASE1_STEPS = 2;
     private static final int MAX_PHASE2_STEPS = 2;
-    private static final String DIAGNOSTIC_LABEL = "MirrorMaker2 diagnostic";
-
     private static final String STEP_MM2_STATUS = "mm2_status";
     private static final String STEP_MM2_PODS = "mm2_pods";
     private static final String STEP_MM2_LOGS = "mm2_logs";
@@ -74,7 +71,6 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
      * @param sinceMinutes    optional time window for logs/events
      * @param sampling        MCP Sampling for LLM analysis
      * @param elicitation     MCP Elicitation for user input
-     * @param mcpLog          MCP log notifications
      * @param progress        MCP progress tracking
      * @param cancellation    MCP cancellation checking
      * @return the diagnostic report
@@ -86,7 +82,6 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
                                                        final Integer sinceMinutes,
                                                        final Sampling sampling,
                                                        final Elicitation elicitation,
-                                                       final McpLog mcpLog,
                                                        final Progress progress,
                                                        final Cancellation cancellation) {
         String ns = InputUtils.normalizeInput(namespace);
@@ -107,28 +102,32 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
         int maxSteps = PHASE1_STEPS + MAX_PHASE2_STEPS;
 
         KafkaMirrorMaker2Response mm2Status = gatherMm2Status(
-            ns, name, elicitation, completed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            ns, name, elicitation, completed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            mm2Status != null ? "Checked MirrorMaker2 status: " + mm2Status.readiness() : "Failed to check MirrorMaker2 status");
         DiagnosticHelper.checkCancellation(cancellation);
 
         String resolvedNs = mm2Status != null ? mm2Status.namespace() : ns;
 
         KafkaMirrorMaker2PodsResponse pods = gatherPods(
-            resolvedNs, name, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            resolvedNs, name, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            pods != null ? "Checked MirrorMaker2 pod health" : "Failed to check pod health");
         DiagnosticHelper.checkCancellation(cancellation);
 
         // === Phase 2: Deep investigation (always gather all for MM2) ===
         Integer sinceSeconds = sinceMinutes != null ? sinceMinutes * 60 : null;
 
         KafkaMirrorMaker2LogsResponse logs = gatherLogs(
-            resolvedNs, name, sinceSeconds, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            resolvedNs, name, sinceSeconds, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            logs != null ? "Collected MirrorMaker2 logs" : "Failed to collect logs");
         DiagnosticHelper.checkCancellation(cancellation);
 
         StrimziEventsResponse events = gatherEvents(
-            resolvedNs, name, sinceMinutes, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            resolvedNs, name, sinceMinutes, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            events != null ? String.format("Found %d related events", events.totalEvents()) : "Failed to gather events");
 
         // === Phase 3: Analysis ===
         String analysis = produceAnalysis(sampling, mm2Status, pods, logs, events, symptom);
@@ -143,20 +142,17 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
     KafkaMirrorMaker2Response gatherMm2Status(final String namespace,
                                                 final String name,
                                                 final Elicitation elicitation,
-                                                final List<String> completed,
-                                                final McpLog mcpLog) {
+                                                final List<String> completed) {
         try {
             KafkaMirrorMaker2Response result = mirrorMakerService.getMirrorMaker(namespace, name);
             completed.add(STEP_MM2_STATUS);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                "Checked MirrorMaker2 status: " + result.readiness());
             return result;
         } catch (ToolCallException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(
                     e, elicitation, "diagnosed");
-                return gatherMm2Status(resolved, name, null, completed, mcpLog);
+                return gatherMm2Status(resolved, name, null, completed);
             }
             throw e;
         }
@@ -166,13 +162,11 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
     KafkaMirrorMaker2PodsResponse gatherPods(final String namespace,
                                                final String name,
                                                final List<String> completed,
-                                               final List<String> failed,
-                                               final McpLog mcpLog) {
+                                               final List<String> failed) {
         try {
             KafkaMirrorMaker2PodsResponse result = mirrorMakerService.getMirrorMakerPods(
                 namespace, name);
             completed.add(STEP_MM2_PODS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked MirrorMaker2 pod health");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather MM2 pods: %s", e.getMessage());
@@ -188,8 +182,7 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
                                                final String name,
                                                final Integer sinceSeconds,
                                                final List<String> completed,
-                                               final List<String> failed,
-                                               final McpLog mcpLog) {
+                                               final List<String> failed) {
         try {
             LogCollectionParams options = LogCollectionParams.builder(defaultTailLines)
                 .filter("errors")
@@ -198,7 +191,6 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
             KafkaMirrorMaker2LogsResponse result = mirrorMakerService.getMirrorMakerLogs(
                 namespace, name, options);
             completed.add(STEP_MM2_LOGS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Collected MirrorMaker2 logs");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather MM2 logs: %s", e.getMessage());
@@ -212,14 +204,11 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
                                         final String name,
                                         final Integer sinceMinutes,
                                         final List<String> completed,
-                                        final List<String> failed,
-                                        final McpLog mcpLog) {
+                                        final List<String> failed) {
         try {
             StrimziEventsResponse result = eventsService.getEvents(
                 namespace, name, StrimziConstants.KindValues.KAFKA_MIRROR_MAKER_2, sinceMinutes);
             completed.add(STEP_EVENTS);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                String.format("Found %d related events", result.totalEvents()));
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather events: %s", e.getMessage());

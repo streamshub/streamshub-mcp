@@ -78,7 +78,6 @@ public class XxxDiagnosticService extends BaseDiagnosticService {
             final String name,
             final Sampling sampling,
             final Elicitation elicitation,
-            final McpLog mcpLog,
             final Progress progress,
             final Cancellation cancellation) {
         // Orchestrate 3 phases
@@ -184,11 +183,10 @@ public XxxDiagnosticReport diagnoseXxx(
     @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
     final Sampling sampling,
     final Elicitation elicitation,
-    final McpLog mcpLog,
     final Progress progress,
     final Cancellation cancellation
 ) {
-    return xxxDiagnosticService.diagnose(namespace, clusterName, sampling, elicitation, mcpLog, progress, cancellation);
+    return xxxDiagnosticService.diagnose(namespace, clusterName, sampling, elicitation, progress, cancellation);
 }
 ```
 

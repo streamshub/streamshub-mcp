@@ -6,7 +6,6 @@ package io.streamshub.mcp.strimzi.service.operator;
 
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
-import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.ToolCallException;
@@ -44,7 +43,6 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
     private static final Logger LOG = Logger.getLogger(OperatorMetricsDiagnosticService.class);
     private static final int PHASE1_STEPS = 1;
     private static final int MAX_PHASE2_STEPS = 4;
-    private static final String DIAGNOSTIC_LABEL = "Strimzi operator metrics diagnostic";
     private static final String STEP_OPERATOR_STATUS = "operator_status";
     private static final String STEP_RECONCILIATION_METRICS = "reconciliation_metrics";
     private static final String STEP_RESOURCE_METRICS = "resource_metrics";
@@ -82,7 +80,6 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
      * @param endTime      optional absolute end time (ISO 8601)
      * @param stepSeconds  optional range query step interval in seconds
      * @param sampling     MCP Sampling for LLM analysis (may be unsupported)
-     * @param mcpLog       MCP log for progress notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return a consolidated operator metrics diagnostic report
@@ -97,7 +94,6 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
                                                     final String endTime,
                                                     final Integer stepSeconds,
                                                     final Sampling sampling,
-                                                    final McpLog mcpLog,
                                                     final Progress progress,
                                                     final Cancellation cancellation) {
         String ns = InputUtils.normalizeInput(namespace);
@@ -115,8 +111,9 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
         // === Phase 1: Initial data gathering ===
         int maxSteps = PHASE1_STEPS + MAX_PHASE2_STEPS;
         StrimziOperatorResponse operator = gatherOperatorStatus(
-            ns, name, completed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            ns, name, completed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            "Checked Strimzi operator '" + operator.name() + "' status: " + operator.status());
         DiagnosticHelper.checkCancellation(cancellation);
 
         String resolvedNs = operator.namespace();
@@ -133,8 +130,9 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
             reconciliationMetrics = gatherMetrics(
                 resolvedNs, resolvedName, cluster, StrimziOperatorMetricCategories.RECONCILIATION,
                 rangeMinutes, startTime, endTime, stepSeconds,
-                STEP_RECONCILIATION_METRICS, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                STEP_RECONCILIATION_METRICS, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                reconciliationMetrics != null ? "Retrieved Strimzi operator reconciliation metrics" : "Failed to gather reconciliation metrics");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -143,8 +141,9 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
             resourceMetrics = gatherMetrics(
                 resolvedNs, resolvedName, cluster, StrimziOperatorMetricCategories.RESOURCES,
                 rangeMinutes, startTime, endTime, stepSeconds,
-                STEP_RESOURCE_METRICS, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                STEP_RESOURCE_METRICS, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                resourceMetrics != null ? "Retrieved Strimzi operator resources metrics" : "Failed to gather resource metrics");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -153,16 +152,18 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
             jvmMetrics = gatherMetrics(
                 resolvedNs, resolvedName, cluster, StrimziOperatorMetricCategories.JVM,
                 rangeMinutes, startTime, endTime, stepSeconds,
-                STEP_JVM_METRICS, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                STEP_JVM_METRICS, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                jvmMetrics != null ? "Retrieved Strimzi operator jvm metrics" : "Failed to gather JVM metrics");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         StrimziOperatorLogsResponse operatorLogs = null;
         if (areas.operatorLogs) {
             operatorLogs = gatherOperatorLogs(
-                resolvedNs, resolvedName, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                resolvedNs, resolvedName, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                operatorLogs != null ? "Collected Strimzi operator logs" : "Failed to collect operator logs");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -182,13 +183,10 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
     @WithSpan("diagnose.operator.status")
     StrimziOperatorResponse gatherOperatorStatus(final String namespace,
                                                  final String operatorName,
-                                                 final List<String> completed,
-                                                 final McpLog mcpLog) {
+                                                 final List<String> completed) {
         if (operatorName != null) {
             StrimziOperatorResponse result = operatorService.getOperator(namespace, operatorName);
             completed.add(STEP_OPERATOR_STATUS);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                String.format("Checked Strimzi operator '%s' status: %s", result.name(), result.status()));
             return result;
         }
 
@@ -202,7 +200,6 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
 
         StrimziOperatorResponse result = operators.getFirst();
         completed.add(STEP_OPERATOR_STATUS);
-        DiagnosticHelper.sendClientNotification(mcpLog, "Checked operator status: " + result.status());
         return result;
     }
 
@@ -220,15 +217,12 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
                                                          final Integer stepSeconds,
                                                          final String stepName,
                                                          final List<String> completed,
-                                                         final List<String> failed,
-                                                         final McpLog mcpLog) {
+                                                         final List<String> failed) {
         try {
             StrimziOperatorMetricsResponse result = operatorMetricsService.getOperatorMetrics(
                 namespace, operatorName, clusterName, category,
                 null, rangeMinutes, startTime, endTime, stepSeconds, null);
             completed.add(stepName);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                String.format("Retrieved Strimzi operator %s metrics", category));
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Strimzi operator %s metrics: %s", category, e.getMessage());
@@ -241,8 +235,7 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
     StrimziOperatorLogsResponse gatherOperatorLogs(final String namespace,
                                                    final String operatorName,
                                                    final List<String> completed,
-                                                   final List<String> failed,
-                                                   final McpLog mcpLog) {
+                                                   final List<String> failed) {
         try {
             LogCollectionParams params = LogCollectionParams.builder(defaultTailLines)
                 .filter("errors")
@@ -250,7 +243,6 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
             StrimziOperatorLogsResponse result = operatorService.getOperatorLogs(
                 namespace, operatorName, params);
             completed.add(STEP_OPERATOR_LOGS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Collected Strimzi operator logs");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Strimzi operator logs: %s", e.getMessage());

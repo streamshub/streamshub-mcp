@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Migrated all diagnostic and log-collection user feedback from MCP logging (`notifications/message`) to Progress notifications (`notifications/progress`); `McpLog` is no longer injected into any tool or diagnostic service
+- Replaced `LogCollectionParams.notifier` and `BiConsumer<Integer, Integer> progressCallback` with a unified `LogProgressCallback` interface that includes the pod name
 - Removed `JavadocStyle` checkstyle check (dropped in Checkstyle 13.9.0) — existing `MissingJavadocType`/`MissingJavadocMethod` checks cover javadoc validation
 - Bumped Strimzi API dependency from 1.0.1 to 1.1.0; the MCP server remains compatible with clusters running Strimzi 1.0.1
 - Extracted `BaseDiagnosticService` base class in the `common` module -- all 9 diagnostic services now inherit shared fields (`ObjectMapper`, sampling/log config) and reusable `performSampling()`, `performAnalysis()`, `performTriage()` utility methods

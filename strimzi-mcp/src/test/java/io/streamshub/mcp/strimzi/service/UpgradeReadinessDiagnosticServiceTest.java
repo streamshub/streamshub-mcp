@@ -71,14 +71,14 @@ class UpgradeReadinessDiagnosticServiceTest {
     void testThrowsWhenClusterNameMissing() {
         assertThrows(ToolCallException.class, () ->
             upgradeReadinessDiagnosticService.diagnose("kafka", null, null,
-                null, null, null, null, null));
+                null, null, null, null));
     }
 
     @Test
     void testThrowsWhenClusterNotFound() {
         assertThrows(ToolCallException.class, () ->
             upgradeReadinessDiagnosticService.diagnose("kafka", "missing-cluster", null,
-                null, null, null, null, null));
+                null, null, null, null));
     }
 
     @Test
@@ -87,7 +87,7 @@ class UpgradeReadinessDiagnosticServiceTest {
 
         UpgradeReadinessReport report = upgradeReadinessDiagnosticService.diagnose(
             "kafka", "my-cluster", null,
-            null, null, null, null, null);
+            null, null, null, null);
 
         assertNotNull(report);
         assertNotNull(report.cluster());
@@ -104,7 +104,7 @@ class UpgradeReadinessDiagnosticServiceTest {
 
         UpgradeReadinessReport report = upgradeReadinessDiagnosticService.diagnose(
             "kafka", "my-cluster", null,
-            null, null, null, null, null);
+            null, null, null, null);
 
         assertNotNull(report);
         assertTrue(report.stepsCompleted().contains("cluster_status"));

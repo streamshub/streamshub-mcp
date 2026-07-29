@@ -9,7 +9,6 @@ import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.ElicitationRequest;
 import io.quarkiverse.mcp.server.ElicitationResponse;
-import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.SamplingResponse;
 import org.jboss.logging.Logger;
@@ -37,32 +36,20 @@ public final class DiagnosticHelper {
     }
 
     /**
-     * Send a log-level notification to the MCP client.
-     *
-     * @param mcpLog  the MCP log (may be null)
-     * @param message the notification message
-     */
-    public static void sendClientNotification(final McpLog mcpLog, final String message) {
-        if (mcpLog != null) {
-            mcpLog.info(message);
-        }
-    }
-
-    /**
      * Send a progress update to the MCP client.
      *
      * @param progress   the MCP progress (may be null)
      * @param step       the current step number
      * @param totalSteps the total number of steps
-     * @param label      the diagnostic label (e.g., "Diagnostic", "Connectivity diagnostic")
+     * @param message    descriptive message for this step
      */
     public static void sendProgress(final Progress progress, final int step,
-                                     final int totalSteps, final String label) {
+                                     final int totalSteps, final String message) {
         if (progress != null && progress.token().isPresent()) {
             progress.notificationBuilder()
                 .setProgress(step)
                 .setTotal(totalSteps)
-                .setMessage(String.format("%s step %d/%d", label, step, totalSteps))
+                .setMessage(message)
                 .build()
                 .sendAndForget();
         }

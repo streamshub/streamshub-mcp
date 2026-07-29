@@ -80,7 +80,7 @@ class KafkaConnectorDiagnosticServiceTest {
     void testThrowsWhenConnectorNameNull() {
         assertThrows(ToolCallException.class, () ->
             diagnosticService.diagnose("kafka", null, null, null,
-                null, null, null, null, null));
+                null, null, null, null));
     }
 
     /**
@@ -90,7 +90,7 @@ class KafkaConnectorDiagnosticServiceTest {
     void testThrowsWhenConnectorNotFound() {
         assertThrows(ToolCallException.class, () ->
             diagnosticService.diagnose("kafka", "nonexistent", null, null,
-                null, null, null, null, null));
+                null, null, null, null));
     }
 
     /**
@@ -126,7 +126,7 @@ class KafkaConnectorDiagnosticServiceTest {
 
         KafkaConnectorDiagnosticReport report = diagnosticService.diagnose(
             "kafka", "my-connector", null, null,
-            null, null, null, null, null);
+            null, null, null, null);
 
         assertNotNull(report);
         assertNotNull(report.connector());
@@ -162,7 +162,7 @@ class KafkaConnectorDiagnosticServiceTest {
 
         KafkaConnectorDiagnosticReport report = diagnosticService.diagnose(
             "kafka", "my-connector", null, null,
-            null, null, null, null, null);
+            null, null, null, null);
 
         assertNotNull(report);
         assertNotNull(report.connector());

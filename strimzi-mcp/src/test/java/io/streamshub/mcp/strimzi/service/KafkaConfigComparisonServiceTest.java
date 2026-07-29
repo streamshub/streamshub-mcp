@@ -59,14 +59,14 @@ class KafkaConfigComparisonServiceTest {
     void testThrowsWhenCluster1NameMissing() {
         assertThrows(ToolCallException.class, () ->
             comparisonService.compare("kafka", null, "kafka", "cluster-b",
-                null, null, null, null, null));
+                null, null, null, null));
     }
 
     @Test
     void testThrowsWhenCluster2NameMissing() {
         assertThrows(ToolCallException.class, () ->
             comparisonService.compare("kafka", "cluster-a", "kafka", null,
-                null, null, null, null, null));
+                null, null, null, null));
     }
 
     @Test
@@ -77,7 +77,7 @@ class KafkaConfigComparisonServiceTest {
 
         KafkaConfigComparisonReport report = comparisonService.compare(
             "kafka", "cluster-a", "kafka", "cluster-b",
-            null, null, null, null, null);
+            null, null, null, null);
 
         assertNotNull(report);
         assertNotNull(report.cluster1Config());
@@ -105,7 +105,7 @@ class KafkaConfigComparisonServiceTest {
 
         KafkaConfigComparisonReport report = comparisonService.compare(
             "kafka", "cluster-a", "kafka", "cluster-b",
-            null, null, null, null, null);
+            null, null, null, null);
 
         assertNotNull(report.timestamp());
         assertTrue(report.message().contains("2 steps succeeded"));

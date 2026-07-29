@@ -6,7 +6,6 @@ package io.streamshub.mcp.strimzi.tool.kafkamirrormaker2;
 
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
-import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
@@ -164,7 +163,6 @@ public class KafkaMirrorMaker2Tools {
      * @param endTime         optional absolute end time
      * @param tailLines       optional line count
      * @param previous        optional previous container flag
-     * @param mcpLog          MCP log notifications
      * @param progress        MCP progress tracking
      * @param cancellation    MCP cancellation checking
      * @return the logs response
@@ -196,7 +194,6 @@ public class KafkaMirrorMaker2Tools {
         @ToolArg(description = StrimziToolsPrompts.END_TIME_DESC, required = false) final String endTime,
         @Min(1) @ToolArg(description = StrimziToolsPrompts.TAIL_LINES_DESC, required = false) final Integer tailLines,
         @ToolArg(description = StrimziToolsPrompts.PREVIOUS_DESC, required = false) final Boolean previous,
-        final McpLog mcpLog,
         final Progress progress,
         final Cancellation cancellation
     ) {
@@ -208,12 +205,11 @@ public class KafkaMirrorMaker2Tools {
             .startTime(startTime)
             .endTime(endTime)
             .previous(Boolean.TRUE.equals(previous))
-            .notifier(mcpLog::info)
             .cancelCheck(cancellation::skipProcessingIfCancelled)
             .progressCallback(progress.token().isPresent()
-                ? (completed, total) -> progress.notificationBuilder()
+                ? (podName, completed, total) -> progress.notificationBuilder()
                     .setProgress(completed).setTotal(total)
-                    .setMessage(String.format("Collected logs from %d/%d pods", completed, total))
+                    .setMessage(String.format("Collecting logs from pod %s (%d/%d)", podName, completed, total))
                     .build().sendAndForget()
                 : null)
             .build();

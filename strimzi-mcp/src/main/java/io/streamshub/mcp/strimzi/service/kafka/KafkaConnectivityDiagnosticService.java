@@ -7,7 +7,6 @@ package io.streamshub.mcp.strimzi.service.kafka;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
-import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.ToolCallException;
@@ -48,7 +47,6 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
     private static final Logger LOG = Logger.getLogger(KafkaConnectivityDiagnosticService.class);
     private static final int PHASE1_STEPS = 2;
     private static final int MAX_PHASE2_STEPS = 4;
-    private static final String DIAGNOSTIC_LABEL = "Kafka connectivity diagnostic";
     private static final List<String> CONNECTIVITY_KEYWORDS = List.of(
         "TLS", "SSL", "handshake", "authentication", "SASL",
         "connection refused", "SocketException", "SSLHandshakeException",
@@ -92,7 +90,6 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
      * @param listenerName optional listener to focus on
      * @param sampling     MCP Sampling for LLM analysis (may be unsupported)
      * @param elicitation  MCP Elicitation for user input (may be unsupported)
-     * @param mcpLog       MCP log for progress notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return a consolidated connectivity diagnostic report
@@ -103,7 +100,6 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
                                                       final String listenerName,
                                                       final Sampling sampling,
                                                       final Elicitation elicitation,
-                                                      final McpLog mcpLog,
                                                       final Progress progress,
                                                       final Cancellation cancellation) {
         String ns = InputUtils.normalizeInput(namespace);
@@ -124,15 +120,15 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
         // === Phase 1: Initial data gathering ===
         int maxSteps = PHASE1_STEPS + MAX_PHASE2_STEPS;
         KafkaClusterResponse cluster = gatherClusterStatus(
-            ns, name, elicitation, completed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            ns, name, elicitation, completed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, "Checked Kafka cluster status: " + cluster.readiness());
         DiagnosticHelper.checkCancellation(cancellation);
 
         String resolvedNs = cluster.namespace();
 
         KafkaBootstrapResponse bootstrapServers = gatherBootstrapServers(
-            resolvedNs, name, completed, failed, mcpLog);
-        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, DIAGNOSTIC_LABEL);
+            resolvedNs, name, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, bootstrapServers != null ? String.format("Found %d Kafka listeners", bootstrapServers.bootstrapServers() != null ? bootstrapServers.bootstrapServers().size() : 0) : "Failed to gather bootstrap servers");
         DiagnosticHelper.checkCancellation(cancellation);
 
         // === Phase 2: Deep investigation ===
@@ -144,31 +140,31 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
         KafkaCertificateResponse certificates = null;
         if (areas.certificates) {
             certificates = gatherCertificates(
-                resolvedNs, name, listener, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                resolvedNs, name, listener, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, certificates != null ? "Checked TLS certificates and authentication" : "Failed to check certificates");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         KafkaClusterPodsResponse pods = null;
         if (areas.pods) {
             pods = gatherClusterPods(
-                resolvedNs, name, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                resolvedNs, name, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, pods != null ? "Checked Kafka pod health" : "Failed to check pod health");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         KafkaClusterLogsResponse clusterLogs = null;
         if (areas.clusterLogs) {
             clusterLogs = gatherConnectivityLogs(
-                resolvedNs, name, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+                resolvedNs, name, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, clusterLogs != null ? "Collected connectivity-related logs" : "Failed to collect connectivity logs");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         List<KafkaUserResponse> users = null;
         if (areas.users) {
-            users = gatherUsers(resolvedNs, name, completed, failed, mcpLog);
-            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, DIAGNOSTIC_LABEL);
+            users = gatherUsers(resolvedNs, name, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, users != null ? String.format("Found %d KafkaUsers for cluster", users.size()) : "Failed to gather KafkaUsers");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -187,19 +183,17 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
     KafkaClusterResponse gatherClusterStatus(final String namespace,
                                              final String clusterName,
                                              final Elicitation elicitation,
-                                             final List<String> completed,
-                                             final McpLog mcpLog) {
+                                             final List<String> completed) {
         try {
             KafkaClusterResponse result = kafkaService.getCluster(namespace, clusterName);
             completed.add(STEP_CLUSTER_STATUS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked Kafka cluster status: " + result.readiness());
             return result;
         } catch (ToolCallException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "checked for connectivity");
                 return gatherClusterStatus(resolved, clusterName, null,
-                    completed, mcpLog);
+                    completed);
             }
             throw e;
         }
@@ -209,13 +203,10 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
     KafkaBootstrapResponse gatherBootstrapServers(final String namespace,
                                                   final String clusterName,
                                                   final List<String> completed,
-                                                  final List<String> failed,
-                                                  final McpLog mcpLog) {
+                                                  final List<String> failed) {
         try {
             KafkaBootstrapResponse result = kafkaService.getBootstrapServers(namespace, clusterName);
             completed.add(STEP_BOOTSTRAP_SERVERS);
-            int listenerCount = result.bootstrapServers() != null ? result.bootstrapServers().size() : 0;
-            DiagnosticHelper.sendClientNotification(mcpLog, String.format("Found %d Kafka listeners", listenerCount));
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Kafka bootstrap servers: %s", e.getMessage());
@@ -231,13 +222,11 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
                                                 final String clusterName,
                                                 final String listenerName,
                                                 final List<String> completed,
-                                                final List<String> failed,
-                                                final McpLog mcpLog) {
+                                                final List<String> failed) {
         try {
             KafkaCertificateResponse result = kafkaCertificateService.getCertificates(
                 namespace, clusterName, listenerName);
             completed.add(STEP_CERTIFICATES);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked TLS certificates and authentication");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Kafka TLS certificates: %s", e.getMessage());
@@ -250,12 +239,10 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
     KafkaClusterPodsResponse gatherClusterPods(final String namespace,
                                                final String clusterName,
                                                final List<String> completed,
-                                               final List<String> failed,
-                                               final McpLog mcpLog) {
+                                               final List<String> failed) {
         try {
             KafkaClusterPodsResponse result = kafkaService.getClusterPods(namespace, clusterName);
             completed.add(STEP_POD_HEALTH);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Checked Kafka pod health");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Kafka pod health: %s", e.getMessage());
@@ -268,8 +255,7 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
     KafkaClusterLogsResponse gatherConnectivityLogs(final String namespace,
                                                     final String clusterName,
                                                     final List<String> completed,
-                                                    final List<String> failed,
-                                                    final McpLog mcpLog) {
+                                                    final List<String> failed) {
         try {
             LogCollectionParams params = LogCollectionParams.builder(defaultTailLines)
                 .keywords(CONNECTIVITY_KEYWORDS)
@@ -277,7 +263,6 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
             KafkaClusterLogsResponse result = kafkaService.getClusterLogs(
                 namespace, clusterName, params);
             completed.add(STEP_CLUSTER_LOGS);
-            DiagnosticHelper.sendClientNotification(mcpLog, "Collected connectivity-related logs");
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Kafka connectivity logs: %s", e.getMessage());
@@ -289,13 +274,10 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
     private List<KafkaUserResponse> gatherUsers(final String namespace,
                                                     final String clusterName,
                                                     final List<String> completed,
-                                                    final List<String> failed,
-                                                    final McpLog mcpLog) {
+                                                    final List<String> failed) {
         try {
             List<KafkaUserResponse> result = kafkaUserService.listUsers(namespace, clusterName);
             completed.add(STEP_USERS);
-            DiagnosticHelper.sendClientNotification(mcpLog,
-                String.format("Found %d KafkaUsers for cluster", result.size()));
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather KafkaUsers: %s", e.getMessage());

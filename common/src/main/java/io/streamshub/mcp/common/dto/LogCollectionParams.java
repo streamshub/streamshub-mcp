@@ -5,8 +5,6 @@
 package io.streamshub.mcp.common.dto;
 
 import java.util.List;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 /**
  * Options for log collection from Kubernetes pods.
@@ -21,9 +19,8 @@ import java.util.function.Consumer;
  * @param endTime          optional absolute end time in ISO 8601 format (use with startTime)
  * @param tailLines        number of log lines to tail per pod
  * @param previous         if true, retrieve logs from the previous container instance
- * @param notifier         optional callback for textual per-pod log notifications
  * @param cancelCheck      optional callback invoked before each pod; should throw to abort
- * @param progressCallback optional callback receiving (completedPods, totalPods) after each pod
+ * @param progressCallback optional callback receiving (podName, completedPods, totalPods) after each pod
  */
 public record LogCollectionParams(
     String filter,
@@ -33,10 +30,24 @@ public record LogCollectionParams(
     String endTime,
     int tailLines,
     Boolean previous,
-    Consumer<String> notifier,
     Runnable cancelCheck,
-    BiConsumer<Integer, Integer> progressCallback
+    LogProgressCallback progressCallback
 ) {
+
+    /**
+     * Callback for per-pod progress during log collection.
+     */
+    @FunctionalInterface
+    public interface LogProgressCallback {
+        /**
+         * Called after log collection completes for each pod.
+         *
+         * @param podName   the name of the pod whose logs were collected
+         * @param completed the number of pods completed so far
+         * @param total     the total number of pods to collect logs from
+         */
+        void onPodCompleted(String podName, int completed, int total);
+    }
 
     /**
      * Create options with only basic filtering parameters.
@@ -50,7 +61,7 @@ public record LogCollectionParams(
     public static LogCollectionParams of(final String filter, final Integer sinceSeconds,
                                          final int tailLines, final Boolean previous) {
         return new LogCollectionParams(filter, null, sinceSeconds, null, null,
-            tailLines, previous, null, null, null);
+            tailLines, previous, null, null);
     }
 
     /**
@@ -75,9 +86,8 @@ public record LogCollectionParams(
         private String endTime;
         private final int tailLines;
         private Boolean previous;
-        private Consumer<String> notifier;
         private Runnable cancelCheck;
-        private BiConsumer<Integer, Integer> progressCallback;
+        private LogProgressCallback progressCallback;
 
         private Builder(final int tailLines) {
             this.tailLines = tailLines;
@@ -150,17 +160,6 @@ public record LogCollectionParams(
         }
 
         /**
-         * Set the textual notification callback.
-         *
-         * @param notifier callback receiving per-pod progress messages
-         * @return this builder
-         */
-        public Builder notifier(final Consumer<String> notifier) {
-            this.notifier = notifier;
-            return this;
-        }
-
-        /**
          * Set the cancellation check callback.
          *
          * @param cancelCheck callback invoked before each pod; should throw to abort
@@ -174,10 +173,10 @@ public record LogCollectionParams(
         /**
          * Set the progress callback.
          *
-         * @param progressCallback callback receiving (completedPods, totalPods)
+         * @param progressCallback callback receiving (podName, completedPods, totalPods)
          * @return this builder
          */
-        public Builder progressCallback(final BiConsumer<Integer, Integer> progressCallback) {
+        public Builder progressCallback(final LogProgressCallback progressCallback) {
             this.progressCallback = progressCallback;
             return this;
         }
@@ -189,7 +188,7 @@ public record LogCollectionParams(
          */
         public LogCollectionParams build() {
             return new LogCollectionParams(filter, keywords, sinceSeconds, startTime, endTime,
-                tailLines, previous, notifier, cancelCheck, progressCallback);
+                tailLines, previous, cancelCheck, progressCallback);
         }
     }
 }

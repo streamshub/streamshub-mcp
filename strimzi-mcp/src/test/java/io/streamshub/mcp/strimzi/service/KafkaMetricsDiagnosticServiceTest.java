@@ -76,7 +76,7 @@ class KafkaMetricsDiagnosticServiceTest {
         assertThrows(ToolCallException.class, () ->
             diagnosticService.diagnose("kafka", null, null,
                 null, null, null, null,
-                null, null, null, null, null));
+                null, null, null, null));
     }
 
     /**
@@ -87,7 +87,7 @@ class KafkaMetricsDiagnosticServiceTest {
         assertThrows(ToolCallException.class, () ->
             diagnosticService.diagnose("kafka", "missing-cluster", null,
                 null, null, null, null,
-                null, null, null, null, null));
+                null, null, null, null));
     }
 
     /**
@@ -100,7 +100,7 @@ class KafkaMetricsDiagnosticServiceTest {
         KafkaMetricsDiagnosticReport report = diagnosticService.diagnose(
             "kafka", "my-cluster", null,
             null, null, null, null,
-            null, null, null, null, null);
+            null, null, null, null);
 
         assertNotNull(report);
         assertEquals("my-cluster", report.cluster().name());
@@ -123,7 +123,7 @@ class KafkaMetricsDiagnosticServiceTest {
         KafkaMetricsDiagnosticReport report = diagnosticService.diagnose(
             "kafka", "my-cluster", "high latency",
             null, null, null, null,
-            null, null, null, null, null);
+            null, null, null, null);
 
         assertNotNull(report);
         assertNotNull(report.cluster());
@@ -141,7 +141,7 @@ class KafkaMetricsDiagnosticServiceTest {
         KafkaMetricsDiagnosticReport report = diagnosticService.diagnose(
             "kafka", "my-cluster", "replication lag",
             null, null, null, null,
-            null, null, null, null, null);
+            null, null, null, null);
 
         assertNotNull(report);
         assertNotNull(report.message());

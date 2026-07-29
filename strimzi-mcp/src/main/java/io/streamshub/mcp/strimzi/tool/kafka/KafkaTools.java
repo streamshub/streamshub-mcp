@@ -6,7 +6,6 @@ package io.streamshub.mcp.strimzi.tool.kafka;
 
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
-import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
@@ -328,7 +327,6 @@ public class KafkaTools {
      * @param tailLines    optional number of lines to tail
      * @param previous     optional flag for previous container logs
      * @param podNames     optional list of specific pod names to collect logs from
-     * @param mcpLog       MCP log for client notifications
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return the cluster logs response with error analysis
@@ -391,7 +389,6 @@ public class KafkaTools {
             description = StrimziToolsPrompts.POD_NAMES_DESC,
             required = false
         ) final List<String> podNames,
-        final McpLog mcpLog,
         final Progress progress,
         final Cancellation cancellation
     ) {
@@ -404,13 +401,12 @@ public class KafkaTools {
             .startTime(startTime)
             .endTime(endTime)
             .previous(previous)
-            .notifier(mcpLog::info)
             .cancelCheck(cancellation::skipProcessingIfCancelled)
             // Only send progress if the client provided a progress token
             .progressCallback(progress.token().isPresent()
-                ? (completed, total) -> progress.notificationBuilder()
+                ? (podName, completed, total) -> progress.notificationBuilder()
                     .setProgress(completed).setTotal(total)
-                    .setMessage(String.format("Collected logs from %d/%d pods", completed, total))
+                    .setMessage(String.format("Collecting logs from pod %s (%d/%d)", podName, completed, total))
                     .build().sendAndForget()
                 : null)
             .build();
