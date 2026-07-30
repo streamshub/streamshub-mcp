@@ -3,19 +3,9 @@ title = 'Getting started'
 weight = 1
 +++
 
-Get StreamsHub MCP running and connected to an AI assistant.
+Get the MCP Server for Strimzi running and connected to an AI assistant.
 
-## What is StreamsHub MCP?
-
-StreamsHub MCP connects AI assistants to your Apache Kafka clusters running on Kubernetes.
-It uses the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) — an open standard that lets AI assistants call tools to interact with external systems.
-Any MCP-compatible client can connect to the server.
-
-With StreamsHub MCP, you can ask your AI assistant questions like "What is the status of my Kafka cluster?" or "Diagnose why consumers are lagging" — and it will query your actual cluster to give you a real answer.
-
-## Available MCP servers
-
-- **[MCP Server for Strimzi](strimzi-mcp/)** — Tools for managing and troubleshooting Apache Kafka clusters deployed with [Strimzi](https://strimzi.io/)
+By the end of this guide you will have a running MCP server connected to a [Strimzi](https://strimzi.io/)-managed Kafka cluster and an AI assistant that can query cluster status, run diagnostics, and collect logs.
 
 ## Choose your setup path
 
@@ -74,7 +64,7 @@ kafka.kafka.strimzi.io/mcp-cluster condition met
 
 > **Troubleshooting:** If the wait times out, check pod status with `kubectl get pods -n strimzi-kafka`.
 > If pods are in `Pending` state, your Kubernetes cluster may not have enough resources.
-> See [troubleshooting](strimzi-mcp/troubleshooting.md#pods-not-starting) for common issues.
+> See [troubleshooting](troubleshooting.md#pods-not-starting) for common issues.
 
 ### Step 2: Deploy the MCP server
 
@@ -177,7 +167,7 @@ If your kubeconfig is at a non-standard path, set the `KUBECONFIG` environment v
 **`QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true`**
 Required for local clusters (minikube, kind, Docker Desktop) whose self-signed CA certificates are not trusted by the container's system trust store.
 **Do not use this in production** — it disables TLS certificate validation for all Kubernetes API connections.
-For production use, deploy the server inside the cluster instead (see [Option A](#option-a-deploy-to-kubernetes) or the [installation guide](strimzi-mcp/installation.md)).
+For production use, deploy the server inside the cluster instead (see [Option A](#option-a-deploy-to-kubernetes) or the [installation guide](installation.md)).
 
 **Kubernetes API on localhost**
 If your cluster's API server address in kubeconfig is `localhost` or `127.0.0.1` (common with Docker Desktop and kind), the container cannot reach it via those addresses.
@@ -256,7 +246,7 @@ kafka.kafka.strimzi.io/mcp-cluster condition met
 ```
 
 > **Troubleshooting:** If the wait times out, check pod status with `kubectl get pods -n strimzi-kafka`.
-> See [troubleshooting](strimzi-mcp/troubleshooting.md#pods-not-starting) for common issues.
+> See [troubleshooting](troubleshooting.md#pods-not-starting) for common issues.
 
 ### Step 3: Start the MCP server
 
@@ -277,7 +267,7 @@ curl -s http://localhost:8080/q/health/ready
 The MCP endpoint is available at `http://localhost:8080/mcp`.
 
 > **Troubleshooting:** If the server fails to start, check that port 8080 is not in use (`lsof -i :8080`) and that Java 21+ is installed (`java -version`).
-> See [troubleshooting](strimzi-mcp/troubleshooting.md#server-does-not-start) for more details.
+> See [troubleshooting](troubleshooting.md#server-does-not-start) for more details.
 
 Now proceed to [Connect your AI assistant](#connect-your-ai-assistant).
 
@@ -335,7 +325,7 @@ Add to your `.vscode/mcp.json`:
 ```
 
 > **Troubleshooting:** If your AI client does not detect the tools, verify the MCP server is running (`curl http://localhost:8080/q/health`) and that the URL is correct.
-> See [troubleshooting](strimzi-mcp/troubleshooting.md#server-starts-but-ai-assistant-cannot-connect) for more details.
+> See [troubleshooting](troubleshooting.md#server-starts-but-ai-assistant-cannot-connect) for more details.
 
 ---
 
@@ -364,7 +354,7 @@ kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-m
 kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/overlays/prod-openshift?ref=<version>"
 ```
 
-See the [installation guide](strimzi-mcp/installation.md) for detailed instructions on Kubernetes deployment, RBAC configuration, and external access.
+See the [installation guide](installation.md) for detailed instructions on Kubernetes deployment, RBAC configuration, and external access.
 
 ## What's next?
 
@@ -373,21 +363,21 @@ Now that you have the MCP server running, explore these paths based on your goal
 **Explore your cluster:**
 
 - Try asking *"Show me the topology of mcp-cluster"* or *"List all topics"*
-- See [usage examples](strimzi-mcp/usage-examples.md) for more practical workflows
+- See [usage examples](usage-examples.md) for more practical workflows
 
 **Try diagnostics:**
 
 - Ask *"Diagnose connectivity issues with mcp-cluster"* to see multi-step diagnostic workflows
-- See [diagnostic tools](strimzi-mcp/tools/diagnostics.md) for all available diagnostics
+- See [diagnostic tools](tools/diagnostics.md) for all available diagnostics
 
 **Set up monitoring:**
 
-- Connect Loki for historical log queries — see [Loki integration](strimzi-mcp/configuration.md#loki-integration)
-- Connect Prometheus for metrics — see [Prometheus integration](strimzi-mcp/configuration.md#prometheus-integration)
+- Connect Loki for historical log queries — see [Loki integration](configuration.md#loki-integration)
+- Connect Prometheus for metrics — see [Prometheus integration](configuration.md#prometheus-integration)
 
 **Learn more:**
 
-- **[Tools reference](strimzi-mcp/tools/)** — All available tools and prompts
-- **[Configuration](strimzi-mcp/configuration.md)** — Customize server behavior
-- **[AI agent best practices](strimzi-mcp/ai-agent-best-practices.md)** — Get the most out of AI-assisted Kafka management
-- **[Troubleshooting](strimzi-mcp/troubleshooting.md)** — Resolve common issues
+- **[Tools reference](tools/)** — All available tools and prompts
+- **[Configuration](configuration.md)** — Customize server behavior
+- **[AI agent best practices](ai-agent-best-practices.md)** — Get the most out of AI-assisted Kafka management
+- **[Troubleshooting](troubleshooting.md)** — Resolve common issues
