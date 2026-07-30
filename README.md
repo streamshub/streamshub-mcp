@@ -31,7 +31,7 @@ StreamsHub MCP servers leverage the full MCP specification:
 
 ## Getting started
 
-See the [getting started guide](docs/getting-started.md) for a quick setup.
+See the [getting started guide](docs/strimzi-mcp/getting-started.md) for a quick setup.
 
 For server-specific documentation, see the README in each server directory.
 
@@ -39,7 +39,7 @@ For server-specific documentation, see the README in each server directory.
 
 Documentation is available in the [`docs/`](docs/) directory:
 
-- [Getting started](docs/getting-started.md) -- Quick start guide
+- [Getting started](docs/strimzi-mcp/getting-started.md) -- Quick start guide
 - [MCP Server for Strimzi](docs/strimzi-mcp/) -- Installation, configuration, tools, and troubleshooting
 
 ## Development
