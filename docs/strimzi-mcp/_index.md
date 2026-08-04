@@ -5,11 +5,6 @@ weight = 1
 
 The MCP Server for Strimzi provides AI assistants with tools to manage and troubleshoot Apache Kafka clusters deployed with the Strimzi operator on Kubernetes.
 
-> **Early alpha:**
-> This project is under active development.
-> APIs, tool definitions, and configuration may change between releases without backwards compatibility guarantees.
-> We welcome feedback and bug reports via [GitHub Issues](https://github.com/streamshub/streamshub-mcp/issues).
-
 ## Overview
 
 The MCP Server for Strimzi exposes Strimzi-managed Kafka resources through the Model Context Protocol.

@@ -4,10 +4,6 @@
 [![Release](https://img.shields.io/github/v/release/streamshub/streamshub-mcp)](https://github.com/streamshub/streamshub-mcp/releases/latest)
 [![License](https://img.shields.io/github/license/streamshub/streamshub-mcp)](LICENSE)
 ![Java](https://img.shields.io/badge/Java-21%2B-blue)
-
-> [!WARNING]
-> This project is in early alpha and under active development. APIs, tool definitions, and configuration may change without notice.
-
 StreamsHub MCP provides Model Context Protocol (MCP) servers that give AI assistants direct access to Kubernetes-based streaming infrastructure.
 Each component of your streaming stack gets its own MCP server that can be deployed independently.
 
