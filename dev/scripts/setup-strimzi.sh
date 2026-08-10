@@ -16,6 +16,7 @@ MIRROR_CLUSTER="mcp-cluster-mirror"
 
 INSTALL_PROMETHEUS=false
 INSTALL_LOKI=false
+INSTALL_ELASTICSEARCH=false
 INSTALL_DRAIN_CLEANER=false
 INSTALL_CONNECT=false
 INSTALL_BRIDGE=false
@@ -93,6 +94,22 @@ deploy_loki() {
 
 teardown_loki() {
     "$SCRIPT_DIR/setup-loki.sh" teardown
+}
+
+deploy_elasticsearch() {
+    if [ "$OCP" = true ]; then
+        "$SCRIPT_DIR/setup-elasticsearch.sh" deploy
+    else
+        "$SCRIPT_DIR/setup-elasticsearch-kind.sh" deploy
+    fi
+}
+
+teardown_elasticsearch() {
+    if [ "$OCP" = true ]; then
+        "$SCRIPT_DIR/setup-elasticsearch.sh" teardown
+    else
+        "$SCRIPT_DIR/setup-elasticsearch-kind.sh" teardown
+    fi
 }
 
 deploy_jaeger() {
@@ -290,6 +307,10 @@ deploy() {
         deploy_loki
     fi
 
+    if [ "$INSTALL_ELASTICSEARCH" = true ]; then
+        deploy_elasticsearch
+    fi
+
     if [ "$INSTALL_JAEGER" = true ]; then
         deploy_jaeger
     fi
@@ -356,6 +377,13 @@ deploy() {
     if [ "$INSTALL_LOKI" = true ]; then
         echo "Logging namespace:   openshift-logging"
     fi
+    if [ "$INSTALL_ELASTICSEARCH" = true ]; then
+        if [ "$OCP" = true ]; then
+            echo "Logging namespace:   elasticsearch-logging"
+        else
+            echo "Logging namespace:   elasticsearch"
+        fi
+    fi
     if [ "$INSTALL_JAEGER" = true ]; then
         echo "Jaeger namespace:    observability"
     fi
@@ -386,6 +414,9 @@ deploy() {
     fi
     if [ "$INSTALL_LOKI" = true ]; then
         echo "  kubectl get pods -n openshift-logging"
+    fi
+    if [ "$INSTALL_ELASTICSEARCH" = true ]; then
+        echo "  kubectl get pods -n elasticsearch"
     fi
     if [ "$INSTALL_JAEGER" = true ]; then
         echo "  kubectl get pods -n observability"
@@ -478,6 +509,10 @@ teardown() {
         teardown_loki
     fi
 
+    if [ "$INSTALL_ELASTICSEARCH" = true ]; then
+        teardown_elasticsearch
+    fi
+
     if [ "$INSTALL_JAEGER" = true ]; then
         teardown_jaeger
     fi
@@ -497,6 +532,9 @@ for arg in "$@"; do
             ;;
         "--loki")
             INSTALL_LOKI=true
+            ;;
+        "--elasticsearch")
+            INSTALL_ELASTICSEARCH=true
             ;;
         "--drain-cleaner")
             INSTALL_DRAIN_CLEANER=true
@@ -545,6 +583,7 @@ case "$COMMAND" in
         echo "  --ocp            Use OpenShift route listener (default: NodePort)"
         echo "  --prometheus     Also deploy/remove Prometheus for metrics collection"
         echo "  --loki           Also deploy/remove Loki for log collection (OpenShift only)"
+        echo "  --elasticsearch  Also deploy/remove Elasticsearch for log collection (Kind clusters)"
         echo "  --drain-cleaner  Also deploy/remove Strimzi Drain Cleaner"
         echo "  --connect        Also deploy/remove KafkaConnect with a sample connector"
         echo "  --bridge         Also deploy/remove KafkaBridge (HTTP REST API to Kafka)"

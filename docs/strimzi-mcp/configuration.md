@@ -93,7 +93,7 @@ Choose how the server collects logs from your Kafka pods.
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `mcp.log.provider` | `streamshub-kubernetes` | Log provider: `streamshub-kubernetes` or `streamshub-loki` |
+| `mcp.log.provider` | `streamshub-kubernetes` | Log provider: `streamshub-kubernetes`, `streamshub-loki`, or `streamshub-elasticsearch` |
 | `mcp.log.tail-lines` | `200` | Default number of log lines to retrieve per pod |
 
 ### Kubernetes log provider (default)
@@ -176,6 +176,105 @@ QUARKUS_REST_CLIENT_LOKI_TRUST_STORE_TYPE=PEM
 QUARKUS_REST_CLIENT_LOKI_KEY_STORE=/etc/loki-tls/client.p12
 QUARKUS_REST_CLIENT_LOKI_KEY_STORE_PASSWORD=changeit
 QUARKUS_REST_CLIENT_LOKI_KEY_STORE_TYPE=PKCS12
+```
+
+### Elasticsearch/OpenSearch log provider
+
+Use Elasticsearch or OpenSearch for centralized log collection and historical log queries.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `quarkus.rest-client.elasticsearch.url` | `http://localhost:9200` | Elasticsearch/OpenSearch endpoint URL |
+| `quarkus.rest-client.elasticsearch.connect-timeout` | `5000` | Connection timeout in milliseconds |
+| `quarkus.rest-client.elasticsearch.read-timeout` | `30000` | Read timeout in milliseconds |
+| `mcp.log.elasticsearch.auth-mode` | `none` | Authentication mode: `none`, `basic`, `bearer-token`, or `sa-token` |
+| `mcp.log.elasticsearch.sa-token-path` | `/var/run/secrets/kubernetes.io/serviceaccount/token` | Path to ServiceAccount token |
+| `mcp.log.elasticsearch.index-pattern` | `kubernetes-*` | Index pattern for log queries |
+| `mcp.log.elasticsearch.field.namespace` | `kubernetes.namespace_name` | Field name for Kubernetes namespace |
+| `mcp.log.elasticsearch.field.pod` | `kubernetes.pod_name` | Field name for pod name |
+| `mcp.log.elasticsearch.field.container` | `kubernetes.container_name` | Field name for container name |
+| `mcp.log.elasticsearch.field.message` | `message` | Field name for log message |
+| `mcp.log.elasticsearch.field.timestamp` | `@timestamp` | Field name for timestamp |
+
+To enable Elasticsearch:
+
+```bash
+QUARKUS_REST_CLIENT_ELASTICSEARCH_URL=http://elasticsearch.monitoring:9200
+MCP_LOG_PROVIDER=streamshub-elasticsearch
+```
+
+#### Elasticsearch authentication
+
+**Basic authentication:**
+
+```bash
+MCP_LOG_ELASTICSEARCH_AUTH_MODE=basic
+QUARKUS_REST_CLIENT_ELASTICSEARCH_USERNAME=your-username
+QUARKUS_REST_CLIENT_ELASTICSEARCH_PASSWORD=your-password
+```
+
+**Bearer token:**
+
+```bash
+MCP_LOG_ELASTICSEARCH_AUTH_MODE=bearer-token
+MCP_LOG_ELASTICSEARCH_BEARER_TOKEN=your-bearer-token
+```
+
+**ServiceAccount token (Kubernetes):**
+
+```bash
+MCP_LOG_ELASTICSEARCH_AUTH_MODE=sa-token
+# The token is automatically read from the mounted ServiceAccount
+```
+
+#### Elasticsearch field mapping
+
+The default field names match the standard Kubernetes log format used by Fluent Bit and Fluentd.
+Override these if your log aggregation pipeline uses custom field names.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `mcp.log.elasticsearch.field.namespace` | `kubernetes.namespace_name` | Kubernetes namespace field |
+| `mcp.log.elasticsearch.field.pod` | `kubernetes.pod_name` | Pod name field |
+| `mcp.log.elasticsearch.field.container` | `kubernetes.container_name` | Container name field |
+| `mcp.log.elasticsearch.field.message` | `message` | Log message field |
+| `mcp.log.elasticsearch.field.timestamp` | `@timestamp` | Timestamp field |
+
+**For custom field mappings:**
+
+```properties
+mcp.log.elasticsearch.field.namespace=k8s_namespace
+mcp.log.elasticsearch.field.pod=k8s_pod
+mcp.log.elasticsearch.field.container=k8s_container
+mcp.log.elasticsearch.field.message=log
+mcp.log.elasticsearch.field.timestamp=time
+```
+
+#### OpenSearch compatibility
+
+The same provider works with OpenSearch — both expose the same `_search` API.
+Just point the URL to your OpenSearch endpoint:
+
+```bash
+QUARKUS_REST_CLIENT_ELASTICSEARCH_URL=http://opensearch.monitoring:9200
+MCP_LOG_PROVIDER=streamshub-elasticsearch
+```
+
+#### Elasticsearch TLS configuration
+
+**Server certificate verification:**
+
+```bash
+QUARKUS_REST_CLIENT_ELASTICSEARCH_TRUST_STORE=/etc/elasticsearch-tls/ca.crt
+QUARKUS_REST_CLIENT_ELASTICSEARCH_TRUST_STORE_TYPE=PEM
+```
+
+**Mutual TLS with client certificate:**
+
+```bash
+QUARKUS_REST_CLIENT_ELASTICSEARCH_KEY_STORE=/etc/elasticsearch-tls/client.p12
+QUARKUS_REST_CLIENT_ELASTICSEARCH_KEY_STORE_PASSWORD=changeit
+QUARKUS_REST_CLIENT_ELASTICSEARCH_KEY_STORE_TYPE=PKCS12
 ```
 
 ## Metrics configuration
@@ -266,6 +365,43 @@ QUARKUS_REST_CLIENT_PROMETHEUS_VERIFY_HOST=true
 QUARKUS_REST_CLIENT_PROMETHEUS_KEY_STORE=/etc/prometheus-tls/client.p12
 QUARKUS_REST_CLIENT_PROMETHEUS_KEY_STORE_PASSWORD=changeit
 QUARKUS_REST_CLIENT_PROMETHEUS_KEY_STORE_TYPE=PKCS12
+```
+
+### Compatible metrics backends: Thanos and VictoriaMetrics
+
+The Prometheus metrics provider works with any Prometheus-compatible HTTP API.
+Both Thanos and VictoriaMetrics expose the same `/api/v1/query` and `/api/v1/query_range` endpoints and support standard PromQL.
+
+No code changes are needed — just set `quarkus.rest-client.prometheus.url` to the Thanos Querier or VictoriaMetrics endpoint:
+
+**Thanos example:**
+
+```bash
+QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://thanos-querier.monitoring.svc:9090
+MCP_METRICS_PROVIDER=streamshub-prometheus
+```
+
+**VictoriaMetrics example:**
+
+```bash
+QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://victoria-metrics.monitoring.svc:8428
+MCP_METRICS_PROVIDER=streamshub-prometheus
+```
+
+**VictoriaMetrics MetricsQL compatibility:**
+
+VictoriaMetrics extends PromQL with MetricsQL, a superset that adds additional functions.
+The MCP server uses only standard PromQL queries, so it works with both.
+
+Note that VictoriaMetrics has a minor difference in `rate()` behavior — it can extrapolate the first and last data points in a time range, which may produce slightly different results compared to Prometheus.
+This does not affect correctness for typical Kafka metrics queries.
+
+**Authentication:**
+
+The same authentication configuration applies. Use `sa-token` for Kubernetes service account authentication:
+
+```bash
+MCP_METRICS_PROMETHEUS_AUTH_MODE=sa-token
 ```
 
 ## Advanced configuration
@@ -861,6 +997,104 @@ kubectl -n streamshub-mcp logs -l app=streamshub-mcp-strimzi
 
 # Test metrics query through your AI assistant
 # Ask: "Query Kafka metrics for mcp-cluster"
+```
+
+## Elasticsearch/OpenSearch integration
+
+### Overview
+
+When configured, the MCP server uses Elasticsearch or OpenSearch for centralized log collection instead of querying pod logs directly from Kubernetes.
+
+**Benefits:**
+
+- Historical log queries beyond pod retention
+- Full-text search across all logs
+- Advanced filtering with Elasticsearch Query DSL
+- Better performance for large-scale deployments
+
+### Prerequisites
+
+- Elasticsearch or OpenSearch deployed in your cluster
+- A log shipper (Fluent Bit, Fluentd, or Filebeat) configured to ship Kubernetes logs to Elasticsearch/OpenSearch
+
+### Setup Elasticsearch
+
+**For Kind clusters:**
+
+Use the provided manifests and scripts:
+
+```bash
+# Deploy Elasticsearch and Fluent Bit
+./dev/scripts/setup-elasticsearch-kind.sh deploy
+
+# Verify Elasticsearch is running
+kubectl -n elasticsearch get pods
+```
+
+**For OpenShift clusters:**
+
+Use the ECK (Elastic Cloud on Kubernetes) Operator:
+
+```bash
+# Deploy ECK Operator and Elasticsearch
+./dev/scripts/setup-elasticsearch.sh deploy
+
+# Verify Elasticsearch is running
+oc -n elasticsearch-logging get elasticsearch
+```
+
+### Configure MCP server
+
+Get the Elasticsearch service URL and configure the MCP server:
+
+```bash
+# Get Elasticsearch service URL
+ES_URL=$(kubectl -n elasticsearch get svc elasticsearch -o jsonpath='{.spec.clusterIP}')
+
+# Configure MCP server
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  QUARKUS_REST_CLIENT_ELASTICSEARCH_URL=http://${ES_URL}:9200 \
+  MCP_LOG_PROVIDER=streamshub-elasticsearch
+```
+
+### Authentication
+
+If Elasticsearch requires authentication, create a Secret with credentials:
+
+```bash
+# Create Secret with credentials
+kubectl -n streamshub-mcp create secret generic elasticsearch-auth \
+  --from-literal=username=elastic \
+  --from-literal=password=your-password
+
+# Update Deployment to use Secret
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  MCP_LOG_ELASTICSEARCH_AUTH_MODE=basic \
+  --from=secret/elasticsearch-auth
+```
+
+### Field mapping
+
+The default field names work with Fluent Bit and Fluentd.
+If your log shipper uses different field names, override them:
+
+```bash
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  MCP_LOG_ELASTICSEARCH_FIELD_NAMESPACE=k8s_namespace \
+  MCP_LOG_ELASTICSEARCH_FIELD_POD=k8s_pod \
+  MCP_LOG_ELASTICSEARCH_FIELD_CONTAINER=k8s_container
+```
+
+### Verify integration
+
+Check that the integration is working:
+
+```bash
+# Check MCP server logs
+kubectl -n streamshub-mcp logs -l app=streamshub-mcp-strimzi
+
+# Test log collection through your AI assistant
+# Ask: "Collect logs from mcp-cluster"
 ```
 
 ## Production deployment checklist

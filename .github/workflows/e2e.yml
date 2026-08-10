@@ -10,6 +10,7 @@ on:
       - 'strimzi-mcp/**'
       - 'systemtest/**'
       - 'loki-log-provider/**'
+      - 'elasticsearch-log-provider/**'
       - 'metrics-prometheus/**'
       - 'dev/**'
       - '!**/*.md'
@@ -53,9 +54,12 @@ jobs:
     - name: Deploy Loki and Promtail
       run: ./dev/scripts/setup-loki-kind.sh deploy
 
+    - name: Deploy Elasticsearch and Fluent Bit
+      run: ./dev/scripts/setup-elasticsearch-kind.sh deploy
+
     - name: Build MCP image and load into kind
       run: |
-        ./mvnw package -pl common,metrics-prometheus,loki-log-provider,strimzi-mcp \
+        ./mvnw package -pl common,metrics-prometheus,loki-log-provider,elasticsearch-log-provider,strimzi-mcp \
           -DskipTests \
           -Dquarkus.container-image.build=true \
           -Dquarkus.container-image.tag=test

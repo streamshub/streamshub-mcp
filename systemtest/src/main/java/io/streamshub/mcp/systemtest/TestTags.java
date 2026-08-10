@@ -66,4 +66,9 @@ public final class TestTags {
      * Tag for metrics tests with Loki provider
      */
     public static final String LOKI = "loki";
+
+    /**
+     * Tag for logs tests with Elasticsearch provider
+     */
+    public static final String ELASTICSEARCH = "elasticsearch";
 }
