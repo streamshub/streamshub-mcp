@@ -1,0 +1,42 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elasticsearch-es-credentials
+  namespace: elasticsearch-logging
+type: Opaque
+stringData:
+  username: elastic
+  password: elastic-dev-password
+---
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: elasticsearch
+  namespace: elasticsearch-logging
+spec:
+  version: 9.5.1
+  nodeSets:
+    - name: default
+      count: 1
+      config:
+        node.store.allow_mmap: false
+      podTemplate:
+        spec:
+          containers:
+            - name: elasticsearch
+              resources:
+                requests:
+                  memory: 1Gi
+                  cpu: 500m
+                limits:
+                  memory: 2Gi
+      volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 5Gi

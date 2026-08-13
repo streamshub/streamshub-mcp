@@ -1,0 +1,96 @@
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: elasticsearch-logging
+  namespace: elasticsearch-logging
+spec:
+  targetNamespaces:
+    - elasticsearch-logging
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cluster-logging
+  namespace: elasticsearch-logging
+spec:
+  channel: stable-6.6
+  name: cluster-logging
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: logcollector
+  namespace: elasticsearch-logging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logcollector-es-collect-application
+subjects:
+  - kind: ServiceAccount
+    name: logcollector
+    namespace: elasticsearch-logging
+roleRef:
+  kind: ClusterRole
+  name: collect-application-logs
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logcollector-es-collect-infrastructure
+subjects:
+  - kind: ServiceAccount
+    name: logcollector
+    namespace: elasticsearch-logging
+roleRef:
+  kind: ClusterRole
+  name: collect-infrastructure-logs
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: observability.openshift.io/v1
+kind: ClusterLogForwarder
+metadata:
+  name: strimzi-logs-elasticsearch
+  namespace: elasticsearch-logging
+spec:
+  serviceAccount:
+    name: logcollector
+  outputs:
+    - name: elasticsearch-output
+      type: elasticsearch
+      elasticsearch:
+        url: https://elasticsearch-es-http.elasticsearch-logging.svc:9200
+        index:
+          name: kubernetes
+        authentication:
+          username:
+            secretName: elasticsearch-es-credentials
+            key: username
+          password:
+            secretName: elasticsearch-es-credentials
+            key: password
+      tls:
+        ca:
+          secretName: elasticsearch-es-http-certs-public
+          key: ca.crt
+  inputs:
+    - name: strimzi-app-logs
+      type: application
+      application:
+        includes:
+          - namespace: strimzi-kafka
+          - namespace: strimzi
+          - namespace: strimzi-drain-cleaner
+          - namespace: strimzi-kafka-mirror
+          - namespace: strimzi-mirror-maker
+  pipelines:
+    - name: strimzi-to-elasticsearch
+      inputRefs:
+        - strimzi-app-logs
+      outputRefs:
+        - elasticsearch-output

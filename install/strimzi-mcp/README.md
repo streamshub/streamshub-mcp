@@ -102,6 +102,10 @@ data:
   MCP_LOG_TAIL_LINES: "500"
   MCP_METRICS_PROVIDER: "streamshub-prometheus"
   QUARKUS_REST_CLIENT_PROMETHEUS_URL: "http://prometheus.monitoring:9090"
+  # Elasticsearch log provider (uncomment to use instead of default Kubernetes logs)
+  # MCP_LOG_PROVIDER: "streamshub-elasticsearch"
+  # QUARKUS_REST_CLIENT_ELASTICSEARCH_URL: "http://elasticsearch.elasticsearch:9200"
+  # MCP_LOG_ELASTICSEARCH_AUTH_MODE: "none"
 ```
 
 ## Customization
@@ -125,6 +129,32 @@ To grant sensitive permissions in the namespaces where you need them:
 kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n <kafka-namespace>
 kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n <kafka-namespace>
 ```
+
+## Elasticsearch / OpenSearch
+
+When using the Elasticsearch log provider (`MCP_LOG_PROVIDER=streamshub-elasticsearch`), no special Kubernetes RBAC is required.
+The MCP server connects to Elasticsearch over HTTP/HTTPS and authenticates using the configured auth mode (`none`, `basic`, `bearer-token`, or `sa-token`).
+
+Configure via environment variables or the ConfigMap:
+
+```yaml
+MCP_LOG_PROVIDER: "streamshub-elasticsearch"
+QUARKUS_REST_CLIENT_ELASTICSEARCH_URL: "http://elasticsearch.elasticsearch:9200"
+MCP_LOG_ELASTICSEARCH_AUTH_MODE: "none"
+```
+
+For OpenShift with ECK Operator (basic auth + TLS):
+
+```yaml
+MCP_LOG_PROVIDER: "streamshub-elasticsearch"
+QUARKUS_REST_CLIENT_ELASTICSEARCH_URL: "https://elasticsearch-es-http.elasticsearch-logging.svc:9200"
+MCP_LOG_ELASTICSEARCH_AUTH_MODE: "basic"
+QUARKUS_TLS_TRUST_ALL: "true"
+```
+
+The same provider works with OpenSearch -- just point the URL at your OpenSearch endpoint.
+
+See the [configuration guide](../../docs/strimzi-mcp/configuration.md) for field mapping and all available settings.
 
 ## Loki RBAC (OpenShift Logging)
 

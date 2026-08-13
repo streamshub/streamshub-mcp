@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Elasticsearch/OpenSearch log provider** (`mcp.log.provider=streamshub-elasticsearch`) for querying logs from Elasticsearch or OpenSearch
+- **Dev environment manifests and scripts** for deploying Elasticsearch with Fluent Bit on Kind clusters and Elastic search operator on Openshift
+- **System tests** for Elasticsearch log provider covering log collection, field mapping, time window queries, and error handling
+- **Thanos and VictoriaMetrics compatibility documentation** — the existing Prometheus metrics provider works with Thanos Querier and VictoriaMetrics without code changes
+
 ### Changed
 
 ### Fixed

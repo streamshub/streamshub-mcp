@@ -8,6 +8,7 @@ MODULE="strimzi-mcp"
 BASE_IMAGE="quay.io/streamshub/$MODULE:latest"
 OCP=false
 LOKI=false
+ELASTICSEARCH=false
 PROMETHEUS=false
 OTEL=false
 LOADER=""
@@ -24,10 +25,11 @@ usage() {
     echo "  --kind       Load image into Kind cluster before deploying"
     echo "  --minikube   Load image into Minikube before deploying"
     echo "  --k3d        Import image into k3d cluster before deploying"
-    echo "  --ocp        Deploy with OpenShift Route for external access"
-    echo "  --loki       Enable Loki log provider (defaults to OCP Logging in-cluster URL)"
-    echo "  --prometheus Enable Prometheus metrics provider (defaults to OCP Thanos Querier)"
-    echo "  --otel       Enable OpenTelemetry tracing (defaults to Jaeger in observability namespace)"
+    echo "  --ocp          Deploy with OpenShift Route for external access"
+    echo "  --loki         Enable Loki log provider (defaults to OCP Logging in-cluster URL)"
+    echo "  --elasticsearch Enable Elasticsearch log provider (defaults to Kind in-cluster URL)"
+    echo "  --prometheus   Enable Prometheus metrics provider (defaults to OCP Thanos Querier)"
+    echo "  --otel         Enable OpenTelemetry tracing (defaults to Jaeger in observability namespace)"
     echo ""
     echo "Examples:"
     echo "  $0 quay.io/streamshub/strimzi-mcp:latest"
@@ -35,9 +37,11 @@ usage() {
     echo "  $0 my-registry.io/strimzi-mcp:dev --minikube"
     echo "  $0 quay.io/streamshub/strimzi-mcp:latest --ocp"
     echo "  $0 quay.io/streamshub/strimzi-mcp:latest --ocp --loki --prometheus"
+    echo "  $0 quay.io/streamshub/strimzi-mcp:latest --kind --elasticsearch"
     echo ""
-    echo "Override Loki/Prometheus defaults with environment variables:"
+    echo "Override Loki/Elasticsearch/Prometheus defaults with environment variables:"
     echo "  QUARKUS_REST_CLIENT_LOKI_URL=https://custom:3100 $0 <image> --loki"
+    echo "  QUARKUS_REST_CLIENT_ELASTICSEARCH_URL=http://elasticsearch:9200 $0 <image> --elasticsearch"
     echo "  QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://prometheus:9090 $0 <image> --prometheus"
     echo ""
     echo "When using a local cluster (Kind, Minikube, k3d), the loader flag loads the image"
@@ -77,6 +81,7 @@ for arg in "$@"; do
         --k3d)      LOADER="k3d" ;;
         --ocp)      OCP=true ;;
         --loki)     LOKI=true ;;
+        --elasticsearch) ELASTICSEARCH=true ;;
         --prometheus) PROMETHEUS=true ;;
         --otel)     OTEL=true ;;
         *)
@@ -139,6 +144,22 @@ if [ "$LOKI" = true ]; then
         QUARKUS_TLS_TRUST_ALL="${QUARKUS_TLS_TRUST_ALL:-true}"
 fi
 
+if [ "$ELASTICSEARCH" = true ]; then
+    echo "==> Configuring Elasticsearch log provider"
+    if [ "$OCP" = true ]; then
+        kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
+            MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-elasticsearch}" \
+            MCP_LOG_ELASTICSEARCH_AUTH_MODE="${MCP_LOG_ELASTICSEARCH_AUTH_MODE:-basic}" \
+            QUARKUS_REST_CLIENT_ELASTICSEARCH_URL="${QUARKUS_REST_CLIENT_ELASTICSEARCH_URL:-https://elasticsearch-es-http.elasticsearch-logging.svc:9200}" \
+            QUARKUS_TLS_TRUST_ALL="${QUARKUS_TLS_TRUST_ALL:-true}"
+    else
+        kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
+            MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-elasticsearch}" \
+            MCP_LOG_ELASTICSEARCH_AUTH_MODE="${MCP_LOG_ELASTICSEARCH_AUTH_MODE:-none}" \
+            QUARKUS_REST_CLIENT_ELASTICSEARCH_URL="${QUARKUS_REST_CLIENT_ELASTICSEARCH_URL:-http://elasticsearch.elasticsearch.svc.cluster.local:9200}"
+    fi
+fi
+
 if [ "$PROMETHEUS" = true ]; then
     echo "==> Configuring Prometheus metrics provider"
     kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
@@ -158,6 +179,9 @@ echo ""
 echo "Deployed $MODULE to Kubernetes."
 if [ "$LOKI" = true ]; then
     echo "  Loki log provider: enabled"
+fi
+if [ "$ELASTICSEARCH" = true ]; then
+    echo "  Elasticsearch log provider: enabled"
 fi
 if [ "$PROMETHEUS" = true ]; then
     echo "  Prometheus metrics: enabled"

@@ -1,0 +1,13 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: elasticsearch
+  namespace: elasticsearch-logging
+spec:
+  to:
+    kind: Service
+    name: elasticsearch-es-http
+  port:
+    targetPort: https
+  tls:
+    termination: reencrypt

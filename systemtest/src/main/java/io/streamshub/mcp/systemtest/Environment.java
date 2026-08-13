@@ -60,6 +60,16 @@ public final class Environment {
     /** Loki auth mode override ({@code none}, {@code sa-token}, {@code bearer-token}). Auto-detected if not set. */
     public static final String LOKI_AUTH_MODE = ENV_VARIABLES.getOrDefault("LOKI_AUTH_MODE", null);
 
+    /**
+     * Override URL for Elasticsearch service discovery.
+     */
+    public static final String ELASTICSEARCH_URL = ENV_VARIABLES.getOrDefault("ELASTICSEARCH_URL", null);
+
+    /**
+     * Override auth mode for Elasticsearch.
+     */
+    public static final String ELASTICSEARCH_AUTH_MODE = ENV_VARIABLES.getOrDefault("ELASTICSEARCH_AUTH_MODE", null);
+
     private Environment() {
     }
 }
