@@ -15,7 +15,7 @@ metadata:
   name: elasticsearch
   namespace: elasticsearch-logging
 spec:
-  version: 8.17.0
+  version: 9.5.1
   nodeSets:
     - name: default
       count: 1
