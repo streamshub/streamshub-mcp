@@ -65,15 +65,14 @@ spec:
       type: elasticsearch
       elasticsearch:
         url: https://elasticsearch-es-http.elasticsearch-logging.svc:9200
-        index:
-          name: kubernetes
+        version: 8
+        index: kubernetes
         authentication:
-          username:
-            secretName: elasticsearch-es-credentials
-            key: username
-          password:
-            secretName: elasticsearch-es-credentials
-            key: password
+          token:
+            from: secret
+            secret:
+              name: elasticsearch-logforwarder-token
+              key: token
       tls:
         ca:
           secretName: elasticsearch-es-http-certs-public

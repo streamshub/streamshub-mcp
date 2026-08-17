@@ -101,8 +101,84 @@ deploy() {
         log_success "Elasticsearch is healthy ($health)"
     fi
 
-    # Phase 4: Install Cluster Logging Operator + ClusterLogForwarder
-    log_info "Phase 4: Installing Cluster Logging Operator..."
+    # Phase 4: Create Elasticsearch API keys (write for log collection, read for MCP server)
+    log_info "Phase 4: Creating Elasticsearch API keys..."
+    local es_password
+    es_password=$(kubectl get secret elasticsearch-es-elastic-user -n "$ES_NS" \
+        -o jsonpath='{.data.elastic}' 2>/dev/null | base64 -d)
+
+    if [ -n "$es_password" ]; then
+        # Create write API key for ClusterLogForwarder
+        local write_key_response
+        write_key_response=$(kubectl exec -n "$ES_NS" elasticsearch-es-default-0 -- \
+            curl -sk -u "elastic:${es_password}" -X POST \
+            "https://localhost:9200/_security/api_key" \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "name": "logcollector-write-key",
+              "role_descriptors": {
+                "logcollector": {
+                  "cluster": ["monitor"],
+                  "indices": [
+                    {
+                      "names": ["kubernetes*"],
+                      "privileges": ["create_index", "write", "create", "auto_configure"]
+                    }
+                  ]
+                }
+              }
+            }' 2>/dev/null)
+
+        local write_token
+        write_token=$(echo "$write_key_response" | grep -o '"encoded":"[^"]*"' | cut -d'"' -f4)
+
+        if [ -n "$write_token" ]; then
+            kubectl create secret generic elasticsearch-logforwarder-token -n "$ES_NS" \
+                --from-literal=token="$write_token" \
+                --dry-run=client -o yaml | kubectl apply -f -
+            log_success "Write API key created for ClusterLogForwarder"
+        fi
+
+        # Create read API key for MCP server
+        local read_key_response
+        read_key_response=$(kubectl exec -n "$ES_NS" elasticsearch-es-default-0 -- \
+            curl -sk -u "elastic:${es_password}" -X POST \
+            "https://localhost:9200/_security/api_key" \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "name": "mcp-server-read-key",
+              "role_descriptors": {
+                "mcp-reader": {
+                  "cluster": ["monitor"],
+                  "indices": [
+                    {
+                      "names": ["kubernetes*"],
+                      "privileges": ["read", "view_index_metadata"]
+                    }
+                  ]
+                }
+              }
+            }' 2>/dev/null)
+
+        local read_token
+        read_token=$(echo "$read_key_response" | grep -o '"encoded":"[^"]*"' | cut -d'"' -f4)
+
+        if [ -n "$read_token" ]; then
+            kubectl create secret generic elasticsearch-mcp-read-token -n "$ES_NS" \
+                --from-literal=token="$read_token" \
+                --dry-run=client -o yaml | kubectl apply -f -
+            log_success "Read API key created for MCP server"
+        fi
+
+        if [ -z "$write_token" ] || [ -z "$read_token" ]; then
+            log_warning "Could not create API keys. Write response: $write_key_response, Read response: $read_key_response"
+        fi
+    else
+        log_warning "Could not retrieve ECK password, skipping API key creation"
+    fi
+
+    # Phase 5: Install Cluster Logging Operator + ClusterLogForwarder
+    log_info "Phase 5: Installing Cluster Logging Operator..."
 
     local logging_channel
     logging_channel=$(kubectl get packagemanifest cluster-logging -n openshift-marketplace \
@@ -135,8 +211,8 @@ deploy() {
         log_warning "cluster-logging operator not found. Skipping log forwarding."
     fi
 
-    # Phase 5: Create Route
-    log_info "Phase 5: Creating Route..."
+    # Phase 6: Create Route
+    log_info "Phase 6: Creating Route..."
     kubectl apply -f "$MANIFESTS_DIR/route.yaml"
 
     local route_host
@@ -155,8 +231,18 @@ deploy() {
     echo "MCP server configuration:"
     echo "  MCP_LOG_PROVIDER=streamshub-elasticsearch"
     echo "  QUARKUS_REST_CLIENT_ELASTICSEARCH_URL=https://elasticsearch-es-http.$ES_NS.svc:9200"
-    echo "  MCP_LOG_ELASTICSEARCH_AUTH_MODE=basic"
+    echo "  MCP_LOG_ELASTICSEARCH_AUTH_MODE=bearer-token"
+    echo "  MCP_LOG_ELASTICSEARCH_BEARER_TOKEN=\$(oc get secret elasticsearch-mcp-read-token -n $ES_NS -o jsonpath='{.data.token}' | base64 -d)"
+    echo "  MCP_LOG_ELASTICSEARCH_INDEX_PATTERN=kubernetes"
     echo "  QUARKUS_TLS_TRUST_ALL=true"
+    echo ""
+    echo "Note: ClusterLogForwarder writes to 'kubernetes' index (no date suffix)."
+    echo "For Kind clusters with Fluent Bit, use 'kubernetes-*' pattern instead."
+    echo ""
+    echo "Or use basic auth with elastic superuser (not recommended for production):"
+    echo "  MCP_LOG_ELASTICSEARCH_AUTH_MODE=basic"
+    echo "  QUARKUS_REST_CLIENT_ELASTICSEARCH_USERNAME=elastic"
+    echo "  QUARKUS_REST_CLIENT_ELASTICSEARCH_PASSWORD=\$(oc get secret elasticsearch-es-elastic-user -n $ES_NS -o jsonpath='{.data.elastic}' | base64 -d)"
 }
 
 teardown() {

@@ -1,13 +1,8 @@
 ---
-apiVersion: v1
-kind: Secret
-metadata:
-  name: elasticsearch-es-credentials
-  namespace: elasticsearch-logging
-type: Opaque
-stringData:
-  username: elastic
-  password: elastic-dev-password
+# Note: ClusterLogForwarder API key token is created by the setup script.
+# The script creates an Elasticsearch API key with minimal permissions (write to kubernetes* indices)
+# and stores the encoded token in the elasticsearch-logforwarder-token secret.
+# This is more secure than using username/password (no superuser credentials, revocable token).
 ---
 apiVersion: elasticsearch.k8s.elastic.co/v1
 kind: Elasticsearch

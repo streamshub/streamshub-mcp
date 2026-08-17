@@ -45,6 +45,17 @@ public abstract class AbstractAuthFilter implements ClientRequestFilter {
     protected abstract String bearerTokenPropertyName();
 
     /**
+     * Returns the authorization scheme for bearer tokens (e.g. "Bearer" for standard tokens,
+     * "ApiKey" for Elasticsearch API keys).
+     * Default is "Bearer".
+     *
+     * @return the authorization scheme
+     */
+    protected String bearerTokenAuthScheme() {
+        return "Bearer";
+    }
+
+    /**
      * Hook for subclasses to add provider-specific headers (e.g. tenant ID).
      * Default implementation does nothing.
      *
@@ -62,17 +73,18 @@ public abstract class AbstractAuthFilter implements ClientRequestFilter {
 
     private void addAuthentication(final ClientRequestContext requestContext) {
         String authMode = authConfig().authMode().toLowerCase(Locale.ROOT);
+        String authScheme = bearerTokenAuthScheme();
 
         switch (authMode) {
             case AuthHelper.AUTH_MODE_SA_TOKEN:
                 AuthHelper.readServiceAccountToken(authConfig().saTokenPath())
                     .ifPresent(token -> requestContext.getHeaders()
-                        .putSingle("Authorization", "Bearer " + token));
+                        .putSingle("Authorization", authScheme + " " + token));
                 break;
             case AuthHelper.AUTH_MODE_BEARER_TOKEN:
                 AuthHelper.validateBearerToken(authConfig().bearerToken(), bearerTokenPropertyName())
                     .ifPresent(token -> requestContext.getHeaders()
-                        .putSingle("Authorization", "Bearer " + token));
+                        .putSingle("Authorization", authScheme + " " + token));
                 break;
             case AuthHelper.AUTH_MODE_BASIC:
                 break;
