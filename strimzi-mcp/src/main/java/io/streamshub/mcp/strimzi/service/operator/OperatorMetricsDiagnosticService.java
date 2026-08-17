@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Orchestrates a multistep metrics diagnostic workflow for Strimzi operators.
  *
@@ -104,6 +105,10 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
             ns != null ? ns : "auto", name != null ? name : "auto",
             cluster != null ? cluster : "none", concern);
 
+        // Register push-based cancellation callback for async operations
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        DiagnosticHelper.registerCancellationCallback(cancellation, cancelled);
+
         List<String> completed = new ArrayList<>();
         List<String> failed = new ArrayList<>();
         int stepIndex = 0;
@@ -121,7 +126,8 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
 
         // === Phase 2: Metrics investigation ===
         InvestigationAreas areas = decideInvestigationAreas(
-            sampling, operator, concern);
+            sampling, operator, concern, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         int totalSteps = PHASE1_STEPS + areas.enabledCount();
 
@@ -170,7 +176,8 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
         // === Phase 3: Final analysis ===
         String analysis = produceAnalysis(sampling, operator,
             reconciliationMetrics, resourceMetrics, jvmMetrics,
-            operatorLogs, concern);
+            operatorLogs, concern, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         return OperatorMetricsDiagnosticReport.of(operator,
             reconciliationMetrics, resourceMetrics, jvmMetrics,
@@ -256,9 +263,10 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
     @WithSpan("diagnose.operator.triage")
     InvestigationAreas decideInvestigationAreas(final Sampling sampling,
                                                 final StrimziOperatorResponse operator,
-                                                final String concern) {
+                                                final String concern,
+                                                final AtomicBoolean cancelled) {
         Map<String, Object> parsed = performTriage(sampling, TRIAGE_SYSTEM_PROMPT,
-            buildPhase1Summary(operator, concern));
+            buildPhase1Summary(operator, concern), cancelled);
         return parsed != null ? parseInvestigationAreas(parsed) : InvestigationAreas.all();
     }
 
@@ -270,10 +278,12 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
                            final StrimziOperatorMetricsResponse resourceMetrics,
                            final StrimziOperatorMetricsResponse jvmMetrics,
                            final StrimziOperatorLogsResponse operatorLogs,
-                           final String concern) {
+                           final String concern,
+                           final AtomicBoolean cancelled) {
         return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
             buildFullSummary(operator, reconciliationMetrics, resourceMetrics,
-                jvmMetrics, operatorLogs, concern));
+                jvmMetrics, operatorLogs, concern),
+            cancelled);
     }
 
     // ---- Helpers ----

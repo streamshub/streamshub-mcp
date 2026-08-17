@@ -408,7 +408,7 @@ public class DiagnosticTools {
 - **Graceful degradation**: Works without Sampling/Elicitation support (gathers everything, returns raw data)
 - **Step failure resilience**: Individual step failures are recorded in `stepsFailed`, workflow continues
 - **Progress tracking**: Reports progress via `DiagnosticHelper.sendProgress()`
-- **Cancellation**: Checks `DiagnosticHelper.checkCancellation()` between steps
+- **Cancellation**: Supports both poll-based (`checkCancellation()` between steps) and push-based (`registerCancellationCallback()` for async operations)
 - **No duplication**: Calls existing domain services (KafkaService, StrimziOperatorService, etc.)
 - **Configurable token limits**: `mcp.sampling.triage-max-tokens` and `mcp.sampling.analysis-max-tokens`
 - **OpenTelemetry tracing**: Gather/triage/analysis methods are annotated with `@WithSpan` for
@@ -420,11 +420,49 @@ public class DiagnosticTools {
 
 Shared MCP framework utilities in `common/src/.../service/DiagnosticHelper.java`:
 - `sendProgress(Progress, step, totalSteps, message)` — progress update with descriptive message to MCP client
-- `checkCancellation(Cancellation)` — abort if client cancelled
+- `checkCancellation(Cancellation)` — poll-based cancellation check; throws if client cancelled (use for synchronous code paths)
+- `registerCancellationCallback(Cancellation, AtomicBoolean)` — push-based cancellation callback; immediately sets flag when cancelled (use for async operations like Sampling/Elicitation)
+- `checkAsyncCancellation(AtomicBoolean)` — check flag set by callback and throw if cancelled (use after async operations)
 - `putIfNotNull(Map, String, Object)` — conditional map insertion
 - `elicitSelection(Elicitation, message, propertyName, description, options)` — generic single-select Elicitation
 - `extractSamplingText(SamplingResponse)` — safe text extraction from Sampling response
 - `MAP_TYPE_REF` — reusable `TypeReference<Map<String, Object>>` for JSON parsing
+
+#### Cancellation Patterns
+
+Diagnostic services support two cancellation mechanisms:
+
+1. **Poll-based** (`checkCancellation()`) — For synchronous operations
+   - Checks if cancellation occurred since the last check
+   - Throws immediately if cancelled
+   - Use between discrete workflow steps (after gathering data, before next phase)
+
+2. **Push-based** (`registerCancellationCallback()`) — For async operations
+   - Registers a callback that fires immediately when cancellation occurs
+   - Sets an AtomicBoolean flag that can be checked at any point
+   - Suitable for Sampling/Elicitation calls that may take seconds to minutes
+   - Catches cancellation during the async call, not just at poll points
+
+**When to use each:**
+- Use **poll-based** for synchronous code paths (gathering data, parsing responses, building reports)
+- Use **push-based** for async operations (Sampling, Elicitation, long-running external API calls)
+- Can mix both — poll-based for sync phases, push-based for async phases
+
+**Example usage:**
+```java
+// Register callback once at start of diagnose()
+AtomicBoolean cancelled = new AtomicBoolean(false);
+DiagnosticHelper.registerCancellationCallback(cancellation, cancelled);
+
+// Check after async operations (sampling/elicitation)
+InvestigationAreas areas = performTriage(sampling, ...);
+DiagnosticHelper.checkAsyncCancellation(cancelled);  // throws if cancelled
+
+// Continue with poll-based checks for sync phases
+DiagnosticHelper.checkCancellation(cancellation);
+```
+
+See `KafkaClusterDiagnosticService` for complete reference implementation.
 
 ### BaseDiagnosticService (common module)
 
@@ -435,8 +473,14 @@ diagnostic services must extend:
 - Binds `mcp.sampling.analysis-max-tokens` → `analysisMaxTokens`
 - Binds `mcp.log.tail-lines` → `defaultTailLines`
 - `performSampling(sampling, systemPrompt, data, maxTokens)` — sends a Sampling request and returns extracted text
+- `performSampling(sampling, systemPrompt, data, maxTokens, cancelled)` — overload with push-based cancellation support
 - `performAnalysis(sampling, systemPrompt, fullData)` — convenience wrapper using `analysisMaxTokens`
+- `performAnalysis(sampling, systemPrompt, fullData, cancelled)` — overload with push-based cancellation support
 - `performTriage(sampling, systemPrompt, phase1Summary)` — sends triage Sampling, parses JSON response to Map
+- `performTriage(sampling, systemPrompt, phase1Summary, cancelled)` — overload with push-based cancellation support
+
+All cancellation-aware overloads accept an optional `AtomicBoolean cancelled` parameter. If non-null,
+the flag is checked before and after the async `sendAndAwait()` call, returning null if cancelled.
 
 ### NamespaceElicitationHelper (common module)
 

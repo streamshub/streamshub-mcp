@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Orchestrates a multi-step diagnostic workflow for KafkaConnect clusters.
  *
@@ -108,6 +109,10 @@ public class KafkaConnectDiagnosticService extends BaseDiagnosticService {
         LOG.infof("Starting diagnostic for KafkaConnect cluster=%s (namespace=%s, symptom=%s)",
             name, ns != null ? ns : "auto", symptom);
 
+        // Register push-based cancellation callback for async operations
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        DiagnosticHelper.registerCancellationCallback(cancellation, cancelled);
+
         List<String> completed = new ArrayList<>();
         List<String> failed = new ArrayList<>();
         int stepIndex = 0;
@@ -154,7 +159,8 @@ public class KafkaConnectDiagnosticService extends BaseDiagnosticService {
 
         // === Phase 3: Analysis ===
         String analysis = produceAnalysis(
-            sampling, connectCluster, connectors, pods, logs, connectMetrics, events, symptom);
+            sampling, connectCluster, connectors, pods, logs, connectMetrics, events, symptom, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         return KafkaConnectDiagnosticReport.of(connectCluster, connectors, pods, logs,
             connectMetrics, events, analysis, completed, failed.isEmpty() ? null : failed);
@@ -286,9 +292,11 @@ public class KafkaConnectDiagnosticService extends BaseDiagnosticService {
                            final KafkaConnectLogsResponse logs,
                            final KafkaConnectMetricsResponse connectMetrics,
                            final StrimziEventsResponse events,
-                           final String symptom) {
+                           final String symptom,
+                           final AtomicBoolean cancelled) {
         return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
-            buildFullSummary(connectCluster, connectors, pods, logs, connectMetrics, events, symptom));
+            buildFullSummary(connectCluster, connectors, pods, logs, connectMetrics, events, symptom),
+            cancelled);
     }
 
     @SuppressWarnings("checkstyle:ParameterNumber")

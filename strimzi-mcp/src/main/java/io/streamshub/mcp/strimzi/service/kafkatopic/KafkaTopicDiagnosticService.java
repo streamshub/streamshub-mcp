@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Orchestrates a multistep diagnostic workflow for KafkaTopics.
  *
@@ -119,6 +120,10 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         LOG.infof("Starting diagnostic for KafkaTopic=%s (namespace=%s, cluster=%s, symptom=%s)",
             name, ns != null ? ns : "auto", cluster != null ? cluster : "auto", symptom);
 
+        // Register push-based cancellation callback for async operations
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        DiagnosticHelper.registerCancellationCallback(cancellation, cancelled);
+
         List<String> completed = new ArrayList<>();
         List<String> failed = new ArrayList<>();
         int stepIndex = 0;
@@ -149,7 +154,8 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
 
         // === Phase 2: Deep investigation ===
         InvestigationAreas areas = investigateAreas(
-            sampling, topic, relatedTopics, clusterStatus, symptom);
+            sampling, topic, relatedTopics, clusterStatus, symptom, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         int totalSteps = PHASE1_STEPS + areas.enabledCount();
 
@@ -182,7 +188,8 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
 
         // === Phase 3: Final analysis ===
         String analysis = produceAnalysis(sampling, topic, relatedTopics, clusterStatus,
-            operatorLogs, events, exporterMetrics, symptom);
+            operatorLogs, events, exporterMetrics, symptom, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         return KafkaTopicDiagnosticReport.of(topic, relatedTopics, clusterStatus, operatorLogs,
             events, exporterMetrics, analysis, completed, failed.isEmpty() ? null : failed);
@@ -315,9 +322,10 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
                                          final KafkaTopicResponse topic,
                                          final PaginatedResponse<KafkaTopicResponse> relatedTopics,
                                          final KafkaClusterResponse cluster,
-                                         final String symptom) {
+                                         final String symptom,
+                                         final AtomicBoolean cancelled) {
         Map<String, Object> parsed = performTriage(sampling, TRIAGE_SYSTEM_PROMPT,
-            buildPhase1Summary(topic, relatedTopics, cluster, symptom));
+            buildPhase1Summary(topic, relatedTopics, cluster, symptom), cancelled);
         return parsed != null ? parseInvestigationAreas(parsed) : InvestigationAreas.all();
     }
 
@@ -330,9 +338,11 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
                            final StrimziOperatorLogsResponse operatorLogs,
                            final StrimziEventsResponse events,
                            final KafkaExporterMetricsResponse exporterMetrics,
-                           final String symptom) {
+                           final String symptom,
+                           final AtomicBoolean cancelled) {
         return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
-            buildFullSummary(topic, relatedTopics, cluster, operatorLogs, events, exporterMetrics, symptom));
+            buildFullSummary(topic, relatedTopics, cluster, operatorLogs, events, exporterMetrics, symptom),
+            cancelled);
     }
 
     // ---- Helpers ----

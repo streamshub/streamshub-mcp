@@ -31,6 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 /**
  * Orchestrates a multistep metrics diagnostic workflow for Kafka clusters.
@@ -112,6 +113,10 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
         LOG.infof("Starting metrics diagnostic for cluster=%s (namespace=%s, concern=%s)",
             name, ns != null ? ns : "auto", concern);
 
+        // Register push-based cancellation callback for async operations
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        DiagnosticHelper.registerCancellationCallback(cancellation, cancelled);
+
         List<String> completed = new ArrayList<>();
         List<String> failed = new ArrayList<>();
         int stepIndex = 0;
@@ -131,7 +136,8 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
 
         // === Phase 2: Metrics investigation (single scrape for all categories) ===
         InvestigationAreas areas = decideInvestigationAreas(
-            sampling, cluster, pods, concern);
+            sampling, cluster, pods, concern, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         KafkaMetricsResponse replicationMetrics = null;
         KafkaMetricsResponse performanceMetrics = null;
@@ -154,7 +160,8 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
         // === Phase 3: Final analysis ===
         String analysis = produceAnalysis(sampling, cluster, pods,
             replicationMetrics, performanceMetrics, resourceMetrics,
-            throughputMetrics, concern);
+            throughputMetrics, concern, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         return KafkaMetricsDiagnosticReport.of(cluster, pods,
             replicationMetrics, performanceMetrics, resourceMetrics,
@@ -289,9 +296,10 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
     InvestigationAreas decideInvestigationAreas(final Sampling sampling,
                                                 final KafkaClusterResponse cluster,
                                                 final KafkaClusterPodsResponse pods,
-                                                final String concern) {
+                                                final String concern,
+                                                final AtomicBoolean cancelled) {
         Map<String, Object> parsed = performTriage(sampling, TRIAGE_SYSTEM_PROMPT,
-            buildPhase1Summary(cluster, pods, concern));
+            buildPhase1Summary(cluster, pods, concern), cancelled);
         return parsed != null ? parseInvestigationAreas(parsed) : InvestigationAreas.all();
     }
 
@@ -304,10 +312,12 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
                            final KafkaMetricsResponse performanceMetrics,
                            final KafkaMetricsResponse resourceMetrics,
                            final KafkaMetricsResponse throughputMetrics,
-                           final String concern) {
+                           final String concern,
+                           final AtomicBoolean cancelled) {
         return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
             buildFullSummary(cluster, pods, replicationMetrics, performanceMetrics,
-                resourceMetrics, throughputMetrics, concern));
+                resourceMetrics, throughputMetrics, concern),
+            cancelled);
     }
 
     // ---- Helpers ----

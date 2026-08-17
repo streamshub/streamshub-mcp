@@ -47,6 +47,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 /**
  * Orchestrates a multistep diagnostic workflow for Kafka clusters.
@@ -150,6 +151,10 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
         LOG.infof("Starting diagnostic for cluster=%s (namespace=%s, symptom=%s)",
             name, ns != null ? ns : "auto", symptom);
 
+        // Register push-based cancellation callback for async operations
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        DiagnosticHelper.registerCancellationCallback(cancellation, cancelled);
+
         List<String> completed = new ArrayList<>();
         List<String> failed = new ArrayList<>();
         int stepIndex = 0;
@@ -186,7 +191,8 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
 
         // === Phase 2: Deep investigation ===
         InvestigationAreas areas = decideInvestigationAreas(
-            sampling, cluster, nodePools, pods, drainCleaner, symptom);
+            sampling, cluster, nodePools, pods, drainCleaner, symptom, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         int totalSteps = PHASE1_STEPS + areas.enabledCount();
         LogCollectionParams logParams = resolveLogParams(sinceMinutes, areas);
@@ -209,7 +215,7 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
         if (areas.clusterLogs) {
             clusterLogs = gatherClusterLogs(
                 resolvedNs, name, logParams, pods, elicitation,
-                completed, failed);
+                completed, failed, cancelled);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
                 clusterLogs != null ? "Collected Kafka cluster logs" : "Failed to collect cluster logs");
             DiagnosticHelper.checkCancellation(cancellation);
@@ -253,7 +259,8 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
         // === Phase 3: Final analysis ===
         String analysis = produceAnalysis(sampling, cluster, nodePools, pods,
             operator, operatorLogs, clusterLogs, events, users, metrics,
-            drainCleaner, drainCleanerLogs, symptom);
+            drainCleaner, drainCleanerLogs, symptom, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         return KafkaClusterDiagnosticReport.of(cluster, nodePools, pods, operator,
             operatorLogs, clusterLogs, events, users, metrics, drainCleaner, drainCleanerLogs,
@@ -372,7 +379,8 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
                                                final KafkaClusterPodsResponse pods,
                                                final Elicitation elicitation,
                                                final List<String> completed,
-                                               final List<String> failed) {
+                                               final List<String> failed,
+                                               final AtomicBoolean cancelled) {
         try {
             Set<String> problematicPods = identifyProblematicPods(pods);
 
@@ -381,9 +389,10 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
 
             // Escalation: if no errors found, try a broader time window
             if (result != null && !result.hasErrors()) {
+                DiagnosticHelper.checkAsyncCancellation(cancelled);
                 result = escalateLogCollection(
                     namespace, clusterName, logParams, problematicPods, pods,
-                    elicitation);
+                    elicitation, cancelled);
             }
 
             completed.add(STEP_CLUSTER_LOGS);
@@ -493,9 +502,10 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
                                                 final List<KafkaNodePoolResponse> nodePools,
                                                 final KafkaClusterPodsResponse pods,
                                                 final DrainCleanerReadinessResponse drainCleaner,
-                                                        final String symptom) {
+                                                        final String symptom,
+                                                        final AtomicBoolean cancelled) {
         Map<String, Object> parsed = performTriage(sampling, TRIAGE_SYSTEM_PROMPT,
-            buildPhase1Summary(cluster, nodePools, pods, drainCleaner, symptom));
+            buildPhase1Summary(cluster, nodePools, pods, drainCleaner, symptom), cancelled);
         return parsed != null ? parseInvestigationAreas(parsed) : InvestigationAreas.all();
     }
 
@@ -513,10 +523,12 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
                                    final KafkaMetricsResponse metrics,
                                    final DrainCleanerReadinessResponse drainCleaner,
                                    final DrainCleanerLogsResponse drainCleanerLogs,
-                                   final String symptom) {
+                                   final String symptom,
+                                   final AtomicBoolean cancelled) {
         return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
             buildFullSummary(cluster, nodePools, pods, operator, operatorLogs,
-                clusterLogs, events, users, metrics, drainCleaner, drainCleanerLogs, symptom));
+                clusterLogs, events, users, metrics, drainCleaner, drainCleanerLogs, symptom),
+            cancelled);
     }
 
     // ---- Helpers ----
@@ -590,7 +602,8 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
                                                             final LogCollectionParams originalParams,
                                                             final Set<String> problematicPods,
                                                             final KafkaClusterPodsResponse pods,
-                                                            final Elicitation elicitation) {
+                                                            final Elicitation elicitation,
+                                                            final AtomicBoolean cancelled) {
         // Auto-escalate once: expand the time window
         LogCollectionParams expandedParams = expandTimeWindow(originalParams);
         if (expandedParams == null) {
@@ -603,9 +616,10 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
             namespace, clusterName, expandedParams, problematicPods, pods);
 
         if (result != null && !result.hasErrors()) {
+            DiagnosticHelper.checkAsyncCancellation(cancelled);
             // Still no errors — ask the user if they want to expand further
             result = elicitFurtherExpansion(namespace, clusterName, expandedParams,
-                problematicPods, pods, elicitation, result);
+                problematicPods, pods, elicitation, result, cancelled);
         }
         return result;
     }
@@ -617,7 +631,8 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
                                                             final Set<String> problematicPods,
                                                             final KafkaClusterPodsResponse pods,
                                                             final Elicitation elicitation,
-                                                            final KafkaClusterLogsResponse currentResult) {
+                                                            final KafkaClusterLogsResponse currentResult,
+                                                            final AtomicBoolean cancelled) {
         if (elicitation == null || !elicitation.isFormModeSupported()) {
             return currentResult;
         }
@@ -629,7 +644,8 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
             "Select how much to expand the time window",
             List.of("Expand to 2 hours on each side",
                      "Expand to 4 hours on each side",
-                     "Accept current results"));
+                     "Accept current results"),
+            cancelled);
 
         if (selected == null || selected.contains("Accept")) {
             return currentResult;
