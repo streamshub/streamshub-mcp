@@ -26,10 +26,14 @@ usage() {
     echo "  --minikube   Load image into Minikube before deploying"
     echo "  --k3d        Import image into k3d cluster before deploying"
     echo "  --ocp          Deploy with OpenShift Route for external access"
-    echo "  --loki         Enable Loki log provider (defaults to OCP Logging in-cluster URL)"
-    echo "  --elasticsearch Enable Elasticsearch log provider (defaults to Kind in-cluster URL)"
-    echo "  --prometheus   Enable Prometheus metrics provider (defaults to OCP Thanos Querier)"
-    echo "  --otel         Enable OpenTelemetry tracing (defaults to Jaeger in observability namespace)"
+    echo "  --loki         Enable Loki log provider"
+    echo "                 (OCP: OCP Logging with sa-token auth | Kind: no auth)"
+    echo "  --elasticsearch Enable Elasticsearch log provider"
+    echo "                 (OCP: ECK with API key from elasticsearch-mcp-read-token | Kind: no auth)"
+    echo "  --prometheus   Enable Prometheus metrics provider"
+    echo "                 (OCP: Thanos Querier with sa-token auth)"
+    echo "  --otel         Enable OpenTelemetry tracing"
+    echo "                 (defaults to Jaeger in observability namespace)"
     echo ""
     echo "Examples:"
     echo "  $0 quay.io/streamshub/strimzi-mcp:latest"
@@ -39,14 +43,23 @@ usage() {
     echo "  $0 quay.io/streamshub/strimzi-mcp:latest --ocp --loki --prometheus"
     echo "  $0 quay.io/streamshub/strimzi-mcp:latest --kind --elasticsearch"
     echo ""
-    echo "Override Loki/Elasticsearch/Prometheus defaults with environment variables:"
-    echo "  QUARKUS_REST_CLIENT_LOKI_URL=https://custom:3100 $0 <image> --loki"
-    echo "  QUARKUS_REST_CLIENT_ELASTICSEARCH_URL=http://elasticsearch:9200 $0 <image> --elasticsearch"
-    echo "  QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://prometheus:9090 $0 <image> --prometheus"
+    echo "Override defaults with environment variables:"
+    echo "  QUARKUS_REST_CLIENT_LOKI_URL=https://custom:3100 \\"
+    echo "    $0 <image> --ocp --loki"
+    echo ""
+    echo "  QUARKUS_REST_CLIENT_ELASTICSEARCH_URL=http://elasticsearch:9200 \\"
+    echo "    MCP_LOG_ELASTICSEARCH_INDEX_PATTERN=app-logs-* \\"
+    echo "    $0 <image> --kind --elasticsearch"
+    echo ""
+    echo "  QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://prometheus:9090 \\"
+    echo "    $0 <image> --ocp --prometheus"
     echo ""
     echo "When using a local cluster (Kind, Minikube, k3d), the loader flag loads the image"
     echo "directly so no registry push is needed. Without a loader flag, the image must be"
     echo "pushed to a registry accessible by the cluster."
+    echo ""
+    echo "Prerequisites for --elasticsearch on OpenShift:"
+    echo "  Run dev/scripts/setup-elasticsearch.sh first to deploy ECK and create API keys."
     echo ""
     echo "Build the image first with Maven:"
     echo "  ./mvnw package -pl strimzi-mcp -am -DskipTests \\"
@@ -147,16 +160,33 @@ fi
 if [ "$ELASTICSEARCH" = true ]; then
     echo "==> Configuring Elasticsearch log provider"
     if [ "$OCP" = true ]; then
-        kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
-            MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-elasticsearch}" \
-            MCP_LOG_ELASTICSEARCH_AUTH_MODE="${MCP_LOG_ELASTICSEARCH_AUTH_MODE:-basic}" \
-            QUARKUS_REST_CLIENT_ELASTICSEARCH_URL="${QUARKUS_REST_CLIENT_ELASTICSEARCH_URL:-https://elasticsearch-es-http.elasticsearch-logging.svc:9200}" \
-            QUARKUS_TLS_TRUST_ALL="${QUARKUS_TLS_TRUST_ALL:-true}"
+        # OpenShift: ECK with API key authentication
+        ES_TOKEN=$(kubectl get secret elasticsearch-mcp-read-token -n elasticsearch-logging -o jsonpath='{.data.token}' 2>/dev/null | base64 -d || echo "")
+        if [ -z "$ES_TOKEN" ]; then
+            echo "Warning: elasticsearch-mcp-read-token secret not found. Run dev/scripts/setup-elasticsearch.sh first."
+            echo "Falling back to basic auth mode (requires QUARKUS_REST_CLIENT_ELASTICSEARCH_USERNAME and PASSWORD env vars)."
+            kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
+                MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-elasticsearch}" \
+                MCP_LOG_ELASTICSEARCH_AUTH_MODE="${MCP_LOG_ELASTICSEARCH_AUTH_MODE:-basic}" \
+                QUARKUS_REST_CLIENT_ELASTICSEARCH_URL="${QUARKUS_REST_CLIENT_ELASTICSEARCH_URL:-https://elasticsearch-es-http.elasticsearch-logging.svc:9200}" \
+                MCP_LOG_ELASTICSEARCH_INDEX_PATTERN="${MCP_LOG_ELASTICSEARCH_INDEX_PATTERN:-kubernetes}" \
+                QUARKUS_TLS_TRUST_ALL="${QUARKUS_TLS_TRUST_ALL:-true}"
+        else
+            kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
+                MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-elasticsearch}" \
+                MCP_LOG_ELASTICSEARCH_AUTH_MODE="${MCP_LOG_ELASTICSEARCH_AUTH_MODE:-bearer-token}" \
+                MCP_LOG_ELASTICSEARCH_BEARER_TOKEN="$ES_TOKEN" \
+                QUARKUS_REST_CLIENT_ELASTICSEARCH_URL="${QUARKUS_REST_CLIENT_ELASTICSEARCH_URL:-https://elasticsearch-es-http.elasticsearch-logging.svc:9200}" \
+                MCP_LOG_ELASTICSEARCH_INDEX_PATTERN="${MCP_LOG_ELASTICSEARCH_INDEX_PATTERN:-kubernetes}" \
+                QUARKUS_TLS_TRUST_ALL="${QUARKUS_TLS_TRUST_ALL:-true}"
+        fi
     else
+        # Kind: no auth, Fluent Bit creates date-suffixed indices
         kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
             MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-elasticsearch}" \
             MCP_LOG_ELASTICSEARCH_AUTH_MODE="${MCP_LOG_ELASTICSEARCH_AUTH_MODE:-none}" \
-            QUARKUS_REST_CLIENT_ELASTICSEARCH_URL="${QUARKUS_REST_CLIENT_ELASTICSEARCH_URL:-http://elasticsearch.elasticsearch.svc.cluster.local:9200}"
+            QUARKUS_REST_CLIENT_ELASTICSEARCH_URL="${QUARKUS_REST_CLIENT_ELASTICSEARCH_URL:-http://elasticsearch.elasticsearch.svc.cluster.local:9200}" \
+            MCP_LOG_ELASTICSEARCH_INDEX_PATTERN="${MCP_LOG_ELASTICSEARCH_INDEX_PATTERN:-kubernetes-*}"
     fi
 fi
 

@@ -205,19 +205,27 @@ MCP_LOG_PROVIDER=streamshub-elasticsearch
 
 #### Elasticsearch authentication
 
+**API key (recommended):**
+
+Use Elasticsearch API keys for fine-grained access control. When using the ECK Operator on OpenShift, the `setup-elasticsearch.sh` script automatically creates two API keys with minimal permissions.
+
+```bash
+MCP_LOG_ELASTICSEARCH_AUTH_MODE=bearer-token
+MCP_LOG_ELASTICSEARCH_BEARER_TOKEN=your-api-key
+```
+
+For ECK deployments, retrieve the auto-generated read API key for MCP server:
+
+```bash
+MCP_LOG_ELASTICSEARCH_BEARER_TOKEN=$(kubectl get secret elasticsearch-mcp-read-token -n elasticsearch-logging -o jsonpath='{.data.token}' | base64 -d)
+```
+
 **Basic authentication:**
 
 ```bash
 MCP_LOG_ELASTICSEARCH_AUTH_MODE=basic
 QUARKUS_REST_CLIENT_ELASTICSEARCH_USERNAME=your-username
 QUARKUS_REST_CLIENT_ELASTICSEARCH_PASSWORD=your-password
-```
-
-**Bearer token:**
-
-```bash
-MCP_LOG_ELASTICSEARCH_AUTH_MODE=bearer-token
-MCP_LOG_ELASTICSEARCH_BEARER_TOKEN=your-bearer-token
 ```
 
 **ServiceAccount token (Kubernetes):**
@@ -1036,8 +1044,14 @@ kubectl -n elasticsearch get pods
 Use the ECK (Elastic Cloud on Kubernetes) Operator:
 
 ```bash
-# Deploy ECK Operator and Elasticsearch
+# Deploy ECK Operator, Elasticsearch, and log forwarding
 ./dev/scripts/setup-elasticsearch.sh deploy
+
+# The script automatically:
+# - Deploys ECK Operator and Elasticsearch
+# - Creates an Elasticsearch API key for log collection
+# - Configures ClusterLogForwarder to ship logs to Elasticsearch
+# - Creates an OpenShift Route for external access
 
 # Verify Elasticsearch is running
 oc -n elasticsearch-logging get elasticsearch
@@ -1045,7 +1059,25 @@ oc -n elasticsearch-logging get elasticsearch
 
 ### Configure MCP server
 
-Get the Elasticsearch service URL and configure the MCP server:
+**For OpenShift deployments** (ECK with log forwarding already configured):
+
+The setup script displays the configuration after deployment. For local development:
+
+```bash
+# Configure MCP server with API key authentication (recommended)
+MCP_LOG_PROVIDER=streamshub-elasticsearch
+QUARKUS_REST_CLIENT_ELASTICSEARCH_URL=https://elasticsearch-es-http.elasticsearch-logging.svc:9200
+MCP_LOG_ELASTICSEARCH_AUTH_MODE=bearer-token
+MCP_LOG_ELASTICSEARCH_BEARER_TOKEN=$(oc get secret elasticsearch-mcp-read-token -n elasticsearch-logging -o jsonpath='{.data.token}' | base64 -d)
+MCP_LOG_ELASTICSEARCH_INDEX_PATTERN=kubernetes
+QUARKUS_TLS_TRUST_ALL=true
+```
+
+**Note:**
+- The setup script creates two API keys: `elasticsearch-logforwarder-token` (write-only for log collection) and `elasticsearch-mcp-read-token` (read-only for MCP server queries)
+- ClusterLogForwarder writes logs to the `kubernetes` index (no date suffix). For Kind clusters using Fluent Bit, which creates date-suffixed indices like `kubernetes-2026-08-17`, use the default `kubernetes-*` pattern instead.
+
+**For Kind deployments** (no authentication):
 
 ```bash
 # Get Elasticsearch service URL
@@ -1059,15 +1091,25 @@ kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
 
 ### Authentication
 
-If Elasticsearch requires authentication, create a Secret with credentials:
+**API key authentication (recommended for OpenShift/ECK):**
+
+The `setup-elasticsearch.sh` script automatically creates two Elasticsearch API keys with minimal permissions:
+- `elasticsearch-logforwarder-token` — write-only (for ClusterLogForwarder log collection)
+- `elasticsearch-mcp-read-token` — read-only (for MCP server queries)
+
+For MCP server configuration:
+
+```bash
+MCP_LOG_ELASTICSEARCH_AUTH_MODE=bearer-token
+MCP_LOG_ELASTICSEARCH_BEARER_TOKEN=$(oc get secret elasticsearch-mcp-read-token -n elasticsearch-logging -o jsonpath='{.data.token}' | base64 -d)
+```
+
+**Basic authentication (fallback):**
+
+If you need to use the `elastic` superuser credentials instead:
 
 ```bash
 # Create Secret with credentials
-kubectl -n streamshub-mcp create secret generic elasticsearch-auth \
-  --from-literal=username=elastic \
-  --from-literal=password=your-password
-
-# Update Deployment to use Secret
 kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
   MCP_LOG_ELASTICSEARCH_AUTH_MODE=basic \
   --from=secret/elasticsearch-auth
