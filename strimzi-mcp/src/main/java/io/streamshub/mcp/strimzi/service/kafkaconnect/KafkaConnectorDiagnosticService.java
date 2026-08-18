@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Orchestrates a multistep diagnostic workflow for KafkaConnectors.
  *
@@ -108,6 +109,10 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
         LOG.infof("Starting diagnostic for KafkaConnector=%s (namespace=%s, symptom=%s)",
             name, ns != null ? ns : "auto", symptom);
 
+        // Register push-based cancellation callback for async operations
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        DiagnosticHelper.registerCancellationCallback(cancellation, cancelled);
+
         List<String> completed = new ArrayList<>();
         List<String> failed = new ArrayList<>();
         int stepIndex = 0;
@@ -131,7 +136,8 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
 
         // === Phase 2: Deep investigation ===
         InvestigationAreas areas = investigateAreas(
-            sampling, connector, connectCluster, symptom);
+            sampling, connector, connectCluster, symptom, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         int totalSteps = PHASE1_STEPS + areas.enabledCount();
 
@@ -165,7 +171,8 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
 
         // === Phase 3: Final analysis ===
         String analysis = produceAnalysis(sampling, connector, connectCluster,
-            connectPods, connectLogs, events, symptom);
+            connectPods, connectLogs, events, symptom, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         return KafkaConnectorDiagnosticReport.of(connector, connectCluster, connectPods, connectLogs,
             events, analysis, completed, failed.isEmpty() ? null : failed);
@@ -284,9 +291,10 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
     InvestigationAreas investigateAreas(final Sampling sampling,
                                                  final KafkaConnectorResponse connector,
                                                  final KafkaConnectResponse connectCluster,
-                                                 final String symptom) {
+                                                 final String symptom,
+                                                 final AtomicBoolean cancelled) {
         Map<String, Object> parsed = performTriage(sampling, TRIAGE_SYSTEM_PROMPT,
-            buildPhase1Summary(connector, connectCluster, symptom));
+            buildPhase1Summary(connector, connectCluster, symptom), cancelled);
         return parsed != null ? parseInvestigationAreas(parsed) : InvestigationAreas.all();
     }
 
@@ -298,9 +306,11 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
                            final KafkaConnectPodsResponse connectPods,
                            final KafkaConnectLogsResponse connectLogs,
                            final StrimziEventsResponse events,
-                           final String symptom) {
+                           final String symptom,
+                           final AtomicBoolean cancelled) {
         return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
-            buildFullSummary(connector, connectCluster, connectPods, connectLogs, events, symptom));
+            buildFullSummary(connector, connectCluster, connectPods, connectLogs, events, symptom),
+            cancelled);
     }
 
     // ---- Helpers ----

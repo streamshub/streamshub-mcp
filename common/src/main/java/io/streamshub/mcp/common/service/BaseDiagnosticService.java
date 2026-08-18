@@ -13,6 +13,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Base class for diagnostic service implementations.
@@ -53,7 +54,30 @@ public abstract class BaseDiagnosticService {
      */
     protected String performSampling(Sampling sampling, String systemPrompt,
                                       Map<String, Object> data, int maxTokens) {
+        return performSampling(sampling, systemPrompt, data, maxTokens, null);
+    }
+
+    /**
+     * Send a Sampling request with cancellation support.
+     *
+     * <p>Checks the cancellation flag before and after the async sampling call.
+     * Returns {@code null} if Sampling is unavailable, unsupported, or fails,
+     * or if cancelled before the call completes.</p>
+     *
+     * @param sampling     MCP Sampling interface (may be null or unsupported)
+     * @param systemPrompt the system prompt for the LLM
+     * @param data         the data map to serialize as JSON input
+     * @param maxTokens    maximum tokens for the response
+     * @param cancelled    optional flag set by push-based cancellation callback (may be null)
+     * @return the extracted text, or null on failure or cancellation
+     */
+    protected String performSampling(Sampling sampling, String systemPrompt,
+                                      Map<String, Object> data, int maxTokens,
+                                      AtomicBoolean cancelled) {
         if (sampling == null || !sampling.isSupported()) {
+            return null;
+        }
+        if (cancelled != null && cancelled.get()) {
             return null;
         }
         try {
@@ -64,6 +88,9 @@ public abstract class BaseDiagnosticService {
                 .setMaxTokens(maxTokens)
                 .build()
                 .sendAndAwait();
+            if (cancelled != null && cancelled.get()) {
+                return null;
+            }
             return DiagnosticHelper.extractSamplingText(response);
         } catch (Exception e) {
             getLogger().warnf("Sampling failed: %s: %s",
@@ -88,6 +115,24 @@ public abstract class BaseDiagnosticService {
     }
 
     /**
+     * Perform analysis Sampling with cancellation support.
+     *
+     * <p>Convenience wrapper that uses {@link #analysisMaxTokens} and checks
+     * the cancellation flag before and after the sampling call.</p>
+     *
+     * @param sampling     MCP Sampling interface
+     * @param systemPrompt the analysis system prompt
+     * @param fullData     the full gathered data map
+     * @param cancelled    optional flag set by push-based cancellation callback (may be null)
+     * @return the analysis text, or null on failure or cancellation
+     */
+    protected String performAnalysis(Sampling sampling, String systemPrompt,
+                                      Map<String, Object> fullData,
+                                      AtomicBoolean cancelled) {
+        return performSampling(sampling, systemPrompt, fullData, analysisMaxTokens, cancelled);
+    }
+
+    /**
      * Perform triage Sampling and return the parsed JSON response as a map.
      *
      * <p>Returns {@code null} if Sampling is unavailable or the response cannot
@@ -101,7 +146,27 @@ public abstract class BaseDiagnosticService {
      */
     protected Map<String, Object> performTriage(Sampling sampling, String systemPrompt,
                                                  Map<String, Object> phase1Summary) {
-        String text = performSampling(sampling, systemPrompt, phase1Summary, triageMaxTokens);
+        return performTriage(sampling, systemPrompt, phase1Summary, null);
+    }
+
+    /**
+     * Perform triage Sampling with cancellation support.
+     *
+     * <p>Checks the cancellation flag before and after the sampling call.
+     * Returns {@code null} if Sampling is unavailable, the response cannot
+     * be parsed as JSON, or the operation was cancelled. Callers should fall
+     * back to investigating all areas when null is returned.</p>
+     *
+     * @param sampling      MCP Sampling interface
+     * @param systemPrompt  the triage system prompt
+     * @param phase1Summary the Phase 1 summary data map
+     * @param cancelled     optional flag set by push-based cancellation callback (may be null)
+     * @return the parsed triage response, or null on failure or cancellation
+     */
+    protected Map<String, Object> performTriage(Sampling sampling, String systemPrompt,
+                                                 Map<String, Object> phase1Summary,
+                                                 AtomicBoolean cancelled) {
+        String text = performSampling(sampling, systemPrompt, phase1Summary, triageMaxTokens, cancelled);
         if (text == null) {
             return null;
         }

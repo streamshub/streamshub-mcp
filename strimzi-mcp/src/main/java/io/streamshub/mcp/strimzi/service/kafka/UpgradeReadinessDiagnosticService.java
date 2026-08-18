@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Orchestrates a multistep upgrade readiness diagnostic workflow for Kafka clusters.
  *
@@ -135,6 +136,10 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         LOG.infof("Starting upgrade readiness check for cluster=%s (namespace=%s, targetVersion=%s)",
             name, ns != null ? ns : "auto", version != null ? version : "not specified");
 
+        // Register push-based cancellation callback for async operations
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        DiagnosticHelper.registerCancellationCallback(cancellation, cancelled);
+
         List<String> completed = new ArrayList<>();
         List<String> failed = new ArrayList<>();
         int stepIndex = 0;
@@ -185,7 +190,8 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         // === Phase 2: Deep investigation ===
         InvestigationAreas areas = investigateAreas(
             sampling, cluster, operator, nodePools, pods,
-            replicationMetrics, version);
+            replicationMetrics, version, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         int totalSteps = PHASE1_STEPS + areas.enabledCount();
 
@@ -242,7 +248,8 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         String analysis = produceAnalysis(sampling, cluster, operator,
             nodePools, pods, replicationMetrics, activeRebalances,
             performanceMetrics, resourceMetrics, drainCleaner,
-            certificates, events, version);
+            certificates, events, version, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         return UpgradeReadinessReport.of(cluster, operator, nodePools, pods,
             replicationMetrics, performanceMetrics, resourceMetrics,
@@ -459,9 +466,11 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
                                          final List<KafkaNodePoolResponse> nodePools,
                                          final KafkaClusterPodsResponse pods,
                                          final KafkaMetricsResponse replicationMetrics,
-                                         final String targetVersion) {
+                                         final String targetVersion,
+                                         final AtomicBoolean cancelled) {
         Map<String, Object> parsed = performTriage(sampling, TRIAGE_SYSTEM_PROMPT,
-            buildPhase1Summary(cluster, operator, nodePools, pods, replicationMetrics, targetVersion));
+            buildPhase1Summary(cluster, operator, nodePools, pods, replicationMetrics, targetVersion),
+            cancelled);
         return parsed != null ? parseInvestigationAreas(parsed) : InvestigationAreas.all();
     }
 
@@ -479,11 +488,13 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
                            final DrainCleanerReadinessResponse drainCleaner,
                            final KafkaCertificateResponse certificates,
                            final StrimziEventsResponse events,
-                           final String targetVersion) {
+                           final String targetVersion,
+                           final AtomicBoolean cancelled) {
         return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
             buildFullSummary(cluster, operator, nodePools, pods, replicationMetrics,
                 activeRebalances, performanceMetrics, resourceMetrics,
-                drainCleaner, certificates, events, targetVersion));
+                drainCleaner, certificates, events, targetVersion),
+            cancelled);
     }
 
     // ---- Helpers ----

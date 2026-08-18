@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Orchestrates a multi-step diagnostic workflow for KafkaMirrorMaker2 instances.
  *
@@ -94,6 +95,10 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
         LOG.infof("Starting diagnostic for MirrorMaker2=%s (namespace=%s, symptom=%s)",
             name, ns != null ? ns : "auto", symptom);
 
+        // Register push-based cancellation callback for async operations
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        DiagnosticHelper.registerCancellationCallback(cancellation, cancelled);
+
         List<String> completed = new ArrayList<>();
         List<String> failed = new ArrayList<>();
         int stepIndex = 0;
@@ -130,7 +135,8 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
             events != null ? String.format("Found %d related events", events.totalEvents()) : "Failed to gather events");
 
         // === Phase 3: Analysis ===
-        String analysis = produceAnalysis(sampling, mm2Status, pods, logs, events, symptom);
+        String analysis = produceAnalysis(sampling, mm2Status, pods, logs, events, symptom, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         return KafkaMirrorMaker2DiagnosticReport.of(mm2Status, pods, logs, events,
             analysis, completed, failed.isEmpty() ? null : failed);
@@ -226,9 +232,11 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
                            final KafkaMirrorMaker2PodsResponse pods,
                            final KafkaMirrorMaker2LogsResponse logs,
                            final StrimziEventsResponse events,
-                           final String symptom) {
+                           final String symptom,
+                           final AtomicBoolean cancelled) {
         return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
-            buildFullSummary(mm2Status, pods, logs, events, symptom));
+            buildFullSummary(mm2Status, pods, logs, events, symptom),
+            cancelled);
     }
 
     private Map<String, Object> buildFullSummary(final KafkaMirrorMaker2Response mm2Status,

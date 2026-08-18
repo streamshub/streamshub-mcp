@@ -11,10 +11,12 @@ import io.quarkiverse.mcp.server.ElicitationRequest;
 import io.quarkiverse.mcp.server.ElicitationResponse;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.SamplingResponse;
+import io.quarkiverse.mcp.server.ToolCallException;
 import org.jboss.logging.Logger;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Shared utilities for diagnostic service implementations.
@@ -67,6 +69,51 @@ public final class DiagnosticHelper {
     }
 
     /**
+     * Register a push-based cancellation callback for async operations.
+     *
+     * <p>This method sets up a callback that immediately fires when the MCP client
+     * cancels the operation, setting the provided AtomicBoolean to true. This is
+     * more responsive than polling with {@link #checkCancellation(Cancellation)}
+     * and is suitable for async operations like Sampling and Elicitation that may
+     * take seconds to minutes.</p>
+     *
+     * <p>The callback does not throw — it only sets the flag. Callers should check
+     * the flag before and after expensive operations using {@link #checkAsyncCancellation(AtomicBoolean)}.</p>
+     *
+     * <p>Use {@link #checkCancellation(Cancellation)} for synchronous code paths
+     * where polling is sufficient. Use this method for async operations where
+     * immediate notification is important to avoid wasted work.</p>
+     *
+     * @param cancellation  the MCP cancellation (may be null)
+     * @param cancelledFlag the flag to set when cancellation occurs (must not be null if cancellation is non-null)
+     */
+    public static void registerCancellationCallback(final Cancellation cancellation,
+                                                     final AtomicBoolean cancelledFlag) {
+        if (cancellation != null) {
+            cancellation.onCancelled(reason -> {
+                LOG.infof("Cancellation received: %s", reason.orElse("no reason provided"));
+                cancelledFlag.set(true);
+            });
+        }
+    }
+
+    /**
+     * Check if the operation was cancelled during an async operation (sampling/elicitation).
+     *
+     * <p>This method checks the flag set by {@link #registerCancellationCallback(Cancellation, AtomicBoolean)}
+     * and throws if cancellation has occurred. Use this after async operations like Sampling
+     * to detect cancellation that occurred during the operation.</p>
+     *
+     * @param cancelledFlag the flag set by the cancellation callback
+     * @throws ToolCallException if the operation was cancelled
+     */
+    public static void checkAsyncCancellation(final AtomicBoolean cancelledFlag) {
+        if (cancelledFlag != null && cancelledFlag.get()) {
+            throw new ToolCallException("Operation cancelled");
+        }
+    }
+
+    /**
      * Put a value into a map only if it is not null.
      *
      * @param map   the target map
@@ -98,6 +145,32 @@ public final class DiagnosticHelper {
                                           final String propertyName,
                                           final String description,
                                           final List<String> options) {
+        return elicitSelection(elicitation, message, propertyName, description, options, null);
+    }
+
+    /**
+     * Ask the user to select a single value from a list via MCP Elicitation with cancellation support.
+     *
+     * <p>This is a generic Elicitation wrapper usable for any disambiguation
+     * (namespace selection, cluster selection, etc.).</p>
+     *
+     * @param elicitation  the MCP Elicitation interface
+     * @param message      the prompt message shown to the user
+     * @param propertyName the schema property name (e.g., "namespace")
+     * @param description  the property description
+     * @param options      the list of options to choose from
+     * @param cancelled    optional flag set by push-based cancellation callback (may be null)
+     * @return the selected value, or null if the user declined, elicitation failed, or operation was cancelled
+     */
+    public static String elicitSelection(final Elicitation elicitation,
+                                          final String message,
+                                          final String propertyName,
+                                          final String description,
+                                          final List<String> options,
+                                          final AtomicBoolean cancelled) {
+        if (cancelled != null && cancelled.get()) {
+            return null;
+        }
         try {
             ElicitationResponse response = elicitation.requestBuilder()
                 .setMessage(message)
@@ -109,6 +182,9 @@ public final class DiagnosticHelper {
                 .build()
                 .sendAndAwait();
 
+            if (cancelled != null && cancelled.get()) {
+                return null;
+            }
             if (response.actionAccepted()) {
                 return response.content().getString(propertyName);
             }

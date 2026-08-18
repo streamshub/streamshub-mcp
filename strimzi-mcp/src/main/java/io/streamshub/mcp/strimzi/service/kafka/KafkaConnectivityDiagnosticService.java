@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Orchestrates a multistep connectivity diagnostic workflow for Kafka clusters.
  *
@@ -113,6 +114,10 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
         LOG.infof("Starting connectivity diagnostic for cluster=%s (namespace=%s, listener=%s)",
             name, ns != null ? ns : "auto", listener != null ? listener : "all");
 
+        // Register push-based cancellation callback for async operations
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        DiagnosticHelper.registerCancellationCallback(cancellation, cancelled);
+
         List<String> completed = new ArrayList<>();
         List<String> failed = new ArrayList<>();
         int stepIndex = 0;
@@ -133,7 +138,8 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
 
         // === Phase 2: Deep investigation ===
         InvestigationAreas areas = decideInvestigationAreas(
-            sampling, cluster, bootstrapServers);
+            sampling, cluster, bootstrapServers, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         int totalSteps = PHASE1_STEPS + areas.enabledCount();
 
@@ -170,7 +176,8 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
 
         // === Phase 3: Final analysis ===
         String analysis = produceAnalysis(sampling, cluster, bootstrapServers,
-            certificates, pods, clusterLogs, users, listener);
+            certificates, pods, clusterLogs, users, listener, cancelled);
+        DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         return KafkaConnectivityDiagnosticReport.of(cluster, bootstrapServers,
             certificates, pods, clusterLogs, users, analysis,
@@ -291,9 +298,10 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
     @WithSpan("diagnose.connectivity.triage")
     InvestigationAreas decideInvestigationAreas(final Sampling sampling,
                                                 final KafkaClusterResponse cluster,
-                                                final KafkaBootstrapResponse bootstrapServers) {
+                                                final KafkaBootstrapResponse bootstrapServers,
+                                                final AtomicBoolean cancelled) {
         Map<String, Object> parsed = performTriage(sampling, TRIAGE_SYSTEM_PROMPT,
-            buildPhase1Summary(cluster, bootstrapServers));
+            buildPhase1Summary(cluster, bootstrapServers), cancelled);
         return parsed != null ? parseInvestigationAreas(parsed) : InvestigationAreas.all();
     }
 
@@ -306,9 +314,11 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
                                    final KafkaClusterPodsResponse pods,
                                    final KafkaClusterLogsResponse clusterLogs,
                                    final List<KafkaUserResponse> users,
-                                   final String listenerName) {
+                                   final String listenerName,
+                                   final AtomicBoolean cancelled) {
         return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
-            buildFullSummary(cluster, bootstrapServers, certificates, pods, clusterLogs, users, listenerName));
+            buildFullSummary(cluster, bootstrapServers, certificates, pods, clusterLogs, users, listenerName),
+            cancelled);
     }
 
     // ---- Helpers ----

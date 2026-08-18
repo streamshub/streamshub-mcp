@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Push-based cancellation for diagnostics** — Added `DiagnosticHelper.registerCancellationCallback()` for async diagnostic operations (sampling, elicitation). The callback approach catches cancellation immediately via `Cancellation#onCancelled()` instead of polling with `skipProcessingIfCancelled()`, preventing wasted work during long-running LLM calls. Existing `checkCancellation()` remains for synchronous code paths.
 - **Elasticsearch/OpenSearch log provider** (`mcp.log.provider=streamshub-elasticsearch`) for querying logs from Elasticsearch or OpenSearch
 - **Dev environment manifests and scripts** for deploying Elasticsearch with Fluent Bit on Kind clusters and ECK Operator on OpenShift with automated API key provisioning, ClusterLogForwarder integration, and passthrough TLS routes
 - **System tests** for Elasticsearch log provider covering log collection, field mapping, time window queries, and error handling
