@@ -6,6 +6,8 @@ package io.streamshub.mcp.strimzi.resource.template;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkiverse.mcp.server.CacheScope;
+import io.quarkiverse.mcp.server.Resource;
 import io.quarkiverse.mcp.server.ResourceResponse;
 import io.quarkiverse.mcp.server.ResourceTemplate;
 import io.quarkiverse.mcp.server.ResourceTemplateArg;
@@ -48,7 +50,8 @@ public class KafkaClusterTopologyResource {
         uriTemplate = StrimziConstants.ResourceUris.KAFKA_TOPOLOGY,
         description = "Cluster topology: node pools, roles,"
             + " replica counts, and storage configuration.",
-        mimeType = "application/json"
+        mimeType = "application/json",
+        cacheControl = @Resource.CacheControl(ttlMs = 30000, cacheScope = CacheScope.PUBLIC)
     )
     public ResourceResponse getClusterTopology(
         @ResourceTemplateArg(name = "namespace") final String namespace,

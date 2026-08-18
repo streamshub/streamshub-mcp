@@ -6,6 +6,8 @@ package io.streamshub.mcp.strimzi.resource.template;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkiverse.mcp.server.CacheScope;
+import io.quarkiverse.mcp.server.Resource;
 import io.quarkiverse.mcp.server.ResourceResponse;
 import io.quarkiverse.mcp.server.ResourceTemplate;
 import io.quarkiverse.mcp.server.ResourceTemplateArg;
@@ -46,7 +48,8 @@ public class KafkaNodePoolStatusResource {
         uriTemplate = StrimziConstants.ResourceUris.NODEPOOL_STATUS,
         description = "KafkaNodePool status, ready replicas, roles,"
             + " and storage configuration.",
-        mimeType = "application/json"
+        mimeType = "application/json",
+        cacheControl = @Resource.CacheControl(ttlMs = 30000, cacheScope = CacheScope.PUBLIC)
     )
     public ResourceResponse getNodePoolStatus(
         @ResourceTemplateArg(name = "namespace") final String namespace,

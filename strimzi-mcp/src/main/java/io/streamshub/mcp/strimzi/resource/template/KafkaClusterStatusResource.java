@@ -6,6 +6,8 @@ package io.streamshub.mcp.strimzi.resource.template;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkiverse.mcp.server.CacheScope;
+import io.quarkiverse.mcp.server.Resource;
 import io.quarkiverse.mcp.server.ResourceResponse;
 import io.quarkiverse.mcp.server.ResourceTemplate;
 import io.quarkiverse.mcp.server.ResourceTemplateArg;
@@ -46,7 +48,8 @@ public class KafkaClusterStatusResource {
         uriTemplate = StrimziConstants.ResourceUris.KAFKA_STATUS,
         description = "Current status and conditions of a Kafka cluster"
             + " including readiness, version, listeners, and replica counts.",
-        mimeType = "application/json"
+        mimeType = "application/json",
+        cacheControl = @Resource.CacheControl(ttlMs = 30000, cacheScope = CacheScope.PUBLIC)
     )
     public ResourceResponse getClusterStatus(
         @ResourceTemplateArg(name = "namespace") final String namespace,

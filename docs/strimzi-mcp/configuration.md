@@ -655,6 +655,20 @@ Completion results (namespace lists, cluster names, etc.) are cached to improve 
 MCP_COMPLETION_CACHE_TTL_SECONDS=10
 ```
 
+### Resource template cache configuration
+
+Control cache freshness hints for resource template responses (cluster status, topology, node pool status, topic status, user status, operator status).
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `mcp.resource-template.cache-ttl-seconds` | `30` | Cache TTL for resource template responses in seconds |
+
+Resource templates return Kubernetes resource state. A 30-second TTL lets MCP clients cache responses while keeping data reasonably fresh.
+
+```bash
+MCP_RESOURCE_TEMPLATE_CACHE_TTL_SECONDS=60
+```
+
 ### Topic pagination configuration
 
 Control default pagination for topic listing.
