@@ -6,6 +6,8 @@ package io.streamshub.mcp.strimzi.resource.template;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkiverse.mcp.server.CacheScope;
+import io.quarkiverse.mcp.server.Resource;
 import io.quarkiverse.mcp.server.ResourceResponse;
 import io.quarkiverse.mcp.server.ResourceTemplate;
 import io.quarkiverse.mcp.server.ResourceTemplateArg;
@@ -47,7 +49,8 @@ public class KafkaUserStatusResource {
         uriTemplate = StrimziConstants.ResourceUris.USER_STATUS,
         description = "KafkaUser authentication, ACL rules, quotas,"
             + " and readiness status. Never includes credential secrets.",
-        mimeType = "application/json"
+        mimeType = "application/json",
+        cacheControl = @Resource.CacheControl(ttlMs = 30000, cacheScope = CacheScope.PUBLIC)
     )
     public ResourceResponse getUserStatus(
         @ResourceTemplateArg(name = "namespace") final String namespace,

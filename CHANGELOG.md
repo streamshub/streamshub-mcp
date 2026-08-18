@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dev environment manifests and scripts** for deploying Elasticsearch with Fluent Bit on Kind clusters and ECK Operator on OpenShift with automated API key provisioning, ClusterLogForwarder integration, and passthrough TLS routes
 - **System tests** for Elasticsearch log provider covering log collection, field mapping, time window queries, and error handling
 - **Thanos and VictoriaMetrics compatibility documentation** — the existing Prometheus metrics provider works with Thanos Querier and VictoriaMetrics without code changes
+- **Resource template cache control** — All 6 resource templates now include cache control hints with a 30-second TTL and PUBLIC scope, allowing MCP clients to cache Kubernetes resource state and reduce redundant API calls. TTL is configurable via `mcp.resource-template.cache-ttl-seconds` (default: 30).
 
 ### Changed
 
