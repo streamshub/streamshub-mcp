@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **System tests** for Elasticsearch log provider covering log collection, field mapping, time window queries, and error handling
 - **Thanos and VictoriaMetrics compatibility documentation** — the existing Prometheus metrics provider works with Thanos Querier and VictoriaMetrics without code changes
 - **Resource template cache control** — All 6 resource templates now include cache control hints with a 30-second TTL and PUBLIC scope, allowing MCP clients to cache Kubernetes resource state and reduce redundant API calls. TTL is configurable via `mcp.resource-template.cache-ttl-seconds` (default: 30).
+- **MCP protocol traffic logger** — Added `McpTrafficLogger` implementing `McpTrafficListener` (new in MCP 2.0) for DEBUG-level logging of all inbound/outbound MCP messages. Enable with `quarkus.log.category."io.streamshub.mcp.common.observability".level=DEBUG` in `application.properties`.
 
 ### Changed
 

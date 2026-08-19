@@ -90,6 +90,7 @@ io.streamshub.mcp.common.
 │                     LogRedactionFilter, RateLimitFilter, ResponseSizeLimitFilter,
 │                     MetricsFilter (Micrometer tool call metrics), RateCategory,
 │                     JsonNodeSanitizer (recursive text-node transformer for redaction)
+├── observability/  → McpTrafficLogger (MCP protocol traffic listener for DEBUG logging)
 ├── readiness/      → KubernetesConnectionReadinessCheck (health check for kube API)
 ├── service/        → KubernetesResourceService, PodsService, DeploymentService, CompletionHelper,
 │   │                 CompletionCache (TTL-based cache for completion results),
