@@ -53,15 +53,15 @@ public final class KafkaUserTemplates {
                             .withPatternType(io.strimzi.api.kafka.model.user.acl.AclResourcePatternType.PREFIX)
                         .endAclRuleTopicResource()
                         .withOperations(
-                            io.strimzi.api.kafka.model.user.acl.AclOperation.READ,
-                            io.strimzi.api.kafka.model.user.acl.AclOperation.WRITE,
-                            io.strimzi.api.kafka.model.user.acl.AclOperation.DESCRIBE)
+                            io.strimzi.api.kafka.model.user.acl.StrimziAclOperation.READ,
+                            io.strimzi.api.kafka.model.user.acl.StrimziAclOperation.WRITE,
+                            io.strimzi.api.kafka.model.user.acl.StrimziAclOperation.DESCRIBE)
                     .endAcl()
                     .addNewAcl()
                         .withNewAclRuleGroupResource()
                             .withName("test-group")
                         .endAclRuleGroupResource()
-                        .withOperations(io.strimzi.api.kafka.model.user.acl.AclOperation.READ)
+                        .withOperations(io.strimzi.api.kafka.model.user.acl.StrimziAclOperation.READ)
                     .endAcl()
                 .endKafkaUserAuthorizationSimple()
                 .withNewQuotas()
@@ -97,18 +97,18 @@ public final class KafkaUserTemplates {
                         .withNewAclRuleTopicResource()
                             .withName("*")
                         .endAclRuleTopicResource()
-                        .withOperations(io.strimzi.api.kafka.model.user.acl.AclOperation.ALL)
+                        .withOperations(io.strimzi.api.kafka.model.user.acl.StrimziAclOperation.ALL)
                     .endAcl()
                     .addNewAcl()
                         .withNewAclRuleGroupResource()
                             .withName("*")
                         .endAclRuleGroupResource()
-                        .withOperations(io.strimzi.api.kafka.model.user.acl.AclOperation.ALL)
+                        .withOperations(io.strimzi.api.kafka.model.user.acl.StrimziAclOperation.ALL)
                     .endAcl()
                     .addNewAcl()
                         .withNewAclRuleClusterResource()
                         .endAclRuleClusterResource()
-                        .withOperations(io.strimzi.api.kafka.model.user.acl.AclOperation.ALL)
+                        .withOperations(io.strimzi.api.kafka.model.user.acl.StrimziAclOperation.ALL)
                     .endAcl()
                 .endKafkaUserAuthorizationSimple()
             .endSpec();
@@ -139,7 +139,7 @@ public final class KafkaUserTemplates {
                         .withNewAclRuleTopicResource()
                             .withName("*")
                         .endAclRuleTopicResource()
-                        .withOperations(io.strimzi.api.kafka.model.user.acl.AclOperation.READ)
+                        .withOperations(io.strimzi.api.kafka.model.user.acl.StrimziAclOperation.READ)
                     .endAcl()
                 .endKafkaUserAuthorizationSimple()
             .endSpec();

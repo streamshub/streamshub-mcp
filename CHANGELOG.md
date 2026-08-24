@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bumped Strimzi API dependency from 1.1.0 to 1.2.0; the MCP server remains compatible with clusters running Strimzi 1.0.0 and above (CRD `v1`). `AclOperation` was renamed to `StrimziAclOperation` upstream — updated `KafkaUserService` and system test templates accordingly; no CRD schema change, so existing `KafkaUser` resources are unaffected.
+
 ### Fixed
 
 
