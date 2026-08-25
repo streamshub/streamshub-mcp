@@ -15,13 +15,13 @@ import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.user.KafkaUser;
 import io.strimzi.api.kafka.model.user.KafkaUserAuthorizationSimple;
 import io.strimzi.api.kafka.model.user.KafkaUserQuotas;
-import io.strimzi.api.kafka.model.user.acl.AclOperation;
 import io.strimzi.api.kafka.model.user.acl.AclResourcePatternType;
 import io.strimzi.api.kafka.model.user.acl.AclRule;
 import io.strimzi.api.kafka.model.user.acl.AclRuleGroupResource;
 import io.strimzi.api.kafka.model.user.acl.AclRuleResource;
 import io.strimzi.api.kafka.model.user.acl.AclRuleTopicResource;
 import io.strimzi.api.kafka.model.user.acl.AclRuleTransactionalIdResource;
+import io.strimzi.api.kafka.model.user.acl.StrimziAclOperation;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -258,10 +258,10 @@ public class KafkaUserService {
     }
 
     private List<String> extractOperations(final AclRule rule) {
-        List<AclOperation> ops = rule.getOperations();
+        List<StrimziAclOperation> ops = rule.getOperations();
         if (ops != null && !ops.isEmpty()) {
             return ops.stream()
-                .map(AclOperation::toValue)
+                .map(StrimziAclOperation::toValue)
                 .toList();
         }
         return List.of();
