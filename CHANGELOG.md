@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Thanos and VictoriaMetrics compatibility documentation** — the existing Prometheus metrics provider works with Thanos Querier and VictoriaMetrics without code changes
 - **Resource template cache control** — All 6 resource templates now include cache control hints with a 30-second TTL and PUBLIC scope, allowing MCP clients to cache Kubernetes resource state and reduce redundant API calls. TTL is configurable via `mcp.resource-template.cache-ttl-seconds` (default: 30).
 - **MCP protocol traffic logger** — Added `McpTrafficLogger` implementing `McpTrafficListener` (new in MCP 2.0) for DEBUG-level logging of all inbound/outbound MCP messages. Enable with `quarkus.log.category."io.streamshub.mcp.common.observability".level=DEBUG` in `application.properties`.
+- **Resource subscription regression tests** — Added `ResourceSubscriptionNotificationTest` verifying that `sendUpdateAndForget()` delivers `notifications/resources/updated` to subscribers over both transports after the quarkus-mcp-server 2.0 upgrade: legacy SSE (`resources/subscribe`) and stateless Streamable HTTP (`subscriptions/listen`, protocol `2026-07-28`). Confirms 2.0 compatibility (issue #228); no production code changes were required.
 
 ### Changed
 
