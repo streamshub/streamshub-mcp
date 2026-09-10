@@ -68,16 +68,4 @@ public final class McpErrors {
             McpErrorCategory.INVALID_PARAMS, null, null, null, null, null);
         return new McpException(message, JsonRpcErrorCodes.INVALID_PARAMS, data);
     }
-
-    /**
-     * Build a forbidden/security error.
-     *
-     * @param message the human-readable message
-     * @return an McpException with the SECURITY_ERROR code and structured data
-     */
-    public static McpException forbidden(final String message) {
-        McpErrorData data = new McpErrorData(
-            McpErrorCategory.SECURITY, null, null, null, null, null);
-        return new McpException(message, JsonRpcErrorCodes.SECURITY_ERROR, data);
-    }
 }

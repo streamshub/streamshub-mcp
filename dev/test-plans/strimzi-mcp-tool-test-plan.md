@@ -1543,15 +1543,16 @@ sequentially and verify cross-tool consistency.
 **Setup:** MCP has RoleBinding access only to `strimzi-kafka` and `strimzi` namespaces. A second cluster exists in `strimzi-kafka-2` (inaccessible).
 
 This phase tests all three server-side error handling patterns under RBAC restriction:
-1. **Direct tools** — 403 propagated as a structured JSON-RPC error
+1. **Direct tools** — 403 propagated as a failed tool response
 2. **Fleet overview** — graceful degradation
 3. **Diagnostic tools** — partial access
 
-> **Note (structured errors, #229):** RBAC/403 failures are now returned as JSON-RPC protocol errors
-> (code `-32005`, `error.data.category = "SECURITY"`), not failed tool responses. Where an expectation below
-> says `isError=true` for a 403, read it as "JSON-RPC error with code -32005 and the given message substrings".
-> Resource-not-found is code `-32002` (`RESOURCE_NOT_FOUND`) and ambiguity is code `-32602` (`AMBIGUOUS`, with
-> `error.data.candidates` listing the namespaces). Rate-limit and cancellation remain failed tool responses.
+> **Note (structured errors, #229):** RBAC/403 failures remain **failed tool responses** (`isError=true`) —
+> `KubernetesResourceService` wraps them with a contextual message ("Failed to query/get … (403 Forbidden)"),
+> which several tools rely on for graceful degradation, so they are not JSON-RPC protocol errors.
+> By contrast, resource-not-found is now a JSON-RPC error (code `-32002`, `error.data.category = "RESOURCE_NOT_FOUND"`),
+> invalid-params is `-32602` (`INVALID_PARAMS`), and ambiguity is `-32602` (`AMBIGUOUS`, with
+> `error.data.candidates` listing the namespaces). Rate-limit and cancellation also remain failed tool responses.
 
 ### T18.1 — list_kafka_clusters (accessible namespace)
 - **Tool:** `list_kafka_clusters`

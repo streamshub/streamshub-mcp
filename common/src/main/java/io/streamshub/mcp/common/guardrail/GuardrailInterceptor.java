@@ -4,11 +4,9 @@
  */
 package io.streamshub.mcp.common.guardrail;
 
-import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolCallException;
-import io.streamshub.mcp.common.util.McpErrors;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.inject.Any;
 import jakarta.enterprise.inject.Instance;
@@ -40,8 +38,6 @@ import java.util.List;
 public class GuardrailInterceptor {
 
     private static final Logger LOG = Logger.getLogger(GuardrailInterceptor.class);
-
-    private static final int HTTP_FORBIDDEN = 403;
 
     @Any
     @Inject
@@ -93,13 +89,6 @@ public class GuardrailInterceptor {
             // framework renders them as JSON-RPC errors rather than plain tool responses.
             caught = e;
             throw e;
-        } catch (KubernetesClientException e) {
-            // RBAC/authorization failures become structured JSON-RPC security errors.
-            caught = e;
-            if (e.getCode() == HTTP_FORBIDDEN) {
-                throw McpErrors.forbidden(e.getMessage());
-            }
-            throw new ToolCallException(e.getMessage(), e);
         } catch (Exception e) {
             caught = e;
             throw new ToolCallException(e.getMessage(), e);

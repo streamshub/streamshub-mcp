@@ -92,13 +92,4 @@ class McpErrorsTest {
         assertEquals(McpErrorCategory.INVALID_PARAMS, data.category());
         assertEquals("bad name", ex.getMessage());
     }
-
-    @Test
-    void testForbidden() {
-        McpException ex = McpErrors.forbidden("no access to namespace prod");
-
-        assertEquals(JsonRpcErrorCodes.SECURITY_ERROR, ex.getJsonRpcErrorCode());
-        McpErrorData data = (McpErrorData) ex.getData();
-        assertEquals(McpErrorCategory.SECURITY, data.category());
-    }
 }

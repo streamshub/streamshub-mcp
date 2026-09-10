@@ -15,9 +15,6 @@ public enum McpErrorCategory {
     /** A tool argument was missing, malformed, or otherwise invalid. */
     INVALID_PARAMS,
 
-    /** The requested operation is not permitted (e.g. RBAC forbidden). */
-    SECURITY,
-
     /** The request matched multiple resources and needs disambiguation. */
     AMBIGUOUS
 }

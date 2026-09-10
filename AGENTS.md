@@ -213,7 +213,7 @@ io.streamshub.mcp.strimzi.
 - **Resource templates** fetch and serialize live Kubernetes state. Thin wrappers over services.
 - **Completions** delegate to `CompletionService` / `CompletionHelper`. No logic.
 - **Domain services** (strimzi) contain all business logic. Throw structured `McpException`s via the
-  `McpErrors` factory (not-found, invalid-params, ambiguity, forbidden) so clients receive machine-readable
+  `McpErrors` factory (not-found, invalid-params, ambiguity) so clients receive machine-readable
   `error.data`; see [Error handling](#error-handling). Use plain `ToolCallException` only for errors that should
   remain failed tool responses (rate-limit, cancellation).
 - **Common services** are generic Kubernetes helpers shared across modules.
@@ -678,10 +678,11 @@ Errors fall into two client-visible shapes:
   - Missing/invalid params: `throw McpErrors.invalidParams("Cluster name is required")` → code `-32602`, category `INVALID_PARAMS`
   - Resource not found: `throw McpErrors.notFound("Kafka cluster", name, namespace)` → code `-32002`, category `RESOURCE_NOT_FOUND` (pass `namespace = null` for all-namespace searches; `name = null` when there is no single name)
   - Multiple matches: `throw McpErrors.ambiguous("Kafka cluster", name, candidateNamespaces)` → code `-32602`, category `AMBIGUOUS` (candidates carried in `error.data.candidates`)
-  - Forbidden/RBAC: `throw McpErrors.forbidden(message)` → code `-32005`, category `SECURITY`. Raw `KubernetesClientException` 403s are mapped to this automatically in `GuardrailInterceptor`.
-- **Failed tool responses** (`isError: true`, text only) — plain `ToolCallException`. Use only for errors the LLM
+- **Failed tool responses** (`isError: true`, text only) — plain `ToolCallException`. Use for errors the LLM
   should reason over as tool output rather than protocol failures: rate-limit (`RateLimitFilter`) and cancellation
-  (`DiagnosticHelper`). `@WrapBusinessError` also wraps any uncaught infrastructure exception into this shape.
+  (`DiagnosticHelper`). `@WrapBusinessError` also wraps any uncaught infrastructure exception into this shape —
+  notably `KubernetesResourceService` wraps Kubernetes failures (including **RBAC/403**) in `KubernetesQueryException`
+  with a contextual message, which surfaces as a failed tool response and lets tools do graceful degradation.
 - **Empty list results**: return an empty list (not an error).
 - Never return error objects; always throw or return typed responses.
 

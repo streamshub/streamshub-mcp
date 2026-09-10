@@ -151,20 +151,20 @@ Responses exceeding 500 KB are truncated with the notice `[...response truncated
 
 Tool errors come in two shapes:
 
-- **JSON-RPC protocol errors** — returned for resource-not-found, invalid parameters, resource ambiguity, and authorization (RBAC) failures. In addition to a human-readable `message`, these carry a machine-readable `data` object the AI can act on directly instead of parsing the message text:
+- **JSON-RPC protocol errors** — returned for resource-not-found, invalid parameters, and resource ambiguity. In addition to a human-readable `message`, these carry a machine-readable `data` object the AI can act on directly instead of parsing the message text:
 
   | Field | Description |
   |-------|-------------|
-  | `category` | `RESOURCE_NOT_FOUND`, `INVALID_PARAMS`, `AMBIGUOUS`, or `SECURITY` |
+  | `category` | `RESOURCE_NOT_FOUND`, `INVALID_PARAMS`, or `AMBIGUOUS` |
   | `resource_kind` | The kind involved (e.g. `Kafka cluster`), when applicable |
   | `resource_name` | The resource name involved, when applicable |
   | `namespace` | The namespace involved, when applicable |
   | `candidates` | For `AMBIGUOUS` errors, the list of namespaces the resource was found in — re-issue the call with one of these as `namespace` |
   | `remediation` | A short hint on how to resolve the error, when available |
 
-  The associated JSON-RPC error codes are `-32002` (not found), `-32602` (invalid params / ambiguous), and `-32005` (security). Prefer reacting to `category`/`candidates` over string-matching the message.
+  The associated JSON-RPC error codes are `-32002` (not found) and `-32602` (invalid params / ambiguous). Prefer reacting to `category`/`candidates` over string-matching the message.
 
-- **Failed tool responses** (`isError: true`) — returned for rate-limiting and cancelled operations. These are surfaced as normal tool output for the AI to reason about and retry.
+- **Failed tool responses** (`isError: true`) — returned for rate-limiting, cancelled operations, authorization/RBAC (403) failures, and other infrastructure errors. These are surfaced as normal tool output (with the reason in the text) for the AI to reason about and retry.
 
 ## Use parameters to reduce response size
 
