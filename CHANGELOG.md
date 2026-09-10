@@ -17,8 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Resource template cache control** — All 6 resource templates now include cache control hints with a 30-second TTL and PUBLIC scope, allowing MCP clients to cache Kubernetes resource state and reduce redundant API calls. TTL is configurable via `mcp.resource-template.cache-ttl-seconds` (default: 30).
 - **MCP protocol traffic logger** — Added `McpTrafficLogger` implementing `McpTrafficListener` (new in MCP 2.0) for DEBUG-level logging of all inbound/outbound MCP messages. Enable with `quarkus.log.category."io.streamshub.mcp.common.observability".level=DEBUG` in `application.properties`.
 - **Resource subscription regression tests** — Added `ResourceSubscriptionNotificationTest` verifying that `sendUpdateAndForget()` delivers `notifications/resources/updated` to subscribers over both transports after the quarkus-mcp-server 2.0 upgrade: legacy SSE (`resources/subscribe`) and stateless Streamable HTTP (`subscriptions/listen`, protocol `2026-07-28`). Confirms 2.0 compatibility (issue #228); no production code changes were required.
+- **Structured error data** (#229) — Resource-not-found, invalid-parameter, resource-ambiguity, and RBAC/forbidden tool errors now carry a machine-readable JSON-RPC `error.data` payload (`McpErrorData`: `category`, `resource_kind`, `resource_name`, `namespace`, `candidates`, `remediation`) in addition to the human-readable message, so LLM clients can handle errors programmatically. Adopts the `data` field added to `McpException` in quarkus-mcp-server 2.0. New `McpErrors` factory and `McpErrorData`/`McpErrorCategory` types in the `common` module.
 
 ### Changed
+
+- **Error semantics for structured errors** (#229) — Tool errors in the not-found (`-32002`), invalid-params (`-32602`), and security/RBAC (`-32005`) categories are now returned as JSON-RPC protocol errors (carrying `error.data`) rather than failed tool responses (`isError: true`). Rate-limit and cancellation errors are unchanged and remain failed tool responses. `NamespaceElicitationHelper` now reads the candidate namespaces from the structured error data instead of regex-parsing the error message.
 
 ### Fixed
 

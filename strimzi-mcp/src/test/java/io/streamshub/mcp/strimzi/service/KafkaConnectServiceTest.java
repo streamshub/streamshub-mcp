@@ -9,7 +9,7 @@ import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectLogsResponse;
@@ -69,7 +69,7 @@ class KafkaConnectServiceTest {
      */
     @Test
     void testGetConnectThrowsWhenNameIsNull() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> connectService.getConnect("kafka", null));
 
         assertTrue(ex.getMessage().contains("required"));

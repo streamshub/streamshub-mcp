@@ -6,7 +6,8 @@ package io.streamshub.mcp.strimzi.service.metrics;
 
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.JsonRpcErrorCodes;
+import io.quarkiverse.mcp.server.McpException;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
@@ -73,7 +74,7 @@ class KafkaMetricsServiceTest {
 
     @Test
     void missingClusterNameThrows() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> kafkaMetricsService.getKafkaMetrics("kafka", null, null, null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Cluster name is required"));
     }
@@ -81,9 +82,9 @@ class KafkaMetricsServiceTest {
     @Test
     void clusterNotFoundInNamespaceThrows() {
         when(kafkaService.findKafkaCluster("kafka", "missing"))
-            .thenThrow(new ToolCallException("Kafka cluster 'missing' not found in namespace kafka"));
+            .thenThrow(new McpException("Kafka cluster 'missing' not found in namespace kafka", JsonRpcErrorCodes.RESOURCE_NOT_FOUND));
 
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> kafkaMetricsService.getKafkaMetrics("kafka", "missing", null, null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("not found in namespace"));
     }
@@ -91,9 +92,9 @@ class KafkaMetricsServiceTest {
     @Test
     void clusterNotFoundInAnyNamespaceThrows() {
         when(kafkaService.findKafkaCluster(null, "missing"))
-            .thenThrow(new ToolCallException("Kafka cluster 'missing' not found in any namespace"));
+            .thenThrow(new McpException("Kafka cluster 'missing' not found in any namespace", JsonRpcErrorCodes.RESOURCE_NOT_FOUND));
 
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> kafkaMetricsService.getKafkaMetrics(null, "missing", null, null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("not found in any namespace"));
     }
@@ -104,7 +105,7 @@ class KafkaMetricsServiceTest {
         when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
 
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> kafkaMetricsService.getKafkaMetrics("kafka", "my-cluster", "invalid", null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Unknown metric category"));
     }
@@ -191,10 +192,10 @@ class KafkaMetricsServiceTest {
     @Test
     void multipleClustersWithSameNameThrows() {
         when(kafkaService.findKafkaCluster(null, "my-cluster"))
-            .thenThrow(new ToolCallException(
-                "Multiple clusters named 'my-cluster' found in namespaces: kafka-a, kafka-b. Please specify namespace."));
+            .thenThrow(new McpException(
+                "Multiple clusters named 'my-cluster' found in namespaces: kafka-a, kafka-b. Please specify namespace.", JsonRpcErrorCodes.INVALID_PARAMS));
 
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> kafkaMetricsService.getKafkaMetrics(null, "my-cluster", null, null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Multiple clusters"));
     }

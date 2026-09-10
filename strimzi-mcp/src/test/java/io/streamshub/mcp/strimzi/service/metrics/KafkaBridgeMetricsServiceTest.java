@@ -6,7 +6,8 @@ package io.streamshub.mcp.strimzi.service.metrics;
 
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.JsonRpcErrorCodes;
+import io.quarkiverse.mcp.server.McpException;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
@@ -75,7 +76,7 @@ class KafkaBridgeMetricsServiceTest {
      */
     @Test
     void missingBridgeNameThrows() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> kafkaBridgeMetricsService.getKafkaBridgeMetrics(
                 "kafka", null, null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("KafkaBridge name is required"));
@@ -87,9 +88,9 @@ class KafkaBridgeMetricsServiceTest {
     @Test
     void bridgeNotFoundThrows() {
         when(kafkaBridgeService.findKafkaBridge("kafka", "missing"))
-            .thenThrow(new ToolCallException("KafkaBridge 'missing' not found in namespace kafka"));
+            .thenThrow(new McpException("KafkaBridge 'missing' not found in namespace kafka", JsonRpcErrorCodes.RESOURCE_NOT_FOUND));
 
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> kafkaBridgeMetricsService.getKafkaBridgeMetrics(
                 "kafka", "missing", null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("not found in namespace"));
@@ -175,7 +176,7 @@ class KafkaBridgeMetricsServiceTest {
         when(kafkaBridgeService.findKafkaBridge("kafka", "my-bridge"))
             .thenReturn(bridge);
 
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> kafkaBridgeMetricsService.getKafkaBridgeMetrics(
                 "kafka", "my-bridge", "invalid", null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Unknown metric category"));

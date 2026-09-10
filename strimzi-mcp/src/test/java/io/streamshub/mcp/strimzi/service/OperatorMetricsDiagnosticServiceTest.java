@@ -13,7 +13,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.operator.OperatorMetricsDiagnosticReport;
@@ -54,13 +54,13 @@ class OperatorMetricsDiagnosticServiceTest {
     }
 
     /**
-     * Verify that a missing operator throws a ToolCallException.
+     * Verify that a missing operator throws a McpException.
      */
     @Test
     void testThrowsWhenOperatorNotFound() {
         setupEmptyDeployments("kafka");
 
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             diagnosticService.diagnose("kafka", null, null, null,
                 null, null, null, null,
                 null, null, null));

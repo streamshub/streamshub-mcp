@@ -175,12 +175,13 @@ class MetricsToolsST extends AbstractST {
     void testGetKafkaMetricsNotFound() {
         Map<String, Object> args = Map.of("clusterName", "nonexistent-cluster-xyz");
         mcpClient.when()
-            .toolsCall("get_kafka_metrics", args, response -> {
-                LOGGER.info("get_kafka_metrics error response: {}",
-                    response.content().getFirst().asText().text());
-
-                assertToolError(response, "not found");
+            .toolsCall("get_kafka_metrics")
+            .withArguments(args)
+            .withErrorAssert(error -> {
+                LOGGER.info("get_kafka_metrics error response: {}", error.message());
+                assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND", "not found");
             })
+            .send()
             .thenAssertResults();
     }
 
@@ -361,10 +362,11 @@ class MetricsToolsST extends AbstractST {
             "rangeMinutes", 30,
             "startTime", "2025-01-01T00:00:00Z");
         mcpClient.when()
-            .toolsCall("get_kafka_metrics", args, response -> {
-
-                assertToolError(response, "Cannot specify both");
-            })
+            .toolsCall("get_kafka_metrics")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32602, "INVALID_PARAMS",
+                "Cannot specify both"))
+            .send()
             .thenAssertResults();
     }
 

@@ -7,14 +7,15 @@ package io.streamshub.mcp.strimzi.service.kafkatopic;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
@@ -114,7 +115,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         String cluster = InputUtils.normalizeInput(clusterName);
 
         if (name == null) {
-            throw new ToolCallException("Topic name is required");
+            throw McpErrors.invalidParams("Topic name is required");
         }
 
         LOG.infof("Starting diagnostic for KafkaTopic=%s (namespace=%s, cluster=%s, symptom=%s)",
@@ -207,7 +208,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
             KafkaTopicResponse result = topicService.getTopic(namespace, clusterName, topicName);
             completed.add(STEP_TOPIC_STATUS);
             return result;
-        } catch (ToolCallException e) {
+        } catch (McpException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "diagnosed");

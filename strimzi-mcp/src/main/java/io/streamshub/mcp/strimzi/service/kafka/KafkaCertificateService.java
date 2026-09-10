@@ -5,11 +5,11 @@
 package io.streamshub.mcp.strimzi.service.kafka;
 
 import io.fabric8.kubernetes.api.model.Secret;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.service.KubernetesQueryException;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.CertificateUtils;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
 import io.strimzi.api.ResourceLabels;
@@ -64,7 +64,7 @@ public class KafkaCertificateService {
         String normalizedListener = InputUtils.normalizeInput(listenerName);
 
         if (normalizedName == null) {
-            throw new ToolCallException("Cluster name is required");
+            throw McpErrors.invalidParams("Cluster name is required");
         }
 
         InputUtils.validateK8sName(normalizedName, "cluster name");
@@ -80,7 +80,7 @@ public class KafkaCertificateService {
             extractListenerAuthentication(kafka, normalizedListener);
 
         if (normalizedListener != null && listenerAuth.isEmpty()) {
-            throw new ToolCallException(
+            throw McpErrors.invalidParams(
                 "Listener '" + normalizedListener + "' not found on cluster '" + normalizedName + "'");
         }
 

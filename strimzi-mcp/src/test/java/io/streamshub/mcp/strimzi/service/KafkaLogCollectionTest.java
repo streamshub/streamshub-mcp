@@ -6,7 +6,7 @@ package io.streamshub.mcp.strimzi.service;
 
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
@@ -71,7 +71,7 @@ class KafkaLogCollectionTest {
     void testMissingClusterNameThrows() {
         LogCollectionParams options = LogCollectionParams.of(null, null, 200, null);
 
-        assertThrows(ToolCallException.class,
+        assertThrows(McpException.class,
             () -> kafkaService.getClusterLogs("kafka", null, options));
 
         verifyNoInteractions(logCollectionService);

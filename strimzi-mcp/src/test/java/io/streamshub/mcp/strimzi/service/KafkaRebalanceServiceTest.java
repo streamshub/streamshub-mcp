@@ -5,7 +5,7 @@
 package io.streamshub.mcp.strimzi.service;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafkarebalance.KafkaRebalanceResponse;
@@ -71,7 +71,7 @@ class KafkaRebalanceServiceTest {
      */
     @Test
     void testGetRebalanceThrowsWhenNameNull() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> rebalanceService.getRebalance("kafka", null));
 
         assertTrue(ex.getMessage().contains("required"));
@@ -82,7 +82,7 @@ class KafkaRebalanceServiceTest {
      */
     @Test
     void testGetRebalanceThrowsWhenNotFoundInNamespace() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> rebalanceService.getRebalance("kafka", "nonexistent"));
 
         assertTrue(ex.getMessage().contains("not found"));
@@ -94,7 +94,7 @@ class KafkaRebalanceServiceTest {
      */
     @Test
     void testGetRebalanceThrowsWhenNotFoundInAnyNamespace() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> rebalanceService.getRebalance(null, "nonexistent"));
 
         assertTrue(ex.getMessage().contains("not found"));
@@ -129,7 +129,7 @@ class KafkaRebalanceServiceTest {
      */
     @Test
     void testGetRebalanceThrowsForInvalidName() {
-        assertThrows(ToolCallException.class,
+        assertThrows(McpException.class,
             () -> rebalanceService.getRebalance("kafka", "INVALID_NAME"));
     }
 }

@@ -18,7 +18,7 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
@@ -231,13 +231,13 @@ class KafkaCertificateServiceTest {
         Kafka kafka = buildKafkaWithListeners();
         mockKafkaResource(kafka);
 
-        assertThrows(ToolCallException.class,
+        assertThrows(McpException.class,
             () -> kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, "nonexistent"));
     }
 
     @Test
     void testGetCertificatesThrowsWhenClusterNameMissing() {
-        assertThrows(ToolCallException.class,
+        assertThrows(McpException.class,
             () -> kafkaCertificateService.getCertificates(NAMESPACE, null, null));
     }
 
@@ -245,7 +245,7 @@ class KafkaCertificateServiceTest {
     void testGetCertificatesThrowsWhenClusterNotFound() {
         mockMissingKafkaResource();
 
-        assertThrows(ToolCallException.class,
+        assertThrows(McpException.class,
             () -> kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, null));
     }
 

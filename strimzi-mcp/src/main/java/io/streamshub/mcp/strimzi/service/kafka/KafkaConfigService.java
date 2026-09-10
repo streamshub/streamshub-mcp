@@ -6,9 +6,9 @@ package io.streamshub.mcp.strimzi.service.kafka;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaEffectiveConfigResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaEffectiveConfigResponse.AuthorizationInfo;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaEffectiveConfigResponse.AutoRebalanceInfo;
@@ -89,7 +89,7 @@ public class KafkaConfigService {
         String name = InputUtils.normalizeInput(clusterName);
 
         if (name == null) {
-            throw new ToolCallException("Cluster name is required");
+            throw McpErrors.invalidParams("Cluster name is required");
         }
         InputUtils.validateK8sName(name, "cluster name");
         InputUtils.validateK8sName(ns, "namespace");

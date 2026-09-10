@@ -7,13 +7,14 @@ package io.streamshub.mcp.strimzi.service.kafkamirrormaker2;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticReport;
@@ -89,7 +90,7 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
         String name = InputUtils.normalizeInput(mirrorMakerName);
 
         if (name == null) {
-            throw new ToolCallException("MirrorMaker2 name is required");
+            throw McpErrors.invalidParams("MirrorMaker2 name is required");
         }
 
         LOG.infof("Starting diagnostic for MirrorMaker2=%s (namespace=%s, symptom=%s)",
@@ -153,7 +154,7 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
             KafkaMirrorMaker2Response result = mirrorMakerService.getMirrorMaker(namespace, name);
             completed.add(STEP_MM2_STATUS);
             return result;
-        } catch (ToolCallException e) {
+        } catch (McpException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(

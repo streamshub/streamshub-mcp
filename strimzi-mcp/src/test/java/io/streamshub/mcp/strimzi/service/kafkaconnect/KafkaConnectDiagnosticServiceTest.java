@@ -15,7 +15,7 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectDiagnosticReport;
@@ -76,7 +76,7 @@ class KafkaConnectDiagnosticServiceTest {
      */
     @Test
     void testThrowsWhenConnectNameNull() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             diagnosticService.diagnose("kafka", null, null, null,
                 null, null, null, null));
     }
@@ -86,7 +86,7 @@ class KafkaConnectDiagnosticServiceTest {
      */
     @Test
     void testThrowsWhenConnectNotFound() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             diagnosticService.diagnose("kafka", "nonexistent", null, null,
                 null, null, null, null));
     }

@@ -111,7 +111,7 @@ Map<String, Object> gatherStatus(final String namespace, final String name, ...)
 ```
 
 Key behaviors:
-- If namespace is ambiguous, use `NamespaceElicitationHelper.elicitNamespace()`
+- If namespace is ambiguous, `catch (McpException e)` around the lookup, gate on `NamespaceElicitationHelper.isMultipleNamespacesError(e)`, then resolve with `NamespaceElicitationHelper.elicitNamespace(e, elicitation, context)` (rethrow otherwise)
 - Call existing domain services (never re-implement Kubernetes queries)
 - Record completed steps in `stepsCompleted` list
 - Record failures in `stepsFailed` list (do not abort)

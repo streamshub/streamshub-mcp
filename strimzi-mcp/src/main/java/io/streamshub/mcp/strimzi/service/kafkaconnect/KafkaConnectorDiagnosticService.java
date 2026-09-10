@@ -7,13 +7,14 @@ package io.streamshub.mcp.strimzi.service.kafkaconnect;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectLogsResponse;
@@ -103,7 +104,7 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
         String name = InputUtils.normalizeInput(connectorName);
 
         if (name == null) {
-            throw new ToolCallException("Connector name is required");
+            throw McpErrors.invalidParams("Connector name is required");
         }
 
         LOG.infof("Starting diagnostic for KafkaConnector=%s (namespace=%s, symptom=%s)",
@@ -189,7 +190,7 @@ public class KafkaConnectorDiagnosticService extends BaseDiagnosticService {
             KafkaConnectorResponse result = connectorService.getConnector(namespace, connectorName);
             completed.add(STEP_CONNECTOR_STATUS);
             return result;
-        } catch (ToolCallException e) {
+        } catch (McpException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "diagnosed");

@@ -212,7 +212,10 @@ io.streamshub.mcp.strimzi.
 - **Prompts** return structured step-by-step instructions referencing tool names. No logic.
 - **Resource templates** fetch and serialize live Kubernetes state. Thin wrappers over services.
 - **Completions** delegate to `CompletionService` / `CompletionHelper`. No logic.
-- **Domain services** (strimzi) contain all business logic. Throw `ToolCallException` for errors.
+- **Domain services** (strimzi) contain all business logic. Throw structured `McpException`s via the
+  `McpErrors` factory (not-found, invalid-params, ambiguity, forbidden) so clients receive machine-readable
+  `error.data`; see [Error handling](#error-handling). Use plain `ToolCallException` only for errors that should
+  remain failed tool responses (rate-limit, cancellation).
 - **Common services** are generic Kubernetes helpers shared across modules.
 - **DTOs** are immutable `record` types. Use static factory methods (`of()`, `empty()`) not constructors directly.
 - **Metrics providers** implement `MetricsProvider` interface. Selected via `@LookupIfProperty` on `mcp.metrics.provider`.
@@ -235,7 +238,7 @@ io.streamshub.mcp.strimzi.
 ```java
 @Singleton
 @Guarded
-@WrapBusinessError(value = Exception.class, unless = ToolCallException.class)
+@WrapBusinessError(value = Exception.class, unless = {ToolCallException.class, McpException.class})
 public class XxxTools {
 
     @Inject
@@ -367,7 +370,7 @@ composite tools are server-driven (server gathers all data internally).
 ```java
 @Singleton
 @Guarded
-@WrapBusinessError(value = Exception.class, unless = ToolCallException.class)
+@WrapBusinessError(value = Exception.class, unless = {ToolCallException.class, McpException.class})
 public class DiagnosticTools {
 
     @Inject
@@ -486,9 +489,12 @@ the flag is checked before and after the async `sendAndAwait()` call, returning 
 ### NamespaceElicitationHelper (common module)
 
 Namespace disambiguation in `common/src/.../common/util/NamespaceElicitationHelper.java`:
-- `isMultipleNamespacesError(ToolCallException)` — checks for Strimzi multi-namespace error
-- `parseNamespacesFromError(String)` — extracts namespace list from Strimzi error message
-- `elicitNamespace(ToolCallException, Elicitation, context)` — combines parsing + `DiagnosticHelper.elicitSelection`
+- `isMultipleNamespacesError(McpException)` — true when the error carries `McpErrorData` with category `AMBIGUOUS`
+- `elicitNamespace(McpException, Elicitation, context)` — reads candidate namespaces from the structured
+  `McpErrorData.candidates()` and combines with `DiagnosticHelper.elicitSelection`
+
+Diagnostic services that resolve ambiguity catch `McpException` (not `ToolCallException`) around the
+`getCluster`/lookup call, gate on `isMultipleNamespacesError`, and rethrow otherwise.
 
 ### Diagnostic report DTOs
 
@@ -639,7 +645,7 @@ public class XxxService {
         String name = InputUtils.normalizeInput(clusterName);
 
         if (name == null) {
-            throw new ToolCallException("Cluster name is required");
+            throw McpErrors.invalidParams("Cluster name is required");
         }
 
         List<Resource> resources;
@@ -664,11 +670,24 @@ Use `InputUtils.normalizeInput()` for all user-supplied strings (namespace, clus
 
 ### Error handling
 
-- Validation errors (missing required params): `throw new ToolCallException("message")`
-- Resource not found: `throw new ToolCallException("X 'name' not found")`
-- Empty list results: return empty list (not an error)
-- Infrastructure/API errors: let propagate, `@WrapBusinessError` converts to MCP error
-- Never return error objects; always throw or return typed responses
+Errors fall into two client-visible shapes:
+
+- **Structured JSON-RPC errors** (carry machine-readable `error.data`, i.e. `McpErrorData`) — build these with the
+  `McpErrors` factory (`common/.../util/McpErrors.java`). They propagate unwrapped through `@WrapBusinessError`
+  (which excludes `McpException`) and the `GuardrailInterceptor`. Use for:
+  - Missing/invalid params: `throw McpErrors.invalidParams("Cluster name is required")` → code `-32602`, category `INVALID_PARAMS`
+  - Resource not found: `throw McpErrors.notFound("Kafka cluster", name, namespace)` → code `-32002`, category `RESOURCE_NOT_FOUND` (pass `namespace = null` for all-namespace searches; `name = null` when there is no single name)
+  - Multiple matches: `throw McpErrors.ambiguous("Kafka cluster", name, candidateNamespaces)` → code `-32602`, category `AMBIGUOUS` (candidates carried in `error.data.candidates`)
+  - Forbidden/RBAC: `throw McpErrors.forbidden(message)` → code `-32005`, category `SECURITY`. Raw `KubernetesClientException` 403s are mapped to this automatically in `GuardrailInterceptor`.
+- **Failed tool responses** (`isError: true`, text only) — plain `ToolCallException`. Use only for errors the LLM
+  should reason over as tool output rather than protocol failures: rate-limit (`RateLimitFilter`) and cancellation
+  (`DiagnosticHelper`). `@WrapBusinessError` also wraps any uncaught infrastructure exception into this shape.
+- **Empty list results**: return an empty list (not an error).
+- Never return error objects; always throw or return typed responses.
+
+`McpErrorData` (JSON-RPC `error.data`, snake_case, nulls omitted): `category`, `resource_kind`, `resource_name`,
+`namespace`, `candidates`, `remediation`. Keep messages clean (no stack traces / FQCNs — enforced by
+`AbstractST.assertNoStackTrace`).
 
 ## DTO Pattern
 

@@ -6,7 +6,6 @@ package io.streamshub.mcp.strimzi.service.operator;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
@@ -14,6 +13,7 @@ import io.streamshub.mcp.common.service.DeploymentService;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.log.LogCollectionService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorLogsResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorResponse;
@@ -83,7 +83,7 @@ public class StrimziOperatorService {
         String ns = InputUtils.normalizeInput(namespace);
 
         if (operatorName == null) {
-            throw new ToolCallException("Operator name is required");
+            throw McpErrors.invalidParams("Operator name is required");
         }
         InputUtils.validateK8sName(operatorName, "operator name");
         InputUtils.validateK8sName(ns, "namespace");
@@ -99,7 +99,7 @@ public class StrimziOperatorService {
         }
 
         if (operator == null) {
-            throw new ToolCallException("Strimzi operator '" + operatorName + "' not found");
+            throw McpErrors.notFound("Strimzi operator", operatorName, ns);
         }
 
         return createOperatorResponse(operator);
@@ -220,8 +220,7 @@ public class StrimziOperatorService {
             .toList();
 
         if (namespaces.size() > 1) {
-            throw new ToolCallException("Multiple Strimzi operators found in namespaces: "
-                + String.join(", ", namespaces) + ". Please specify namespace.");
+            throw McpErrors.ambiguous("Strimzi operator", null, namespaces);
         }
 
         LOG.debugf("Discovered operator %s in namespace %s",

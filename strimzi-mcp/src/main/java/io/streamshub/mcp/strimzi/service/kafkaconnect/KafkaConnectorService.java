@@ -4,11 +4,11 @@
  */
 package io.streamshub.mcp.strimzi.service.kafkaconnect;
 
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorResponse;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
@@ -20,7 +20,6 @@ import org.jboss.logging.Logger;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
 /**
  * Service for KafkaConnector operations.
  */
@@ -84,7 +83,7 @@ public class KafkaConnectorService {
         String normalizedName = InputUtils.normalizeInput(connectorName);
 
         if (normalizedName == null) {
-            throw new ToolCallException("Connector name is required");
+            throw McpErrors.invalidParams("Connector name is required");
         }
         InputUtils.validateK8sName(normalizedName, "connector name");
         InputUtils.validateK8sName(ns, "namespace");
@@ -99,13 +98,7 @@ public class KafkaConnectorService {
         }
 
         if (connector == null) {
-            if (ns != null) {
-                throw new ToolCallException(
-                    "KafkaConnector '" + normalizedName + "' not found in namespace " + ns);
-            } else {
-                throw new ToolCallException(
-                    "KafkaConnector '" + normalizedName + "' not found in any namespace");
-            }
+            throw McpErrors.notFound("KafkaConnector", normalizedName, ns);
         }
 
         return createConnectorDetail(connector);
@@ -122,12 +115,11 @@ public class KafkaConnectorService {
         }
 
         if (matching.size() > 1) {
-            String namespaces = matching.stream()
+            List<String> namespaces = matching.stream()
                 .map(c -> c.getMetadata().getNamespace())
                 .distinct()
-                .collect(Collectors.joining(", "));
-            throw new ToolCallException("Multiple KafkaConnectors named '" + connectorName
-                + "' found in namespaces: " + namespaces + ". Please specify namespace.");
+                .toList();
+            throw McpErrors.ambiguous("KafkaConnector", connectorName, namespaces);
         }
 
         LOG.debugf("Discovered KafkaConnector %s in namespace %s",

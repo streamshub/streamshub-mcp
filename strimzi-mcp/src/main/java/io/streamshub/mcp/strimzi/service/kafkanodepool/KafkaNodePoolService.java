@@ -5,12 +5,12 @@
 package io.streamshub.mcp.strimzi.service.kafkanodepool;
 
 import io.fabric8.kubernetes.api.model.Pod;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
 import io.strimzi.api.ResourceLabels;
@@ -54,7 +54,7 @@ public class KafkaNodePoolService {
         String normalizedClusterName = InputUtils.normalizeInput(clusterName);
 
         if (normalizedClusterName == null) {
-            throw new ToolCallException("Cluster name is required");
+            throw McpErrors.invalidParams("Cluster name is required");
         }
 
         LOG.infof("Listing node pools for cluster=%s (namespace=%s)", normalizedClusterName, ns != null ? ns : "all");
@@ -86,7 +86,7 @@ public class KafkaNodePoolService {
         String ns = InputUtils.normalizeInput(namespace);
 
         if (nodePoolName == null) {
-            throw new ToolCallException("NodePool name is required");
+            throw McpErrors.invalidParams("NodePool name is required");
         }
         InputUtils.validateK8sName(nodePoolName, "node pool name");
         InputUtils.validateK8sName(ns, "namespace");
@@ -103,7 +103,7 @@ public class KafkaNodePoolService {
         }
 
         if (nodePool == null) {
-            throw new ToolCallException("KafkaNodePool '" + nodePoolName + "' not found");
+            throw McpErrors.notFound("KafkaNodePool", nodePoolName, ns);
         }
 
         if (clusterName != null) {
@@ -112,7 +112,7 @@ public class KafkaNodePoolService {
                 : null;
 
             if (!clusterName.equals(poolCluster)) {
-                throw new ToolCallException("NodePool '" + nodePoolName + "' belongs to cluster '"
+                throw McpErrors.invalidParams("NodePool '" + nodePoolName + "' belongs to cluster '"
                     + poolCluster + "', not '" + clusterName + "'");
             }
         }
@@ -133,7 +133,7 @@ public class KafkaNodePoolService {
         String ns = InputUtils.normalizeInput(namespace);
 
         if (nodePoolName == null) {
-            throw new ToolCallException("NodePool name is required");
+            throw McpErrors.invalidParams("NodePool name is required");
         }
 
         LOG.infof("Getting pods for node pool=%s cluster=%s in namespace=%s",
@@ -195,12 +195,11 @@ public class KafkaNodePoolService {
             .toList();
 
         if (matchingNamespaces.isEmpty()) {
-            throw new ToolCallException("No NodePool named '" + nodePoolName + "' found");
+            throw McpErrors.notFound("KafkaNodePool", nodePoolName, null);
         }
 
         if (matchingNamespaces.size() > 1) {
-            throw new ToolCallException("Multiple NodePools named '" + nodePoolName + "' found in namespaces: "
-                + String.join(", ", matchingNamespaces) + ". Please specify namespace.");
+            throw McpErrors.ambiguous("KafkaNodePool", nodePoolName, matchingNamespaces);
         }
 
         return matchingNamespaces.getFirst();

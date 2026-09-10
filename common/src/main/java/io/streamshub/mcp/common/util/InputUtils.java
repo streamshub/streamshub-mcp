@@ -4,8 +4,6 @@
  */
 package io.streamshub.mcp.common.util;
 
-import io.quarkiverse.mcp.server.ToolCallException;
-
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
@@ -53,18 +51,18 @@ public final class InputUtils {
      *
      * @param name  the name to validate
      * @param label a human-readable label for error messages (e.g., "cluster name", "namespace")
-     * @throws ToolCallException if the name is not valid
+     * @throws io.quarkiverse.mcp.server.McpException if the name is not valid
      */
     public static void validateK8sName(String name, String label) {
         if (name == null) {
             return;
         }
         if (name.length() > K8S_NAME_MAX_LENGTH) {
-            throw new ToolCallException(
+            throw McpErrors.invalidParams(
                 "Invalid " + label + " '" + name + "': exceeds maximum length of " + K8S_NAME_MAX_LENGTH + " characters");
         }
         if (!K8S_NAME_PATTERN.matcher(name).matches()) {
-            throw new ToolCallException(
+            throw McpErrors.invalidParams(
                 "Invalid " + label + " '" + name + "': must consist of lowercase alphanumeric characters, '-', or '.', "
                     + "and must start and end with an alphanumeric character");
         }

@@ -15,10 +15,9 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaMetricsDiagnosticReport;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaMetricsDiagnosticService;
 import io.strimzi.api.kafka.model.kafka.Kafka;
@@ -28,8 +27,6 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-
-import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -69,22 +66,22 @@ class KafkaMetricsDiagnosticServiceTest {
     }
 
     /**
-     * Verify that a null cluster name throws a ToolCallException.
+     * Verify that a null cluster name throws a McpException.
      */
     @Test
     void testThrowsWhenClusterNameMissing() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             diagnosticService.diagnose("kafka", null, null,
                 null, null, null, null,
                 null, null, null, null));
     }
 
     /**
-     * Verify that a non-existent cluster throws a ToolCallException.
+     * Verify that a non-existent cluster throws a McpException.
      */
     @Test
     void testThrowsWhenClusterNotFound() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             diagnosticService.diagnose("kafka", "missing-cluster", null,
                 null, null, null, null,
                 null, null, null, null));
@@ -146,36 +143,6 @@ class KafkaMetricsDiagnosticServiceTest {
         assertNotNull(report);
         assertNotNull(report.message());
         assertTrue(report.message().contains("my-cluster"));
-    }
-
-    /**
-     * Verify namespace parsing from multi-namespace error messages.
-     */
-    @Test
-    void testParseNamespacesFromError() {
-        List<String> namespaces = NamespaceElicitationHelper.parseNamespacesFromError(
-            "Multiple clusters named 'my-cluster' found in namespaces: kafka-prod, kafka-dev. "
-                + "Please specify namespace.");
-
-        assertEquals(2, namespaces.size());
-        assertEquals("kafka-prod", namespaces.get(0));
-        assertEquals("kafka-dev", namespaces.get(1));
-    }
-
-    /**
-     * Verify namespace parsing returns empty list for null input.
-     */
-    @Test
-    void testParseNamespacesFromErrorReturnsEmptyForNull() {
-        assertTrue(NamespaceElicitationHelper.parseNamespacesFromError(null).isEmpty());
-    }
-
-    /**
-     * Verify namespace parsing returns empty list for unrelated messages.
-     */
-    @Test
-    void testParseNamespacesFromErrorReturnsEmptyForUnrelatedMessage() {
-        assertTrue(NamespaceElicitationHelper.parseNamespacesFromError("Some other error").isEmpty());
     }
 
     // ---- Test helpers ----

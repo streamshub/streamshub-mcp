@@ -6,7 +6,8 @@ package io.streamshub.mcp.strimzi.service.metrics;
 
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.JsonRpcErrorCodes;
+import io.quarkiverse.mcp.server.McpException;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
@@ -73,7 +74,7 @@ class KafkaExporterMetricsServiceTest {
 
     @Test
     void missingClusterNameThrows() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> kafkaExporterMetricsService.getKafkaExporterMetrics(
                 "kafka", null, null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Cluster name is required"));
@@ -82,9 +83,9 @@ class KafkaExporterMetricsServiceTest {
     @Test
     void clusterNotFoundThrows() {
         when(kafkaService.findKafkaCluster("kafka", "missing"))
-            .thenThrow(new ToolCallException("Kafka cluster 'missing' not found in namespace kafka"));
+            .thenThrow(new McpException("Kafka cluster 'missing' not found in namespace kafka", JsonRpcErrorCodes.RESOURCE_NOT_FOUND));
 
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> kafkaExporterMetricsService.getKafkaExporterMetrics(
                 "kafka", "missing", null, null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("not found in namespace"));
@@ -158,7 +159,7 @@ class KafkaExporterMetricsServiceTest {
         when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
 
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> kafkaExporterMetricsService.getKafkaExporterMetrics(
                 "kafka", "my-cluster", "invalid", null, null, null, null, null, null));
         assertTrue(ex.getMessage().contains("Unknown metric category"));

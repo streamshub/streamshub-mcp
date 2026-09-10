@@ -20,6 +20,7 @@ import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.log.LogCollectionService;
 import io.streamshub.mcp.common.util.CertificateUtils;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerLogsResponse;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerReadinessResponse;
@@ -93,7 +94,7 @@ public class DrainCleanerService {
         String ns = InputUtils.normalizeInput(namespace);
 
         if (name == null) {
-            throw new ToolCallException("Drain cleaner name is required");
+            throw McpErrors.invalidParams("Drain cleaner name is required");
         }
         InputUtils.validateK8sName(name, "drain cleaner name");
         InputUtils.validateK8sName(ns, "namespace");
@@ -108,7 +109,7 @@ public class DrainCleanerService {
         }
 
         if (deployment == null) {
-            throw new ToolCallException("Strimzi Drain Cleaner '" + name + "' not found");
+            throw McpErrors.notFound("Strimzi Drain Cleaner", name, ns);
         }
 
         ValidatingWebhookConfiguration webhook = k8sService.getClusterScopedResource(
@@ -275,8 +276,7 @@ public class DrainCleanerService {
             .toList();
 
         if (namespaces.size() > 1) {
-            throw new ToolCallException("Multiple Strimzi Drain Cleaners found in namespaces: "
-                + String.join(", ", namespaces) + ". Please specify namespace.");
+            throw McpErrors.ambiguous("Strimzi Drain Cleaner", null, namespaces);
         }
 
         return matching.getFirst();

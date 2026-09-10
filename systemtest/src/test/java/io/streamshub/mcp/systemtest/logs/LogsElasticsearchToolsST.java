@@ -403,12 +403,14 @@ class LogsElasticsearchToolsST extends AbstractST {
             "tailLines", 20);
 
         mcpClient.when()
-            .toolsCall("get_kafka_cluster_logs", args, response -> {
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("get_kafka_cluster_logs not found via Elasticsearch (length={})", text.length());
-                LOGGER.debug("get_kafka_cluster_logs not found via Elasticsearch:\n{}", text);
-                assertToolError(response, "No Kafka cluster");
+            .toolsCall("get_kafka_cluster_logs")
+            .withArguments(args)
+            .withErrorAssert(error -> {
+                LOGGER.info("get_kafka_cluster_logs not found via Elasticsearch (length={})", error.message().length());
+                LOGGER.debug("get_kafka_cluster_logs not found via Elasticsearch:\n{}", error.message());
+                assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND", "not found", "nonexistent-cluster-xyz");
             })
+            .send()
             .thenAssertResults();
     }
 

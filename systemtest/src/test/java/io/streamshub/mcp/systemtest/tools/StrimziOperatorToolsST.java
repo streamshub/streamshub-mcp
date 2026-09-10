@@ -174,9 +174,11 @@ class StrimziOperatorToolsST extends AbstractST {
             "namespace", Constants.STRIMZI_NAMESPACE);
 
         mcpClient.when()
-            .toolsCall("get_strimzi_operator", args, response -> {
-                assertToolError(response, "not found", "non-existent-operator");
-            })
+            .toolsCall("get_strimzi_operator")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "non-existent-operator"))
+            .send()
             .thenAssertResults();
     }
 
@@ -349,9 +351,11 @@ class StrimziOperatorToolsST extends AbstractST {
             "namespace", kafkaNamespace.getMetadata().getName());
 
         mcpClient.when()
-            .toolsCall("get_strimzi_events", args, response -> {
-                assertToolError(response, "not found", "nonexistent-xyz");
-            })
+            .toolsCall("get_strimzi_events")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "nonexistent-xyz"))
+            .send()
             .thenAssertResults();
     }
 
@@ -363,9 +367,11 @@ class StrimziOperatorToolsST extends AbstractST {
             "resourceKind", "InvalidKind");
 
         mcpClient.when()
-            .toolsCall("get_strimzi_events", args, response -> {
-                assertToolError(response, "resource_kind", "Supported values");
-            })
+            .toolsCall("get_strimzi_events")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32602, "INVALID_PARAMS",
+                "resource_kind", "Supported values"))
+            .send()
             .thenAssertResults();
     }
 }

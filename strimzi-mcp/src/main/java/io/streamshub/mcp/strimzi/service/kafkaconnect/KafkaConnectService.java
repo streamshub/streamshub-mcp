@@ -5,7 +5,6 @@
 package io.streamshub.mcp.strimzi.service.kafkaconnect;
 
 import io.fabric8.kubernetes.api.model.Pod;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
@@ -16,6 +15,7 @@ import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.service.log.LogCollectionService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectPodsResponse;
@@ -32,7 +32,6 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 /**
  * Service for KafkaConnect cluster operations.
  */
@@ -87,7 +86,7 @@ public class KafkaConnectService {
         String normalizedName = InputUtils.normalizeInput(connectName);
 
         if (normalizedName == null) {
-            throw new ToolCallException("KafkaConnect cluster name is required");
+            throw McpErrors.invalidParams("KafkaConnect cluster name is required");
         }
         InputUtils.validateK8sName(normalizedName, "connect cluster name");
         InputUtils.validateK8sName(ns, "namespace");
@@ -110,7 +109,7 @@ public class KafkaConnectService {
         String normalizedName = InputUtils.normalizeInput(connectName);
 
         if (normalizedName == null) {
-            throw new ToolCallException("KafkaConnect cluster name is required");
+            throw McpErrors.invalidParams("KafkaConnect cluster name is required");
         }
 
         LOG.infof("Getting pods for KafkaConnect cluster=%s in namespace=%s",
@@ -149,7 +148,7 @@ public class KafkaConnectService {
         String normalizedName = InputUtils.normalizeInput(connectName);
 
         if (normalizedName == null) {
-            throw new ToolCallException("KafkaConnect cluster name is required");
+            throw McpErrors.invalidParams("KafkaConnect cluster name is required");
         }
 
         LOG.infof("Getting logs for KafkaConnect cluster=%s (namespace=%s, filter=%s, sinceSeconds=%s, "
@@ -190,13 +189,7 @@ public class KafkaConnectService {
         }
 
         if (connect == null) {
-            if (namespace != null) {
-                throw new ToolCallException(
-                    "KafkaConnect cluster '" + connectName + "' not found in namespace " + namespace);
-            } else {
-                throw new ToolCallException(
-                    "KafkaConnect cluster '" + connectName + "' not found in any namespace");
-            }
+            throw McpErrors.notFound("KafkaConnect cluster", connectName, namespace);
         }
         return connect;
     }
@@ -212,12 +205,11 @@ public class KafkaConnectService {
         }
 
         if (matching.size() > 1) {
-            String namespaces = matching.stream()
+            List<String> namespaces = matching.stream()
                 .map(c -> c.getMetadata().getNamespace())
                 .distinct()
-                .collect(Collectors.joining(", "));
-            throw new ToolCallException("Multiple KafkaConnect clusters named '" + connectName
-                + "' found in namespaces: " + namespaces + ". Please specify namespace.");
+                .toList();
+            throw McpErrors.ambiguous("KafkaConnect cluster", connectName, namespaces);
         }
 
         LOG.debugf("Discovered KafkaConnect cluster %s in namespace %s",

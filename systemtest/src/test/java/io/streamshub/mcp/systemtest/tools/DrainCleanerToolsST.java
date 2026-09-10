@@ -192,9 +192,11 @@ class DrainCleanerToolsST extends AbstractST {
             "namespace", Constants.DRAIN_CLEANER_NAMESPACE);
 
         mcpClient.when()
-            .toolsCall("get_drain_cleaner", args, response -> {
-                assertToolError(response, "not found", "non-existent-drain-cleaner");
-            })
+            .toolsCall("get_drain_cleaner")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "non-existent-drain-cleaner"))
+            .send()
             .thenAssertResults();
     }
 

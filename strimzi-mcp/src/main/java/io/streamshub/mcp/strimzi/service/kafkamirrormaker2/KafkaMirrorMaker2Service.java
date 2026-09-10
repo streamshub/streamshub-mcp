@@ -5,7 +5,6 @@
 package io.streamshub.mcp.strimzi.service.kafkamirrormaker2;
 
 import io.fabric8.kubernetes.api.model.Pod;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
@@ -16,6 +15,7 @@ import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.service.log.LogCollectionService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2LogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2PodsResponse;
@@ -40,7 +40,6 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 /**
  * Service for KafkaMirrorMaker2 operations.
  */
@@ -95,7 +94,7 @@ public class KafkaMirrorMaker2Service {
         String normalizedName = InputUtils.normalizeInput(mirrorMakerName);
 
         if (normalizedName == null) {
-            throw new ToolCallException("MirrorMaker2 name is required");
+            throw McpErrors.invalidParams("MirrorMaker2 name is required");
         }
         InputUtils.validateK8sName(normalizedName, "mirror maker name");
         InputUtils.validateK8sName(ns, "namespace");
@@ -120,7 +119,7 @@ public class KafkaMirrorMaker2Service {
         String normalizedName = InputUtils.normalizeInput(mirrorMakerName);
 
         if (normalizedName == null) {
-            throw new ToolCallException("MirrorMaker2 name is required");
+            throw McpErrors.invalidParams("MirrorMaker2 name is required");
         }
         InputUtils.validateK8sName(normalizedName, "mirror maker name");
         InputUtils.validateK8sName(ns, "namespace");
@@ -161,7 +160,7 @@ public class KafkaMirrorMaker2Service {
         String normalizedName = InputUtils.normalizeInput(mirrorMakerName);
 
         if (normalizedName == null) {
-            throw new ToolCallException("MirrorMaker2 name is required");
+            throw McpErrors.invalidParams("MirrorMaker2 name is required");
         }
         InputUtils.validateK8sName(normalizedName, "mirror maker name");
         InputUtils.validateK8sName(ns, "namespace");
@@ -196,13 +195,7 @@ public class KafkaMirrorMaker2Service {
         }
 
         if (mm2 == null) {
-            if (namespace != null) {
-                throw new ToolCallException(
-                    "KafkaMirrorMaker2 '" + name + "' not found in namespace " + namespace);
-            } else {
-                throw new ToolCallException(
-                    "KafkaMirrorMaker2 '" + name + "' not found in any namespace");
-            }
+            throw McpErrors.notFound("KafkaMirrorMaker2", name, namespace);
         }
         return mm2;
     }
@@ -217,12 +210,11 @@ public class KafkaMirrorMaker2Service {
             return null;
         }
         if (matching.size() > 1) {
-            String namespaces = matching.stream()
+            List<String> namespaces = matching.stream()
                 .map(m -> m.getMetadata().getNamespace())
                 .distinct()
-                .collect(Collectors.joining(", "));
-            throw new ToolCallException("Multiple KafkaMirrorMaker2 instances named '" + name
-                + "' found in namespaces: " + namespaces + ". Please specify namespace.");
+                .toList();
+            throw McpErrors.ambiguous("KafkaMirrorMaker2", name, namespaces);
         }
 
         LOG.debugf("Discovered KafkaMirrorMaker2 %s in namespace %s",

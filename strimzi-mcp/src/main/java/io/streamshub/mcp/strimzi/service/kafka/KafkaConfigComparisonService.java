@@ -8,13 +8,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.SamplingMessage;
 import io.quarkiverse.mcp.server.SamplingResponse;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaConfigComparisonReport;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaEffectiveConfigResponse;
@@ -87,10 +88,10 @@ public class KafkaConfigComparisonService {
         String name2 = InputUtils.normalizeInput(clusterName2);
 
         if (name1 == null) {
-            throw new ToolCallException("First cluster name is required");
+            throw McpErrors.invalidParams("First cluster name is required");
         }
         if (name2 == null) {
-            throw new ToolCallException("Second cluster name is required");
+            throw McpErrors.invalidParams("Second cluster name is required");
         }
         InputUtils.validateK8sName(name1, "first cluster name");
         InputUtils.validateK8sName(ns1, "first namespace");
@@ -142,7 +143,7 @@ public class KafkaConfigComparisonService {
             KafkaEffectiveConfigResponse result = kafkaConfigService.getEffectiveConfig(namespace, clusterName);
             completed.add(step);
             return result;
-        } catch (ToolCallException e) {
+        } catch (McpException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, elicitationContext);

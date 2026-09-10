@@ -4,8 +4,6 @@
  */
 package io.streamshub.mcp.common.util;
 
-import io.quarkiverse.mcp.server.ToolCallException;
-
 import java.time.Instant;
 
 /**
@@ -31,27 +29,27 @@ public final class TimeRangeValidator {
      * @param rangeMinutes relative time range in minutes (optional)
      * @param startTime    absolute start time in ISO 8601 format (optional)
      * @param endTime      absolute end time in ISO 8601 format (optional)
-     * @throws ToolCallException if validation fails
+     * @throws io.quarkiverse.mcp.server.McpException if validation fails
      */
     public static void validateTimeRangeParameters(final Integer rangeMinutes,
                                                     final String startTime,
                                                     final String endTime) {
         // Ensure only one time range method is used
         if (rangeMinutes != null && (startTime != null || endTime != null)) {
-            throw new ToolCallException(
+            throw McpErrors.invalidParams(
                 "Cannot specify both rangeMinutes and absolute time range (startTime/endTime). "
                     + "Use rangeMinutes for relative ranges or startTime/endTime for absolute ranges.");
         }
 
         // Validate rangeMinutes is positive
         if (rangeMinutes != null && rangeMinutes <= 0) {
-            throw new ToolCallException(
+            throw McpErrors.invalidParams(
                 "rangeMinutes must be a positive integer, got: " + rangeMinutes);
         }
 
         // Ensure both startTime and endTime are provided together
         if (startTime != null && endTime == null || startTime == null && endTime != null) {
-            throw new ToolCallException(
+            throw McpErrors.invalidParams(
                 "Both startTime and endTime must be specified for absolute time range queries.");
         }
 
@@ -60,7 +58,7 @@ public final class TimeRangeValidator {
             Instant start = InputUtils.parseIso8601(startTime, "startTime");
             Instant end = InputUtils.parseIso8601(endTime, "endTime");
             if (!start.isBefore(end)) {
-                throw new ToolCallException(
+                throw McpErrors.invalidParams(
                     "startTime must be before endTime. Got startTime=" + startTime + ", endTime=" + endTime);
             }
         }

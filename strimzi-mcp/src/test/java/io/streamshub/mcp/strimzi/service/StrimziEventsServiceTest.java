@@ -20,7 +20,7 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.V1APIGroupDSL;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
@@ -74,13 +74,13 @@ class StrimziEventsServiceTest {
 
     @Test
     void testThrowsWhenResourceNameMissing() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             eventsService.getEvents("kafka", null, "Kafka", null));
     }
 
     @Test
     void testThrowsWhenResourceKindMissing() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             eventsService.getEvents("kafka", "my-cluster", null, null));
     }
 
@@ -198,19 +198,19 @@ class StrimziEventsServiceTest {
 
     @Test
     void testGetResourceEventsThrowsWhenNameMissing() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             eventsService.getEvents("kafka", null, "KafkaConnect", null));
     }
 
     @Test
     void testGetResourceEventsThrowsWhenNamespaceMissing() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             eventsService.getEvents(null, "my-connect", "KafkaConnect", null));
     }
 
     @Test
     void testGetResourceEventsThrowsWhenKindInvalid() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             eventsService.getEvents("kafka", "my-cluster", "InvalidKind", null));
     }
 

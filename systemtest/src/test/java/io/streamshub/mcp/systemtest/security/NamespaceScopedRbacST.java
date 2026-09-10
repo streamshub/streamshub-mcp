@@ -159,10 +159,13 @@ class NamespaceScopedRbacST extends AbstractST {
         Map<String, Object> args = Map.of("namespace", Constants.KAFKA_NAMESPACE_2);
 
         mcpClient.when()
-            .toolsCall("list_kafka_clusters", args, response -> {
-                assertToolError(response, "403");
+            .toolsCall("list_kafka_clusters")
+            .withArguments(args)
+            .withErrorAssert(error -> {
+                assertToolProtocolError(error, -32005, "SECURITY", "403");
                 LOGGER.info("list_kafka_clusters (inaccessible ns): error as expected");
             })
+            .send()
             .thenAssertResults();
     }
 
@@ -172,9 +175,10 @@ class NamespaceScopedRbacST extends AbstractST {
         Map<String, Object> args = Map.of();
 
         mcpClient.when()
-            .toolsCall("list_kafka_clusters", args, response -> {
-                assertToolError(response, "403");
-            })
+            .toolsCall("list_kafka_clusters")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32005, "SECURITY", "403"))
+            .send()
             .thenAssertResults();
     }
 
@@ -205,14 +209,11 @@ class NamespaceScopedRbacST extends AbstractST {
             "namespace", Constants.KAFKA_NAMESPACE_2);
 
         mcpClient.when()
-            .toolsCall("get_kafka_cluster", args, response -> {
-                assertToolError(response, "403", "Forbidden");
-                String text = response.content().getFirst().asText().text();
-                assertTrue(text.contains(Constants.KAFKA_CLUSTER_NAME_2),
-                    "Error should mention the cluster name");
-                assertTrue(text.contains(Constants.KAFKA_NAMESPACE_2),
-                    "Error should mention the inaccessible namespace");
-            })
+            .toolsCall("get_kafka_cluster")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32005, "SECURITY",
+                "403", "Forbidden", Constants.KAFKA_CLUSTER_NAME_2, Constants.KAFKA_NAMESPACE_2))
+            .send()
             .thenAssertResults();
     }
 
@@ -222,12 +223,11 @@ class NamespaceScopedRbacST extends AbstractST {
         Map<String, Object> args = Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME);
 
         mcpClient.when()
-            .toolsCall("get_kafka_cluster", args, response -> {
-                assertToolError(response, "403", "Forbidden");
-                String text = response.content().getFirst().asText().text();
-                assertTrue(text.contains("across all namespaces"),
-                    "Error should mention cluster-wide query failure");
-            })
+            .toolsCall("get_kafka_cluster")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32005, "SECURITY",
+                "403", "Forbidden", "across all namespaces"))
+            .send()
             .thenAssertResults();
     }
 
@@ -317,12 +317,11 @@ class NamespaceScopedRbacST extends AbstractST {
         Map<String, Object> args = Map.of("namespace", Constants.KAFKA_NAMESPACE_2);
 
         mcpClient.when()
-            .toolsCall("get_kafka_fleet_overview", args, response -> {
-                assertToolError(response, "403", "Forbidden");
-                String text = response.content().getFirst().asText().text();
-                assertTrue(text.contains("strimzi-kafka-2"),
-                    "Error should mention the inaccessible namespace");
-            })
+            .toolsCall("get_kafka_fleet_overview")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32005, "SECURITY",
+                "403", "Forbidden", "strimzi-kafka-2"))
+            .send()
             .thenAssertResults();
     }
 
@@ -330,12 +329,11 @@ class NamespaceScopedRbacST extends AbstractST {
     @Story("get_kafka_fleet_overview without namespace returns error (cluster-wide)")
     void testFleetOverviewClusterWide() {
         mcpClient.when()
-            .toolsCall("get_kafka_fleet_overview", Map.of(), response -> {
-                assertToolError(response, "403", "Forbidden");
-                String text = response.content().getFirst().asText().text();
-                assertTrue(text.contains("across all namespaces"),
-                    "Error should mention cluster-wide scope");
-            })
+            .toolsCall("get_kafka_fleet_overview")
+            .withArguments(Map.of())
+            .withErrorAssert(error -> assertToolProtocolError(error, -32005, "SECURITY",
+                "403", "Forbidden", "across all namespaces"))
+            .send()
             .thenAssertResults();
     }
 
@@ -375,14 +373,11 @@ class NamespaceScopedRbacST extends AbstractST {
             "namespace", Constants.KAFKA_NAMESPACE_2);
 
         mcpClient.when()
-            .toolsCall("diagnose_kafka_cluster", args, response -> {
-                assertToolError(response, "403", "Forbidden");
-                String text = response.content().getFirst().asText().text();
-                assertTrue(text.contains(Constants.KAFKA_CLUSTER_NAME_2),
-                    "Error should mention the cluster name");
-                assertTrue(text.contains(Constants.KAFKA_NAMESPACE_2),
-                    "Error should mention the inaccessible namespace");
-            })
+            .toolsCall("diagnose_kafka_cluster")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32005, "SECURITY",
+                "403", "Forbidden", Constants.KAFKA_CLUSTER_NAME_2, Constants.KAFKA_NAMESPACE_2))
+            .send()
             .thenAssertResults();
     }
 
@@ -393,9 +388,10 @@ class NamespaceScopedRbacST extends AbstractST {
     void testDrainCleanersRequireClusterScope() {
         Map<String, Object> args = Map.of();
         mcpClient.when()
-            .toolsCall("list_drain_cleaners", args, response -> {
-                assertToolError(response, "403");
-            })
+            .toolsCall("list_drain_cleaners")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32005, "SECURITY", "403"))
+            .send()
             .thenAssertResults();
     }
 
