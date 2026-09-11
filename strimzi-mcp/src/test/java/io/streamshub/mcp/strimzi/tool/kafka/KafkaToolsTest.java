@@ -4,12 +4,14 @@
  */
 package io.streamshub.mcp.strimzi.tool.kafka;
 
+import io.quarkiverse.mcp.server.JsonRpcErrorCodes;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
@@ -28,7 +30,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -200,6 +204,26 @@ class KafkaToolsTest {
                 String text = response.content().getFirst().asText().text();
                 assertTrue(text.contains("not found"));
             })
+            .thenAssertResults();
+    }
+
+    @Test
+    void testNotFoundReturnsProtocolErrorWithData() {
+        when(kafkaService.getCluster(any(), eq("nonexistent"))).thenThrow(
+            McpErrors.notFound("Kafka", "nonexistent", null)
+        );
+
+        client.when()
+            .toolsCall("get_kafka_cluster")
+            .withArguments(Map.of("clusterName", "nonexistent"))
+            .withErrorAssert(error -> {
+                assertEquals(JsonRpcErrorCodes.RESOURCE_NOT_FOUND, error.code());
+                assertTrue(error.message().contains("not found"), error.message());
+                assertNotNull(error.data(), "error.data should be present");
+                assertEquals("RESOURCE_NOT_FOUND", error.data().getString("category"));
+                assertEquals("nonexistent", error.data().getString("resource_name"));
+            })
+            .send()
             .thenAssertResults();
     }
 

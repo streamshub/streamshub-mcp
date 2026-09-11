@@ -1543,9 +1543,16 @@ sequentially and verify cross-tool consistency.
 **Setup:** MCP has RoleBinding access only to `strimzi-kafka` and `strimzi` namespaces. A second cluster exists in `strimzi-kafka-2` (inaccessible).
 
 This phase tests all three server-side error handling patterns under RBAC restriction:
-1. **Direct tools** — 403 propagated as tool error
+1. **Direct tools** — 403 propagated as a failed tool response
 2. **Fleet overview** — graceful degradation
 3. **Diagnostic tools** — partial access
+
+> **Note (structured errors, #229):** RBAC/403 failures remain **failed tool responses** (`isError=true`) —
+> `KubernetesResourceService` wraps them with a contextual message ("Failed to query/get … (403 Forbidden)"),
+> which several tools rely on for graceful degradation, so they are not JSON-RPC protocol errors.
+> By contrast, resource-not-found is now a JSON-RPC error (code `-32002`, `error.data.category = "RESOURCE_NOT_FOUND"`),
+> invalid-params is `-32602` (`INVALID_PARAMS`), and ambiguity is `-32602` (`AMBIGUOUS`, with
+> `error.data.candidates` listing the namespaces). Rate-limit and cancellation also remain failed tool responses.
 
 ### T18.1 — list_kafka_clusters (accessible namespace)
 - **Tool:** `list_kafka_clusters`
@@ -1676,7 +1683,7 @@ This phase tests all three server-side error handling patterns under RBAC restri
 ### T20.1 — get_kafka_cluster (ambiguous, no namespace)
 - **Tool:** `get_kafka_cluster`
 - **Args:** `clusterName: mcp-cluster`
-- **Expected:** `isError=true`, message contains "Multiple clusters" and both namespace names
+- **Expected:** JSON-RPC error, code `-32602`, `error.data.category = "AMBIGUOUS"`, `error.data.candidates` lists both namespaces; message contains "Multiple" and both namespace names
 
 ### T20.2 — get_kafka_cluster (resolved via namespace 1)
 - **Tool:** `get_kafka_cluster`

@@ -13,7 +13,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaEffectiveConfigResponse;
@@ -75,13 +75,13 @@ class KafkaConfigServiceTest {
 
     @Test
     void testThrowsWhenClusterNameMissing() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             kafkaConfigService.getEffectiveConfig("kafka", null));
     }
 
     @Test
     void testThrowsWhenClusterNotFound() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             kafkaConfigService.getEffectiveConfig("kafka", "missing-cluster"));
     }
 

@@ -8,13 +8,13 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ResourceEventsResult;
 import io.streamshub.mcp.common.service.KubernetesEventsService;
 import io.streamshub.mcp.common.service.KubernetesQueryException;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
@@ -85,10 +85,10 @@ public class StrimziEventsService {
         String kind = resourceKind != null ? resourceKind.trim() : null;
 
         if (name == null) {
-            throw new ToolCallException("Resource name is required");
+            throw McpErrors.invalidParams("Resource name is required");
         }
         if (kind == null || !SUPPORTED_RESOURCE_KINDS.contains(kind)) {
-            throw new ToolCallException("resource_kind is required. Supported values: "
+            throw McpErrors.invalidParams("resource_kind is required. Supported values: "
                 + SUPPORTED_RESOURCE_KINDS);
         }
         InputUtils.validateK8sName(name, "resource name");
@@ -141,7 +141,7 @@ public class StrimziEventsService {
     private StrimziEventsResponse collectStrimziCREvents(final String namespace, final String name,
                                                           final String kind, final Instant sinceTime) {
         if (namespace == null) {
-            throw new ToolCallException("Namespace is required for " + kind + " events");
+            throw McpErrors.invalidParams("Namespace is required for " + kind + " events");
         }
 
         List<ResourceEventsResult> results = new ArrayList<>();
@@ -254,7 +254,7 @@ public class StrimziEventsService {
         } catch (KubernetesQueryException e) {
             LOG.warnf("Failed to auto-discover namespace for %s: %s", name, e.getMessage());
         }
-        throw new ToolCallException(
+        throw McpErrors.invalidParams(
             "Could not auto-discover namespace for '" + name + "'. Please provide the namespace.");
     }
 

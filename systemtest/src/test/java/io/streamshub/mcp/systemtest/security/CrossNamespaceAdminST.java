@@ -29,7 +29,6 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Locale;
 import java.util.Map;
 
 import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
@@ -122,20 +121,14 @@ class CrossNamespaceAdminST extends AbstractST {
         Map<String, Object> args = Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME);
 
         mcpClient.when()
-            .toolsCall("get_kafka_cluster", args, response -> {
-                assertToolError(response, "multiple");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("Disambiguation error: {}", text);
-                assertTrue(text.toLowerCase(Locale.ROOT).contains("multiple"),
-                    "Error should mention 'multiple' clusters");
-                assertTrue(text.contains(Constants.KAFKA_NAMESPACE),
-                    "Error should list namespace 1: " + Constants.KAFKA_NAMESPACE);
-                assertTrue(text.contains(Constants.KAFKA_NAMESPACE_2),
-                    "Error should list namespace 2: " + Constants.KAFKA_NAMESPACE_2);
-                assertTrue(text.contains("Please specify namespace"),
-                    "Error should suggest specifying namespace");
+            .toolsCall("get_kafka_cluster")
+            .withArguments(args)
+            .withErrorAssert(error -> {
+                LOGGER.info("Disambiguation error: {}", error.message());
+                assertToolProtocolError(error, -32602, "AMBIGUOUS", "multiple",
+                    Constants.KAFKA_NAMESPACE, Constants.KAFKA_NAMESPACE_2, "Please specify namespace");
             })
+            .send()
             .thenAssertResults();
     }
 

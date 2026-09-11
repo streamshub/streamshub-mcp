@@ -74,13 +74,13 @@ class InputValidationST extends AbstractST {
         Map<String, Object> args = Map.of("clusterName", "my;cluster");
         
         mcpClient.when()
-            .toolsCall("get_kafka_cluster", args, response -> {
-                assertToolError(response, "Invalid cluster name", "my;cluster");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("Special chars response: {}", text);
-                assertNoStackTrace(text);
+            .toolsCall("get_kafka_cluster")
+            .withArguments(args)
+            .withErrorAssert(error -> {
+                LOGGER.info("Special chars response: {}", error.message());
+                assertToolProtocolError(error, -32602, "INVALID_PARAMS", "Invalid cluster name", "my;cluster");
             })
+            .send()
             .thenAssertResults();
     }
 
@@ -91,13 +91,14 @@ class InputValidationST extends AbstractST {
         Map<String, Object> args = Map.of("clusterName", longName);
         
         mcpClient.when()
-            .toolsCall("get_kafka_cluster", args, response -> {
-                assertToolError(response, "Invalid cluster name", "exceeds maximum length of 253 characters");
-
-                String text = response.content().getFirst().asText().text();
-                LOGGER.info("Long name response: {}", text);
-                assertNoStackTrace(text);
+            .toolsCall("get_kafka_cluster")
+            .withArguments(args)
+            .withErrorAssert(error -> {
+                LOGGER.info("Long name response: {}", error.message());
+                assertToolProtocolError(error, -32602, "INVALID_PARAMS",
+                    "Invalid cluster name", "exceeds maximum length of 253 characters");
             })
+            .send()
             .thenAssertResults();
     }
 

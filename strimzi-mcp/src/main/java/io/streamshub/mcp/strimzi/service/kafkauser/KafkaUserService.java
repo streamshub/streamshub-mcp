@@ -4,11 +4,11 @@
  */
 package io.streamshub.mcp.strimzi.service.kafkauser;
 
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserResponse;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
@@ -28,7 +28,6 @@ import org.jboss.logging.Logger;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 /**
  * Service for KafkaUser operations.
  */
@@ -91,7 +90,7 @@ public class KafkaUserService {
         String normalizedName = InputUtils.normalizeInput(userName);
 
         if (normalizedName == null) {
-            throw new ToolCallException("User name is required");
+            throw McpErrors.invalidParams("User name is required");
         }
         InputUtils.validateK8sName(normalizedName, "user name");
         InputUtils.validateK8sName(ns, "namespace");
@@ -106,13 +105,7 @@ public class KafkaUserService {
         }
 
         if (user == null) {
-            if (ns != null) {
-                throw new ToolCallException(
-                    "KafkaUser '" + normalizedName + "' not found in namespace " + ns);
-            } else {
-                throw new ToolCallException(
-                    "KafkaUser '" + normalizedName + "' not found in any namespace");
-            }
+            throw McpErrors.notFound("KafkaUser", normalizedName, ns);
         }
 
         return createUserDetail(user);
@@ -129,12 +122,11 @@ public class KafkaUserService {
         }
 
         if (matching.size() > 1) {
-            String namespaces = matching.stream()
+            List<String> namespaces = matching.stream()
                 .map(u -> u.getMetadata().getNamespace())
                 .distinct()
-                .collect(Collectors.joining(", "));
-            throw new ToolCallException("Multiple KafkaUsers named '" + userName
-                + "' found in namespaces: " + namespaces + ". Please specify namespace.");
+                .toList();
+            throw McpErrors.ambiguous("KafkaUser", userName, namespaces);
         }
 
         LOG.debugf("Discovered KafkaUser %s in namespace %s",

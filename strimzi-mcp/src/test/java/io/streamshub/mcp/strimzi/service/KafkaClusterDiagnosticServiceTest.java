@@ -19,10 +19,9 @@ import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.fabric8.kubernetes.client.dsl.V1APIGroupDSL;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterDiagnosticReport;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaClusterDiagnosticService;
 import io.strimzi.api.kafka.model.kafka.Kafka;
@@ -84,14 +83,14 @@ class KafkaClusterDiagnosticServiceTest {
 
     @Test
     void testThrowsWhenClusterNameMissing() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             diagnosticService.diagnose("kafka", null, null, null,
                 null, null, null, null));
     }
 
     @Test
     void testThrowsWhenClusterNotFound() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             diagnosticService.diagnose("kafka", "missing-cluster", null, null,
                 null, null, null, null));
     }
@@ -148,26 +147,6 @@ class KafkaClusterDiagnosticServiceTest {
         assertNotNull(report);
         assertNotNull(report.message());
         assertTrue(report.message().contains("my-cluster"));
-    }
-
-    @Test
-    void testParseNamespacesFromError() {
-        List<String> namespaces = NamespaceElicitationHelper.parseNamespacesFromError(
-            "Multiple clusters named 'my-cluster' found in namespaces: kafka-prod, kafka-dev. Please specify namespace.");
-
-        assertEquals(2, namespaces.size());
-        assertEquals("kafka-prod", namespaces.get(0));
-        assertEquals("kafka-dev", namespaces.get(1));
-    }
-
-    @Test
-    void testParseNamespacesFromErrorReturnsEmptyForNull() {
-        assertTrue(NamespaceElicitationHelper.parseNamespacesFromError(null).isEmpty());
-    }
-
-    @Test
-    void testParseNamespacesFromErrorReturnsEmptyForUnrelatedMessage() {
-        assertTrue(NamespaceElicitationHelper.parseNamespacesFromError("Some other error").isEmpty());
     }
 
     // ---- Test helpers ----

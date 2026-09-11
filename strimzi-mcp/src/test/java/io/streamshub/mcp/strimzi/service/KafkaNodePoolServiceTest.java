@@ -5,7 +5,7 @@
 package io.streamshub.mcp.strimzi.service;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
@@ -67,7 +67,7 @@ class KafkaNodePoolServiceTest {
      */
     @Test
     void testListNodePoolsThrowsWhenClusterNameNull() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> nodePoolService.listNodePools("kafka", null));
 
         assertTrue(ex.getMessage().contains("required"));
@@ -78,7 +78,7 @@ class KafkaNodePoolServiceTest {
      */
     @Test
     void testGetNodePoolThrowsWhenNameNull() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> nodePoolService.getNodePool("kafka", "my-cluster", null));
 
         assertTrue(ex.getMessage().contains("required"));
@@ -89,7 +89,7 @@ class KafkaNodePoolServiceTest {
      */
     @Test
     void testGetNodePoolThrowsWhenNotFoundInNamespace() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> nodePoolService.getNodePool("kafka", "my-cluster", "nonexistent"));
 
         assertTrue(ex.getMessage().contains("not found"));
@@ -100,7 +100,7 @@ class KafkaNodePoolServiceTest {
      */
     @Test
     void testGetNodePoolThrowsWhenNotFoundInAnyNamespace() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> nodePoolService.getNodePool(null, "my-cluster", "nonexistent"));
 
         assertTrue(ex.getMessage().contains("not found"));

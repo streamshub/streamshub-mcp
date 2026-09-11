@@ -285,9 +285,11 @@ class KafkaUserToolsST extends AbstractST {
             "namespace", Environment.KAFKA_NAMESPACE);
 
         mcpClient.when()
-            .toolsCall("get_kafka_user", args, response -> {
-                assertToolError(response, "not found", "non-existent-user");
-            })
+            .toolsCall("get_kafka_user")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "non-existent-user"))
+            .send()
             .thenAssertResults();
     }
 

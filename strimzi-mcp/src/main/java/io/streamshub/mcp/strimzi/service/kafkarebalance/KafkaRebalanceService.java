@@ -4,11 +4,11 @@
  */
 package io.streamshub.mcp.strimzi.service.kafkarebalance;
 
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.service.KubernetesQueryException;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.dto.kafkarebalance.KafkaRebalanceResponse;
 import io.streamshub.mcp.strimzi.dto.kafkarebalance.KafkaRebalanceResponse.OptimizationResultInfo;
 import io.streamshub.mcp.strimzi.dto.kafkarebalance.KafkaRebalanceResponse.RebalanceSpecInfo;
@@ -24,7 +24,6 @@ import org.jboss.logging.Logger;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 /**
  * Service for KafkaRebalance operations.
  */
@@ -105,7 +104,7 @@ public class KafkaRebalanceService {
         String normalizedName = InputUtils.normalizeInput(rebalanceName);
 
         if (normalizedName == null) {
-            throw new ToolCallException("Rebalance name is required");
+            throw McpErrors.invalidParams("Rebalance name is required");
         }
         InputUtils.validateK8sName(normalizedName, "rebalance name");
         InputUtils.validateK8sName(ns, "namespace");
@@ -121,13 +120,7 @@ public class KafkaRebalanceService {
         }
 
         if (rebalance == null) {
-            if (ns != null) {
-                throw new ToolCallException(
-                    "KafkaRebalance '" + normalizedName + "' not found in namespace " + ns);
-            } else {
-                throw new ToolCallException(
-                    "KafkaRebalance '" + normalizedName + "' not found in any namespace");
-            }
+            throw McpErrors.notFound("KafkaRebalance", normalizedName, ns);
         }
 
         return createRebalanceDetail(rebalance);
@@ -162,12 +155,11 @@ public class KafkaRebalanceService {
         }
 
         if (matching.size() > 1) {
-            String namespaces = matching.stream()
+            List<String> namespaces = matching.stream()
                 .map(r -> r.getMetadata().getNamespace())
                 .distinct()
-                .collect(Collectors.joining(", "));
-            throw new ToolCallException("Multiple KafkaRebalances named '" + rebalanceName
-                + "' found in namespaces: " + namespaces + ". Please specify namespace.");
+                .toList();
+            throw McpErrors.ambiguous("KafkaRebalance", rebalanceName, namespaces);
         }
 
         LOG.debugf("Discovered KafkaRebalance %s in namespace %s",

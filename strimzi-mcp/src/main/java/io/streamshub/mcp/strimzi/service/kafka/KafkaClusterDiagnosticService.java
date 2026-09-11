@@ -7,15 +7,16 @@ package io.streamshub.mcp.strimzi.service.kafka;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerLogsResponse;
@@ -145,7 +146,7 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
         String name = InputUtils.normalizeInput(clusterName);
 
         if (name == null) {
-            throw new ToolCallException("Cluster name is required");
+            throw McpErrors.invalidParams("Cluster name is required");
         }
 
         LOG.infof("Starting diagnostic for cluster=%s (namespace=%s, symptom=%s)",
@@ -278,7 +279,7 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
             KafkaClusterResponse result = kafkaService.getCluster(namespace, clusterName);
             completed.add(STEP_CLUSTER_STATUS);
             return result;
-        } catch (ToolCallException e) {
+        } catch (McpException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "diagnosed");

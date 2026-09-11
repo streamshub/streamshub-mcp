@@ -4,7 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.util;
 
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.metrics.prometheus.util.PromQLSanitizer;
 import org.jboss.logging.Logger;
 
@@ -49,7 +49,7 @@ public final class MetricNameResolver {
         if (effectiveCategory != null) {
             List<String> categoryMetrics = categoryResolver.apply(effectiveCategory);
             if (categoryMetrics.isEmpty() && category != null) {
-                throw new ToolCallException(
+                throw McpErrors.invalidParams(
                     String.format("Unknown metric category '%s'. Available: %s",
                         category, allCategories));
             }

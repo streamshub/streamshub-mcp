@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.common.guardrail;
 
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolCallException;
 import jakarta.annotation.Priority;
@@ -81,6 +82,11 @@ public class GuardrailInterceptor {
 
             return result;
         } catch (ToolCallException e) {
+            caught = e;
+            throw e;
+        } catch (McpException e) {
+            // Structured protocol errors (with error.data) must propagate unwrapped so the
+            // framework renders them as JSON-RPC errors rather than plain tool responses.
             caught = e;
             throw e;
         } catch (Exception e) {

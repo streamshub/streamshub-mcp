@@ -161,9 +161,11 @@ class KafkaRebalanceToolsST extends AbstractST {
             "rebalanceName", "nonexistent-rebalance",
             "namespace", kafkaNamespace.getMetadata().getName());
         mcpClient.when()
-            .toolsCall("get_kafka_rebalance", args, response -> {
-                assertToolError(response, "not found", "nonexistent-rebalance");
-            })
+            .toolsCall("get_kafka_rebalance")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "nonexistent-rebalance"))
+            .send()
             .thenAssertResults();
     }
 

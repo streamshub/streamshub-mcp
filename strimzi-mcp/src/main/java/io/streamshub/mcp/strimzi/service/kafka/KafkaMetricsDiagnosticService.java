@@ -7,13 +7,14 @@ package io.streamshub.mcp.strimzi.service.kafka;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.metrics.AggregatedTimeSeries;
 import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.config.metrics.KafkaMetricCategories;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
@@ -107,7 +108,7 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
         String name = InputUtils.normalizeInput(clusterName);
 
         if (name == null) {
-            throw new ToolCallException("Cluster name is required");
+            throw McpErrors.invalidParams("Cluster name is required");
         }
 
         LOG.infof("Starting metrics diagnostic for cluster=%s (namespace=%s, concern=%s)",
@@ -180,7 +181,7 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
             KafkaClusterResponse result = kafkaService.getCluster(namespace, clusterName);
             completed.add(STEP_CLUSTER_STATUS);
             return result;
-        } catch (ToolCallException e) {
+        } catch (McpException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "analyzed for metrics");

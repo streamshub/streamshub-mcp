@@ -5,12 +5,12 @@
 package io.streamshub.mcp.strimzi.service.metrics;
 
 import io.fabric8.kubernetes.api.model.Pod;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.dto.metrics.PodTarget;
 import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.config.metrics.StrimziOperatorMetricCategories;
@@ -122,10 +122,7 @@ public class StrimziOperatorMetricsService {
 
     private void validatePodsFound(final List<Pod> coPods, final List<Pod> eoPods, final String namespace) {
         if (coPods.isEmpty() && eoPods.isEmpty()) {
-            String location = namespace != null
-                ? "in namespace '" + namespace + "'"
-                : "in any namespace";
-            throw new ToolCallException("No Strimzi operator pods found " + location);
+            throw McpErrors.notFound("Strimzi operator pods", null, namespace);
         }
     }
 

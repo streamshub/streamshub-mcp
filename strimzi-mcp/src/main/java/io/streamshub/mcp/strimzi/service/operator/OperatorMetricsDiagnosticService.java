@@ -8,11 +8,11 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.metrics.StrimziOperatorMetricCategories;
 import io.streamshub.mcp.strimzi.dto.metrics.StrimziOperatorMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.operator.OperatorMetricsDiagnosticReport;
@@ -199,10 +199,7 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
 
         List<StrimziOperatorResponse> operators = operatorService.listOperators(namespace);
         if (operators.isEmpty()) {
-            String location = namespace != null
-                ? "in namespace '" + namespace + "'"
-                : "in any namespace";
-            throw new ToolCallException("No Strimzi operator found " + location);
+            throw McpErrors.notFound("Strimzi operator", null, namespace);
         }
 
         StrimziOperatorResponse result = operators.getFirst();

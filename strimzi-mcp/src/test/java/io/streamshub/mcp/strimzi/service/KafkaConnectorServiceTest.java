@@ -5,7 +5,7 @@
 package io.streamshub.mcp.strimzi.service;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorResponse;
@@ -68,7 +68,7 @@ class KafkaConnectorServiceTest {
      */
     @Test
     void testGetConnectorThrowsWhenNameIsNull() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> connectorService.getConnector("kafka", null));
 
         assertTrue(ex.getMessage().contains("required"));
@@ -79,7 +79,7 @@ class KafkaConnectorServiceTest {
      */
     @Test
     void testGetConnectorThrowsWhenNotFound() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> connectorService.getConnector("kafka", "nonexistent"));
 
         assertTrue(ex.getMessage().contains("not found"));

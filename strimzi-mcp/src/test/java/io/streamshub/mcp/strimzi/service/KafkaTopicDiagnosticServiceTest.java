@@ -16,7 +16,7 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicDiagnosticReport;
@@ -73,14 +73,14 @@ class KafkaTopicDiagnosticServiceTest {
 
     @Test
     void testThrowsWhenTopicNameMissing() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             topicDiagnosticService.diagnose("kafka", null, null, null,
                 null, null, null, null));
     }
 
     @Test
     void testThrowsWhenTopicNotFound() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             topicDiagnosticService.diagnose("kafka", "missing-topic", "my-cluster", null,
                 null, null, null, null));
     }

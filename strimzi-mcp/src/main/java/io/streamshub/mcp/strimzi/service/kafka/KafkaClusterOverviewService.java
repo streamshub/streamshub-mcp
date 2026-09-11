@@ -4,10 +4,10 @@
  */
 package io.streamshub.mcp.strimzi.service.kafka;
 
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse.BridgeSummary;
@@ -107,7 +107,7 @@ public class KafkaClusterOverviewService {
         String name = InputUtils.normalizeInput(clusterName);
 
         if (name == null) {
-            throw new ToolCallException("Cluster name is required");
+            throw McpErrors.invalidParams("Cluster name is required");
         }
         InputUtils.validateK8sName(name, "cluster name");
         InputUtils.validateK8sName(ns, "namespace");

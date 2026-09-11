@@ -5,7 +5,6 @@
 package io.streamshub.mcp.strimzi.service.kafka;
 
 import io.fabric8.kubernetes.api.model.Pod;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
@@ -15,6 +14,7 @@ import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.service.log.LogCollectionService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterLogsResponse;
@@ -105,7 +105,7 @@ public class KafkaService {
         String normalizedName = InputUtils.normalizeInput(name);
 
         if (normalizedName == null) {
-            throw new ToolCallException("Cluster name is required");
+            throw McpErrors.invalidParams("Cluster name is required");
         }
         InputUtils.validateK8sName(normalizedName, "cluster name");
         InputUtils.validateK8sName(ns, "namespace");
@@ -128,7 +128,7 @@ public class KafkaService {
         String normalizedClusterName = InputUtils.normalizeInput(clusterName);
 
         if (normalizedClusterName == null) {
-            throw new ToolCallException("Cluster name is required");
+            throw McpErrors.invalidParams("Cluster name is required");
         }
 
         LOG.infof("Getting pods for cluster=%s in namespace=%s", normalizedClusterName, ns != null ? ns : "auto");
@@ -176,7 +176,7 @@ public class KafkaService {
         String normalizedName = InputUtils.normalizeInput(clusterName);
 
         if (normalizedName == null) {
-            throw new ToolCallException("Cluster name is required");
+            throw McpErrors.invalidParams("Cluster name is required");
         }
 
         LOG.infof("Getting bootstrap servers for cluster=%s (namespace=%s)",
@@ -222,7 +222,7 @@ public class KafkaService {
         String normalizedName = InputUtils.normalizeInput(clusterName);
 
         if (normalizedName == null) {
-            throw new ToolCallException("Cluster name is required");
+            throw McpErrors.invalidParams("Cluster name is required");
         }
 
         boolean filtering = podNameFilter != null && !podNameFilter.isEmpty();
@@ -299,8 +299,7 @@ public class KafkaService {
     private String discoverClusterNamespace(final String clusterName) {
         Kafka kafka = findClusterInAllNamespaces(clusterName);
         if (kafka == null) {
-            throw new ToolCallException(
-                "No Kafka cluster named '" + clusterName + "' found in any namespace");
+            throw McpErrors.notFound("Kafka cluster", clusterName, null);
         }
         return kafka.getMetadata().getNamespace();
     }
@@ -549,13 +548,7 @@ public class KafkaService {
         }
 
         if (kafka == null) {
-            if (namespace != null) {
-                throw new ToolCallException(
-                    "Kafka cluster '" + clusterName + "' not found in namespace " + namespace);
-            } else {
-                throw new ToolCallException(
-                    "Kafka cluster '" + clusterName + "' not found in any namespace");
-            }
+            throw McpErrors.notFound("Kafka cluster", clusterName, namespace);
         }
         return kafka;
     }
@@ -578,12 +571,11 @@ public class KafkaService {
         }
 
         if (matching.size() > 1) {
-            String namespaces = matching.stream()
+            List<String> namespaces = matching.stream()
                 .map(kafka -> kafka.getMetadata().getNamespace())
                 .distinct()
-                .collect(Collectors.joining(", "));
-            throw new ToolCallException("Multiple clusters named '" + clusterName + "' found in namespaces: "
-                + namespaces + ". Please specify namespace.");
+                .toList();
+            throw McpErrors.ambiguous("Kafka cluster", clusterName, namespaces);
         }
 
         LOG.debugf("Discovered cluster %s in namespace %s",

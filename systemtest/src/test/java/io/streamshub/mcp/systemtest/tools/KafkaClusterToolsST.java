@@ -336,9 +336,11 @@ class KafkaClusterToolsST extends AbstractST {
     void testGetStrimziKafkaClusterOverviewNotFound() {
         Map<String, Object> args = Map.of("clusterName", "nonexistent-cluster-xyz");
         mcpClient.when()
-            .toolsCall("get_strimzi_kafka_cluster_overview", args, response -> {
-                assertToolError(response, "not found", "nonexistent-cluster-xyz");
-            })
+            .toolsCall("get_strimzi_kafka_cluster_overview")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "nonexistent-cluster-xyz"))
+            .send()
             .thenAssertResults();
     }
 
@@ -349,9 +351,11 @@ class KafkaClusterToolsST extends AbstractST {
     void testGetKafkaClusterNotFound() {
         Map<String, Object> args = Map.of("clusterName", "nonexistent-cluster-xyz");
         mcpClient.when()
-            .toolsCall("get_kafka_cluster", args, response -> {
-                assertToolError(response, "not found", "nonexistent-cluster-xyz");
-            })
+            .toolsCall("get_kafka_cluster")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "nonexistent-cluster-xyz"))
+            .send()
             .thenAssertResults();
     }
 
@@ -362,9 +366,11 @@ class KafkaClusterToolsST extends AbstractST {
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "namespace", "nonexistent-namespace");
         mcpClient.when()
-            .toolsCall("get_kafka_cluster", args, response -> {
-                assertToolError(response, "not found", "nonexistent-namespace");
-            })
+            .toolsCall("get_kafka_cluster")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "nonexistent-namespace"))
+            .send()
             .thenAssertResults();
     }
 
@@ -761,9 +767,11 @@ class KafkaClusterToolsST extends AbstractST {
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "nodePoolName", "nonexistent-pool");
         mcpClient.when()
-            .toolsCall("get_kafka_node_pool", args, response -> {
-                assertToolError(response, "not found", "nonexistent-pool");
-            })
+            .toolsCall("get_kafka_node_pool")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "nonexistent-pool"))
+            .send()
             .thenAssertResults();
     }
 

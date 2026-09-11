@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.tool.operator;
 
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
@@ -37,7 +38,7 @@ import java.util.List;
  */
 @Singleton
 @Guarded
-@WrapBusinessError(value = Exception.class, unless = ToolCallException.class)
+@WrapBusinessError(value = Exception.class, unless = {ToolCallException.class, McpException.class})
 public class StrimziOperatorTools {
 
     private static final int SECONDS_PER_MINUTE = 60;

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkiverse.mcp.server.ToolResponse;
+import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.CleanupStrategy;
 import io.skodjob.kubetest4j.annotations.KubernetesTest;
 import io.skodjob.kubetest4j.annotations.LogCollectionStrategy;
@@ -49,6 +50,7 @@ import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -195,6 +197,32 @@ public abstract class AbstractST {
             assertTrue(text.toLowerCase(Locale.ROOT).contains(sub.toLowerCase(Locale.ROOT)),
                 "Error message should contain '" + sub + "', got: " + text);
         }
+    }
+
+    /**
+     * Assert that an MCP tool call returned a structured JSON-RPC protocol error.
+     *
+     * @param error              the JSON-RPC error returned by the tool call
+     * @param expectedCode       the expected JSON-RPC error code
+     * @param expectedCategory   the expected {@code error.data.category}, or {@code null} to skip the data check
+     * @param expectedSubstrings substrings that must appear in the error message
+     */
+    protected static void assertToolProtocolError(final McpAssured.McpError error,
+                                                  final int expectedCode,
+                                                  final String expectedCategory,
+                                                  final String... expectedSubstrings) {
+        assertEquals(expectedCode, error.code(),
+            "JSON-RPC error code should match; message: " + error.message());
+        for (String sub : expectedSubstrings) {
+            assertTrue(error.message().toLowerCase(Locale.ROOT).contains(sub.toLowerCase(Locale.ROOT)),
+                "Error message should contain '" + sub + "', got: " + error.message());
+        }
+        if (expectedCategory != null) {
+            assertNotNull(error.data(), "Structured error data should be present");
+            assertEquals(expectedCategory, error.data().getString("category"),
+                "error.data.category should match");
+        }
+        assertNoStackTrace(error.message());
     }
 
     /**

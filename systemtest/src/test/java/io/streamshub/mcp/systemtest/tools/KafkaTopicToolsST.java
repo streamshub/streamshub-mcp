@@ -262,9 +262,11 @@ class KafkaTopicToolsST extends AbstractST {
             "topicName", "nonexistent-topic-xyz",
             "namespace", kafkaNamespace.getMetadata().getName());
         mcpClient.when()
-            .toolsCall("get_kafka_topic", args, response -> {
-                assertToolError(response, "not found", "nonexistent-topic-xyz");
-            })
+            .toolsCall("get_kafka_topic")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "nonexistent-topic-xyz"))
+            .send()
             .thenAssertResults();
     }
 
@@ -368,9 +370,11 @@ class KafkaTopicToolsST extends AbstractST {
             "namespace", "nonexistent-namespace");
 
         mcpClient.when()
-            .toolsCall("get_kafka_topic", args, response -> {
-                assertToolError(response, "not found", "mcp-topic-alpha");
-            })
+            .toolsCall("get_kafka_topic")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "mcp-topic-alpha"))
+            .send()
             .thenAssertResults();
     }
 

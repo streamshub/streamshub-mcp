@@ -37,7 +37,7 @@ Scan the changed files and classify into categories. This guides which checks ap
 ### 2.1 — Architecture & Layer Rules (all PRs)
 
 - [ ] Tools are thin wrappers — no business logic, no try/catch inside tool methods.
-- [ ] Services contain all logic and throw `ToolCallException` for user-facing errors.
+- [ ] Services contain all logic and throw structured `McpException`s via `McpErrors` (`notFound`/`invalidParams`/`ambiguous`/`forbidden`) for user-facing errors; plain `ToolCallException` only for rate-limit/cancellation.
 - [ ] DTOs are immutable `record` types with `@JsonProperty` + `@JsonInclude(NON_NULL)`.
 - [ ] DTO construction uses static factory methods (`of()`, `empty()`) — not `new` directly in callers.
 - [ ] Metrics queries go through `MetricsQueryService`, never via direct `MetricsProvider` injection in domain services.
@@ -47,7 +47,7 @@ Scan the changed files and classify into categories. This guides which checks ap
 
 ### 2.2 — Tool Pattern (category: Tool)
 
-- [ ] Class annotated `@Singleton`, `@WrapBusinessError(value = Exception.class, unless = ToolCallException.class)`.
+- [ ] Class annotated `@Singleton`, `@WrapBusinessError(value = Exception.class, unless = {ToolCallException.class, McpException.class})`.
 - [ ] Package-private no-arg constructor present for CDI.
 - [ ] Every tool method has `@WithSpan("tool.<tool_name>")` matching the `@Tool(name = ...)` value.
 - [ ] Every tool method has `@MetaField` annotations for `type` (from `ToolMetaFields`) and `resource` (from `StrimziToolResources`).
@@ -66,7 +66,7 @@ Scan the changed files and classify into categories. This guides which checks ap
 - [ ] Dependencies injected via `@Inject` (field injection).
 - [ ] All user-supplied strings pass through `InputUtils.normalizeInput()` before use.
 - [ ] Null namespace -> query all namespaces; non-null -> query that namespace.
-- [ ] Required parameters validated early; throw `ToolCallException` with a clear message on failure.
+- [ ] Required parameters validated early; throw `McpErrors.invalidParams(...)` (or the matching `McpErrors` factory) with a clear message on failure.
 - [ ] Empty list results returned as empty list (not an error).
 - [ ] Never return error objects — always throw or return typed responses.
 - [ ] No exceptions swallowed — no empty catch blocks or `catch (Exception e) { LOG.warn(...) }`. Let infrastructure exceptions propagate to `@WrapBusinessError`.

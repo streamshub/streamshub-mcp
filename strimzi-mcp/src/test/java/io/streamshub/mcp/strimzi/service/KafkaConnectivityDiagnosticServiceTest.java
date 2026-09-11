@@ -15,10 +15,9 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaConnectivityDiagnosticReport;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaConnectivityDiagnosticService;
 import io.strimzi.api.kafka.model.kafka.Kafka;
@@ -70,14 +69,14 @@ class KafkaConnectivityDiagnosticServiceTest {
 
     @Test
     void testThrowsWhenClusterNameMissing() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             connectivityDiagnosticService.diagnose("kafka", null, null,
                 null, null, null, null));
     }
 
     @Test
     void testThrowsWhenClusterNotFound() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             connectivityDiagnosticService.diagnose("kafka", "missing-cluster", null,
                 null, null, null, null));
     }
@@ -125,21 +124,6 @@ class KafkaConnectivityDiagnosticServiceTest {
         assertNotNull(report);
         assertNotNull(report.cluster());
         assertTrue(report.message().contains("my-cluster"));
-    }
-
-    @Test
-    void testParseNamespacesFromError() {
-        List<String> namespaces = NamespaceElicitationHelper.parseNamespacesFromError(
-            "Multiple clusters named 'my-cluster' found in namespaces: ns-a, ns-b. Please specify namespace.");
-
-        assertEquals(2, namespaces.size());
-        assertEquals("ns-a", namespaces.get(0));
-        assertEquals("ns-b", namespaces.get(1));
-    }
-
-    @Test
-    void testParseNamespacesFromErrorReturnsEmptyForNull() {
-        assertTrue(NamespaceElicitationHelper.parseNamespacesFromError(null).isEmpty());
     }
 
     // ---- Test helpers ----

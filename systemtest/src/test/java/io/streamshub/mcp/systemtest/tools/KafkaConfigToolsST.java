@@ -213,9 +213,11 @@ class KafkaConfigToolsST extends AbstractST {
             "namespace", Environment.KAFKA_NAMESPACE);
 
         mcpClient.when()
-            .toolsCall("get_kafka_cluster_config", args, response -> {
-                assertToolError(response, "not found", "non-existent-cluster");
-            })
+            .toolsCall("get_kafka_cluster_config")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "non-existent-cluster"))
+            .send()
             .thenAssertResults();
     }
 
@@ -294,9 +296,11 @@ class KafkaConfigToolsST extends AbstractST {
             "namespace2", Environment.KAFKA_NAMESPACE);
 
         mcpClient.when()
-            .toolsCall("compare_kafka_clusters", args, response -> {
-                assertToolError(response, "not found", "non-existent-cluster");
-            })
+            .toolsCall("compare_kafka_clusters")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "non-existent-cluster"))
+            .send()
             .thenAssertResults();
     }
 }

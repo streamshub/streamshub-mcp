@@ -65,7 +65,7 @@ public XxxResponse getItem(final String namespace, final String name) {
     String normalizedName = InputUtils.normalizeInput(name);
 
     if (normalizedName == null) {
-        throw new ToolCallException("Resource name is required");
+        throw McpErrors.invalidParams("Resource name is required");
     }
 
     // Query Kubernetes API
@@ -76,7 +76,7 @@ public XxxResponse getItem(final String namespace, final String name) {
 Rules:
 - Normalize all user input with `InputUtils.normalizeInput()`
 - Null namespace means query all namespaces
-- Throw `ToolCallException` for validation errors and not-found
+- Throw structured errors via `McpErrors`: `invalidParams(...)` for validation, `notFound(kind, name, namespace)` for not-found, `ambiguous(kind, name, candidates)` for multi-namespace matches (these become JSON-RPC errors with `error.data`). Reserve plain `ToolCallException` for rate-limit/cancellation.
 - Return empty list for zero results (not an error)
 - Use JBoss logging: `LOG.infof("Found %d items", count)`
 
@@ -163,7 +163,7 @@ Edit `strimzi-mcp/src/test/java/io/streamshub/mcp/strimzi/tool/McpDiscoveryTest.
 Create `strimzi-mcp/src/test/java/.../service/XxxServiceTest.java`:
 - Mock `KubernetesResourceService` interactions
 - Test with namespace and without (null namespace)
-- Test not-found case throws `ToolCallException`
+- Test not-found case throws `McpException` (assert `getJsonRpcErrorCode()` / `getData()` where useful)
 - Test empty list returns empty (not error)
 - Use `@QuarkusTest` annotation
 - Name tests: `testDescriptiveName` in camelCase (e.g., `testListItemsReturnsEmptyWhenNoneExist`)

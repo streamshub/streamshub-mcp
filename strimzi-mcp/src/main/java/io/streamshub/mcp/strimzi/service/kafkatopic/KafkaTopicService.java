@@ -4,11 +4,11 @@
  */
 package io.streamshub.mcp.strimzi.service.kafkatopic;
 
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.common.util.PaginationUtils;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
 import io.strimzi.api.ResourceLabels;
@@ -56,7 +56,7 @@ public class KafkaTopicService {
         String normalizedClusterName = InputUtils.normalizeInput(clusterName);
 
         if (normalizedClusterName == null) {
-            throw new ToolCallException("Cluster name is required");
+            throw McpErrors.invalidParams("Cluster name is required");
         }
 
         LOG.infof("Listing Kafka topics for cluster=%s (namespace=%s)",
@@ -90,7 +90,7 @@ public class KafkaTopicService {
         String ns = InputUtils.normalizeInput(namespace);
 
         if (topicName == null) {
-            throw new ToolCallException("Topic name is required");
+            throw McpErrors.invalidParams("Topic name is required");
         }
         InputUtils.validateK8sName(topicName, "topic name");
         InputUtils.validateK8sName(ns, "namespace");
@@ -106,7 +106,7 @@ public class KafkaTopicService {
         }
 
         if (topic == null) {
-            throw new ToolCallException("Topic '" + topicName + "' not found");
+            throw McpErrors.notFound("Topic", topicName, ns);
         }
 
         if (clusterName != null) {
@@ -115,7 +115,7 @@ public class KafkaTopicService {
                 : null;
 
             if (!clusterName.equals(topicCluster)) {
-                throw new ToolCallException("Topic '" + topicName + "' belongs to cluster '"
+                throw McpErrors.invalidParams("Topic '" + topicName + "' belongs to cluster '"
                     + topicCluster + "', not '" + clusterName + "'");
             }
         }

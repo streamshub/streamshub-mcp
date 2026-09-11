@@ -5,7 +5,6 @@
 package io.streamshub.mcp.strimzi.service.kafkabridge;
 
 import io.fabric8.kubernetes.api.model.Pod;
-import io.quarkiverse.mcp.server.ToolCallException;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
@@ -16,6 +15,7 @@ import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.service.log.LogCollectionService;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgePodsResponse;
@@ -32,7 +32,6 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 /**
  * Service for KafkaBridge operations.
  */
@@ -87,7 +86,7 @@ public class KafkaBridgeService {
         String normalizedName = InputUtils.normalizeInput(bridgeName);
 
         if (normalizedName == null) {
-            throw new ToolCallException("KafkaBridge name is required");
+            throw McpErrors.invalidParams("KafkaBridge name is required");
         }
         InputUtils.validateK8sName(normalizedName, "bridge name");
         InputUtils.validateK8sName(ns, "namespace");
@@ -110,7 +109,7 @@ public class KafkaBridgeService {
         String normalizedName = InputUtils.normalizeInput(bridgeName);
 
         if (normalizedName == null) {
-            throw new ToolCallException("KafkaBridge name is required");
+            throw McpErrors.invalidParams("KafkaBridge name is required");
         }
         InputUtils.validateK8sName(normalizedName, "bridge name");
         InputUtils.validateK8sName(ns, "namespace");
@@ -151,7 +150,7 @@ public class KafkaBridgeService {
         String normalizedName = InputUtils.normalizeInput(bridgeName);
 
         if (normalizedName == null) {
-            throw new ToolCallException("KafkaBridge name is required");
+            throw McpErrors.invalidParams("KafkaBridge name is required");
         }
         InputUtils.validateK8sName(normalizedName, "bridge name");
         InputUtils.validateK8sName(ns, "namespace");
@@ -194,13 +193,7 @@ public class KafkaBridgeService {
         }
 
         if (bridge == null) {
-            if (namespace != null) {
-                throw new ToolCallException(
-                    "KafkaBridge '" + bridgeName + "' not found in namespace " + namespace);
-            } else {
-                throw new ToolCallException(
-                    "KafkaBridge '" + bridgeName + "' not found in any namespace");
-            }
+            throw McpErrors.notFound("KafkaBridge", bridgeName, namespace);
         }
         return bridge;
     }
@@ -216,12 +209,11 @@ public class KafkaBridgeService {
         }
 
         if (matching.size() > 1) {
-            String namespaces = matching.stream()
+            List<String> namespaces = matching.stream()
                 .map(b -> b.getMetadata().getNamespace())
                 .distinct()
-                .collect(Collectors.joining(", "));
-            throw new ToolCallException("Multiple KafkaBridge resources named '" + bridgeName
-                + "' found in namespaces: " + namespaces + ". Please specify namespace.");
+                .toList();
+            throw McpErrors.ambiguous("KafkaBridge", bridgeName, namespaces);
         }
 
         LOG.debugf("Discovered KafkaBridge %s in namespace %s",

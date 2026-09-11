@@ -4,7 +4,7 @@
  */
 package io.streamshub.mcp.common.util;
 
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -89,30 +89,30 @@ class InputUtilsTest {
 
     @Test
     void testValidateK8sNameRejectsUppercase() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> InputUtils.validateK8sName("My-Cluster", "cluster name"));
         assertTrue(ex.getMessage().contains("lowercase"));
     }
 
     @Test
     void testValidateK8sNameRejectsSpecialChars() {
-        assertThrows(ToolCallException.class,
+        assertThrows(McpException.class,
             () -> InputUtils.validateK8sName("my_cluster", "name"));
-        assertThrows(ToolCallException.class,
+        assertThrows(McpException.class,
             () -> InputUtils.validateK8sName("my cluster", "name"));
     }
 
     @Test
     void testValidateK8sNameRejectsTooLong() {
         String longName = "a".repeat(254);
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> InputUtils.validateK8sName(longName, "name"));
         assertTrue(ex.getMessage().contains("maximum length"));
     }
 
     @Test
     void testValidateK8sNameRejectsStartingWithDash() {
-        assertThrows(ToolCallException.class,
+        assertThrows(McpException.class,
             () -> InputUtils.validateK8sName("-invalid", "name"));
     }
 }

@@ -15,7 +15,7 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafka.UpgradeReadinessReport;
@@ -69,14 +69,14 @@ class UpgradeReadinessDiagnosticServiceTest {
 
     @Test
     void testThrowsWhenClusterNameMissing() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             upgradeReadinessDiagnosticService.diagnose("kafka", null, null,
                 null, null, null, null));
     }
 
     @Test
     void testThrowsWhenClusterNotFound() {
-        assertThrows(ToolCallException.class, () ->
+        assertThrows(McpException.class, () ->
             upgradeReadinessDiagnosticService.diagnose("kafka", "missing-cluster", null,
                 null, null, null, null));
     }

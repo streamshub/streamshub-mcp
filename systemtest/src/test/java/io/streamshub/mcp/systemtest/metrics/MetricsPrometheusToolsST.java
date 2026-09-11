@@ -219,11 +219,13 @@ class MetricsPrometheusToolsST extends AbstractST {
             Constants.KAFKA_READY_POLL_MS, Constants.MCP_READY_TIMEOUT_MS, () -> {
                 try {
                     mcpClient.when()
-                        .toolsCall("get_kafka_metrics", args, response -> {
-                            LOGGER.info("get_kafka_metrics error range response: {}",
-                                response.content().getFirst().asText().text());
-                            assertToolError(response, "not found");
+                        .toolsCall("get_kafka_metrics")
+                        .withArguments(args)
+                        .withErrorAssert(error -> {
+                            LOGGER.info("get_kafka_metrics error range response: {}", error.message());
+                            assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND", "not found");
                         })
+                        .send()
                         .thenAssertResults();
 
                     return true;

@@ -9,7 +9,7 @@ import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
-import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2Response;
@@ -71,7 +71,7 @@ class KafkaMirrorMaker2ServiceTest {
      */
     @Test
     void testGetMirrorMakerThrowsWhenNameNull() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> mirrorMakerService.getMirrorMaker("kafka", null));
 
         assertTrue(ex.getMessage().contains("required"));
@@ -82,7 +82,7 @@ class KafkaMirrorMaker2ServiceTest {
      */
     @Test
     void testGetMirrorMakerThrowsWhenNotFoundInNamespace() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> mirrorMakerService.getMirrorMaker("kafka", "nonexistent"));
 
         assertTrue(ex.getMessage().contains("not found"));
@@ -94,7 +94,7 @@ class KafkaMirrorMaker2ServiceTest {
      */
     @Test
     void testGetMirrorMakerThrowsWhenNotFoundInAnyNamespace() {
-        ToolCallException ex = assertThrows(ToolCallException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> mirrorMakerService.getMirrorMaker(null, "nonexistent"));
 
         assertTrue(ex.getMessage().contains("not found"));
@@ -106,7 +106,7 @@ class KafkaMirrorMaker2ServiceTest {
      */
     @Test
     void testGetMirrorMakerThrowsForInvalidName() {
-        assertThrows(ToolCallException.class,
+        assertThrows(McpException.class,
             () -> mirrorMakerService.getMirrorMaker("kafka", "INVALID_NAME"));
     }
 }
