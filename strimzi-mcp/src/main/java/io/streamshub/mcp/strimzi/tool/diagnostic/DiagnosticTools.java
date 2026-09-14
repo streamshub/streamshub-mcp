@@ -15,6 +15,7 @@ import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.Guarded;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
@@ -100,6 +101,7 @@ public class DiagnosticTools {
      * @param cancellation MCP cancellation checking
      * @return a consolidated Connect cluster diagnostic report
      */
+    @RunOnVirtualThread
     @WithSpan("tool.diagnose_kafka_connect")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)
@@ -145,6 +147,7 @@ public class DiagnosticTools {
      * @param cancellation  MCP cancellation checking
      * @return a consolidated connector diagnostic report
      */
+    @RunOnVirtualThread
     @WithSpan("tool.diagnose_kafka_connector")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECTOR)
@@ -203,6 +206,7 @@ public class DiagnosticTools {
      * @param cancellation MCP cancellation checking
      * @return a consolidated diagnostic report
      */
+    @RunOnVirtualThread
     @WithSpan("tool.diagnose_kafka_cluster")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
@@ -262,6 +266,7 @@ public class DiagnosticTools {
      * @param cancellation MCP cancellation checking
      * @return a configuration comparison report
      */
+    @RunOnVirtualThread
     @WithSpan("tool.compare_kafka_clusters")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.COMPARE)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
@@ -318,6 +323,7 @@ public class DiagnosticTools {
      * @param cancellation MCP cancellation checking
      * @return a consolidated connectivity diagnostic report
      */
+    @RunOnVirtualThread
     @WithSpan("tool.diagnose_kafka_connectivity")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
@@ -375,6 +381,7 @@ public class DiagnosticTools {
      * @param cancellation MCP cancellation checking
      * @return a consolidated metrics diagnostic report
      */
+    @RunOnVirtualThread
     @WithSpan("tool.diagnose_kafka_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
@@ -449,6 +456,7 @@ public class DiagnosticTools {
      * @param cancellation MCP cancellation checking
      * @return a consolidated operator metrics diagnostic report
      */
+    @RunOnVirtualThread
     @WithSpan("tool.diagnose_operator_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)
@@ -524,6 +532,7 @@ public class DiagnosticTools {
      * @param cancellation MCP cancellation checking
      * @return a consolidated topic diagnostic report
      */
+    @RunOnVirtualThread
     @WithSpan("tool.diagnose_kafka_topic")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_TOPIC)
@@ -581,6 +590,7 @@ public class DiagnosticTools {
      * @param cancellation  MCP cancellation checking
      * @return an upgrade readiness report with GO/NO-GO verdict
      */
+    @RunOnVirtualThread
     @WithSpan("tool.assess_upgrade_readiness")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.ASSESS)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
@@ -636,6 +646,7 @@ public class DiagnosticTools {
      * @param cancellation    MCP cancellation checking
      * @return a consolidated MM2 diagnostic report
      */
+    @RunOnVirtualThread
     @WithSpan("tool.diagnose_kafka_mirror_maker")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_MIRROR_MAKER_2)

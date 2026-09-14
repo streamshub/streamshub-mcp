@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.tool.kafkabridge;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.MetaField;
@@ -12,6 +13,7 @@ import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.guardrail.Guarded;
@@ -56,6 +58,7 @@ public class KafkaBridgeTools {
      * @param namespace optional namespace filter
      * @return list of KafkaBridge responses
      */
+    @WithSpan("tool.list_kafka_bridges")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)
     @Tool(
@@ -88,6 +91,7 @@ public class KafkaBridgeTools {
      * @param namespace  optional namespace
      * @return the KafkaBridge response
      */
+    @WithSpan("tool.get_kafka_bridge")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)
     @Tool(
@@ -122,6 +126,7 @@ public class KafkaBridgeTools {
      * @param namespace  optional namespace
      * @return the bridge pods response
      */
+    @WithSpan("tool.get_kafka_bridge_pods")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)
     @Tool(
@@ -164,6 +169,8 @@ public class KafkaBridgeTools {
      * @param cancellation MCP cancellation checking
      * @return the bridge logs response with error analysis
      */
+    @RunOnVirtualThread
+    @WithSpan("tool.get_kafka_bridge_logs")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LOGS)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)
     @Tool(

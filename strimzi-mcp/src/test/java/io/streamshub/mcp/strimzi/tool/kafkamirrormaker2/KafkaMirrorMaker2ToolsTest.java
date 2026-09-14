@@ -9,6 +9,7 @@ import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
+import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2LogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2Response;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2Response.MirrorInfo;
 import io.streamshub.mcp.strimzi.service.kafkamirrormaker2.KafkaMirrorMaker2Service;
@@ -24,6 +25,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 /**
  * MCP integration tests for KafkaMirrorMaker2 tools.
@@ -119,6 +121,28 @@ class KafkaMirrorMaker2ToolsTest {
                     assertTrue(json.contains("target-cluster"));
                     assertTrue(json.contains("__strimzi.*"));
                     assertTrue(json.contains("4.2.0"));
+                })
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify get_kafka_mirror_maker_logs returns log data.
+     */
+    @Test
+    void testGetKafkaMirrorMakerLogs() {
+        when(mirrorMakerService.getMirrorMakerLogs(any(), any(), any())).thenReturn(
+            KafkaMirrorMaker2LogsResponse.of("my-mm2", "kafka",
+                List.of("my-mm2-mirrormaker2-0"), false, 0, 0, 1, false,
+                "2025-01-01 INFO MirrorMaker2 started", List.of())
+        );
+
+        client.when()
+            .toolsCall("get_kafka_mirror_maker_logs",
+                Map.of("mirrorMakerName", "my-mm2"), response -> {
+                    assertFalse(response.isError());
+                    String json = response.content().getFirst().asText().text();
+                    assertTrue(json.contains("my-mm2"));
+                    assertTrue(json.contains("MirrorMaker2 started"));
                 })
             .thenAssertResults();
     }

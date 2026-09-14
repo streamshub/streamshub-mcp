@@ -13,6 +13,7 @@ import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
@@ -135,6 +136,7 @@ public class StrimziOperatorTools {
      * @param cancellation MCP cancellation checking
      * @return the operator logs response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_strimzi_operator_logs")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LOGS)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)

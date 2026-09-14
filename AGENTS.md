@@ -273,6 +273,15 @@ public class XxxTools {
 Every tool method is annotated with `@WithSpan("tool.<tool_name>")` where the span name
 matches the `@Tool(name = ...)` value. This creates a named parent span for each MCP tool call.
 
+### Virtual threads for blocking tool methods
+
+Blocking tool methods — log-collection (`get_*_logs`) and composite diagnostic/assessment
+(`diagnose_*`, `compare_*`, `assess_*`) methods — are annotated with `@RunOnVirtualThread`.
+These methods perform sequential Kubernetes API calls, selective diagnostic logic, and pod log
+streaming, which would otherwise block and exhaust the standard Quarkus worker thread pool under concurrent
+MCP client load. Annotating them with `@RunOnVirtualThread` offloads execution to virtual threads.
+The `@RunOnVirtualThread` annotation sits above `@WithSpan` in the annotation stack.
+
 ### Tool Annotations
 
 All tools declare `@Tool.Annotations` nested inside `@Tool(... annotations = @Tool.Annotations(...))`
