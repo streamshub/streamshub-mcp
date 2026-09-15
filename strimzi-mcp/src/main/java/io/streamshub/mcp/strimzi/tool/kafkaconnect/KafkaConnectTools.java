@@ -13,6 +13,7 @@ import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.guardrail.Guarded;
@@ -168,6 +169,7 @@ public class KafkaConnectTools {
      * @param cancellation MCP cancellation checking
      * @return the Connect logs response with error analysis
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_connect_logs")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LOGS)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)

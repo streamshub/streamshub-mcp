@@ -14,6 +14,7 @@ import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.ListenerInfo;
@@ -277,6 +278,28 @@ class KafkaToolsTest {
                 assertTrue(json.contains("prod-cluster"));
                 assertTrue(json.contains("production"));
             })
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify get_kafka_cluster_logs returns log data.
+     */
+    @Test
+    void testGetKafkaClusterLogs() {
+        when(kafkaService.getClusterLogs(any(), any(), any(), any())).thenReturn(
+            KafkaClusterLogsResponse.of("my-cluster", "kafka",
+                List.of("my-cluster-kafka-0"), false, 0, 0, 1, false,
+                "2025-01-01 INFO Kafka started", List.of())
+        );
+
+        client.when()
+            .toolsCall("get_kafka_cluster_logs",
+                Map.of("clusterName", "my-cluster"), response -> {
+                    assertFalse(response.isError());
+                    String json = response.content().getFirst().asText().text();
+                    assertTrue(json.contains("my-cluster"));
+                    assertTrue(json.contains("Kafka started"));
+                })
             .thenAssertResults();
     }
 }

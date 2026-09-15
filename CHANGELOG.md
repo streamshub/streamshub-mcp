@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Virtual-thread offloading for blocking tools** — Log-collection (`get_*_logs`) and composite diagnostic/comparison/assessment (`diagnose_*`, `compare_*`, `assess_*`) tool methods now run on virtual threads (`@RunOnVirtualThread`), preventing worker-thread-pool exhaustion under concurrent MCP client load during long-running Kubernetes calls and LLM sampling round-trips.
 - **Error semantics for structured errors** (#229) — Tool errors in the not-found (`-32002`) and invalid-params (`-32602`) categories are now returned as JSON-RPC protocol errors (carrying `error.data`) rather than failed tool responses (`isError: true`). Rate-limit, cancellation, RBAC/403, and generic infrastructure errors are unchanged and remain failed tool responses. `NamespaceElicitationHelper` now reads the candidate namespaces from the structured error data instead of regex-parsing the error message.
 
 ### Fixed
