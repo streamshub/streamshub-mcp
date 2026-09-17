@@ -5,9 +5,8 @@
 package io.streamshub.mcp.common.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkiverse.mcp.server.InputRequiredException;
 import io.quarkiverse.mcp.server.Sampling;
-import io.quarkiverse.mcp.server.SamplingMessage;
-import io.quarkiverse.mcp.server.SamplingResponse;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -74,62 +73,8 @@ public abstract class BaseDiagnosticService {
     protected String performSampling(Sampling sampling, String systemPrompt,
                                       Map<String, Object> data, int maxTokens,
                                       AtomicBoolean cancelled) {
-        if (sampling == null || !sampling.isSupported()) {
-            return null;
-        }
-        if (cancelled != null && cancelled.get()) {
-            return null;
-        }
-        try {
-            String dataJson = objectMapper.writeValueAsString(data);
-            SamplingResponse response = sampling.requestBuilder()
-                .setSystemPrompt(systemPrompt)
-                .addMessage(SamplingMessage.withUserRole(dataJson))
-                .setMaxTokens(maxTokens)
-                .build()
-                .sendAndAwait();
-            if (cancelled != null && cancelled.get()) {
-                return null;
-            }
-            return DiagnosticHelper.extractSamplingText(response);
-        } catch (Exception e) {
-            getLogger().warnf("Sampling failed: %s: %s",
-                e.getClass().getSimpleName(), e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Perform analysis Sampling and return the LLM response text.
-     *
-     * <p>Convenience wrapper that uses {@link #analysisMaxTokens}.</p>
-     *
-     * @param sampling     MCP Sampling interface
-     * @param systemPrompt the analysis system prompt
-     * @param fullData     the full gathered data map
-     * @return the analysis text, or null on failure
-     */
-    protected String performAnalysis(Sampling sampling, String systemPrompt,
-                                      Map<String, Object> fullData) {
-        return performSampling(sampling, systemPrompt, fullData, analysisMaxTokens);
-    }
-
-    /**
-     * Perform analysis Sampling with cancellation support.
-     *
-     * <p>Convenience wrapper that uses {@link #analysisMaxTokens} and checks
-     * the cancellation flag before and after the sampling call.</p>
-     *
-     * @param sampling     MCP Sampling interface
-     * @param systemPrompt the analysis system prompt
-     * @param fullData     the full gathered data map
-     * @param cancelled    optional flag set by push-based cancellation callback (may be null)
-     * @return the analysis text, or null on failure or cancellation
-     */
-    protected String performAnalysis(Sampling sampling, String systemPrompt,
-                                      Map<String, Object> fullData,
-                                      AtomicBoolean cancelled) {
-        return performSampling(sampling, systemPrompt, fullData, analysisMaxTokens, cancelled);
+        return DiagnosticHelper.sendSampling(sampling, objectMapper, systemPrompt, data,
+            maxTokens, cancelled, getLogger());
     }
 
     /**
@@ -166,6 +111,13 @@ public abstract class BaseDiagnosticService {
     protected Map<String, Object> performTriage(Sampling sampling, String systemPrompt,
                                                  Map<String, Object> phase1Summary,
                                                  AtomicBoolean cancelled) {
+        if (sampling != null && !sampling.isServerInitiatedRequestSupported()) {
+            // Triage is a stateful-only (SSE) optimization. Stateless clients cannot service a
+            // server-initiated sampling call, so skip it here and let analysis run over all
+            // gathered data via the MRTR path. Note: isSupported() is capability-based and is
+            // true even for stateless clients, so the skip must key off the transport check.
+            return null;
+        }
         String text = performSampling(sampling, systemPrompt, phase1Summary, triageMaxTokens, cancelled);
         if (text == null) {
             return null;
@@ -176,5 +128,31 @@ public abstract class BaseDiagnosticService {
             getLogger().debugf("Could not parse triage response: %s", e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Perform analysis Sampling, adapting to the client's transport (MRTR-aware).
+     *
+     * <p>Delegates to {@link DiagnosticHelper#analysisSamplingMrtr}. For stateful clients it sends
+     * a server-initiated request and awaits the response, short-circuiting (returning {@code null})
+     * when {@code cancelled} is set before or after the call. For stateless clients (MRTR) it reads
+     * a prior sampling response keyed by {@code key} if present, otherwise throws
+     * {@link InputRequiredException} requesting it — that exception must propagate to the MCP
+     * framework and must not be caught. Returns {@code null} when sampling is null/unsupported,
+     * serialization fails, or the operation was cancelled.</p>
+     *
+     * @param sampling     MCP Sampling interface (may be null)
+     * @param systemPrompt the analysis system prompt
+     * @param fullData     the full gathered data map
+     * @param key          the MRTR request key (e.g. "analysis")
+     * @param requestState the request state to preserve across round-trips (e.g. namespace)
+     * @param cancelled    optional flag set by push-based cancellation callback (may be null)
+     * @return the analysis text, or null when sampling is null/unsupported or cancelled
+     */
+    protected String performAnalysisMrtr(final Sampling sampling, final String systemPrompt,
+                                         final Map<String, Object> fullData, final String key,
+                                         final String requestState, final AtomicBoolean cancelled) {
+        return DiagnosticHelper.analysisSamplingMrtr(sampling, objectMapper, systemPrompt,
+            fullData, analysisMaxTokens, key, requestState, cancelled, getLogger());
     }
 }

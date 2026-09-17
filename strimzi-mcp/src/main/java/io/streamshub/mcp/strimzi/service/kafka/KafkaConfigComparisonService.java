@@ -11,8 +11,6 @@ import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
-import io.quarkiverse.mcp.server.SamplingMessage;
-import io.quarkiverse.mcp.server.SamplingResponse;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
@@ -144,8 +142,14 @@ public class KafkaConfigComparisonService {
             completed.add(step);
             return result;
         } catch (McpException e) {
+            // Two-namespace comparison uses stateful (SSE) elicitation only; the MRTR structured-error
+            // fallback (#229) handles stateless clients, which re-call with explicit namespace1/2.
+            // Gate on isServerInitiatedRequestSupported() so a stateless client skips the doomed
+            // sendAndAwait() (it throws IllegalStateException, logged as a misleading "Elicitation
+            // failed" WARN) and falls straight through to the structured AMBIGUOUS error.
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
-                    && elicitation != null && elicitation.isFormModeSupported()) {
+                    && elicitation != null && elicitation.isServerInitiatedRequestSupported()
+                    && elicitation.isFormModeSupported()) {
                 String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, elicitationContext);
                 return gatherConfigResolved(resolved, clusterName, step, completed, failed);
             }
@@ -173,32 +177,16 @@ public class KafkaConfigComparisonService {
     String produceAnalysis(final Sampling sampling,
                                    final KafkaEffectiveConfigResponse config1,
                                    final KafkaEffectiveConfigResponse config2) {
-        if (sampling == null || !sampling.isSupported()) {
-            return null;
-        }
         if (config1 == null || config2 == null) {
             return null;
         }
 
-        try {
-            Map<String, Object> data = new LinkedHashMap<>();
-            data.put("cluster1", config1);
-            data.put("cluster2", config2);
-            String dataJson = objectMapper.writeValueAsString(data);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("cluster1", config1);
+        data.put("cluster2", config2);
 
-            SamplingResponse response = sampling.requestBuilder()
-                .setSystemPrompt(COMPARISON_SYSTEM_PROMPT)
-                .addMessage(SamplingMessage.withUserRole(dataJson))
-                .setMaxTokens(analysisMaxTokens)
-                .build()
-                .sendAndAwait();
-
-            return DiagnosticHelper.extractSamplingText(response);
-        } catch (Exception e) {
-            LOG.warnf("Sampling comparison analysis failed: %s: %s",
-                e.getClass().getSimpleName(), e.getMessage());
-            return null;
-        }
+        return DiagnosticHelper.analysisSamplingMrtr(sampling, objectMapper,
+            COMPARISON_SYSTEM_PROMPT, data, analysisMaxTokens, "analysis", null, null, LOG);
     }
 
     static final String COMPARISON_SYSTEM_PROMPT = """

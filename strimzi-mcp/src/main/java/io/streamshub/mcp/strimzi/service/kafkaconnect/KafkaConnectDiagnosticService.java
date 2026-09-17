@@ -101,6 +101,7 @@ public class KafkaConnectDiagnosticService extends BaseDiagnosticService {
                                                   final Progress progress,
                                                   final Cancellation cancellation) {
         String ns = InputUtils.normalizeInput(namespace);
+        ns = DiagnosticHelper.effectiveNamespace(sampling, ns);
         String name = InputUtils.normalizeInput(connectName);
 
         if (name == null) {
@@ -181,8 +182,8 @@ public class KafkaConnectDiagnosticService extends BaseDiagnosticService {
         } catch (McpException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
-                String resolved = NamespaceElicitationHelper.elicitNamespace(
-                    e, elicitation, "diagnosed");
+                String resolved = NamespaceElicitationHelper.elicitNamespaceMrtr(
+                    e, elicitation, "diagnosed", "namespace");
                 return gatherConnectStatus(resolved, name, null, completed);
             }
             throw e;
@@ -295,9 +296,10 @@ public class KafkaConnectDiagnosticService extends BaseDiagnosticService {
                            final StrimziEventsResponse events,
                            final String symptom,
                            final AtomicBoolean cancelled) {
-        return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
+        String namespace = connectCluster != null ? connectCluster.namespace() : null;
+        return performAnalysisMrtr(sampling, ANALYSIS_SYSTEM_PROMPT,
             buildFullSummary(connectCluster, connectors, pods, logs, connectMetrics, events, symptom),
-            cancelled);
+            "analysis", namespace, cancelled);
     }
 
     @SuppressWarnings("checkstyle:ParameterNumber")

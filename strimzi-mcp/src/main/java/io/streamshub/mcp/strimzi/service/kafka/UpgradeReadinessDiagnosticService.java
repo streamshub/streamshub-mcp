@@ -130,6 +130,8 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         String name = InputUtils.normalizeInput(clusterName);
         String version = InputUtils.normalizeInput(targetVersion);
 
+        ns = DiagnosticHelper.effectiveNamespace(sampling, ns);
+
         if (name == null) {
             throw McpErrors.invalidParams("Cluster name is required");
         }
@@ -272,8 +274,8 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         } catch (McpException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
-                String resolved = NamespaceElicitationHelper.elicitNamespace(
-                    e, elicitation, "checked for upgrade readiness");
+                String resolved = NamespaceElicitationHelper.elicitNamespaceMrtr(
+                    e, elicitation, "checked for upgrade readiness", "namespace");
                 return gatherClusterStatus(resolved, clusterName, null, completed);
             }
             throw e;
@@ -491,11 +493,11 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
                            final StrimziEventsResponse events,
                            final String targetVersion,
                            final AtomicBoolean cancelled) {
-        return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
+        return performAnalysisMrtr(sampling, ANALYSIS_SYSTEM_PROMPT,
             buildFullSummary(cluster, operator, nodePools, pods, replicationMetrics,
                 activeRebalances, performanceMetrics, resourceMetrics,
                 drainCleaner, certificates, events, targetVersion),
-            cancelled);
+            "analysis", cluster.namespace(), cancelled);
     }
 
     // ---- Helpers ----

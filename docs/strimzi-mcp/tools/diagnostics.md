@@ -5,6 +5,10 @@ weight = 4
 
 Composite diagnostic tools run multi-step workflows in a single tool call, using Sampling for LLM-guided triage and Elicitation for user input (e.g., namespace disambiguation).
 
+## Stateless client support
+
+Diagnostic and comparison tools support stateless MCP clients (streamable HTTP, protocol `2026-07-28`) via Multi Round-Trip Request (MRTR). Stateless clients receive an `input_required` response asking for sampling (LLM analysis) or elicitation (namespace selection), fulfill the request with their own LLM, and retry carrying the result. Triage is skipped for stateless clients (analysis runs over all gathered data). Namespace disambiguation uses MRTR for single-namespace diagnostics; `compare_kafka_clusters` returns a structured error prompting re-call with explicit namespaces.
+
 ## diagnose_kafka_cluster
 
 Runs a multi-step diagnostic workflow for a Kafka cluster.

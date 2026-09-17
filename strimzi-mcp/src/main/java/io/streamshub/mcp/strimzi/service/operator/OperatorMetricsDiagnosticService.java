@@ -101,6 +101,8 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
         String name = InputUtils.normalizeInput(operatorName);
         String cluster = InputUtils.normalizeInput(clusterName);
 
+        ns = DiagnosticHelper.effectiveNamespace(sampling, ns);
+
         LOG.infof("Starting operator metrics diagnostic (namespace=%s, operator=%s, cluster=%s, concern=%s)",
             ns != null ? ns : "auto", name != null ? name : "auto",
             cluster != null ? cluster : "none", concern);
@@ -277,10 +279,10 @@ public class OperatorMetricsDiagnosticService extends BaseDiagnosticService {
                            final StrimziOperatorLogsResponse operatorLogs,
                            final String concern,
                            final AtomicBoolean cancelled) {
-        return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
+        return performAnalysisMrtr(sampling, ANALYSIS_SYSTEM_PROMPT,
             buildFullSummary(operator, reconciliationMetrics, resourceMetrics,
                 jvmMetrics, operatorLogs, concern),
-            cancelled);
+            "analysis", operator.namespace(), cancelled);
     }
 
     // ---- Helpers ----

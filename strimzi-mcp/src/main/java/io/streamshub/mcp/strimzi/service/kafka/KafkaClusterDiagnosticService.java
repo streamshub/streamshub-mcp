@@ -143,6 +143,7 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
                                                  final Progress progress,
                                                  final Cancellation cancellation) {
         String ns = InputUtils.normalizeInput(namespace);
+        ns = DiagnosticHelper.effectiveNamespace(sampling, ns);
         String name = InputUtils.normalizeInput(clusterName);
 
         if (name == null) {
@@ -282,7 +283,8 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
         } catch (McpException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
-                String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "diagnosed");
+                String resolved = NamespaceElicitationHelper.elicitNamespaceMrtr(
+                    e, elicitation, "diagnosed", "namespace");
                 return gatherClusterStatus(resolved, clusterName, null,
                     completed);
             }
@@ -526,10 +528,10 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
                                    final DrainCleanerLogsResponse drainCleanerLogs,
                                    final String symptom,
                                    final AtomicBoolean cancelled) {
-        return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
+        return performAnalysisMrtr(sampling, ANALYSIS_SYSTEM_PROMPT,
             buildFullSummary(cluster, nodePools, pods, operator, operatorLogs,
                 clusterLogs, events, users, metrics, drainCleaner, drainCleanerLogs, symptom),
-            cancelled);
+            "analysis", cluster.namespace(), cancelled);
     }
 
     // ---- Helpers ----
@@ -634,7 +636,11 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
                                                             final Elicitation elicitation,
                                                             final KafkaClusterLogsResponse currentResult,
                                                             final AtomicBoolean cancelled) {
-        if (elicitation == null || !elicitation.isFormModeSupported()) {
+        // Only namespace disambiguation is MRTR-migrated; this log-window elicitation stays
+        // stateful-only (SSE). A stateless client cannot service a server-initiated request, so
+        // skip the prompt and return the results already collected rather than throwing.
+        if (elicitation == null || !elicitation.isServerInitiatedRequestSupported()
+                || !elicitation.isFormModeSupported()) {
             return currentResult;
         }
 

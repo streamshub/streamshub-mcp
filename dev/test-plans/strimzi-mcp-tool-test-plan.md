@@ -1376,6 +1376,65 @@ Parameters: { "clusterName": "nonexistent-cluster-xyz" }
 - [ ] Returns error or report indicating cluster not found
 - [ ] Does not hang or timeout
 
+### T15.14 - Stateless Client MRTR - Diagnose Cluster
+
+> **Note:** This test requires a stateless MCP client (streamable HTTP, protocol `2026-07-28`).
+
+```
+Tool: diagnose_kafka_cluster
+Parameters: { "clusterName": "mcp-cluster" }
+```
+
+**Expected (first call):**
+- [ ] Returns `input_required` response requesting LLM analysis sampling
+- [ ] Includes system prompt and data payload for analysis
+- [ ] Includes `requestState` with resolved namespace
+
+**Expected (retry with sampling result):**
+- [ ] Returns full diagnostic report with LLM root cause analysis
+- [ ] Analysis section populated (not "N/A")
+- [ ] Triage section is skipped (stateless clients do not receive triage)
+
+### T15.15 - Stateless Client MRTR - Namespace Disambiguation
+
+> **Note:** This test requires a stateless MCP client and two clusters with the same name in different namespaces (e.g., deploy a second `mcp-cluster` in a separate namespace).
+
+```
+Tool: diagnose_kafka_cluster
+Parameters: { "clusterName": "mcp-cluster" }
+```
+
+**Expected (first call):**
+- [ ] Returns `input_required` response requesting namespace selection
+- [ ] Lists candidate namespaces (at least 2)
+- [ ] Includes elicitation prompt describing the ambiguity
+
+**Expected (retry with namespace selection):**
+- [ ] Proceeds to gather data from the selected namespace
+- [ ] May return another `input_required` for analysis sampling
+- [ ] Final report matches the selected cluster
+
+### T15.16 - Stateless Client MRTR - Compare Clusters (structured error fallback)
+
+> **Note:** This test requires a stateless MCP client. For `compare_kafka_clusters`, namespace ambiguity is handled via structured error (not MRTR elicitation).
+
+```
+Tool: compare_kafka_clusters
+Parameters: {
+  "clusterName1": "mcp-cluster",
+  "clusterName2": "mcp-cluster-mirror"
+}
+```
+
+**Expected (if either cluster name is ambiguous):**
+- [ ] Returns structured error with category `AMBIGUOUS`
+- [ ] Error data includes candidate namespaces for the ambiguous cluster
+- [ ] Client should re-call with explicit `namespace1` and/or `namespace2`
+
+**Expected (after providing explicit namespaces):**
+- [ ] Returns `input_required` response requesting analysis sampling (first call)
+- [ ] Returns comparison report with LLM analysis (retry with sampling result)
+
 ---
 
 ## Phase 16: Error Handling and Edge Cases

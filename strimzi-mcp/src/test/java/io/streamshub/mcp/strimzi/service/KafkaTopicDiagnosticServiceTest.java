@@ -16,11 +16,14 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
+import io.quarkiverse.mcp.server.InputRequiredException;
 import io.quarkiverse.mcp.server.McpException;
+import io.quarkiverse.mcp.server.Sampling;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicDiagnosticReport;
 import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicDiagnosticService;
+import io.streamshub.mcp.strimzi.testutil.MrtrTestHelper;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
@@ -113,6 +116,38 @@ class KafkaTopicDiagnosticServiceTest {
 
         assertNotNull(report);
         assertTrue(report.stepsCompleted().contains("topic_status"));
+    }
+
+    @Test
+    void testStatelessThrowsInputRequiredWhenNoAnalysisResponse() {
+        setupKafkaTopic("my-topic", "kafka", "my-cluster");
+        setupKafkaCluster("my-cluster", "kafka");
+
+        Sampling sampling = MrtrTestHelper.mockStatelessSampling(false, null);
+
+        assertThrows(InputRequiredException.class,
+            () -> topicDiagnosticService.diagnose("kafka", "my-topic", "my-cluster",
+                "topic not ready", sampling, null, null, null));
+    }
+
+    @Test
+    void testStatelessReturnsAnalysisWhenResponsePresent() {
+        setupKafkaTopic("my-topic", "kafka", "my-cluster");
+        setupKafkaCluster("my-cluster", "kafka");
+
+        String analysisText = "Root cause: Topic operator reconciliation failure\nSeverity: CRITICAL";
+        Sampling sampling = MrtrTestHelper.mockStatelessSampling(true, analysisText);
+
+        KafkaTopicDiagnosticReport report = topicDiagnosticService.diagnose(
+            "kafka", "my-topic", "my-cluster", "topic not ready",
+            sampling, null, null, null);
+
+        assertNotNull(report);
+        assertNotNull(report.topic());
+        assertTrue(report.stepsCompleted().contains("topic_status"));
+        assertNotNull(report.analysis());
+        assertTrue(report.analysis().contains("Root cause"));
+        assertTrue(report.analysis().contains("CRITICAL"));
     }
 
     // ---- Test helpers ----

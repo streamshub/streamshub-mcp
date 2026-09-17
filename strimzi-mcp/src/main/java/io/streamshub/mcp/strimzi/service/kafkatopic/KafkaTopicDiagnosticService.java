@@ -111,6 +111,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
                                                 final Progress progress,
                                                 final Cancellation cancellation) {
         String ns = InputUtils.normalizeInput(namespace);
+        ns = DiagnosticHelper.effectiveNamespace(sampling, ns);
         String name = InputUtils.normalizeInput(topicName);
         String cluster = InputUtils.normalizeInput(clusterName);
 
@@ -131,8 +132,10 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
 
         // === Phase 1: Initial data gathering ===
         int maxSteps = PHASE1_STEPS + MAX_PHASE2_STEPS;
-        KafkaTopicResponse topic = gatherTopicStatus(
+        TopicStatusResult topicResult = gatherTopicStatus(
             ns, cluster, name, elicitation, completed);
+        KafkaTopicResponse topic = topicResult.topic();
+        String resolvedTopicNs = topicResult.resolvedNamespace();
         DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
             "Checked KafkaTopic status: " + topic.status() + " (partitions: " + topic.partitions() + ", replicas: " + topic.replicas() + ")");
         DiagnosticHelper.checkCancellation(cancellation);
@@ -189,7 +192,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
 
         // === Phase 3: Final analysis ===
         String analysis = produceAnalysis(sampling, topic, relatedTopics, clusterStatus,
-            operatorLogs, events, exporterMetrics, symptom, cancelled);
+            operatorLogs, events, exporterMetrics, symptom, resolvedTopicNs, cancelled);
         DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         return KafkaTopicDiagnosticReport.of(topic, relatedTopics, clusterStatus, operatorLogs,
@@ -199,23 +202,38 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
     // ---- Phase 1: Initial data gathering ----
 
     @WithSpan("diagnose.topic.status")
-    KafkaTopicResponse gatherTopicStatus(final String namespace,
-                                          final String clusterName,
-                                          final String topicName,
-                                          final Elicitation elicitation,
-                                          final List<String> completed) {
+    TopicStatusResult gatherTopicStatus(final String namespace,
+                                         final String clusterName,
+                                         final String topicName,
+                                         final Elicitation elicitation,
+                                         final List<String> completed) {
         try {
             KafkaTopicResponse result = topicService.getTopic(namespace, clusterName, topicName);
             completed.add(STEP_TOPIC_STATUS);
-            return result;
+            return new TopicStatusResult(result, namespace);
         } catch (McpException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
-                String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "diagnosed");
+                String resolved = NamespaceElicitationHelper.elicitNamespaceMrtr(
+                    e, elicitation, "diagnosed", "namespace");
                 return gatherTopicStatus(resolved, clusterName, topicName, null, completed);
             }
             throw e;
         }
+    }
+
+    /**
+     * Holds the gathered topic status together with the namespace that resolved it.
+     *
+     * <p>{@code KafkaTopicResponse} carries no namespace accessor, so the namespace used to
+     * successfully fetch the topic is threaded out here. It is used as the MRTR
+     * {@code requestState} for the analysis round-trip so a stateless client does not
+     * re-elicit the namespace when the parent cluster is unknown.</p>
+     *
+     * @param topic             the gathered KafkaTopic status
+     * @param resolvedNamespace the namespace used to fetch the topic (may be null when auto-detected)
+     */
+    record TopicStatusResult(KafkaTopicResponse topic, String resolvedNamespace) {
     }
 
     @WithSpan("diagnose.topic.related_topics")
@@ -340,10 +358,11 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
                            final StrimziEventsResponse events,
                            final KafkaExporterMetricsResponse exporterMetrics,
                            final String symptom,
+                           final String resolvedNamespace,
                            final AtomicBoolean cancelled) {
-        return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
+        return performAnalysisMrtr(sampling, ANALYSIS_SYSTEM_PROMPT,
             buildFullSummary(topic, relatedTopics, cluster, operatorLogs, events, exporterMetrics, symptom),
-            cancelled);
+            "analysis", resolvedNamespace, cancelled);
     }
 
     // ---- Helpers ----

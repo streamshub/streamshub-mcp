@@ -87,6 +87,7 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
                                                        final Progress progress,
                                                        final Cancellation cancellation) {
         String ns = InputUtils.normalizeInput(namespace);
+        ns = DiagnosticHelper.effectiveNamespace(sampling, ns);
         String name = InputUtils.normalizeInput(mirrorMakerName);
 
         if (name == null) {
@@ -157,8 +158,8 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
         } catch (McpException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
-                String resolved = NamespaceElicitationHelper.elicitNamespace(
-                    e, elicitation, "diagnosed");
+                String resolved = NamespaceElicitationHelper.elicitNamespaceMrtr(
+                    e, elicitation, "diagnosed", "namespace");
                 return gatherMm2Status(resolved, name, null, completed);
             }
             throw e;
@@ -235,9 +236,10 @@ public class KafkaMirrorMaker2DiagnosticService extends BaseDiagnosticService {
                            final StrimziEventsResponse events,
                            final String symptom,
                            final AtomicBoolean cancelled) {
-        return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
+        String namespace = mm2Status != null ? mm2Status.namespace() : null;
+        return performAnalysisMrtr(sampling, ANALYSIS_SYSTEM_PROMPT,
             buildFullSummary(mm2Status, pods, logs, events, symptom),
-            cancelled);
+            "analysis", namespace, cancelled);
     }
 
     private Map<String, Object> buildFullSummary(final KafkaMirrorMaker2Response mm2Status,
