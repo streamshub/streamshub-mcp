@@ -108,6 +108,8 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
         String name = InputUtils.normalizeInput(clusterName);
         String listener = InputUtils.normalizeInput(listenerName);
 
+        ns = DiagnosticHelper.effectiveNamespace(sampling, ns);
+
         if (name == null) {
             throw McpErrors.invalidParams("Cluster name is required");
         }
@@ -199,7 +201,8 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
         } catch (McpException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
-                String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "checked for connectivity");
+                String resolved = NamespaceElicitationHelper.elicitNamespaceMrtr(
+                    e, elicitation, "checked for connectivity", "namespace");
                 return gatherClusterStatus(resolved, clusterName, null,
                     completed);
             }
@@ -317,9 +320,9 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
                                    final List<KafkaUserResponse> users,
                                    final String listenerName,
                                    final AtomicBoolean cancelled) {
-        return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
+        return performAnalysisMrtr(sampling, ANALYSIS_SYSTEM_PROMPT,
             buildFullSummary(cluster, bootstrapServers, certificates, pods, clusterLogs, users, listenerName),
-            cancelled);
+            "analysis", cluster.namespace(), cancelled);
     }
 
     // ---- Helpers ----

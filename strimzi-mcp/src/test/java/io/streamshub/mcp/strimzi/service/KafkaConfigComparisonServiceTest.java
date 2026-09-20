@@ -10,11 +10,14 @@ import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.quarkiverse.mcp.server.InputRequiredException;
 import io.quarkiverse.mcp.server.McpException;
+import io.quarkiverse.mcp.server.Sampling;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaConfigComparisonReport;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaConfigComparisonService;
+import io.streamshub.mcp.strimzi.testutil.MrtrTestHelper;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
@@ -110,6 +113,42 @@ class KafkaConfigComparisonServiceTest {
         assertNotNull(report.timestamp());
         assertTrue(report.message().contains("2 steps succeeded"));
         assertNull(report.stepsFailed());
+    }
+
+    @Test
+    void testStatelessThrowsInputRequiredWhenNoAnalysisResponse() {
+        setupTwoKafkaClusters(
+            "cluster-a", "kafka", Map.of("log.retention.hours", 168), "4.2.0",
+            "cluster-b", "kafka", Map.of("log.retention.hours", 72), "4.2.0");
+
+        Sampling sampling = MrtrTestHelper.mockStatelessSampling(false, null);
+
+        assertThrows(InputRequiredException.class,
+            () -> comparisonService.compare("kafka", "cluster-a", "kafka", "cluster-b",
+                sampling, null, null, null));
+    }
+
+    @Test
+    void testStatelessReturnsAnalysisWhenResponsePresent() {
+        setupTwoKafkaClusters(
+            "cluster-a", "kafka", Map.of("log.retention.hours", 168), "4.2.0",
+            "cluster-b", "kafka", Map.of("log.retention.hours", 72), "4.2.0");
+
+        String analysisText = "Summary: retention policy differs\nCRITICAL: cluster-a=168h, cluster-b=72h";
+        Sampling sampling = MrtrTestHelper.mockStatelessSampling(true, analysisText);
+
+        KafkaConfigComparisonReport report = comparisonService.compare(
+            "kafka", "cluster-a", "kafka", "cluster-b",
+            sampling, null, null, null);
+
+        assertNotNull(report);
+        assertNotNull(report.cluster1Config());
+        assertNotNull(report.cluster2Config());
+        assertTrue(report.stepsCompleted().contains("cluster1_config"));
+        assertTrue(report.stepsCompleted().contains("cluster2_config"));
+        assertNotNull(report.analysis());
+        assertTrue(report.analysis().contains("retention policy"));
+        assertTrue(report.analysis().contains("CRITICAL"));
     }
 
     // ---- Test helpers ----

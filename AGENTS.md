@@ -535,6 +535,25 @@ Use specific resource names in log messages and client notifications:
 - "Collected Kafka cluster logs" (not "Collected cluster logs")
 - "Failed to gather Kafka related events" (not "Failed to gather events")
 
+### Stateless clients (MRTR)
+
+Diagnostic and comparison tools support both stateful (SSE) and stateless (streamable HTTP, protocol `2026-07-28`) MCP clients. Stateless clients receive LLM analysis via the Multi Round-Trip Request (MRTR) pattern: the service throws `io.quarkiverse.mcp.server.InputRequiredException` describing the sampling it needs, the client fulfills it with its own LLM, and retries carrying the result in `inputResponses()`.
+
+**Key patterns:**
+- **Transport detection is centralized** in `DiagnosticHelper.analysisSamplingMrtr()` (for analysis) and `NamespaceElicitationHelper.elicitNamespaceMrtr()` (for namespace disambiguation). Services call `BaseDiagnosticService.performAnalysisMrtr(...)` or `elicitNamespaceMrtr(...)` — they never branch on transport type themselves.
+- **Triage is stateful-only** (SSE). It is a token/scope optimization; stateless clients skip triage (guarded in `BaseDiagnosticService.performTriage` on `isServerInitiatedRequestSupported()`) and run analysis over all gathered data. Note `Sampling.isSupported()` reflects the client's *capability* and is `true` even for stateless clients, so the skip must key off `isServerInitiatedRequestSupported()`, not `isSupported()`.
+- **`InputRequiredException` MUST propagate uncaught AND unwrapped** to the framework (it is converted to an `input_required` JSON-RPC result). Every interceptor and `catch` between the service and the framework must pass it through: it is excluded from `@WrapBusinessError(unless = ...)` on `DiagnosticTools`, explicitly rethrown ahead of the generic `catch (Exception)` in `DiagnosticHelper.sendSampling`/`analysisSamplingMrtr`, and passed through unwrapped by `GuardrailInterceptor` (which otherwise wraps generic exceptions in `ToolCallException`, defeating MRTR). Any new tool interceptor or `catch (Exception)` on the diagnostic path must do the same — treat `InputRequiredException` exactly like `McpException`.
+- **`requestState` carries the resolved namespace** across round-trips because `InputResponses` does not accumulate. Pass the gathered resource's resolved namespace as the `String requestState` argument when calling `performAnalysisMrtr`. When the primary elicited resource has no namespace accessor (e.g. `KafkaTopicResponse`), thread the namespace that resolved the gather out to the caller (see `KafkaTopicDiagnosticService.TopicStatusResult`) rather than falling back to a nullable secondary resource.
+- **Namespace disambiguation:** The 9 single-namespace diagnostic tools use MRTR elicitation (`elicitNamespaceMrtr`) when the namespace is ambiguous. `compare_kafka_clusters` (two namespaces) uses the structured-error fallback (#229) instead — stateless clients re-call with explicit `namespace1`/`namespace2`.
+
+Shared helpers:
+- `DiagnosticHelper.analysisSamplingMrtr(Sampling, ObjectMapper, String systemPrompt, Map data, int maxTokens, String key, String requestState, AtomicBoolean cancelled)` — forks to stateful/stateless paths; `requestState` is a `String` (not a map), and `cancelled` short-circuits the stateful call before/after `sendAndAwait()`
+- `BaseDiagnosticService.performAnalysisMrtr(Sampling, String systemPrompt, Map fullData, String key, String requestState, AtomicBoolean cancelled)` — convenience wrapper delegating to `analysisSamplingMrtr`
+- `NamespaceElicitationHelper.elicitNamespaceMrtr(...)` — namespace disambiguation via Elicitation (SSE) or MRTR (stateless). It self-guards on `isFormModeSupported()` and falls back to the structured error otherwise.
+- `DiagnosticHelper.effectiveNamespace(...)` — resolves namespace from tool arg or `requestState`
+
+See `KafkaClusterDiagnosticService` and `KafkaConfigComparisonService` for reference implementations.
+
 ## MCP Prompt Template Pattern
 
 Prompt templates encode domain knowledge and guide LLMs through structured workflows.

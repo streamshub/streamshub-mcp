@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.common.guardrail;
 
+import io.quarkiverse.mcp.server.InputRequiredException;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolCallException;
@@ -81,6 +82,12 @@ public class GuardrailInterceptor {
             }
 
             return result;
+        } catch (InputRequiredException e) {
+            // MRTR control signal (not an error): the server needs more input from a stateless
+            // client. It must propagate unwrapped so the framework renders an input_required
+            // result and the client can retry with the gathered input. Leaving `caught` null
+            // deliberately skips error-filter notification — this is normal protocol flow.
+            throw e;
         } catch (ToolCallException e) {
             caught = e;
             throw e;

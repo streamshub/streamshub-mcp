@@ -107,6 +107,8 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
         String ns = InputUtils.normalizeInput(namespace);
         String name = InputUtils.normalizeInput(clusterName);
 
+        ns = DiagnosticHelper.effectiveNamespace(sampling, ns);
+
         if (name == null) {
             throw McpErrors.invalidParams("Cluster name is required");
         }
@@ -184,7 +186,8 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
         } catch (McpException e) {
             if (NamespaceElicitationHelper.isMultipleNamespacesError(e)
                     && elicitation != null && elicitation.isFormModeSupported()) {
-                String resolved = NamespaceElicitationHelper.elicitNamespace(e, elicitation, "analyzed for metrics");
+                String resolved = NamespaceElicitationHelper.elicitNamespaceMrtr(
+                    e, elicitation, "analyzed for metrics", "namespace");
                 return gatherClusterStatus(resolved, clusterName, null,
                     completed);
             }
@@ -315,10 +318,10 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
                            final KafkaMetricsResponse throughputMetrics,
                            final String concern,
                            final AtomicBoolean cancelled) {
-        return performAnalysis(sampling, ANALYSIS_SYSTEM_PROMPT,
+        return performAnalysisMrtr(sampling, ANALYSIS_SYSTEM_PROMPT,
             buildFullSummary(cluster, pods, replicationMetrics, performanceMetrics,
                 resourceMetrics, throughputMetrics, concern),
-            cancelled);
+            "analysis", cluster.namespace(), cancelled);
     }
 
     // ---- Helpers ----
