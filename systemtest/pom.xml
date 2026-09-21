@@ -15,9 +15,9 @@
     <properties>
         <kubetest4j.version>1.3.1</kubetest4j.version>
         <strimzi.test-clients.version>0.14.0</strimzi.test-clients.version>
-        <allure.junit.version>2.35.5</allure.junit.version>
+        <allure.junit.version>3.0.0</allure.junit.version>
         <allure.report.version>2.39.0</allure.report.version>
-        <allure.maven.version>3.0.3</allure.maven.version>
+        <allure.maven.version>3.1.0</allure.maven.version>
         <log4j.version>2.26.1</log4j.version>
         <slf4j.version>2.0.19</slf4j.version>
         <!-- Skip system tests by default — enable with -Psystemtest -->
@@ -27,7 +27,7 @@
         <!-- Coverage is measured on unit/component tests, not system tests -->
         <jacoco.skip>true</jacoco.skip>
         <!-- KafkaConnect image build configuration -->
-        <exec-maven-plugin.version>3.6.3</exec-maven-plugin.version>
+        <exec-maven-plugin.version>3.6.4</exec-maven-plugin.version>
         <connect.image>quay.io/streamshub/mcp-connect-test:latest</connect.image>
         <connect.kafka.version>4.3.0</connect.kafka.version>
         <container.engine>podman</container.engine>
