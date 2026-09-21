@@ -98,6 +98,19 @@ class StrimziOperatorServiceTest {
         assertTrue(result.isEmpty());
     }
 
+    @Test
+    void testGetEntityOperatorLogsReturnsNotFoundWhenNoPodsExist() {
+        setupEmptyPodResponses("kafka");
+
+        StrimziOperatorLogsResponse result = operatorService.getEntityOperatorLogs(
+            "kafka", "my-cluster", LogCollectionParams.of(null, null, 200, null));
+
+        assertNotNull(result);
+        assertEquals("kafka", result.namespace());
+        assertNotNull(result.message());
+        assertTrue(result.message().contains("No Strimzi operator pods found"));
+    }
+
     @SuppressWarnings("unchecked")
     private void setupEmptyPodResponses(final String namespace) {
         PodList emptyPodList = new PodList();

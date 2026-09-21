@@ -160,6 +160,8 @@ class KafkaConnectToolsST extends AbstractST {
                 assertEquals("4.3.1", connect.path("version").asText(), "Version should be 4.3.1");
                 assertEquals(6, connect.path("connector_plugins_count").asInt(), "Should have 6 connector plugins");
                 assertFalse(connect.path("creation_time").isMissingNode(), "Should have creation_time");
+                // Reconciliation status (A1)
+                assertReconciliationInfo(connect);
             })
             .thenAssertResults();
     }
@@ -258,6 +260,8 @@ class KafkaConnectToolsST extends AbstractST {
                 assertEquals("running", connector.path("state").asText(),
                     "Connector state should be running");
                 assertTrue(connector.has("config"), "Should have config for get operation");
+                // Reconciliation status (A1)
+                assertReconciliationInfo(connector);
             })
             .thenAssertResults();
     }

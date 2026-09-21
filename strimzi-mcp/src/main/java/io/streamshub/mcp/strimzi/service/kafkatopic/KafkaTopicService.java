@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.service.kafkatopic;
 
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
@@ -148,7 +149,8 @@ public class KafkaTopicService {
     }
 
     private KafkaTopicResponse createTopicResponse(final KafkaTopic topic) {
-        String topicName = topic.getMetadata().getName();
+        String name = topic.getMetadata().getName();
+        String namespace = topic.getMetadata().getNamespace();
         String cluster = topic.getMetadata().getLabels() != null
             ? topic.getMetadata().getLabels().get(ResourceLabels.STRIMZI_CLUSTER_LABEL)
             : KubernetesConstants.UNKNOWN;
@@ -164,11 +166,36 @@ public class KafkaTopicService {
             config = (specConfig != null && !specConfig.isEmpty()) ? specConfig : null;
         }
 
-        String status = topic.getStatus() != null
-            ? determineResourceStatus(topic.getStatus().getConditions())
-            : KubernetesConstants.ResourceStatus.UNKNOWN;
+        String status = KubernetesConstants.ResourceStatus.UNKNOWN;
+        String topicId = null;
+        String topicName = null;
+        KafkaTopicResponse.ReplicasChangeInfo replicasChange = null;
+        List<io.streamshub.mcp.common.dto.ConditionInfo> conditions = null;
 
-        return KafkaTopicResponse.of(topicName, cluster, partitions, replicas, status, config);
+        if (topic.getStatus() != null) {
+            status = determineResourceStatus(topic.getStatus().getConditions());
+            topicId = topic.getStatus().getTopicId();
+            topicName = topic.getStatus().getTopicName();
+            if (topic.getStatus().getConditions() != null) {
+                conditions = topic.getStatus().getConditions().stream()
+                    .map(c -> io.streamshub.mcp.common.dto.ConditionInfo.of(
+                        c.getType(), c.getStatus(), c.getReason(), c.getMessage(), c.getLastTransitionTime()))
+                    .toList();
+            }
+            if (topic.getStatus().getReplicasChange() != null) {
+                var rc = topic.getStatus().getReplicasChange();
+                String state = rc.getState() != null ? rc.getState().toString() : null;
+                replicasChange = new KafkaTopicResponse.ReplicasChangeInfo(
+                    rc.getTargetReplicas(), state, rc.getSessionId(), rc.getMessage());
+            }
+        }
+
+        ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
+            topic.getMetadata().getGeneration(),
+            topic.getStatus() != null ? topic.getStatus().getObservedGeneration() : 0L);
+
+        return KafkaTopicResponse.of(name, namespace, cluster, partitions, replicas,
+            status, topicId, topicName, replicasChange, conditions, config, reconciliation);
     }
 
     private String determineResourceStatus(final List<Condition> conditions) {

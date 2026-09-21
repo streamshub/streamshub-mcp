@@ -10,6 +10,7 @@ import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
@@ -230,6 +231,10 @@ public class KafkaConnectService {
     }
 
     private KafkaConnectResponse createConnectSummary(final KafkaConnect connect) {
+        ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
+            connect.getMetadata().getGeneration(),
+            connect.getStatus() != null ? connect.getStatus().getObservedGeneration() : 0L);
+
         return KafkaConnectResponse.summary(
             connect.getMetadata().getName(),
             connect.getMetadata().getNamespace(),
@@ -239,7 +244,8 @@ public class KafkaConnectService {
             extractBootstrapServers(connect),
             extractRestApiUrl(connect),
             extractConnectorPluginsCount(connect),
-            extractConditions(connect));
+            extractConditions(connect),
+            reconciliation);
     }
 
     private KafkaConnectResponse createConnectDetail(final KafkaConnect connect) {
@@ -248,6 +254,10 @@ public class KafkaConnectService {
         if (creationTime != null) {
             ageMinutes = Math.max(0, Duration.between(creationTime, Instant.now()).toMinutes());
         }
+
+        ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
+            connect.getMetadata().getGeneration(),
+            connect.getStatus() != null ? connect.getStatus().getObservedGeneration() : 0L);
 
         return KafkaConnectResponse.of(
             connect.getMetadata().getName(),
@@ -260,7 +270,7 @@ public class KafkaConnectService {
             extractConnectorPluginsCount(connect),
             extractConnectorPlugins(connect),
             extractConditions(connect),
-            creationTime, ageMinutes);
+            creationTime, ageMinutes, reconciliation);
     }
 
     private String determineResourceStatus(final KafkaConnect connect) {

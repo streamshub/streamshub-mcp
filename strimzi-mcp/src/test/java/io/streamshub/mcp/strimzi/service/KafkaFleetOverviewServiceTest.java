@@ -185,8 +185,9 @@ class KafkaFleetOverviewServiceTest {
     @Test
     void testNullReplicasHandled() {
         KafkaClusterResponse cluster = KafkaClusterResponse.of(
-            "test", "ns", "Kafka", "4.2.0", "Ready",
-            null, null, null, null,
+            "test", "ns", "Kafka", "4.2.0", null,
+            null, null, null, "Ready",
+            null, null, null, null, null, null, null,
             null, null, null, null, null, null, List.of());
         when(kafkaService.listClusters(null)).thenReturn(List.of(cluster));
 
@@ -371,28 +372,28 @@ class KafkaFleetOverviewServiceTest {
                                                       String readiness, String version,
                                                       int expected, int ready) {
         return KafkaClusterResponse.of(
-            name, namespace, "Kafka", version, readiness,
-            null, null, RoleReplicasInfo.of(expected, ready, null, null),
-            null,
-            null, null, null, null, 1000L, null, List.of());
+            name, namespace, "Kafka", version, null,
+            null, null, null, readiness,
+            null, null, RoleReplicasInfo.of(expected, ready, null, null), null,
+            null, null, null, null, 1000L, null, null, null, null, List.of());
     }
 
     private static KafkaRebalanceResponse buildRebalance(String name, String state) {
         return KafkaRebalanceResponse.of(
-            name, "kafka", "prod", state, null, null, null, null, null, null, null);
+            name, "kafka", "prod", state, null, null, null, null, null, null, null, null);
     }
 
     private static KafkaConnectResponse buildConnect(String name, String bootstrapServers) {
         return KafkaConnectResponse.of(
             name, "kafka", "Ready", null, null, bootstrapServers,
-            null, null, null, null, null, null);
+            null, null, null, null, null, null, null);
     }
 
     private static KafkaBridgeResponse buildBridge(String name, String bootstrapServers) {
         return KafkaBridgeResponse.of(
             name, "kafka", "Ready", null, bootstrapServers,
             null, null, null, null, null,
-            null, null, null, null, null, null, null, null);
+            null, null, null, null, null, null, null, null, null);
     }
 
     private static KafkaMirrorMaker2Response buildMirrorMaker(String name,
@@ -402,6 +403,6 @@ class KafkaFleetOverviewServiceTest {
         return KafkaMirrorMaker2Response.of(
             name, "kafka", "Ready", null,
             targetCluster, sourceAliases, null, null, null,
-            null, bootstrapServers, null, null, null);
+            null, bootstrapServers, null, null, null, null);
     }
 }

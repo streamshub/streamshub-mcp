@@ -115,6 +115,41 @@ public class StrimziOperatorService {
      * @param options      log collection options (filter, keywords, pagination, callbacks)
      * @return the operator logs response
      */
+    /**
+     * Get logs from Entity Operator pods (specifically topic-operator or user-operator) for a Kafka cluster.
+     *
+     * @param namespace   the namespace (null for all namespaces)
+     * @param clusterName the Kafka cluster name
+     * @param options     log collection options
+     * @return the operator logs response
+     */
+    public StrimziOperatorLogsResponse getEntityOperatorLogs(final String namespace, final String clusterName,
+                                                            final LogCollectionParams options) {
+        String ns = InputUtils.normalizeInput(namespace);
+
+        LOG.infof("Getting entity operator logs (namespace=%s, cluster=%s, filter=%s, tailLines=%s)",
+            ns, clusterName, options.filter() != null ? options.filter() : "none", options.tailLines());
+
+        List<Pod> pods = findEntityOperatorPods(ns, clusterName);
+        if (pods.isEmpty()) {
+            return StrimziOperatorLogsResponse.notFound(ns != null ? ns : KubernetesConstants.UNKNOWN);
+        }
+
+        String resolvedNs = ns != null ? ns : pods.getFirst().getMetadata().getNamespace();
+        PodLogsResult result = logCollectionService.collectLogs(resolvedNs, pods, options);
+        return StrimziOperatorLogsResponse.of(resolvedNs, result.logs(), result.podNames(),
+            result.hasErrors(), result.errorCount(), result.failedPods(),
+            result.totalLines(), result.hasMore(), result.warnings());
+    }
+
+    /**
+     * Get logs from Cluster Operator pods.
+     *
+     * @param namespace    the namespace (null for all namespaces)
+     * @param operatorName the operator deployment name prefix (null for any)
+     * @param options      log collection options
+     * @return the operator logs response
+     */
     public StrimziOperatorLogsResponse getOperatorLogs(final String namespace, final String operatorName,
                                                         final LogCollectionParams options) {
         String ns = InputUtils.normalizeInput(namespace);

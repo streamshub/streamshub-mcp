@@ -10,6 +10,7 @@ import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
@@ -237,6 +238,10 @@ public class KafkaMirrorMaker2Service {
     // ---- Response builders ----
 
     private KafkaMirrorMaker2Response createSummary(final KafkaMirrorMaker2 mm2) {
+        ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
+            mm2.getMetadata().getGeneration(),
+            mm2.getStatus() != null ? mm2.getStatus().getObservedGeneration() : 0L);
+
         return KafkaMirrorMaker2Response.summary(
             mm2.getMetadata().getName(),
             mm2.getMetadata().getNamespace(),
@@ -244,7 +249,8 @@ public class KafkaMirrorMaker2Service {
             extractReplicas(mm2),
             extractTargetCluster(mm2),
             extractSourceClusterAliases(mm2),
-            extractConditions(mm2));
+            extractConditions(mm2),
+            reconciliation);
     }
 
     private KafkaMirrorMaker2Response createDetail(final KafkaMirrorMaker2 mm2) {
@@ -253,6 +259,10 @@ public class KafkaMirrorMaker2Service {
         if (creationTime != null) {
             ageMinutes = Math.max(0, Duration.between(creationTime, Instant.now()).toMinutes());
         }
+
+        ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
+            mm2.getMetadata().getGeneration(),
+            mm2.getStatus() != null ? mm2.getStatus().getObservedGeneration() : 0L);
 
         return KafkaMirrorMaker2Response.of(
             mm2.getMetadata().getName(),
@@ -267,7 +277,7 @@ public class KafkaMirrorMaker2Service {
             extractVersion(mm2),
             extractBootstrapServers(mm2),
             extractConditions(mm2),
-            creationTime, ageMinutes);
+            creationTime, ageMinutes, reconciliation);
     }
 
     // ---- Extractors ----

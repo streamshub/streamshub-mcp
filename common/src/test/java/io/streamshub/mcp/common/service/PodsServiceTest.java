@@ -27,6 +27,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -120,14 +121,99 @@ class PodsServiceTest {
             podsService.describePod("kafka", "  "));
     }
 
+    @Test
+    void testExtractPodSummaryWithStrimziAnnotationsPopulatesFields() {
+        Map<String, String> annotations = Map.of(
+            "strimzi.io/revision", "3",
+            "strimzi.io/cluster-ca-cert-generation", "5",
+            "strimzi.io/clients-ca-cert-generation", "2",
+            "strimzi.io/server-cert-hash", "abc123hash"
+        );
+        Pod pod = createPod("my-pod", "Running", true, 0, annotations);
+
+        PodSummaryResponse.PodInfo info = podsService.extractPodSummary("kafka", pod);
+
+        assertEquals("3", info.revision());
+        assertEquals(5, info.clusterCaCertGeneration());
+        assertEquals(2, info.clientsCaCertGeneration());
+        assertEquals("abc123hash", info.serverCertHash());
+    }
+
+    @Test
+    void testExtractPodInfoFullDetailWithStrimziAnnotationsPopulatesFields() {
+        Map<String, String> annotations = Map.of(
+            "strimzi.io/revision", "3",
+            "strimzi.io/cluster-ca-cert-generation", "5",
+            "strimzi.io/clients-ca-cert-generation", "2",
+            "strimzi.io/server-cert-hash", "abc123hash"
+        );
+        Pod pod = createPod("my-pod", "Running", true, 0, annotations);
+
+        PodSummaryResponse.PodInfo info = podsService.extractPodInfo("kafka", pod);
+
+        assertEquals("3", info.revision());
+        assertEquals(5, info.clusterCaCertGeneration());
+        assertEquals(2, info.clientsCaCertGeneration());
+        assertEquals("abc123hash", info.serverCertHash());
+    }
+
+    @Test
+    void testExtractPodSummaryNoAnnotationsMapAllStrimziFieldsNull() {
+        Pod pod = createPod("my-pod", "Running", true, 0, null);
+
+        PodSummaryResponse.PodInfo info = podsService.extractPodSummary("kafka", pod);
+
+        assertNull(info.revision());
+        assertNull(info.clusterCaCertGeneration());
+        assertNull(info.clientsCaCertGeneration());
+        assertNull(info.serverCertHash());
+    }
+
+    @Test
+    void testExtractPodSummaryAnnotationsMissingStrimziKeysAllFieldsNull() {
+        Pod pod = createPod("my-pod", "Running", true, 0, Map.of("some.other/key", "value"));
+
+        PodSummaryResponse.PodInfo info = podsService.extractPodSummary("kafka", pod);
+
+        assertNull(info.revision());
+        assertNull(info.clusterCaCertGeneration());
+        assertNull(info.clientsCaCertGeneration());
+        assertNull(info.serverCertHash());
+    }
+
+    @Test
+    void testExtractPodSummaryMalformedCertGenerationAnnotationsReturnsNull() {
+        Map<String, String> annotations = Map.of(
+            "strimzi.io/revision", "3",
+            "strimzi.io/cluster-ca-cert-generation", "not-a-number",
+            "strimzi.io/clients-ca-cert-generation", "also-bad",
+            "strimzi.io/server-cert-hash", "abc123hash"
+        );
+        Pod pod = createPod("my-pod", "Running", true, 0, annotations);
+
+        PodSummaryResponse.PodInfo info = podsService.extractPodSummary("kafka", pod);
+
+        assertEquals("3", info.revision());
+        assertNull(info.clusterCaCertGeneration());
+        assertNull(info.clientsCaCertGeneration());
+        assertEquals("abc123hash", info.serverCertHash());
+    }
+
     private Pod createPod(final String name, final String phase,
                           final boolean ready, final int restarts) {
+        return createPod(name, phase, ready, restarts, null);
+    }
+
+    private Pod createPod(final String name, final String phase,
+                          final boolean ready, final int restarts,
+                          final Map<String, String> annotations) {
         Pod pod = new Pod();
 
         ObjectMeta metadata = new ObjectMeta();
         metadata.setName(name);
         metadata.setNamespace("kafka");
         metadata.setLabels(Map.of());
+        metadata.setAnnotations(annotations);
         metadata.setCreationTimestamp(Instant.now().minus(60, ChronoUnit.MINUTES).toString());
         pod.setMetadata(metadata);
 

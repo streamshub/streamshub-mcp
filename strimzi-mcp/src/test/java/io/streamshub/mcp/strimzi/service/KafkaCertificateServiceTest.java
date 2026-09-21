@@ -34,12 +34,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
@@ -262,6 +265,120 @@ class KafkaCertificateServiceTest {
         assertTrue(response.certificates().getFirst().expired());
     }
 
+    @Test
+    void testGetCertificatesComputesCaPolicyRenewalAndValidityDays() {
+        Kafka kafka = buildKafkaWithCertificateAuthorities(true, 30, true, 90);
+        mockKafkaResource(kafka);
+        mockSecret(CLUSTER_NAME + "-cluster-ca-cert", VALID_CERT_PEM, true);
+        mockSecret(CLUSTER_NAME + "-clients-ca-cert", VALID_CERT_PEM, true);
+
+        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, null);
+
+        KafkaCertificateResponse.CaPolicyInfo clusterCaPolicy = response.clusterCaPolicy();
+        KafkaCertificateResponse.CaPolicyInfo clientsCaPolicy = response.clientsCaPolicy();
+        assertNotNull(clusterCaPolicy);
+        assertNotNull(clientsCaPolicy);
+        assertEquals(30, clusterCaPolicy.renewalDays());
+        assertEquals(365, clusterCaPolicy.validityDays());
+        assertTrue(clusterCaPolicy.generateCertificateAuthority());
+        assertEquals(90, clientsCaPolicy.renewalDays());
+        assertEquals(730, clientsCaPolicy.validityDays());
+
+        Instant clusterNotAfter = certificateNotAfter(response, "cluster-ca");
+        Instant clientsNotAfter = certificateNotAfter(response, "clients-ca");
+        assertEquals(clusterNotAfter.minus(Duration.ofDays(30)), clusterCaPolicy.calculatedRenewalDate());
+        assertEquals(clientsNotAfter.minus(Duration.ofDays(90)), clientsCaPolicy.calculatedRenewalDate());
+    }
+
+    @Test
+    void testGetCertificatesCaPolicyRenewalDateAlreadyPastDueForLongRenewalWindow() {
+        // renewalDays configured far larger than the cert's remaining validity, so the
+        // computed renewal date has already elapsed even though the cert itself is not expired.
+        Kafka kafka = buildKafkaWithCertificateAuthorities(true, 5000, false, null);
+        mockKafkaResource(kafka);
+        mockSecret(CLUSTER_NAME + "-cluster-ca-cert", VALID_CERT_PEM, true);
+        mockMissingSecret(CLUSTER_NAME + "-clients-ca-cert");
+
+        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, null);
+
+        assertFalse(response.certificates().getFirst().expired());
+        KafkaCertificateResponse.CaPolicyInfo clusterCaPolicy = response.clusterCaPolicy();
+        assertNotNull(clusterCaPolicy);
+        assertEquals(5000, clusterCaPolicy.renewalDays());
+
+        Instant notAfter = certificateNotAfter(response, "cluster-ca");
+        assertEquals(notAfter.minus(Duration.ofDays(5000)), clusterCaPolicy.calculatedRenewalDate());
+        assertTrue(clusterCaPolicy.calculatedRenewalDate().isBefore(Instant.now()),
+            "Renewal date should already be in the past when the renewal window exceeds remaining validity");
+    }
+
+    @Test
+    void testGetCertificatesCaPolicyRenewalDaysDefaultToZeroWhenUnsetOnCr() {
+        // Strimzi's CertificateAuthority#getRenewalDays()/getValidityDays() are primitive ints
+        // (default 0 when not explicitly set on the CR). The commonly cited "default 30 days"
+        // is applied by the Kubernetes API server via CRD schema defaulting, not by this POJO,
+        // so a bare (non-defaulted) CR object reports 0, and the calculated renewal date collapses
+        // to the certificate's own expiry (a zero-day renewal window).
+        Kafka kafka = buildKafkaWithCertificateAuthorities(true, null, false, null);
+        mockKafkaResource(kafka);
+        mockSecret(CLUSTER_NAME + "-cluster-ca-cert", VALID_CERT_PEM, true);
+        mockMissingSecret(CLUSTER_NAME + "-clients-ca-cert");
+
+        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, null);
+
+        KafkaCertificateResponse.CaPolicyInfo clusterCaPolicy = response.clusterCaPolicy();
+        assertNotNull(clusterCaPolicy);
+        assertEquals(0, clusterCaPolicy.renewalDays());
+        assertEquals(certificateNotAfter(response, "cluster-ca"), clusterCaPolicy.calculatedRenewalDate());
+    }
+
+    @Test
+    void testGetCertificatesCaPolicyRenewalDateNullWhenOnlyExpiredCertificateAvailable() {
+        Kafka kafka = buildKafkaWithCertificateAuthorities(true, 30, false, null);
+        mockKafkaResource(kafka);
+        mockSecret(CLUSTER_NAME + "-cluster-ca-cert", EXPIRED_CERT_PEM, true);
+        mockMissingSecret(CLUSTER_NAME + "-clients-ca-cert");
+
+        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, null);
+
+        assertTrue(response.certificates().getFirst().expired());
+        KafkaCertificateResponse.CaPolicyInfo clusterCaPolicy = response.clusterCaPolicy();
+        assertNotNull(clusterCaPolicy);
+        assertEquals(30, clusterCaPolicy.renewalDays());
+        assertNull(clusterCaPolicy.calculatedRenewalDate());
+    }
+
+    @Test
+    void testGetCertificatesCaPolicyNullWhenNotConfiguredOnCluster() {
+        Kafka kafka = buildKafkaWithListeners();
+        mockKafkaResource(kafka);
+        mockMissingSecret(CLUSTER_NAME + "-cluster-ca-cert");
+        mockMissingSecret(CLUSTER_NAME + "-clients-ca-cert");
+
+        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, null);
+
+        assertNull(response.clusterCaPolicy());
+        assertNull(response.clientsCaPolicy());
+    }
+
+    @Test
+    void testGetCertificatesCaPolicyRenewalDateNullWhenNoCertificateSecretsPresent() {
+        Kafka kafka = buildKafkaWithCertificateAuthorities(true, 30, true, 30);
+        mockKafkaResource(kafka);
+        mockMissingSecret(CLUSTER_NAME + "-cluster-ca-cert");
+        mockMissingSecret(CLUSTER_NAME + "-clients-ca-cert");
+
+        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, null);
+
+        assertTrue(response.certificates().isEmpty());
+        KafkaCertificateResponse.CaPolicyInfo clusterCaPolicy = response.clusterCaPolicy();
+        KafkaCertificateResponse.CaPolicyInfo clientsCaPolicy = response.clientsCaPolicy();
+        assertNotNull(clusterCaPolicy);
+        assertNotNull(clientsCaPolicy);
+        assertNull(clusterCaPolicy.calculatedRenewalDate());
+        assertNull(clientsCaPolicy.calculatedRenewalDate());
+    }
+
     @SuppressWarnings("unchecked")
     private void mockKafkaResource(final Kafka kafka) {
         Resource<Kafka> resource = Mockito.mock(Resource.class);
@@ -329,5 +446,40 @@ class KafkaCertificateServiceTest {
                 .endKafka()
             .endSpec()
             .build();
+    }
+
+    private Kafka buildKafkaWithCertificateAuthorities(final boolean withClusterCa, final Integer clusterRenewalDays,
+                                                        final boolean withClientsCa, final Integer clientsRenewalDays) {
+        KafkaBuilder builder = new KafkaBuilder()
+            .withMetadata(new ObjectMetaBuilder()
+                .withName(CLUSTER_NAME)
+                .withNamespace(NAMESPACE)
+                .build())
+            .withNewSpec()
+            .endSpec();
+
+        if (withClusterCa) {
+            var clusterCa = builder.editSpec().withNewClusterCa().withValidityDays(365);
+            if (clusterRenewalDays != null) {
+                clusterCa.withRenewalDays(clusterRenewalDays);
+            }
+            clusterCa.endClusterCa().endSpec();
+        }
+        if (withClientsCa) {
+            var clientsCa = builder.editSpec().withNewClientsCa().withValidityDays(730);
+            if (clientsRenewalDays != null) {
+                clientsCa.withRenewalDays(clientsRenewalDays);
+            }
+            clientsCa.endClientsCa().endSpec();
+        }
+        return builder.build();
+    }
+
+    private Instant certificateNotAfter(final KafkaCertificateResponse response, final String certType) {
+        return response.certificates().stream()
+            .filter(c -> certType.equals(c.type()))
+            .findFirst()
+            .orElseThrow()
+            .notAfter();
     }
 }

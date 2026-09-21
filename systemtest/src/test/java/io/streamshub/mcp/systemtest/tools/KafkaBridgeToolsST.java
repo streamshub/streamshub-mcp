@@ -164,6 +164,8 @@ class KafkaBridgeToolsST extends AbstractST {
                 assertEquals(1, bridge.path("replicas").path("expected").asInt(), "Expected replicas should be 1");
                 assertEquals(1, bridge.path("replicas").path("ready").asInt(), "Ready replicas should be 1");
                 assertFalse(bridge.path("creation_time").isMissingNode(), "Should have creation_time");
+                // Reconciliation status (A1)
+                assertReconciliationInfo(bridge);
             })
             .thenAssertResults();
     }

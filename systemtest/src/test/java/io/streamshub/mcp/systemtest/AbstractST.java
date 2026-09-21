@@ -255,6 +255,45 @@ public abstract class AbstractST {
             "Should have timestamp");
     }
 
+    /**
+     * Asserts the {@code reconciliation} object present on every Stack A resource DTO. Shared across all
+     * resource STs so the field is covered once here rather than per-resource-type.
+     *
+     * @param root the resource JSON node (not the reconciliation node itself)
+     */
+    protected static void assertReconciliationInfo(final JsonNode root) {
+        JsonNode reconciliation = root.path("reconciliation");
+        assertFalse(reconciliation.isMissingNode(), "Should have reconciliation");
+        assertTrue(reconciliation.path("generation").asLong() > 0,
+            "generation should be a positive number");
+        // observed_generation/up_to_date are omitted (NON_NULL) until the operator has reconciled at least
+        // once; by the time an e2e test asserts against a steady-state resource, that has already happened.
+        assertTrue(reconciliation.path("observed_generation").asLong() > 0,
+            "observed_generation should be a positive number once reconciled");
+        assertTrue(reconciliation.path("up_to_date").asBoolean(),
+            "up_to_date should be true for a steady-state resource");
+    }
+
+    /**
+     * Asserts at least one pod in a {@code get_kafka_cluster_pods}-style response carries the Strimzi
+     * revision annotation (proxy for the annotation-derived fields added in Stack A / A5: revision,
+     * cluster/clients CA cert generation, server cert hash).
+     *
+     * @param root the pod summary response JSON node
+     */
+    protected static void assertPodAnnotationsPresent(final JsonNode root) {
+        JsonNode pods = root.path("pods");
+        assertTrue(pods.isArray() && !pods.isEmpty(), "pods should be a non-empty array");
+        boolean anyRevision = false;
+        for (JsonNode pod : pods) {
+            if (!pod.path("revision").isMissingNode() && !pod.path("revision").isNull()) {
+                anyRevision = true;
+                break;
+            }
+        }
+        assertTrue(anyRevision, "At least one pod should report a Strimzi revision annotation");
+    }
+
     protected static void assertLogsResponse(final JsonNode root,
                                              final String resourceNameField,
                                              final String expectedName) {

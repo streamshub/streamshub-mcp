@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.service.kafkaconnect;
 
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
@@ -128,6 +129,10 @@ public class KafkaConnectorService {
     }
 
     private KafkaConnectorResponse createConnectorSummary(final KafkaConnector connector) {
+        ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
+            connector.getMetadata().getGeneration(),
+            connector.getStatus() != null ? connector.getStatus().getObservedGeneration() : 0L);
+
         return KafkaConnectorResponse.summary(
             connector.getMetadata().getName(),
             connector.getMetadata().getNamespace(),
@@ -138,10 +143,15 @@ public class KafkaConnectorService {
             determineResourceStatus(connector),
             extractAutoRestart(connector),
             extractTopics(connector),
-            extractConditions(connector));
+            extractConditions(connector),
+            reconciliation);
     }
 
     private KafkaConnectorResponse createConnectorDetail(final KafkaConnector connector) {
+        ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
+            connector.getMetadata().getGeneration(),
+            connector.getStatus() != null ? connector.getStatus().getObservedGeneration() : 0L);
+
         return KafkaConnectorResponse.of(
             connector.getMetadata().getName(),
             connector.getMetadata().getNamespace(),
@@ -154,7 +164,8 @@ public class KafkaConnectorService {
             extractTopics(connector),
             extractConnectorStatus(connector),
             extractConditions(connector),
-            extractConfig(connector));
+            extractConfig(connector),
+            reconciliation);
     }
 
     private String extractConnectCluster(final KafkaConnector connector) {

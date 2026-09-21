@@ -133,7 +133,7 @@ class MetricsToolsTest {
     void testListKafkaClusters() {
         when(kafkaService.listClusters(null)).thenReturn(List.of(
             new KafkaClusterResponse("my-cluster", "kafka", "Kafka", "4.2.0",
-                "Ready",
+                "4.2.0", null, null, null, "Ready",
                 List.of(new ConditionInfo("Ready", "True", null, null, null)),
                 List.of(new ListenerInfo("plain", "internal",
                     "my-cluster-kafka-bootstrap.kafka.svc:9092"),
@@ -141,7 +141,8 @@ class MetricsToolsTest {
                     "my-cluster-kafka-bootstrap.kafka.svc:9093")),
                 new RoleReplicasInfo(3, 3, "jbod", "100Gi"),
                 null,
-                false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi", List.of())
+                false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi",
+                null, null, null, List.of())
         ));
 
         client.when()
@@ -160,13 +161,14 @@ class MetricsToolsTest {
     void testGetKafkaCluster() {
         when(kafkaService.getCluster(null, "my-cluster")).thenReturn(
             new KafkaClusterResponse("my-cluster", "kafka", "Kafka", "4.2.0",
-                "Ready",
+                "4.2.0", null, null, null, "Ready",
                 List.of(new ConditionInfo("Ready", "True", null, null, null)),
                 List.of(new ListenerInfo("plain", "internal",
                     "my-cluster-kafka-bootstrap.kafka.svc:9092")),
                 new RoleReplicasInfo(3, 3, "jbod", "100Gi"),
                 null,
-                false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi", List.of())
+                false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi",
+                null, null, null, List.of())
         );
 
         client.when()
@@ -222,7 +224,8 @@ class MetricsToolsTest {
     void testListKafkaTopics() {
         when(topicService.listTopics(null, "my-cluster", null, null)).thenReturn(
             PaginatedResponse.of(
-                List.of(KafkaTopicResponse.of("user-events", "my-cluster", 12, 3, "Ready", null)),
+                List.of(KafkaTopicResponse.of("user-events", "kafka", "my-cluster", 12, 3, "Ready",
+                    null, null, null, null, null, null)),
                 1, 0, 100, false)
         );
 
@@ -239,7 +242,8 @@ class MetricsToolsTest {
     @Test
     void testGetKafkaTopic() {
         when(topicService.getTopic(null, "my-cluster", "user-events")).thenReturn(
-            KafkaTopicResponse.of("user-events", "my-cluster", 12, 3, "Ready", null)
+            KafkaTopicResponse.of("user-events", "kafka", "my-cluster", 12, 3, "Ready",
+                null, null, null, null, null, null)
         );
 
         client.when()
@@ -257,7 +261,7 @@ class MetricsToolsTest {
     void testListKafkaNodePools() {
         when(nodePoolService.listNodePools(null, "my-cluster")).thenReturn(List.of(
             new KafkaNodePoolResponse("broker", "kafka", "my-cluster",
-                List.of("broker"), 3, "jbod", "100Gi")
+                List.of("broker"), 3, null, null, null, "jbod", "100Gi", null, null, null)
         ));
 
         client.when()
@@ -275,7 +279,7 @@ class MetricsToolsTest {
     void testGetKafkaNodePool() {
         when(nodePoolService.getNodePool(null, "my-cluster", "broker")).thenReturn(
             new KafkaNodePoolResponse("broker", "kafka", "my-cluster",
-                List.of("broker"), 3, "jbod", "100Gi")
+                List.of("broker"), 3, null, null, null, "jbod", "100Gi", null, null, null)
         );
 
         client.when()
@@ -483,13 +487,14 @@ class MetricsToolsTest {
     void testNamespaceParameterPassedThrough() {
         when(kafkaService.listClusters("production")).thenReturn(List.of(
             new KafkaClusterResponse("prod-cluster", "production", "Kafka", "4.2.0",
-                "Ready",
+                "4.2.0", null, null, null, "Ready",
                 List.of(new ConditionInfo("Ready", "True", null, null, null)),
                 List.of(new ListenerInfo("tls", "internal",
                     "prod-cluster-kafka-bootstrap.production.svc:9093")),
                 new RoleReplicasInfo(3, 3, "jbod", "100Gi"),
                 null,
-                false, true, true, Instant.parse("2025-01-01T00:00:00Z"), 120L, "strimzi", List.of())
+                false, true, true, Instant.parse("2025-01-01T00:00:00Z"), 120L, "strimzi",
+                null, null, null, List.of())
         ));
 
         client.when()

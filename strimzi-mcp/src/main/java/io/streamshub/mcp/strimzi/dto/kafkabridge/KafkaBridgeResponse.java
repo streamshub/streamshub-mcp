@@ -34,6 +34,7 @@ import java.util.Map;
  * @param conditions         the list of status conditions
  * @param creationTime       when the bridge was created (null for list operations)
  * @param ageMinutes         the age of the bridge in minutes (null for list operations)
+ * @param reconciliation     reconciliation status tracking (generation vs observedGeneration)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record KafkaBridgeResponse(
@@ -54,7 +55,8 @@ public record KafkaBridgeResponse(
     @JsonProperty("logging") String logging,
     @JsonProperty("conditions") List<ConditionInfo> conditions,
     @JsonProperty("creation_time") Instant creationTime,
-    @JsonProperty("age_minutes") Long ageMinutes
+    @JsonProperty("age_minutes") Long ageMinutes,
+    @JsonProperty("reconciliation") io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation
 ) {
 
     /**
@@ -71,9 +73,10 @@ public record KafkaBridgeResponse(
      */
     public static KafkaBridgeResponse summary(String name, String namespace, String readiness,
                                                ReplicasInfo replicas, String bootstrapServers,
-                                               String httpUrl, List<ConditionInfo> conditions) {
+                                               String httpUrl, List<ConditionInfo> conditions,
+                                               io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
         return new KafkaBridgeResponse(name, namespace, readiness, replicas, bootstrapServers,
-            httpUrl, null, null, null, null, null, null, null, null, null, conditions, null, null);
+            httpUrl, null, null, null, null, null, null, null, null, null, conditions, null, null, reconciliation);
     }
 
     /**
@@ -97,6 +100,7 @@ public record KafkaBridgeResponse(
      * @param conditions         the status conditions
      * @param creationTime       the creation time
      * @param ageMinutes         the age in minutes
+     * @param reconciliation     reconciliation status tracking
      * @return a detailed response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -110,10 +114,11 @@ public record KafkaBridgeResponse(
                                           Map<String, Object> adminClientConfig,
                                           String authenticationType, Boolean tlsEnabled,
                                           String logging, List<ConditionInfo> conditions,
-                                          Instant creationTime, Long ageMinutes) {
+                                          Instant creationTime, Long ageMinutes,
+                                          io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
         return new KafkaBridgeResponse(name, namespace, readiness, replicas, bootstrapServers,
             httpUrl, httpPort, corsAllowedOrigins, corsAllowedMethods, producerConfig,
             consumerConfig, adminClientConfig, authenticationType, tlsEnabled, logging,
-            conditions, creationTime, ageMinutes);
+            conditions, creationTime, ageMinutes, reconciliation);
     }
 }

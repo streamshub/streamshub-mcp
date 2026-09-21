@@ -27,6 +27,7 @@ import java.util.List;
  * @param conditions            the list of status conditions
  * @param creationTime          when the cluster was created (null for list operations)
  * @param ageMinutes            the age of the cluster in minutes (null for list operations)
+ * @param reconciliation        reconciliation status tracking (generation vs observedGeneration)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record KafkaConnectResponse(
@@ -41,7 +42,8 @@ public record KafkaConnectResponse(
     @JsonProperty("connector_plugins") List<ConnectorPluginInfo> connectorPlugins,
     @JsonProperty("conditions") List<ConditionInfo> conditions,
     @JsonProperty("creation_time") Instant creationTime,
-    @JsonProperty("age_minutes") Long ageMinutes
+    @JsonProperty("age_minutes") Long ageMinutes,
+    @JsonProperty("reconciliation") io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation
 ) {
 
     /**
@@ -90,9 +92,10 @@ public record KafkaConnectResponse(
                                                 ReplicasInfo replicas, String version,
                                                 String bootstrapServers, String restApiUrl,
                                                 Integer connectorPluginsCount,
-                                                List<ConditionInfo> conditions) {
+                                                List<ConditionInfo> conditions,
+                                                io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
         return new KafkaConnectResponse(name, namespace, readiness, replicas, version,
-            bootstrapServers, restApiUrl, connectorPluginsCount, null, conditions, null, null);
+            bootstrapServers, restApiUrl, connectorPluginsCount, null, conditions, null, null, reconciliation);
     }
 
     /**
@@ -110,6 +113,7 @@ public record KafkaConnectResponse(
      * @param conditions            the status conditions
      * @param creationTime          the creation time
      * @param ageMinutes            the age in minutes
+     * @param reconciliation        reconciliation status tracking
      * @return a detailed response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -119,9 +123,10 @@ public record KafkaConnectResponse(
                                            Integer connectorPluginsCount,
                                            List<ConnectorPluginInfo> connectorPlugins,
                                            List<ConditionInfo> conditions,
-                                           Instant creationTime, Long ageMinutes) {
+                                           Instant creationTime, Long ageMinutes,
+                                           io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
         return new KafkaConnectResponse(name, namespace, readiness, replicas, version,
             bootstrapServers, restApiUrl, connectorPluginsCount, connectorPlugins,
-            conditions, creationTime, ageMinutes);
+            conditions, creationTime, ageMinutes, reconciliation);
     }
 }

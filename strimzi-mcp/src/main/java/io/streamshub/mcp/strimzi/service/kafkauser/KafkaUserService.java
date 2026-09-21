@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.service.kafkauser;
 
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
@@ -135,6 +136,10 @@ public class KafkaUserService {
     }
 
     private KafkaUserResponse createUserSummary(final KafkaUser user) {
+        ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
+            user.getMetadata().getGeneration(),
+            user.getStatus() != null ? user.getStatus().getObservedGeneration() : 0L);
+
         return KafkaUserResponse.summary(
             user.getMetadata().getName(),
             user.getMetadata().getNamespace(),
@@ -145,10 +150,15 @@ public class KafkaUserService {
             extractUsername(user),
             extractSecretName(user),
             determineResourceStatus(user),
-            extractConditions(user));
+            extractConditions(user),
+            reconciliation);
     }
 
     private KafkaUserResponse createUserDetail(final KafkaUser user) {
+        ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
+            user.getMetadata().getGeneration(),
+            user.getStatus() != null ? user.getStatus().getObservedGeneration() : 0L);
+
         return KafkaUserResponse.of(
             user.getMetadata().getName(),
             user.getMetadata().getNamespace(),
@@ -161,7 +171,8 @@ public class KafkaUserService {
             extractUsername(user),
             extractSecretName(user),
             determineResourceStatus(user),
-            extractConditions(user));
+            extractConditions(user),
+            reconciliation);
     }
 
     private String extractCluster(final KafkaUser user) {

@@ -367,6 +367,181 @@ class KafkaConfigServiceTest {
         assertEquals("my-group-.*", response.kafkaExporter().groupRegex());
     }
 
+    @Test
+    void testTieredStorageExtraction() {
+        Kafka kafka = new KafkaBuilder()
+            .withMetadata(new ObjectMetaBuilder().withName("my-cluster").withNamespace("kafka").build())
+            .withNewSpec()
+                .withNewKafka()
+                    .withNewTieredStorageCustomTiered()
+                        .withNewRemoteStorageManager()
+                            .withClassName("com.example.RemoteStorageManagerImpl")
+                            .withClassPath("/opt/kafka/plugins/rsm.jar")
+                            .withConfig(Map.of("storage.bucket", "my-bucket"))
+                        .endRemoteStorageManager()
+                    .endTieredStorageCustomTiered()
+                .endKafka()
+            .endSpec()
+            .build();
+        setupKafkaResource(kafka, "kafka", "my-cluster");
+
+        KafkaEffectiveConfigResponse response = kafkaConfigService.getEffectiveConfig("kafka", "my-cluster");
+
+        assertNotNull(response.tieredStorage());
+        assertEquals("custom", response.tieredStorage().type());
+        assertNotNull(response.tieredStorage().remoteStorageManager());
+        assertEquals("com.example.RemoteStorageManagerImpl",
+            response.tieredStorage().remoteStorageManager().className());
+        assertEquals("/opt/kafka/plugins/rsm.jar", response.tieredStorage().remoteStorageManager().classPath());
+        assertEquals("my-bucket", response.tieredStorage().remoteStorageManager().config().get("storage.bucket"));
+    }
+
+    @Test
+    void testQuotasPluginStrimziExtraction() {
+        Kafka kafka = new KafkaBuilder()
+            .withMetadata(new ObjectMetaBuilder().withName("my-cluster").withNamespace("kafka").build())
+            .withNewSpec()
+                .withNewKafka()
+                    .withNewQuotasPluginStrimziQuotas()
+                        .withProducerByteRate(1_000_000L)
+                        .withConsumerByteRate(2_000_000L)
+                        .withMinAvailableBytesPerVolume(500_000_000L)
+                        .withMinAvailableRatioPerVolume(0.1)
+                        .withExcludedPrincipals("admin", "service-account")
+                    .endQuotasPluginStrimziQuotas()
+                .endKafka()
+            .endSpec()
+            .build();
+        setupKafkaResource(kafka, "kafka", "my-cluster");
+
+        KafkaEffectiveConfigResponse response = kafkaConfigService.getEffectiveConfig("kafka", "my-cluster");
+
+        assertNotNull(response.quotas());
+        assertEquals("strimzi", response.quotas().type());
+        assertNotNull(response.quotas().config());
+        assertEquals(1_000_000L, response.quotas().config().get("producerByteRate"));
+        assertEquals(2_000_000L, response.quotas().config().get("consumerByteRate"));
+        assertEquals(500_000_000L, response.quotas().config().get("minAvailableBytesPerVolume"));
+        assertEquals(0.1, response.quotas().config().get("minAvailableRatioPerVolume"));
+        assertEquals(List.of("admin", "service-account"), response.quotas().config().get("excludedPrincipals"));
+    }
+
+    @Test
+    void testTieredStorageConfigRedactsAllDenylistPatterns() {
+        Kafka kafka = new KafkaBuilder()
+            .withMetadata(new ObjectMetaBuilder().withName("my-cluster").withNamespace("kafka").build())
+            .withNewSpec()
+                .withNewKafka()
+                    .withNewTieredStorageCustomTiered()
+                        .withNewRemoteStorageManager()
+                            .withClassName("com.example.RemoteStorageManagerImpl")
+                            .withConfig(Map.of(
+                                "storage.secret", "s3cr3t",
+                                "storage.password", "p4ssw0rd",
+                                "storage.key", "abcd1234",
+                                "storage.token", "t0k3n-value",
+                                "storage.credential", "cred-value",
+                                "storage.auth", "auth-value"
+                            ))
+                        .endRemoteStorageManager()
+                    .endTieredStorageCustomTiered()
+                .endKafka()
+            .endSpec()
+            .build();
+        setupKafkaResource(kafka, "kafka", "my-cluster");
+
+        KafkaEffectiveConfigResponse response = kafkaConfigService.getEffectiveConfig("kafka", "my-cluster");
+        Map<String, Object> config = response.tieredStorage().remoteStorageManager().config();
+
+        assertEquals("[REDACTED]", config.get("storage.secret"));
+        assertEquals("[REDACTED]", config.get("storage.password"));
+        assertEquals("[REDACTED]", config.get("storage.key"));
+        assertEquals("[REDACTED]", config.get("storage.token"));
+        assertEquals("[REDACTED]", config.get("storage.credential"));
+        assertEquals("[REDACTED]", config.get("storage.auth"));
+    }
+
+    @Test
+    void testTieredStorageConfigRedactsMixedCaseKeys() {
+        Kafka kafka = new KafkaBuilder()
+            .withMetadata(new ObjectMetaBuilder().withName("my-cluster").withNamespace("kafka").build())
+            .withNewSpec()
+                .withNewKafka()
+                    .withNewTieredStorageCustomTiered()
+                        .withNewRemoteStorageManager()
+                            .withClassName("com.example.RemoteStorageManagerImpl")
+                            .withConfig(Map.of(
+                                "AccessKeyId", "AKIAEXAMPLE",
+                                "S3_SECRET", "shh-dont-tell"
+                            ))
+                        .endRemoteStorageManager()
+                    .endTieredStorageCustomTiered()
+                .endKafka()
+            .endSpec()
+            .build();
+        setupKafkaResource(kafka, "kafka", "my-cluster");
+
+        KafkaEffectiveConfigResponse response = kafkaConfigService.getEffectiveConfig("kafka", "my-cluster");
+        Map<String, Object> config = response.tieredStorage().remoteStorageManager().config();
+
+        // KafkaConfigService#sanitizeConfigMap lowercases keys (Locale.ROOT) before matching the denylist,
+        // so mixed-case keys like "AccessKeyId" / "S3_SECRET" are still redacted -- not a case-sensitivity gap.
+        assertEquals("[REDACTED]", config.get("AccessKeyId"));
+        assertEquals("[REDACTED]", config.get("S3_SECRET"));
+    }
+
+    @Test
+    void testTieredStorageConfigDoesNotRedactNonSensitiveKeys() {
+        Kafka kafka = new KafkaBuilder()
+            .withMetadata(new ObjectMetaBuilder().withName("my-cluster").withNamespace("kafka").build())
+            .withNewSpec()
+                .withNewKafka()
+                    .withNewTieredStorageCustomTiered()
+                        .withNewRemoteStorageManager()
+                            .withClassName("com.example.RemoteStorageManagerImpl")
+                            .withConfig(Map.of(
+                                "retention.ms", "604800000",
+                                "compression.type", "producer"
+                            ))
+                        .endRemoteStorageManager()
+                    .endTieredStorageCustomTiered()
+                .endKafka()
+            .endSpec()
+            .build();
+        setupKafkaResource(kafka, "kafka", "my-cluster");
+
+        KafkaEffectiveConfigResponse response = kafkaConfigService.getEffectiveConfig("kafka", "my-cluster");
+        Map<String, Object> config = response.tieredStorage().remoteStorageManager().config();
+
+        assertEquals("604800000", config.get("retention.ms"));
+        assertEquals("producer", config.get("compression.type"));
+    }
+
+    @Test
+    void testTieredStorageConfigRedactsSubstringWithinUnrelatedWord() {
+        Kafka kafka = new KafkaBuilder()
+            .withMetadata(new ObjectMetaBuilder().withName("my-cluster").withNamespace("kafka").build())
+            .withNewSpec()
+                .withNewKafka()
+                    .withNewTieredStorageCustomTiered()
+                        .withNewRemoteStorageManager()
+                            .withClassName("com.example.RemoteStorageManagerImpl")
+                            .withConfig(Map.of("keystore.location", "/etc/ssl/keystore.jks"))
+                        .endRemoteStorageManager()
+                    .endTieredStorageCustomTiered()
+                .endKafka()
+            .endSpec()
+            .build();
+        setupKafkaResource(kafka, "kafka", "my-cluster");
+
+        KafkaEffectiveConfigResponse response = kafkaConfigService.getEffectiveConfig("kafka", "my-cluster");
+        Map<String, Object> config = response.tieredStorage().remoteStorageManager().config();
+
+        // Known false-positive ceiling of the substring-based denylist: "keystore.location" contains "key"
+        // so it is redacted even though it is a file path, not a secret. Not a bug to fix here.
+        assertEquals("[REDACTED]", config.get("keystore.location"));
+    }
+
     // ---- Test helpers ----
 
     @SuppressWarnings("unchecked")

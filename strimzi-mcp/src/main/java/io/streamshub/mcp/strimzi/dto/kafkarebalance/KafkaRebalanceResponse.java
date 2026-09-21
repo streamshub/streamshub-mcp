@@ -25,6 +25,7 @@ import java.util.Map;
  * @param spec                rebalance spec details (null for list operations)
  * @param progressConfigMap   name of the ConfigMap with progress info (null for list operations)
  * @param conditions          the list of status conditions
+ * @param reconciliation      reconciliation status tracking (generation vs observedGeneration)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record KafkaRebalanceResponse(
@@ -38,7 +39,8 @@ public record KafkaRebalanceResponse(
     @JsonProperty("optimization_result") OptimizationResultInfo optimizationResult,
     @JsonProperty("spec") RebalanceSpecInfo spec,
     @JsonProperty("progress_config_map") String progressConfigMap,
-    @JsonProperty("conditions") List<ConditionInfo> conditions
+    @JsonProperty("conditions") List<ConditionInfo> conditions,
+    @JsonProperty("reconciliation") io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation
 ) {
 
     /**
@@ -148,9 +150,10 @@ public record KafkaRebalanceResponse(
                                                   final String mode, final Boolean autoApproval,
                                                   final String sessionId,
                                                   final OptimizationResultInfo optimizationResult,
-                                                  final List<ConditionInfo> conditions) {
+                                                  final List<ConditionInfo> conditions,
+                                                  final io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
         return new KafkaRebalanceResponse(name, namespace, cluster, state, mode,
-            autoApproval, sessionId, optimizationResult, null, null, conditions);
+            autoApproval, sessionId, optimizationResult, null, null, conditions, reconciliation);
     }
 
     /**
@@ -167,6 +170,7 @@ public record KafkaRebalanceResponse(
      * @param spec               the rebalance spec details
      * @param progressConfigMap  the progress ConfigMap name
      * @param conditions         the status conditions
+     * @param reconciliation     reconciliation status tracking
      * @return a detailed response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -177,8 +181,9 @@ public record KafkaRebalanceResponse(
                                              final OptimizationResultInfo optimizationResult,
                                              final RebalanceSpecInfo spec,
                                              final String progressConfigMap,
-                                             final List<ConditionInfo> conditions) {
+                                             final List<ConditionInfo> conditions,
+                                             final io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
         return new KafkaRebalanceResponse(name, namespace, cluster, state, mode,
-            autoApproval, sessionId, optimizationResult, spec, progressConfigMap, conditions);
+            autoApproval, sessionId, optimizationResult, spec, progressConfigMap, conditions, reconciliation);
     }
 }

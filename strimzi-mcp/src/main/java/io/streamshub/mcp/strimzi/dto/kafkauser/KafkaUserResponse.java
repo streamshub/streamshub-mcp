@@ -26,6 +26,7 @@ import java.util.List;
  * @param secretName     the name of the K8s Secret holding credentials (never the secret data itself)
  * @param readiness      the readiness status (Ready, NotReady, Error, Unknown)
  * @param conditions     the list of status conditions
+ * @param reconciliation reconciliation status tracking (generation vs observedGeneration)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record KafkaUserResponse(
@@ -40,7 +41,8 @@ public record KafkaUserResponse(
     @JsonProperty("username") String username,
     @JsonProperty("secret_name") String secretName,
     @JsonProperty("readiness") String readiness,
-    @JsonProperty("conditions") List<ConditionInfo> conditions
+    @JsonProperty("conditions") List<ConditionInfo> conditions,
+    @JsonProperty("reconciliation") io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation
 ) {
 
     /**
@@ -133,9 +135,10 @@ public record KafkaUserResponse(
                                              String authentication, String authorization,
                                              Integer aclCount, String username,
                                              String secretName, String readiness,
-                                             List<ConditionInfo> conditions) {
+                                             List<ConditionInfo> conditions,
+                                             io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
         return new KafkaUserResponse(name, namespace, cluster, authentication, authorization,
-            aclCount, null, null, username, secretName, readiness, conditions);
+            aclCount, null, null, username, secretName, readiness, conditions, reconciliation);
     }
 
     /**
@@ -153,6 +156,7 @@ public record KafkaUserResponse(
      * @param secretName     the credential secret name
      * @param readiness      the readiness status
      * @param conditions     the status conditions
+     * @param reconciliation reconciliation status tracking
      * @return a detailed response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -161,8 +165,9 @@ public record KafkaUserResponse(
                                         Integer aclCount, QuotaInfo quotas,
                                         List<AclRuleInfo> aclRules, String username,
                                         String secretName, String readiness,
-                                        List<ConditionInfo> conditions) {
+                                        List<ConditionInfo> conditions,
+                                        io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
         return new KafkaUserResponse(name, namespace, cluster, authentication, authorization,
-            aclCount, quotas, aclRules, username, secretName, readiness, conditions);
+            aclCount, quotas, aclRules, username, secretName, readiness, conditions, reconciliation);
     }
 }

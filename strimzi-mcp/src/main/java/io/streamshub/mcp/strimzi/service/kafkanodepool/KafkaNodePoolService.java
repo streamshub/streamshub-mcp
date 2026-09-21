@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.service.kafkanodepool;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.util.InputUtils;
@@ -153,7 +154,8 @@ public class KafkaNodePoolService {
                 return PodSummaryResponse.PodInfo.enrichedSummary(
                     info.name(), info.phase(), info.ready(), info.component(),
                     info.restarts(), info.ageMinutes(), nodePoolName,
-                    info.lastTerminationReason(), info.lastTerminationTime(), info.resources());
+                    info.lastTerminationReason(), info.lastTerminationTime(), info.resources(),
+                    info.revision(), info.clusterCaCertGeneration(), info.clientsCaCertGeneration(), info.serverCertHash());
             })
             .toList();
     }
@@ -217,10 +219,40 @@ public class KafkaNodePoolService {
             .toList();
         Integer replicas = nodePool.getSpec().getReplicas();
 
+        Integer statusReplicas = null;
+        List<String> statusRoles = null;
+        List<Integer> nodeIds = null;
+        Boolean ready = null;
+        List<io.streamshub.mcp.common.dto.ConditionInfo> conditions = null;
+
+        if (nodePool.getStatus() != null) {
+            statusReplicas = nodePool.getStatus().getReplicas();
+            if (nodePool.getStatus().getRoles() != null) {
+                statusRoles = nodePool.getStatus().getRoles().stream()
+                    .map(role -> role.toString().toLowerCase(Locale.ROOT))
+                    .toList();
+            }
+            nodeIds = nodePool.getStatus().getNodeIds();
+            if (nodePool.getStatus().getConditions() != null) {
+                conditions = nodePool.getStatus().getConditions().stream()
+                    .map(c -> io.streamshub.mcp.common.dto.ConditionInfo.of(
+                        c.getType(), c.getStatus(), c.getReason(), c.getMessage(), c.getLastTransitionTime()))
+                    .toList();
+                ready = nodePool.getStatus().getConditions().stream()
+                    .anyMatch(c -> KubernetesConstants.Conditions.TYPE_READY.equals(c.getType())
+                        && KubernetesConstants.Conditions.STATUS_TRUE.equals(c.getStatus()));
+            }
+        }
+
         String storageType = extractStorageType(nodePool);
         String storageSize = extractStorageSize(nodePool);
 
-        return KafkaNodePoolResponse.of(name, namespace, cluster, roles, replicas, storageType, storageSize);
+        ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
+            nodePool.getMetadata().getGeneration(),
+            nodePool.getStatus() != null ? nodePool.getStatus().getObservedGeneration() : 0L);
+
+        return KafkaNodePoolResponse.of(name, namespace, cluster, roles, replicas,
+            statusReplicas, statusRoles, nodeIds, storageType, storageSize, ready, conditions, reconciliation);
     }
 
     private String extractStorageType(final KafkaNodePool nodePool) {

@@ -66,7 +66,7 @@ class KafkaMirrorMaker2ToolsTest {
             KafkaMirrorMaker2Response.summary("my-mm2", "kafka", "Ready",
                 ReplicasInfo.of(2, 2), "target-cluster",
                 List.of("source-cluster"),
-                List.of(ConditionInfo.of("Ready", "True", null, null, null)))
+                List.of(ConditionInfo.of("Ready", "True", null, null, null)), null)
         ));
 
         client.when()
@@ -108,7 +108,7 @@ class KafkaMirrorMaker2ToolsTest {
                 null, null, "4.2.0",
                 "target-cluster-kafka-bootstrap:9092",
                 List.of(ConditionInfo.of("Ready", "True", null, null, null)),
-                Instant.now(), 120L)
+                Instant.now(), 120L, null)
         );
 
         client.when()

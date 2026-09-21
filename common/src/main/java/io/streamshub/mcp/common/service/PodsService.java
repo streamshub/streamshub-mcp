@@ -215,8 +215,15 @@ public class PodsService {
 
         // Return enriched summary if no detail sections requested
         if (sections.isEmpty()) {
+            Map<String, String> annotations = metadata.getAnnotations();
+            String revision = annotations != null ? annotations.get("strimzi.io/revision") : null;
+            Integer clusterCaGen = parseAnnoInt(annotations, "strimzi.io/cluster-ca-cert-generation");
+            Integer clientsCaGen = parseAnnoInt(annotations, "strimzi.io/clients-ca-cert-generation");
+            String certHash = annotations != null ? annotations.get("strimzi.io/server-cert-hash") : null;
+
             return PodSummaryResponse.PodInfo.enrichedSummary(podName, phase, ready, component,
-                restarts, ageMinutes, null, lastTerminationReason, lastTerminationTime, podResources);
+                restarts, ageMinutes, null, lastTerminationReason, lastTerminationTime, podResources,
+                revision, clusterCaGen, clientsCaGen, certHash);
         }
 
         boolean full = sections.contains("full");
@@ -320,6 +327,17 @@ public class PodsService {
     public PodSummaryResponse extractPodDescribeResult(String namespace, Pod pod, Set<String> sections) {
         PodSummaryResponse.PodInfo podInfo = extractPodInfo(namespace, pod, sections);
         return PodSummaryResponse.of(namespace, List.of(podInfo));
+    }
+
+    private static Integer parseAnnoInt(Map<String, String> annotations, String key) {
+        if (annotations == null || !annotations.containsKey(key)) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(annotations.get(key));
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /**

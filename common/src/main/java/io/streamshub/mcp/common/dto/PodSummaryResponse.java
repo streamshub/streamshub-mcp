@@ -138,6 +138,10 @@ public record PodSummaryResponse(
      * @param lastTerminationReason  the reason the last container was terminated
      * @param lastTerminationTime    the time the last container was terminated
      * @param resources              the aggregated resource requests and limits for the pod
+     * @param revision               the Strimzi pod revision
+     * @param clusterCaCertGeneration the cluster CA cert generation
+     * @param clientsCaCertGeneration the clients CA cert generation
+     * @param serverCertHash         the server cert hash
      * @param nodeName               the node the pod is running on
      * @param hostIP                 the host IP address
      * @param podIP                  the pod IP address
@@ -163,6 +167,10 @@ public record PodSummaryResponse(
         @JsonProperty("last_termination_reason") String lastTerminationReason,
         @JsonProperty("last_termination_time") Instant lastTerminationTime,
         @JsonProperty("resources") ResourceInfo resources,
+        @JsonProperty("revision") String revision,
+        @JsonProperty("cluster_ca_cert_generation") Integer clusterCaCertGeneration,
+        @JsonProperty("clients_ca_cert_generation") Integer clientsCaCertGeneration,
+        @JsonProperty("server_cert_hash") String serverCertHash,
         // Detail fields (nullable)
         @JsonProperty("node_name") String nodeName,
         @JsonProperty("host_ip") String hostIP,
@@ -189,7 +197,7 @@ public record PodSummaryResponse(
         public static PodInfo summary(String name, String phase, boolean ready,
                                       String component, int restarts, long ageMinutes) {
             return new PodInfo(name, phase, ready, component, restarts, ageMinutes,
-                null, null, null, null,
+                null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null);
         }
 
@@ -215,6 +223,39 @@ public record PodSummaryResponse(
                                               Instant lastTerminationTime, ResourceInfo resources) {
             return new PodInfo(name, phase, ready, component, restarts, ageMinutes,
                 nodePool, lastTerminationReason, lastTerminationTime, resources,
+                null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null);
+        }
+
+        /**
+         * Enriched summary with Strimzi pod annotations.
+         *
+         * @param name                      the pod name
+         * @param phase                     the pod phase
+         * @param ready                     whether the pod is ready
+         * @param component                 the component type
+         * @param restarts                  the number of restarts
+         * @param ageMinutes                the pod age in minutes
+         * @param nodePool                  the node pool name
+         * @param lastTerminationReason     the reason the last container was terminated
+         * @param lastTerminationTime       the time the last container was terminated
+         * @param resources                 the aggregated resource requests and limits
+         * @param revision                  the Strimzi pod revision
+         * @param clusterCaCertGeneration   the cluster CA cert generation
+         * @param clientsCaCertGeneration   the clients CA cert generation
+         * @param serverCertHash            the server cert hash
+         * @return an enriched summary PodInfo
+         */
+        @SuppressWarnings("checkstyle:ParameterNumber")
+        public static PodInfo enrichedSummary(String name, String phase, boolean ready,
+                                              String component, int restarts, long ageMinutes,
+                                              String nodePool, String lastTerminationReason,
+                                              Instant lastTerminationTime, ResourceInfo resources,
+                                              String revision, Integer clusterCaCertGeneration,
+                                              Integer clientsCaCertGeneration, String serverCertHash) {
+            return new PodInfo(name, phase, ready, component, restarts, ageMinutes,
+                nodePool, lastTerminationReason, lastTerminationTime, resources,
+                revision, clusterCaCertGeneration, clientsCaCertGeneration, serverCertHash,
                 null, null, null, null, null, null, null, null, null, null);
         }
 
@@ -253,10 +294,27 @@ public record PodSummaryResponse(
                                        Map<String, String> labels, Map<String, String> annotations,
                                        List<ContainerDetail> containers, List<VolumeInfo> volumes,
                                        List<ConditionInfo> conditions, Instant startTime) {
+            String revision = annotations != null ? annotations.get("strimzi.io/revision") : null;
+            Integer clusterCaGen = parseAnnoInt(annotations, "strimzi.io/cluster-ca-cert-generation");
+            Integer clientsCaGen = parseAnnoInt(annotations, "strimzi.io/clients-ca-cert-generation");
+            String certHash = annotations != null ? annotations.get("strimzi.io/server-cert-hash") : null;
+
             return new PodInfo(name, phase, ready, component, restarts, ageMinutes,
                 nodePool, lastTerminationReason, lastTerminationTime, resources,
+                revision, clusterCaGen, clientsCaGen, certHash,
                 nodeName, hostIP, podIP, serviceAccount, labels, annotations,
                 containers, volumes, conditions, startTime);
+        }
+
+        private static Integer parseAnnoInt(Map<String, String> annotations, String key) {
+            if (annotations == null || !annotations.containsKey(key)) {
+                return null;
+            }
+            try {
+                return Integer.parseInt(annotations.get(key));
+            } catch (NumberFormatException e) {
+                return null;
+            }
         }
     }
 

@@ -54,6 +54,19 @@ class KafkaConfigToolsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaConfigToolsST.class);
     private static final String SECOND_CLUSTER_NAME = "mcp-cluster-2";
     private static final int SECOND_CLUSTER_RETENTION_HOURS = 24;
+    private static final long QUOTAS_PRODUCER_BYTE_RATE = 1_000_000L;
+    private static final long QUOTAS_CONSUMER_BYTE_RATE = 2_000_000L;
+
+    // Dedicated, never-waited-for-readiness cluster used only to exercise the credential
+    // redaction path in KafkaConfigService#sanitizeConfigMap via spec.kafka.tieredStorage.
+    // get_kafka_cluster_config reads the Kafka CR spec directly, so pod readiness is irrelevant
+    // here -- no SeaweedFS / custom broker image needed for this negative/redaction case.
+    // Full functional (working, S3-backed) tiered storage e2e coverage is deferred to plan §E0d.
+    private static final String TIERED_STORAGE_CLUSTER_NAME = "mcp-cluster-tiered";
+    private static final String TIERED_STORAGE_SENSITIVE_KEY = "storage.secret.access.key";
+    private static final String TIERED_STORAGE_SENSITIVE_VALUE = "super-secret-should-be-redacted";
+    private static final String TIERED_STORAGE_SAFE_KEY = "storage.bucket.name";
+    private static final String TIERED_STORAGE_SAFE_VALUE = "my-tiered-storage-bucket";
 
     @InjectResourceManager
     KubeResourceManager krm;
@@ -106,9 +119,37 @@ class KafkaConfigToolsST extends AbstractST {
                             .addToConfig("default.replication.factor", 1)
                             .addToConfig("min.insync.replicas", 1)
                             .addToConfig("log.retention.hours", SECOND_CLUSTER_RETENTION_HOURS)
+                            .withNewQuotasPluginStrimziQuotas()
+                                .withProducerByteRate(QUOTAS_PRODUCER_BYTE_RATE)
+                                .withConsumerByteRate(QUOTAS_CONSUMER_BYTE_RATE)
+                                .withExcludedPrincipals("admin")
+                            .endQuotasPluginStrimziQuotas()
                         .endKafka()
                     .endSpec().build()
             );
+
+            // Dedicated cluster for the tiered storage credential-redaction case (A7). Not waited
+            // for readiness: the custom RemoteStorageManager class does not exist on the broker
+            // classpath, so the cluster never becomes Ready, but get_kafka_cluster_config only
+            // reads the CR spec and does not need the pods to be healthy.
+            krm.createOrUpdateResourceWithoutWait(
+                KafkaNodePoolTemplates.mixedPool(kafkaNs, "tiered-mixed-np",
+                    TIERED_STORAGE_CLUSTER_NAME, 1).build());
+            krm.createOrUpdateResourceWithoutWait(
+                KafkaTemplates.kafka(kafkaNs, TIERED_STORAGE_CLUSTER_NAME, 1)
+                    .editSpec()
+                        .editKafka()
+                            .withNewTieredStorageCustomTiered()
+                                .withNewRemoteStorageManager()
+                                    .withClassName("com.example.RemoteStorageManagerImpl")
+                                    .withConfig(Map.of(
+                                        TIERED_STORAGE_SENSITIVE_KEY, TIERED_STORAGE_SENSITIVE_VALUE,
+                                        TIERED_STORAGE_SAFE_KEY, TIERED_STORAGE_SAFE_VALUE))
+                                .endRemoteStorageManager()
+                            .endTieredStorageCustomTiered()
+                        .endKafka()
+                    .endSpec()
+                    .build());
         }
 
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
@@ -282,6 +323,71 @@ class KafkaConfigToolsST extends AbstractST {
                     "Should have timestamp");
                 assertFalse(report.path("message").isMissingNode(),
                     "Should have message");
+            })
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify get_kafka_cluster_config surfaces the strimzi quotas plugin configuration (A7).
+     */
+    @Test
+    @Story("get_kafka_cluster_config returns quotas plugin configuration")
+    void testGetKafkaClusterConfigQuotas() {
+        Map<String, Object> args = Map.of(
+            "clusterName", SECOND_CLUSTER_NAME,
+            "namespace", Environment.KAFKA_NAMESPACE);
+
+        mcpClient.when()
+            .toolsCall("get_kafka_cluster_config", args, response -> {
+                JsonNode config = assertToolSuccess(response);
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_cluster_config (quotas) response (length={}):\n{}", json.length(), json);
+                JsonNode quotas = config.path("quotas");
+                assertFalse(quotas.isMissingNode(), "Should have quotas");
+                assertEquals("strimzi", quotas.path("type").asText(), "Quotas type should be 'strimzi'");
+                JsonNode quotasConfig = quotas.path("config");
+                assertEquals(QUOTAS_PRODUCER_BYTE_RATE, quotasConfig.path("producerByteRate").asLong(),
+                    "producerByteRate should match configured value");
+                assertEquals(QUOTAS_CONSUMER_BYTE_RATE, quotasConfig.path("consumerByteRate").asLong(),
+                    "consumerByteRate should match configured value");
+                assertTrue(quotasConfig.path("excludedPrincipals").isArray(), "excludedPrincipals should be an array");
+                assertEquals("admin", quotasConfig.path("excludedPrincipals").get(0).asText(),
+                    "excludedPrincipals should contain 'admin'");
+            })
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify get_kafka_cluster_config redacts credential-shaped keys in the tiered storage
+     * remote storage manager config while preserving non-sensitive keys (A7). Tiered storage
+     * is otherwise out of scope for e2e coverage until SeaweedFS is wired up (plan §E0d) --
+     * this case only exercises the redaction path via the CR spec, not a working S3 backend.
+     */
+    @Test
+    @Story("get_kafka_cluster_config redacts credential-shaped tiered storage config keys")
+    void testGetKafkaClusterConfigTieredStorageRedaction() {
+        Map<String, Object> args = Map.of(
+            "clusterName", TIERED_STORAGE_CLUSTER_NAME,
+            "namespace", Environment.KAFKA_NAMESPACE);
+
+        mcpClient.when()
+            .toolsCall("get_kafka_cluster_config", args, response -> {
+                JsonNode config = assertToolSuccess(response);
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_cluster_config (tiered storage) response (length={}):\n{}",
+                    json.length(), json);
+                assertFalse(json.contains(TIERED_STORAGE_SENSITIVE_VALUE),
+                    "Response must NOT contain the raw sensitive value");
+                JsonNode tieredStorage = config.path("tiered_storage");
+                assertFalse(tieredStorage.isMissingNode(), "Should have tiered_storage");
+                assertEquals("custom", tieredStorage.path("type").asText(), "Tiered storage type should be 'custom'");
+                JsonNode rsmConfig = tieredStorage.path("remote_storage_manager").path("config");
+                assertEquals("[REDACTED]", rsmConfig.path(TIERED_STORAGE_SENSITIVE_KEY).asText(),
+                    "Credential-shaped key should be redacted");
+                assertEquals(TIERED_STORAGE_SAFE_VALUE, rsmConfig.path(TIERED_STORAGE_SAFE_KEY).asText(),
+                    "Non-sensitive key should not be redacted");
             })
             .thenAssertResults();
     }
