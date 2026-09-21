@@ -28,6 +28,7 @@ import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceStatus;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerAddress;
@@ -400,7 +401,7 @@ public class KafkaService {
         if (kafka.getStatus() == null || kafka.getStatus().getAutoRebalance() == null) {
             return null;
         }
-        var ar = kafka.getStatus().getAutoRebalance();
+        KafkaAutoRebalanceStatus ar = kafka.getStatus().getAutoRebalance();
         String state = ar.getState() != null ? ar.getState().name() : null;
         List<String> modes = ar.getModes() != null ? ar.getModes().stream().map(Object::toString).toList() : null;
         return new KafkaClusterResponse.AutoRebalanceInfo(state, modes, ar.getLastTransitionTime());

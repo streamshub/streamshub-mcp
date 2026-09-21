@@ -365,7 +365,6 @@ class KafkaNodePoolServiceTest {
         Mockito.lenient().when(resource.get()).thenReturn(nodePool);
 
         // Also make inAnyNamespace work for null-namespace path
-        FilterWatchListDeletable filteredOp = Mockito.mock(FilterWatchListDeletable.class);
         Mockito.lenient().when(nodePoolOp.inAnyNamespace()).thenReturn(nodePoolNsOp);
         KafkaNodePoolList list = new KafkaNodePoolList();
         list.setItems(List.of(nodePool));

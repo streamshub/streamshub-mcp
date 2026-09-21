@@ -15,6 +15,7 @@ import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
+import io.strimzi.api.kafka.model.topic.ReplicasChangeStatus;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -183,7 +184,7 @@ public class KafkaTopicService {
                     .toList();
             }
             if (topic.getStatus().getReplicasChange() != null) {
-                var rc = topic.getStatus().getReplicasChange();
+                ReplicasChangeStatus rc = topic.getStatus().getReplicasChange();
                 String state = rc.getState() != null ? rc.getState().toString() : null;
                 replicasChange = new KafkaTopicResponse.ReplicasChangeInfo(
                     rc.getTargetReplicas(), state, rc.getSessionId(), rc.getMessage());

@@ -44,6 +44,7 @@ import io.strimzi.api.kafka.model.kafka.cruisecontrol.CruiseControlSpec;
 import io.strimzi.api.kafka.model.kafka.entityoperator.EntityOperatorSpec;
 import io.strimzi.api.kafka.model.kafka.exporter.KafkaExporterSpec;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
+import io.strimzi.api.kafka.model.kafka.tieredstorage.RemoteStorageManager;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -156,7 +157,7 @@ public class KafkaConfigService {
         KafkaEffectiveConfigResponse.RemoteStorageManagerInfo rsmInfo = null;
         if (tieredStorage instanceof io.strimzi.api.kafka.model.kafka.tieredstorage.TieredStorageCustom custom) {
             if (custom.getRemoteStorageManager() != null) {
-                var rsm = custom.getRemoteStorageManager();
+                RemoteStorageManager rsm = custom.getRemoteStorageManager();
                 Map<String, Object> rawConfig = rsm.getConfig() != null
                     ? new java.util.LinkedHashMap<>(rsm.getConfig()) : null;
                 Map<String, Object> safeConfig = sanitizeConfigMap(rawConfig);

@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.dto.kafka;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 
 import java.time.Instant;
 import java.util.List;
@@ -62,7 +63,7 @@ public record KafkaClusterResponse(
     @JsonProperty("managed_by") String managedBy,
     @JsonProperty("auto_rebalance") AutoRebalanceInfo autoRebalance,
     @JsonProperty("cluster_security") ClusterSecurityInfo clusterSecurity,
-    @JsonProperty("reconciliation") io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation,
+    @JsonProperty("reconciliation") ReconciliationInfo reconciliation,
     @JsonInclude(JsonInclude.Include.NON_EMPTY) @JsonProperty("warnings") List<String> warnings
 ) {
     /**

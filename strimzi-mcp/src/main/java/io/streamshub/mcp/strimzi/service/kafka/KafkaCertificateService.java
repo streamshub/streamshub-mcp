@@ -13,6 +13,7 @@ import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
 import io.strimzi.api.ResourceLabels;
+import io.strimzi.api.kafka.model.common.CertificateAuthority;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -105,7 +106,7 @@ public class KafkaCertificateService {
         if (kafka.getSpec() == null || kafka.getSpec().getClusterCa() == null) {
             return null;
         }
-        var ca = kafka.getSpec().getClusterCa();
+        CertificateAuthority ca = kafka.getSpec().getClusterCa();
         Integer renewalDays = ca.getRenewalDays();
         Integer validityDays = ca.getValidityDays();
         Boolean generateCa = ca.isGenerateCertificateAuthority();
@@ -120,7 +121,7 @@ public class KafkaCertificateService {
         if (kafka.getSpec() == null || kafka.getSpec().getClientsCa() == null) {
             return null;
         }
-        var ca = kafka.getSpec().getClientsCa();
+        CertificateAuthority ca = kafka.getSpec().getClientsCa();
         Integer renewalDays = ca.getRenewalDays();
         Integer validityDays = ca.getValidityDays();
         Boolean generateCa = ca.isGenerateCertificateAuthority();

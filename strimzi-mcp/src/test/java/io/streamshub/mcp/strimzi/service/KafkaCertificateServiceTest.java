@@ -459,18 +459,16 @@ class KafkaCertificateServiceTest {
             .endSpec();
 
         if (withClusterCa) {
-            var clusterCa = builder.editSpec().withNewClusterCa().withValidityDays(365);
-            if (clusterRenewalDays != null) {
-                clusterCa.withRenewalDays(clusterRenewalDays);
-            }
-            clusterCa.endClusterCa().endSpec();
+            builder.editSpec().withNewClusterCa()
+                .withValidityDays(365)
+                .withRenewalDays(clusterRenewalDays != null ? clusterRenewalDays : 0)
+                .endClusterCa().endSpec();
         }
         if (withClientsCa) {
-            var clientsCa = builder.editSpec().withNewClientsCa().withValidityDays(730);
-            if (clientsRenewalDays != null) {
-                clientsCa.withRenewalDays(clientsRenewalDays);
-            }
-            clientsCa.endClientsCa().endSpec();
+            builder.editSpec().withNewClientsCa()
+                .withValidityDays(730)
+                .withRenewalDays(clientsRenewalDays != null ? clientsRenewalDays : 0)
+                .endClientsCa().endSpec();
         }
         return builder.build();
     }

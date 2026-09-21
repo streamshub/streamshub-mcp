@@ -106,16 +106,6 @@ public class StrimziOperatorService {
     }
 
     /**
-     * Get logs for Strimzi operator pods with optional filtering, keyword matching, and log parameters.
-     * Returns a StrimziOperatorLogsResponse (including notFound) rather than throwing,
-     * since missing operator pods is a valid business response.
-     *
-     * @param namespace    the namespace, or null for auto-discovery
-     * @param operatorName the operator name, or null for any operator
-     * @param options      log collection options (filter, keywords, pagination, callbacks)
-     * @return the operator logs response
-     */
-    /**
      * Get logs from Entity Operator pods (specifically topic-operator or user-operator) for a Kafka cluster.
      *
      * @param namespace   the namespace (null for all namespaces)
