@@ -286,7 +286,8 @@ public abstract class AbstractST {
         assertTrue(pods.isArray() && !pods.isEmpty(), "pods should be a non-empty array");
         boolean anyRevision = false;
         for (JsonNode pod : pods) {
-            if (!pod.path("revision").isMissingNode() && !pod.path("revision").isNull()) {
+            JsonNode revision = pod.path("annotations").path("strimzi.io/revision");
+            if (!revision.isMissingNode() && !revision.isNull()) {
                 anyRevision = true;
                 break;
             }

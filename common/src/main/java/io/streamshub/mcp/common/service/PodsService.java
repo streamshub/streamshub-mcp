@@ -215,15 +215,10 @@ public class PodsService {
 
         // Return enriched summary if no detail sections requested
         if (sections.isEmpty()) {
-            Map<String, String> annotations = metadata.getAnnotations();
-            String revision = annotations != null ? annotations.get("strimzi.io/revision") : null;
-            Integer clusterCaGen = parseAnnoInt(annotations, "strimzi.io/cluster-ca-cert-generation");
-            Integer clientsCaGen = parseAnnoInt(annotations, "strimzi.io/clients-ca-cert-generation");
-            String certHash = annotations != null ? annotations.get("strimzi.io/server-cert-hash") : null;
-
+            Map<String, String> podAnnotations = metadata.getAnnotations();
             return PodSummaryResponse.PodInfo.enrichedSummary(podName, phase, ready, component,
-                restarts, ageMinutes, null, lastTerminationReason, lastTerminationTime, podResources,
-                revision, clusterCaGen, clientsCaGen, certHash);
+                restarts, ageMinutes, lastTerminationReason, lastTerminationTime, podResources,
+                podLabels, podAnnotations);
         }
 
         boolean full = sections.contains("full");
@@ -298,7 +293,7 @@ public class PodsService {
 
         return PodSummaryResponse.PodInfo.detailed(
             podName, phase, ready, component, restarts, ageMinutes,
-            null, lastTerminationReason, lastTerminationTime, podResources,
+            lastTerminationReason, lastTerminationTime, podResources,
             nodeName, hostIP, podIP, serviceAccount, labels, annotations,
             containers, volumes, conditions, startTimeDetail
         );
@@ -327,17 +322,6 @@ public class PodsService {
     public PodSummaryResponse extractPodDescribeResult(String namespace, Pod pod, Set<String> sections) {
         PodSummaryResponse.PodInfo podInfo = extractPodInfo(namespace, pod, sections);
         return PodSummaryResponse.of(namespace, List.of(podInfo));
-    }
-
-    private static Integer parseAnnoInt(Map<String, String> annotations, String key) {
-        if (annotations == null || !annotations.containsKey(key)) {
-            return null;
-        }
-        try {
-            return Integer.parseInt(annotations.get(key));
-        } catch (NumberFormatException e) {
-            return null;
-        }
     }
 
     /**

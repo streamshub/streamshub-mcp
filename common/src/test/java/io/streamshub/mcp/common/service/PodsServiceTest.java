@@ -122,7 +122,7 @@ class PodsServiceTest {
     }
 
     @Test
-    void testExtractPodSummaryWithStrimziAnnotationsPopulatesFields() {
+    void testExtractPodSummaryWithStrimziAnnotationsPopulatesAnnotationsMap() {
         Map<String, String> annotations = Map.of(
             "strimzi.io/revision", "3",
             "strimzi.io/cluster-ca-cert-generation", "5",
@@ -133,14 +133,15 @@ class PodsServiceTest {
 
         PodSummaryResponse.PodInfo info = podsService.extractPodSummary("kafka", pod);
 
-        assertEquals("3", info.revision());
-        assertEquals(5, info.clusterCaCertGeneration());
-        assertEquals(2, info.clientsCaCertGeneration());
-        assertEquals("abc123hash", info.serverCertHash());
+        assertNotNull(info.annotations(), "annotations map should be present");
+        assertEquals("3", info.annotations().get("strimzi.io/revision"));
+        assertEquals("5", info.annotations().get("strimzi.io/cluster-ca-cert-generation"));
+        assertEquals("2", info.annotations().get("strimzi.io/clients-ca-cert-generation"));
+        assertEquals("abc123hash", info.annotations().get("strimzi.io/server-cert-hash"));
     }
 
     @Test
-    void testExtractPodInfoFullDetailWithStrimziAnnotationsPopulatesFields() {
+    void testExtractPodInfoFullDetailWithStrimziAnnotationsPopulatesAnnotationsMap() {
         Map<String, String> annotations = Map.of(
             "strimzi.io/revision", "3",
             "strimzi.io/cluster-ca-cert-generation", "5",
@@ -151,52 +152,31 @@ class PodsServiceTest {
 
         PodSummaryResponse.PodInfo info = podsService.extractPodInfo("kafka", pod);
 
-        assertEquals("3", info.revision());
-        assertEquals(5, info.clusterCaCertGeneration());
-        assertEquals(2, info.clientsCaCertGeneration());
-        assertEquals("abc123hash", info.serverCertHash());
+        assertNotNull(info.annotations(), "annotations map should be present");
+        assertEquals("3", info.annotations().get("strimzi.io/revision"));
+        assertEquals("5", info.annotations().get("strimzi.io/cluster-ca-cert-generation"));
+        assertEquals("2", info.annotations().get("strimzi.io/clients-ca-cert-generation"));
+        assertEquals("abc123hash", info.annotations().get("strimzi.io/server-cert-hash"));
     }
 
     @Test
-    void testExtractPodSummaryNoAnnotationsMapAllStrimziFieldsNull() {
+    void testExtractPodSummaryNoAnnotationsMapReturnsNullAnnotations() {
         Pod pod = createPod("my-pod", "Running", true, 0, null);
 
         PodSummaryResponse.PodInfo info = podsService.extractPodSummary("kafka", pod);
 
-        assertNull(info.revision());
-        assertNull(info.clusterCaCertGeneration());
-        assertNull(info.clientsCaCertGeneration());
-        assertNull(info.serverCertHash());
+        assertNull(info.annotations());
     }
 
     @Test
-    void testExtractPodSummaryAnnotationsMissingStrimziKeysAllFieldsNull() {
+    void testExtractPodSummaryAnnotationsWithNoStrimziKeysReturnsOriginalMap() {
         Pod pod = createPod("my-pod", "Running", true, 0, Map.of("some.other/key", "value"));
 
         PodSummaryResponse.PodInfo info = podsService.extractPodSummary("kafka", pod);
 
-        assertNull(info.revision());
-        assertNull(info.clusterCaCertGeneration());
-        assertNull(info.clientsCaCertGeneration());
-        assertNull(info.serverCertHash());
-    }
-
-    @Test
-    void testExtractPodSummaryMalformedCertGenerationAnnotationsReturnsNull() {
-        Map<String, String> annotations = Map.of(
-            "strimzi.io/revision", "3",
-            "strimzi.io/cluster-ca-cert-generation", "not-a-number",
-            "strimzi.io/clients-ca-cert-generation", "also-bad",
-            "strimzi.io/server-cert-hash", "abc123hash"
-        );
-        Pod pod = createPod("my-pod", "Running", true, 0, annotations);
-
-        PodSummaryResponse.PodInfo info = podsService.extractPodSummary("kafka", pod);
-
-        assertEquals("3", info.revision());
-        assertNull(info.clusterCaCertGeneration());
-        assertNull(info.clientsCaCertGeneration());
-        assertEquals("abc123hash", info.serverCertHash());
+        assertNotNull(info.annotations(), "annotations map should be present");
+        assertNull(info.annotations().get("strimzi.io/revision"));
+        assertNull(info.annotations().get("strimzi.io/server-cert-hash"));
     }
 
     private Pod createPod(final String name, final String phase,

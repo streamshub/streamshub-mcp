@@ -149,14 +149,7 @@ public class KafkaNodePoolService {
             Pod.class, finalNamespace, StrimziConstants.Labels.POOL_NAME, nodePoolName);
 
         return pods.stream()
-            .map(pod -> {
-                PodSummaryResponse.PodInfo info = podsService.extractPodSummary(finalNamespace, pod);
-                return PodSummaryResponse.PodInfo.enrichedSummary(
-                    info.name(), info.phase(), info.ready(), info.component(),
-                    info.restarts(), info.ageMinutes(), nodePoolName,
-                    info.lastTerminationReason(), info.lastTerminationTime(), info.resources(),
-                    info.revision(), info.clusterCaCertGeneration(), info.clientsCaCertGeneration(), info.serverCertHash());
-            })
+            .map(pod -> podsService.extractPodSummary(finalNamespace, pod))
             .toList();
     }
 

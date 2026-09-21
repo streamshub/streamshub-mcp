@@ -147,19 +147,7 @@ public class KafkaService {
         }
 
         List<PodSummaryResponse.PodInfo> podInfos = pods.stream()
-            .map(pod -> {
-                PodSummaryResponse.PodInfo info = podsService.extractPodSummary(finalNamespace, pod);
-                String nodePool = pod.getMetadata().getLabels() != null
-                    ? pod.getMetadata().getLabels().get(StrimziConstants.Labels.POOL_NAME) : null;
-                if (nodePool != null) {
-                    return PodSummaryResponse.PodInfo.enrichedSummary(
-                        info.name(), info.phase(), info.ready(), info.component(),
-                        info.restarts(), info.ageMinutes(), nodePool,
-                        info.lastTerminationReason(), info.lastTerminationTime(), info.resources(),
-                        info.revision(), info.clusterCaCertGeneration(), info.clientsCaCertGeneration(), info.serverCertHash());
-                }
-                return info;
-            })
+            .map(pod -> podsService.extractPodSummary(finalNamespace, pod))
             .toList();
 
         PodSummaryResponse podSummary = PodSummaryResponse.of(finalNamespace, podInfos);
