@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.dto.kafkaconnect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
 
 import java.time.Instant;
@@ -43,7 +44,7 @@ public record KafkaConnectResponse(
     @JsonProperty("conditions") List<ConditionInfo> conditions,
     @JsonProperty("creation_time") Instant creationTime,
     @JsonProperty("age_minutes") Long ageMinutes,
-    @JsonProperty("reconciliation") io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation
+    @JsonProperty("reconciliation") ReconciliationInfo reconciliation
 ) {
 
     /**
@@ -93,7 +94,7 @@ public record KafkaConnectResponse(
                                                 String bootstrapServers, String restApiUrl,
                                                 Integer connectorPluginsCount,
                                                 List<ConditionInfo> conditions,
-                                                io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
+                                                ReconciliationInfo reconciliation) {
         return new KafkaConnectResponse(name, namespace, readiness, replicas, version,
             bootstrapServers, restApiUrl, connectorPluginsCount, null, conditions, null, null, reconciliation);
     }
@@ -124,7 +125,7 @@ public record KafkaConnectResponse(
                                            List<ConnectorPluginInfo> connectorPlugins,
                                            List<ConditionInfo> conditions,
                                            Instant creationTime, Long ageMinutes,
-                                           io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
+                                           ReconciliationInfo reconciliation) {
         return new KafkaConnectResponse(name, namespace, readiness, replicas, version,
             bootstrapServers, restApiUrl, connectorPluginsCount, connectorPlugins,
             conditions, creationTime, ageMinutes, reconciliation);

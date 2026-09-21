@@ -135,7 +135,7 @@ public record KafkaClusterResponse(
                                            Long ageMinutes, String managedBy,
                                            AutoRebalanceInfo autoRebalance,
                                            ClusterSecurityInfo clusterSecurity,
-                                           io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation,
+                                           ReconciliationInfo reconciliation,
                                            List<String> warnings) {
         return new KafkaClusterResponse(name, namespace, kind, kafkaVersion, runningKafkaVersion,
             kafkaMetadataVersion, operatorLastSuccessfulVersion, clusterId, readiness,

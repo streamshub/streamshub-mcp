@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.dto.kafkarebalance;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 
 import java.util.List;
 import java.util.Map;
@@ -40,7 +41,7 @@ public record KafkaRebalanceResponse(
     @JsonProperty("spec") RebalanceSpecInfo spec,
     @JsonProperty("progress_config_map") String progressConfigMap,
     @JsonProperty("conditions") List<ConditionInfo> conditions,
-    @JsonProperty("reconciliation") io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation
+    @JsonProperty("reconciliation") ReconciliationInfo reconciliation
 ) {
 
     /**
@@ -151,7 +152,7 @@ public record KafkaRebalanceResponse(
                                                   final String sessionId,
                                                   final OptimizationResultInfo optimizationResult,
                                                   final List<ConditionInfo> conditions,
-                                                  final io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
+                                                  final ReconciliationInfo reconciliation) {
         return new KafkaRebalanceResponse(name, namespace, cluster, state, mode,
             autoApproval, sessionId, optimizationResult, null, null, conditions, reconciliation);
     }
@@ -182,7 +183,7 @@ public record KafkaRebalanceResponse(
                                              final RebalanceSpecInfo spec,
                                              final String progressConfigMap,
                                              final List<ConditionInfo> conditions,
-                                             final io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
+                                             final ReconciliationInfo reconciliation) {
         return new KafkaRebalanceResponse(name, namespace, cluster, state, mode,
             autoApproval, sessionId, optimizationResult, spec, progressConfigMap, conditions, reconciliation);
     }

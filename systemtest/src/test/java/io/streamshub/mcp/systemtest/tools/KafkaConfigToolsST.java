@@ -122,7 +122,7 @@ class KafkaConfigToolsST extends AbstractST {
                             .withNewQuotasPluginStrimziQuotas()
                                 .withProducerByteRate(QUOTAS_PRODUCER_BYTE_RATE)
                                 .withConsumerByteRate(QUOTAS_CONSUMER_BYTE_RATE)
-                                .withExcludedPrincipals("admin")
+                                .withExcludedPrincipals("User:admin")
                             .endQuotasPluginStrimziQuotas()
                         .endKafka()
                     .endSpec().build()
@@ -352,8 +352,8 @@ class KafkaConfigToolsST extends AbstractST {
                 assertEquals(QUOTAS_CONSUMER_BYTE_RATE, quotasConfig.path("consumerByteRate").asLong(),
                     "consumerByteRate should match configured value");
                 assertTrue(quotasConfig.path("excludedPrincipals").isArray(), "excludedPrincipals should be an array");
-                assertEquals("admin", quotasConfig.path("excludedPrincipals").get(0).asText(),
-                    "excludedPrincipals should contain 'admin'");
+                assertEquals("User:admin", quotasConfig.path("excludedPrincipals").get(0).asText(),
+                    "excludedPrincipals should contain 'User:admin'");
             })
             .thenAssertResults();
     }

@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.dto.kafkaconnect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,7 @@ public record KafkaConnectorResponse(
     @JsonProperty("connector_status") Map<String, Object> connectorStatus,
     @JsonProperty("conditions") List<ConditionInfo> conditions,
     @JsonProperty("config") Map<String, Object> config,
-    @JsonProperty("reconciliation") io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation
+    @JsonProperty("reconciliation") ReconciliationInfo reconciliation
 ) {
 
     /**
@@ -97,7 +98,7 @@ public record KafkaConnectorResponse(
                                                    String readiness, AutoRestartInfo autoRestart,
                                                    List<String> topics,
                                                    List<ConditionInfo> conditions,
-                                                   io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
+                                                   ReconciliationInfo reconciliation) {
         return new KafkaConnectorResponse(name, namespace, connectCluster, className, tasksMax,
             state, readiness, autoRestart, topics, null, conditions, null, reconciliation);
     }
@@ -128,7 +129,7 @@ public record KafkaConnectorResponse(
                                               Map<String, Object> connectorStatus,
                                               List<ConditionInfo> conditions,
                                               Map<String, Object> config,
-                                              io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
+                                              ReconciliationInfo reconciliation) {
         return new KafkaConnectorResponse(name, namespace, connectCluster, className, tasksMax,
             state, readiness, autoRestart, topics, connectorStatus, conditions, config, reconciliation);
     }

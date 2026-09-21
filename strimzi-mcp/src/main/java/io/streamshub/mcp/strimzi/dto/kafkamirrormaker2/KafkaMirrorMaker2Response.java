@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.dto.kafkamirrormaker2;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
 
 import java.time.Instant;
@@ -48,7 +49,7 @@ public record KafkaMirrorMaker2Response(
     @JsonProperty("conditions") List<ConditionInfo> conditions,
     @JsonProperty("creation_time") Instant creationTime,
     @JsonProperty("age_minutes") Long ageMinutes,
-    @JsonProperty("reconciliation") io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation
+    @JsonProperty("reconciliation") ReconciliationInfo reconciliation
 ) {
 
     /**
@@ -125,7 +126,7 @@ public record KafkaMirrorMaker2Response(
                                                      final String targetCluster,
                                                      final List<String> sourceClusterAliases,
                                                      final List<ConditionInfo> conditions,
-                                                     final io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
+                                                     final ReconciliationInfo reconciliation) {
         return new KafkaMirrorMaker2Response(name, namespace, readiness, replicas,
             targetCluster, sourceClusterAliases, null, null, null, null, null,
             conditions, null, null, reconciliation);
@@ -162,7 +163,7 @@ public record KafkaMirrorMaker2Response(
                                                 final String version, final String bootstrapServers,
                                                 final List<ConditionInfo> conditions,
                                                 final Instant creationTime, final Long ageMinutes,
-                                                final io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
+                                                final ReconciliationInfo reconciliation) {
         return new KafkaMirrorMaker2Response(name, namespace, readiness, replicas,
             targetCluster, sourceClusterAliases, mirrors, clusters, connectorStatuses,
             version, bootstrapServers, conditions, creationTime, ageMinutes, reconciliation);

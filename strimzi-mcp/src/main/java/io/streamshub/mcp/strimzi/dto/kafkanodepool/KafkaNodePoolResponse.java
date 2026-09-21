@@ -6,6 +6,8 @@ package io.streamshub.mcp.strimzi.dto.kafkanodepool;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 
 import java.util.List;
 /**
@@ -39,8 +41,8 @@ public record KafkaNodePoolResponse(
     @JsonProperty("storage_type") String storageType,
     @JsonProperty("storage_size") String storageSize,
     @JsonProperty("ready") Boolean ready,
-    @JsonProperty("conditions") List<io.streamshub.mcp.common.dto.ConditionInfo> conditions,
-    @JsonProperty("reconciliation") io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation
+    @JsonProperty("conditions") List<ConditionInfo> conditions,
+    @JsonProperty("reconciliation") ReconciliationInfo reconciliation
 ) {
 
     /**
@@ -68,8 +70,8 @@ public record KafkaNodePoolResponse(
                                             List<Integer> nodeIds,
                                             String storageType, String storageSize,
                                             Boolean ready,
-                                            List<io.streamshub.mcp.common.dto.ConditionInfo> conditions,
-                                            io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
+                                            List<ConditionInfo> conditions,
+                                            ReconciliationInfo reconciliation) {
         return new KafkaNodePoolResponse(name, namespace, cluster, roles, replicas, statusReplicas, statusRoles,
             nodeIds, storageType, storageSize, ready, conditions, reconciliation);
     }

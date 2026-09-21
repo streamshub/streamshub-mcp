@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.dto.kafkauser;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 
 import java.util.List;
 /**
@@ -42,7 +43,7 @@ public record KafkaUserResponse(
     @JsonProperty("secret_name") String secretName,
     @JsonProperty("readiness") String readiness,
     @JsonProperty("conditions") List<ConditionInfo> conditions,
-    @JsonProperty("reconciliation") io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation
+    @JsonProperty("reconciliation") ReconciliationInfo reconciliation
 ) {
 
     /**
@@ -136,7 +137,7 @@ public record KafkaUserResponse(
                                              Integer aclCount, String username,
                                              String secretName, String readiness,
                                              List<ConditionInfo> conditions,
-                                             io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
+                                             ReconciliationInfo reconciliation) {
         return new KafkaUserResponse(name, namespace, cluster, authentication, authorization,
             aclCount, null, null, username, secretName, readiness, conditions, reconciliation);
     }
@@ -166,7 +167,7 @@ public record KafkaUserResponse(
                                         List<AclRuleInfo> aclRules, String username,
                                         String secretName, String readiness,
                                         List<ConditionInfo> conditions,
-                                        io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
+                                        ReconciliationInfo reconciliation) {
         return new KafkaUserResponse(name, namespace, cluster, authentication, authorization,
             aclCount, quotas, aclRules, username, secretName, readiness, conditions, reconciliation);
     }

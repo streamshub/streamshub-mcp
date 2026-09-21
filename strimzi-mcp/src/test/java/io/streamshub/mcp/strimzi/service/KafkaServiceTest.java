@@ -26,6 +26,13 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.kafka.KafkaStatus;
 import io.strimzi.api.kafka.model.kafka.KafkaStatusBuilder;
+import io.strimzi.api.kafka.model.kafka.clustersecurity.ClusterSecurityAuthenticationType;
+import io.strimzi.api.kafka.model.kafka.clustersecurity.ClusterSecurityEncryptionType;
+import io.strimzi.api.kafka.model.kafka.clustersecurity.ClusterSecurityStatus;
+import io.strimzi.api.kafka.model.kafka.clustersecurity.ClusterSecurityStatusBuilder;
+import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceMode;
+import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceState;
+import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceStatusBrokersBuilder;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -218,6 +225,32 @@ class KafkaServiceTest {
     }
 
     /**
+     * Verify auto_rebalance state, modes, and last_transition_time are extracted from
+     * Kafka.status.autoRebalance when populated.
+     */
+    @Test
+    void testGetClusterEnrichesAutoRebalanceFromStatus() {
+        Kafka kafka = buildKafkaWithStatus(new KafkaStatusBuilder()
+            .withNewAutoRebalance()
+                .withState(KafkaAutoRebalanceState.RebalanceOnScaleUp)
+                .withLastTransitionTime("2026-01-01T00:00:00Z")
+                .withModes(new KafkaAutoRebalanceStatusBrokersBuilder()
+                    .withMode(KafkaAutoRebalanceMode.ADD_BROKERS)
+                    .withBrokers(3, 4)
+                    .build())
+            .endAutoRebalance()
+            .build());
+        mockKafkaResource(kafka);
+
+        KafkaClusterResponse response = kafkaService.getCluster(NAMESPACE, CLUSTER_NAME);
+
+        assertNotNull(response.autoRebalance());
+        assertEquals("RebalanceOnScaleUp", response.autoRebalance().state());
+        assertEquals(List.of("add-brokers"), response.autoRebalance().modes());
+        assertEquals("2026-01-01T00:00:00Z", response.autoRebalance().lastTransitionTime());
+    }
+
+    /**
      * Verify cluster_security is null when status has no clusterSecurity.
      */
     @Test
@@ -228,6 +261,33 @@ class KafkaServiceTest {
         KafkaClusterResponse response = kafkaService.getCluster(NAMESPACE, CLUSTER_NAME);
 
         assertNull(response.clusterSecurity());
+    }
+
+    /**
+     * Verify cluster_security encryption/authentication are extracted from
+     * Kafka.status.clusterSecurity when populated, using the CRD's serialized values
+     * (e.g. "strimzi-tls") rather than the Java enum constant name ("STRIMZI_TLS").
+     */
+    @Test
+    void testGetClusterEnrichesClusterSecurityFromStatus() {
+        ClusterSecurityStatus clusterSecurityStatus = new ClusterSecurityStatusBuilder()
+            .withNewEncryption()
+                .withType(ClusterSecurityEncryptionType.STRIMZI_TLS)
+            .endEncryption()
+            .withNewAuthentication()
+                .withType(ClusterSecurityAuthenticationType.STRIMZI_MTLS)
+            .endAuthentication()
+            .build();
+        Kafka kafka = buildKafkaWithStatus(new KafkaStatusBuilder()
+            .withClusterSecurity(clusterSecurityStatus)
+            .build());
+        mockKafkaResource(kafka);
+
+        KafkaClusterResponse response = kafkaService.getCluster(NAMESPACE, CLUSTER_NAME);
+
+        assertNotNull(response.clusterSecurity());
+        assertEquals("strimzi-tls", response.clusterSecurity().encryption());
+        assertEquals("strimzi-mtls", response.clusterSecurity().authentication());
     }
 
     /**

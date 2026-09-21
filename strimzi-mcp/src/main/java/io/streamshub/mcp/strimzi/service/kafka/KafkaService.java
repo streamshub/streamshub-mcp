@@ -28,7 +28,9 @@ import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceMode;
 import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceStatus;
+import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceStatusBrokers;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerAddress;
@@ -403,7 +405,13 @@ public class KafkaService {
         }
         KafkaAutoRebalanceStatus ar = kafka.getStatus().getAutoRebalance();
         String state = ar.getState() != null ? ar.getState().name() : null;
-        List<String> modes = ar.getModes() != null ? ar.getModes().stream().map(Object::toString).toList() : null;
+        List<String> modes = ar.getModes() != null
+            ? ar.getModes().stream()
+                .map(KafkaAutoRebalanceStatusBrokers::getMode)
+                .filter(Objects::nonNull)
+                .map(KafkaAutoRebalanceMode::toValue)
+                .toList()
+            : null;
         return new KafkaClusterResponse.AutoRebalanceInfo(state, modes, ar.getLastTransitionTime());
     }
 
@@ -414,9 +422,9 @@ public class KafkaService {
         Object cs = kafka.getStatus().getClusterSecurity();
         if (cs instanceof io.strimzi.api.kafka.model.kafka.clustersecurity.ClusterSecurityStatus secStatus) {
             String encryption = secStatus.getEncryption() != null && secStatus.getEncryption().getType() != null
-                ? secStatus.getEncryption().getType().name() : null;
+                ? secStatus.getEncryption().getType().toValue() : null;
             String authentication = secStatus.getAuthentication() != null && secStatus.getAuthentication().getType() != null
-                ? secStatus.getAuthentication().getType().name() : null;
+                ? secStatus.getAuthentication().getType().toValue() : null;
             return new KafkaClusterResponse.ClusterSecurityInfo(encryption, authentication);
         }
         return null;

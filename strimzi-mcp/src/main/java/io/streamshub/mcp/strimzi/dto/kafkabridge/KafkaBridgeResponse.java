@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.dto.kafkabridge;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
 
 import java.time.Instant;
@@ -56,7 +57,7 @@ public record KafkaBridgeResponse(
     @JsonProperty("conditions") List<ConditionInfo> conditions,
     @JsonProperty("creation_time") Instant creationTime,
     @JsonProperty("age_minutes") Long ageMinutes,
-    @JsonProperty("reconciliation") io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation
+    @JsonProperty("reconciliation") ReconciliationInfo reconciliation
 ) {
 
     /**
@@ -74,7 +75,7 @@ public record KafkaBridgeResponse(
     public static KafkaBridgeResponse summary(String name, String namespace, String readiness,
                                                ReplicasInfo replicas, String bootstrapServers,
                                                String httpUrl, List<ConditionInfo> conditions,
-                                               io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
+                                               ReconciliationInfo reconciliation) {
         return new KafkaBridgeResponse(name, namespace, readiness, replicas, bootstrapServers,
             httpUrl, null, null, null, null, null, null, null, null, null, conditions, null, null, reconciliation);
     }
@@ -115,7 +116,7 @@ public record KafkaBridgeResponse(
                                           String authenticationType, Boolean tlsEnabled,
                                           String logging, List<ConditionInfo> conditions,
                                           Instant creationTime, Long ageMinutes,
-                                          io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
+                                          ReconciliationInfo reconciliation) {
         return new KafkaBridgeResponse(name, namespace, readiness, replicas, bootstrapServers,
             httpUrl, httpPort, corsAllowedOrigins, corsAllowedMethods, producerConfig,
             consumerConfig, adminClientConfig, authenticationType, tlsEnabled, logging,

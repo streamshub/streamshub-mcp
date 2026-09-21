@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.dto.kafkatopic;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 
 import java.util.List;
 import java.util.Map;
@@ -40,7 +41,7 @@ public record KafkaTopicResponse(
     @JsonProperty("replicas_change") ReplicasChangeInfo replicasChange,
     @JsonProperty("conditions") List<ConditionInfo> conditions,
     @JsonProperty("configuration") Map<String, Object> configuration,
-    @JsonProperty("reconciliation") io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation
+    @JsonProperty("reconciliation") ReconciliationInfo reconciliation
 ) {
 
     /**
@@ -84,7 +85,7 @@ public record KafkaTopicResponse(
                                          ReplicasChangeInfo replicasChange,
                                          List<ConditionInfo> conditions,
                                          Map<String, Object> configuration,
-                                         io.streamshub.mcp.common.dto.ReconciliationInfo reconciliation) {
+                                         ReconciliationInfo reconciliation) {
         return new KafkaTopicResponse(name, namespace, cluster, partitions, replicas,
             status, topicId, topicName, replicasChange, conditions, configuration, reconciliation);
     }

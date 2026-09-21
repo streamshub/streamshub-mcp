@@ -12,6 +12,7 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
 import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
 import io.strimzi.api.ResourceLabels;
@@ -356,6 +357,90 @@ class KafkaNodePoolServiceTest {
         assertEquals(3L, response.reconciliation().generation());
         assertEquals(3L, response.reconciliation().observedGeneration());
         assertTrue(response.reconciliation().upToDate());
+    }
+
+    /**
+     * Verify storage_type and storage_size are extracted for persistent-claim storage.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void testGetNodePoolEnrichesPersistentClaimStorage() {
+        KafkaNodePool nodePool = new KafkaNodePoolBuilder()
+            .withNewMetadata()
+                .withName(POOL_NAME)
+                .withNamespace(NAMESPACE)
+                .withLabels(Map.of(ResourceLabels.STRIMZI_CLUSTER_LABEL, CLUSTER_NAME))
+            .endMetadata()
+            .withNewSpec()
+                .withReplicas(3)
+                .withRoles(List.of(ProcessRoles.BROKER))
+                .withNewPersistentClaimStorage()
+                    .withSize("100Gi")
+                .endPersistentClaimStorage()
+            .endSpec()
+            .build();
+        mockGetNodePool(nodePool);
+
+        KafkaNodePoolResponse response = nodePoolService.getNodePool(NAMESPACE, CLUSTER_NAME, POOL_NAME);
+
+        assertEquals("persistent-claim", response.storageType());
+        assertEquals("100Gi", response.storageSize());
+    }
+
+    /**
+     * Verify storage_size falls back to the first persistent volume's size for JBOD storage.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void testGetNodePoolEnrichesJbodStorageUsesFirstPersistentVolumeSize() {
+        KafkaNodePool nodePool = new KafkaNodePoolBuilder()
+            .withNewMetadata()
+                .withName(POOL_NAME)
+                .withNamespace(NAMESPACE)
+                .withLabels(Map.of(ResourceLabels.STRIMZI_CLUSTER_LABEL, CLUSTER_NAME))
+            .endMetadata()
+            .withNewSpec()
+                .withReplicas(3)
+                .withRoles(List.of(ProcessRoles.BROKER))
+                .withNewJbodStorage()
+                    .addNewPersistentClaimStorageVolume()
+                        .withId(0)
+                        .withSize("50Gi")
+                    .endPersistentClaimStorageVolume()
+                .endJbodStorage()
+            .endSpec()
+            .build();
+        mockGetNodePool(nodePool);
+
+        KafkaNodePoolResponse response = nodePoolService.getNodePool(NAMESPACE, CLUSTER_NAME, POOL_NAME);
+
+        assertEquals("jbod", response.storageType());
+        assertEquals("50Gi", response.storageSize());
+    }
+
+    /**
+     * Verify storage_type falls back to UNKNOWN and storage_size is null when spec has no storage.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void testGetNodePoolStorageUnknownWhenNoStorageInSpec() {
+        KafkaNodePool nodePool = new KafkaNodePoolBuilder()
+            .withNewMetadata()
+                .withName(POOL_NAME)
+                .withNamespace(NAMESPACE)
+                .withLabels(Map.of(ResourceLabels.STRIMZI_CLUSTER_LABEL, CLUSTER_NAME))
+            .endMetadata()
+            .withNewSpec()
+                .withReplicas(3)
+                .withRoles(List.of(ProcessRoles.BROKER))
+            .endSpec()
+            .build();
+        mockGetNodePool(nodePool);
+
+        KafkaNodePoolResponse response = nodePoolService.getNodePool(NAMESPACE, CLUSTER_NAME, POOL_NAME);
+
+        assertEquals(KubernetesConstants.UNKNOWN, response.storageType());
+        assertNull(response.storageSize());
     }
 
     @SuppressWarnings("unchecked")
