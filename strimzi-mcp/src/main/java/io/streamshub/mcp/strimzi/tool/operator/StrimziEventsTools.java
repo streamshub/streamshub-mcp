@@ -10,9 +10,14 @@ import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.ToolGuardrails;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.config.ToolMetaFields;
-import io.streamshub.mcp.common.guardrail.Guarded;
+import io.streamshub.mcp.common.guardrail.ArgumentSanitizationGuardrail;
+import io.streamshub.mcp.common.guardrail.GeneralRateLimitGuardrail;
+import io.streamshub.mcp.common.guardrail.LogRedactionGuardrail;
+import io.streamshub.mcp.common.guardrail.ResponseSizeLimitGuardrail;
+import io.streamshub.mcp.common.observability.MeasuredTool;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
@@ -25,7 +30,7 @@ import jakarta.validation.constraints.NotBlank;
  * MCP tools for Strimzi Kubernetes events.
  */
 @Singleton
-@Guarded
+@MeasuredTool
 @WrapBusinessError(value = Exception.class, unless = {ToolCallException.class, McpException.class})
 public class StrimziEventsTools {
 
@@ -61,6 +66,9 @@ public class StrimziEventsTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public StrimziEventsResponse getStrimziEvents(
         @NotBlank @ToolArg(
             description = "Strimzi resource name (Kafka cluster, KafkaConnect,"

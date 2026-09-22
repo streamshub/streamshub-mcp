@@ -10,10 +10,14 @@ import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.ToolGuardrails;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.config.ToolMetaFields;
-import io.streamshub.mcp.common.guardrail.Guarded;
-import io.streamshub.mcp.common.guardrail.RateCategory;
+import io.streamshub.mcp.common.guardrail.ArgumentSanitizationGuardrail;
+import io.streamshub.mcp.common.guardrail.LogRedactionGuardrail;
+import io.streamshub.mcp.common.guardrail.MetricsRateLimitGuardrail;
+import io.streamshub.mcp.common.guardrail.ResponseSizeLimitGuardrail;
+import io.streamshub.mcp.common.observability.MeasuredTool;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaBridgeMetricsResponse;
@@ -34,7 +38,7 @@ import jakarta.validation.constraints.NotBlank;
  * MCP tools for metrics retrieval from Kafka clusters and Strimzi operators.
  */
 @Singleton
-@Guarded
+@MeasuredTool
 @WrapBusinessError(value = Exception.class, unless = {ToolCallException.class, McpException.class})
 public class MetricsTools {
 
@@ -87,7 +91,9 @@ public class MetricsTools {
             openWorldHint = false
         )
     )
-    @RateCategory("metrics")
+    @ToolGuardrails(
+        input  = { MetricsRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaMetricsResponse getKafkaMetrics(
         @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
@@ -163,7 +169,9 @@ public class MetricsTools {
             openWorldHint = false
         )
     )
-    @RateCategory("metrics")
+    @ToolGuardrails(
+        input  = { MetricsRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaExporterMetricsResponse getKafkaExporterMetrics(
         @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
@@ -233,7 +241,9 @@ public class MetricsTools {
             openWorldHint = false
         )
     )
-    @RateCategory("metrics")
+    @ToolGuardrails(
+        input  = { MetricsRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaBridgeMetricsResponse getKafkaBridgeMetrics(
         @NotBlank @ToolArg(
             description = StrimziToolsPrompts.BRIDGE_NAME_DESC
@@ -304,7 +314,9 @@ public class MetricsTools {
             openWorldHint = false
         )
     )
-    @RateCategory("metrics")
+    @ToolGuardrails(
+        input  = { MetricsRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaConnectMetricsResponse getKafkaConnectMetrics(
         @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CONNECT_CLUSTER_DESC
@@ -379,7 +391,9 @@ public class MetricsTools {
             openWorldHint = false
         )
     )
-    @RateCategory("metrics")
+    @ToolGuardrails(
+        input  = { MetricsRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public StrimziOperatorMetricsResponse getStrimziOperatorMetrics(
         @ToolArg(
             description = StrimziToolsPrompts.OPERATOR_NAME_DESC,

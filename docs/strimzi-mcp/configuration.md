@@ -449,14 +449,23 @@ See [Diagnostic tools](tools/diagnostics.md) for more information.
 
 The Prometheus scrape endpoint at `/q/metrics` is provided by the `quarkus-micrometer-registry-prometheus` dependency.
 
-**Application-level metrics** are recorded by the StreamsHub `MetricsFilter` whenever Micrometer is on the classpath:
+**Application-level metrics** are recorded by the `@MeasuredTool` interceptor (`ToolMetricsInterceptor` / `ToolCallMetricsRecorder`) whenever Micrometer is on the classpath:
 
 | Metric | Type | Tags | Description |
 |--------|------|------|-------------|
-| `mcp.tool.calls` | counter | `server`, `tool`, `status` | Total tool invocations |
-| `mcp.tool.call.duration` | timer | `server`, `tool`, `status` | Tool execution duration |
+| `mcp.tool.calls` | counter | `server`, `tool`, `status`, `error_type` | Total tool invocations |
+| `mcp.tool.call.duration` | timer | `server`, `tool`, `status`, `error_type` | Tool execution duration |
 
-The `server` tag is the MCP server name from `quarkus.mcp.server.server-info.name` (e.g., `strimzi-mcp`), allowing metrics from different MCP servers to be distinguished in a shared Prometheus instance. The `status` tag is `success` or `error`. The `tool` tag is the tool method name (e.g., `listKafkaClusters`).
+The `server` tag is the MCP server name from `quarkus.mcp.server.server-info.name` (e.g., `strimzi-mcp`), allowing metrics from different MCP servers to be distinguished in a shared Prometheus instance. The `tool` tag is the tool name (e.g., `list_kafka_clusters`). The `status` tag is `success` or `error`. The `error_type` tag refines the outcome (aligned with the OpenTelemetry `error.type` convention):
+
+| `error_type` | Meaning |
+|--------------|---------|
+| `none` | Successful call |
+| `protocol_error` | JSON-RPC protocol error (`McpException`): not-found, invalid-params, ambiguous |
+| `tool_error` | Tool-execution error (`ToolCallException`, RBAC/403, or wrapped infrastructure failure) |
+| `rate_limited` | Rejected by a rate-limit guardrail before the tool ran (counter only; no duration is recorded) |
+
+Every tool invocation is counted exactly once. `input_required` (MRTR elicitation) round-trips are a normal protocol signal, not an outcome, and are not counted.
 
 **Protocol-level metrics** from the upstream quarkus-mcp-server extension are enabled by `quarkus.mcp.server.metrics.enabled=true`:
 
@@ -686,6 +695,14 @@ MCP_TOPICS_DEFAULT_PAGE_SIZE=50
 
 ## Security configuration
 
+### Input sanitization
+
+Every tool argument is passed through the always-on `ArgumentSanitizationGuardrail`, which strips
+control characters (below U+0020) from all string arguments — including strings nested in objects and
+arrays — while preserving newlines (`\n`), tabs (`\t`), and carriage returns (`\r`). This guards against
+malformed or malicious input (null bytes, escape sequences) from misbehaving MCP clients. There is no
+configuration property; the guardrail cannot be disabled.
+
 ### Log redaction
 
 The server automatically redacts sensitive information from tool responses.
@@ -698,12 +715,13 @@ This prevents accidental exposure of credentials, tokens, and other secrets.
 
 **Built-in redaction patterns:**
 
-- Bearer tokens (`bearer <token>`)
+- Bearer tokens (`Bearer <token>`)
 - Passwords in various formats (`password=...`, `pwd:...`)
-- API keys and secrets (`apikey=...`, `secret=...`)
-- Private keys and certificates (PEM format)
-- Connection strings with credentials
-- Authorization headers
+- API keys (`apikey=...`, `api_key=...`)
+- Secrets and tokens (`secret=...`, `secret_key=...`, `token=...`)
+- Connection strings with embedded credentials (`scheme://user:pass@host`)
+- PEM private key blocks (`-----BEGIN ... PRIVATE KEY-----` … `-----END ... PRIVATE KEY-----`)
+- High-entropy base64 tokens (40+ characters)
 
 **To disable (not recommended for production):**
 

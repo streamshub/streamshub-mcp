@@ -15,10 +15,15 @@ import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.ToolGuardrails;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.streamshub.mcp.common.config.ToolMetaFields;
-import io.streamshub.mcp.common.guardrail.Guarded;
+import io.streamshub.mcp.common.guardrail.ArgumentSanitizationGuardrail;
+import io.streamshub.mcp.common.guardrail.GeneralRateLimitGuardrail;
+import io.streamshub.mcp.common.guardrail.LogRedactionGuardrail;
+import io.streamshub.mcp.common.guardrail.ResponseSizeLimitGuardrail;
+import io.streamshub.mcp.common.observability.MeasuredTool;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterDiagnosticReport;
@@ -52,7 +57,7 @@ import jakarta.validation.constraints.NotBlank;
  * using Sampling for LLM analysis and Elicitation for user input.</p>
  */
 @Singleton
-@Guarded
+@MeasuredTool
 @WrapBusinessError(value = Exception.class,
     unless = {ToolCallException.class, McpException.class, InputRequiredException.class})
 public class DiagnosticTools {
@@ -120,6 +125,9 @@ public class DiagnosticTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaConnectDiagnosticReport diagnoseKafkaConnect(
         @NotBlank @ToolArg(description = StrimziToolsPrompts.CONNECT_CLUSTER_DESC) final String connectName,
         @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
@@ -169,6 +177,9 @@ public class DiagnosticTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaConnectorDiagnosticReport diagnoseKafkaConnector(
         @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CONNECTOR_NAME_DESC
@@ -229,6 +240,9 @@ public class DiagnosticTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaClusterDiagnosticReport diagnoseKafkaCluster(
         @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
@@ -288,6 +302,9 @@ public class DiagnosticTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaConfigComparisonReport compareKafkaClusters(
         @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
@@ -345,6 +362,9 @@ public class DiagnosticTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaConnectivityDiagnosticReport diagnoseKafkaConnectivity(
         @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
@@ -403,6 +423,9 @@ public class DiagnosticTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaMetricsDiagnosticReport diagnoseKafkaMetrics(
         @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
@@ -478,6 +501,9 @@ public class DiagnosticTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public OperatorMetricsDiagnosticReport diagnoseOperatorMetrics(
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
@@ -554,6 +580,9 @@ public class DiagnosticTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaTopicDiagnosticReport diagnoseKafkaTopic(
         @NotBlank @ToolArg(
             description = "KafkaTopic name (e.g., 'my-topic')."
@@ -612,6 +641,9 @@ public class DiagnosticTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public UpgradeReadinessReport assessUpgradeReadiness(
         @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
@@ -665,6 +697,9 @@ public class DiagnosticTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaMirrorMaker2DiagnosticReport diagnoseKafkaMirrorMaker(
         @NotBlank @ToolArg(description = StrimziToolsPrompts.MIRROR_MAKER_NAME_DESC) final String mirrorMakerName,
         @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,

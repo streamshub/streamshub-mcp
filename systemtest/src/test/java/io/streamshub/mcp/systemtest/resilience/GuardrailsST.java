@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 
 import static io.streamshub.mcp.systemtest.TestTags.LOGS;
 import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
@@ -169,7 +170,7 @@ class GuardrailsST extends AbstractST {
      * Verify that log tool calls are rate-limited after exceeding the
      * configured requests-per-minute threshold.
      * <p>
-     * RateLimitFilter uses a 60s sliding window, so there is no fixed minute-boundary reset.
+     * The rate-limit guardrail uses a 60s sliding window, so there is no fixed minute-boundary reset.
      * The 3 sequential calls complete in under 5s, making window-reset flakiness negligible.
      */
     @Test
@@ -211,7 +212,7 @@ class GuardrailsST extends AbstractST {
      * Verify that rate limiting is applied per category: log tools are
      * rate-limited while general tools remain unrestricted.
      * <p>
-     * RateLimitFilter uses a 60s sliding window, so there is no fixed minute-boundary reset.
+     * The rate-limit guardrail uses a 60s sliding window, so there is no fixed minute-boundary reset.
      * The sequential calls complete well within the window, making reset flakiness negligible.
      */
     @Test
@@ -263,8 +264,8 @@ class GuardrailsST extends AbstractST {
 
     // ---- Log Redaction ----
     /**
-     * Verify that the log redaction filter is active and redacts sensitive
-     * patterns from log output. Log redaction is enabled by default.
+     * Verify that the log redaction guardrail is active and redacts sensitive
+     * patterns from both text content and structuredContent. Log redaction is enabled by default.
      */
     @Test
     @Story("Log redaction removes sensitive patterns from log output")
@@ -273,25 +274,43 @@ class GuardrailsST extends AbstractST {
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "namespace", kafkaNamespace.getMetadata().getName(),
             "tailLines", 200);
-        
+
         mcpClient.when()
             .toolsCall("get_kafka_cluster_logs", args, response -> {
-                String fullResponse = response.content().getFirst().asText().text();
+                String textContent = response.content().getFirst().asText().text();
                 LOGGER.info("Log redaction response (isError={}, length={})",
-                    response.isError(), fullResponse.length());
-                // These patterns should never appear in tool output when redaction is active
-                assertFalse(fullResponse.contains("password="),
-                    "Logs should not contain raw 'password=' patterns");
-                assertFalse(fullResponse.contains("Bearer "),
-                    "Logs should not contain raw Bearer tokens");
-                assertFalse(fullResponse.contains("BEGIN PRIVATE KEY"),
-                    "Logs should not contain private key material");
-                assertFalse(fullResponse.contains("BEGIN RSA PRIVATE KEY"),
-                    "Logs should not contain RSA private key material");
-                assertFalse(response.isError(), "Log call should succeed");
-                assertFalse(fullResponse.contains("secret_key="),
-                    "Logs should not contain raw 'secret_key=' patterns");
+                    response.isError(), textContent.length());
+                assertToolSuccess(response);
+
+                assertNoUnredactedSecrets(textContent, "Text content");
+
+                if (response.structuredContent() != null) {
+                    String structuredJson = response.structuredContent().toString();
+                    LOGGER.info("Structured content length: {}", structuredJson.length());
+                    assertNoUnredactedSecrets(structuredJson, "Structured content");
+                }
             })
             .thenAssertResults();
+    }
+
+    /**
+     * Asserts that no un-redacted secret value shapes leak in the given content.
+     * A correctly redacted value looks like {@code key=[REDACTED]} or {@code Bearer [REDACTED]},
+     * so these patterns must NOT match. Redaction correctness itself is covered exhaustively by
+     * the unit test {@code LogRedactionGuardrailTest}; this is a wiring smoke check on the live server.
+     *
+     * @param content the tool response text or structured JSON to scan
+     * @param label   a human-readable label for assertion messages
+     */
+    private void assertNoUnredactedSecrets(final String content, final String label) {
+        assertFalse(Pattern.compile("(?i)bearer\\s+[A-Za-z0-9._\\-]{20,}").matcher(content).find(),
+            label + " leaked an un-redacted bearer token");
+        assertFalse(Pattern.compile(
+                "(?i)(password|passwd|pwd|secret[_\\-]?key|secret|api[_\\-]?key|apikey|token)"
+                    + "\\s*[=:]\\s*(?!\\[REDACTED)\\S+")
+                .matcher(content).find(),
+            label + " leaked an un-redacted credential value");
+        assertFalse(Pattern.compile("-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----").matcher(content).find(),
+            label + " leaked private key material");
     }
 }

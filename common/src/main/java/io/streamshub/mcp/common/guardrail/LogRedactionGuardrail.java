@@ -4,12 +4,13 @@
  */
 package io.streamshub.mcp.common.guardrail;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkiverse.mcp.server.ExecutionModel;
+import io.quarkiverse.mcp.server.SupportedExecutionModels;
+import io.quarkiverse.mcp.server.ToolOutputGuardrail;
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.Priority;
-import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -21,7 +22,7 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 /**
- * Output filter that redacts sensitive data patterns in tool responses.
+ * Output guardrail that redacts sensitive data patterns in tool responses.
  *
  * <p>Scans all text fields for common sensitive patterns (bearer tokens,
  * passwords, API keys, connection strings with credentials) and replaces
@@ -33,14 +34,12 @@ import java.util.regex.PatternSyntaxException;
  * logged as warnings and skipped.</p>
  *
  * <p>Can be disabled via {@code mcp.guardrail.log-redaction.enabled=false}.</p>
- *
- * <p>Runs at priority 300 (after output sanitization, before response size limit).</p>
  */
-@ApplicationScoped
-@Priority(300)
-public class LogRedactionFilter implements GuardrailFilter {
+@Singleton
+@SupportedExecutionModels({ExecutionModel.WORKER_THREAD, ExecutionModel.VIRTUAL_THREAD})
+public class LogRedactionGuardrail implements ToolOutputGuardrail {
 
-    private static final Logger LOG = Logger.getLogger(LogRedactionFilter.class);
+    private static final Logger LOG = Logger.getLogger(LogRedactionGuardrail.class);
     private static final String REDACTED = "[REDACTED]";
 
     private static final List<RedactionRule> DEFAULT_RULES = List.of(
@@ -53,16 +52,22 @@ public class LogRedactionFilter implements GuardrailFilter {
         new RedactionRule("api-key",
             Pattern.compile("(?i)(api[_\\-]?key|apikey)\\s*[=:]\\s*\\S+"),
             "$1=" + REDACTED),
+        new RedactionRule("secret-key",
+            Pattern.compile("(?i)(secret[_\\-]?key|secret|token)\\s*[=:]\\s*\\S+"),
+            "$1=" + REDACTED),
         new RedactionRule("connection-string",
             Pattern.compile("(?i)://[^:\\r\\n]+:[^@\\r\\n]+@"),
             "://" + REDACTED + "@"),
+        new RedactionRule("private-key-block",
+            Pattern.compile("(?is)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----"),
+            REDACTED),
         new RedactionRule("base64-token",
             Pattern.compile("(?<![a-zA-Z0-9/+])[A-Za-z0-9+/]{40,}={0,2}(?![a-zA-Z0-9/+=])"),
             REDACTED)
     );
 
     @Inject
-    ObjectMapper objectMapper;
+    ObjectMapper mapper;
 
     @ConfigProperty(name = "mcp.guardrail.log-redaction.enabled", defaultValue = "true")
     boolean enabled;
@@ -70,9 +75,11 @@ public class LogRedactionFilter implements GuardrailFilter {
     @ConfigProperty(name = "mcp.guardrail.log-redaction.custom-patterns")
     Optional<List<String>> customPatterns;
 
+    // Set once in init() (@PostConstruct) and never mutated afterwards; CDI safely
+    // publishes the singleton before it is shared across request threads.
     List<RedactionRule> activeRules;
 
-    LogRedactionFilter() {
+    LogRedactionGuardrail() {
     }
 
     /**
@@ -100,22 +107,12 @@ public class LogRedactionFilter implements GuardrailFilter {
     }
 
     @Override
-    public Object filterOutput(final String toolName, final Object result) {
-        if (!enabled || result == null) {
-            return result;
+    public void apply(final ToolOutputContext ctx) {
+        if (!enabled) {
+            return;
         }
-        try {
-            JsonNode tree = objectMapper.valueToTree(result);
-            boolean modified = JsonNodeSanitizer.transformTextNodes(tree, this::applyRedaction);
-            if (modified) {
-                LOG.debugf("Redacted sensitive data in output for tool '%s'", toolName);
-                return objectMapper.treeToValue(tree, result.getClass());
-            }
-            return result;
-        } catch (Exception e) {
-            LOG.debugf("Could not redact output for tool '%s': %s", toolName, e.getMessage());
-            return result;
-        }
+        GuardedResponses.guard(ctx, mapper, GuardedResponses.OnError.FAIL_CLOSED,
+            tree -> JsonNodeSanitizer.transformTextNodes(tree, this::applyRedaction));
     }
 
     /**

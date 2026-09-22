@@ -10,9 +10,14 @@ import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.ToolGuardrails;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.config.ToolMetaFields;
-import io.streamshub.mcp.common.guardrail.Guarded;
+import io.streamshub.mcp.common.guardrail.ArgumentSanitizationGuardrail;
+import io.streamshub.mcp.common.guardrail.GeneralRateLimitGuardrail;
+import io.streamshub.mcp.common.guardrail.LogRedactionGuardrail;
+import io.streamshub.mcp.common.guardrail.ResponseSizeLimitGuardrail;
+import io.streamshub.mcp.common.observability.MeasuredTool;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorListResponse;
@@ -27,7 +32,7 @@ import java.util.List;
  * MCP tools for KafkaConnector operations.
  */
 @Singleton
-@Guarded
+@MeasuredTool
 @WrapBusinessError(value = Exception.class, unless = {ToolCallException.class, McpException.class})
 public class KafkaConnectorTools {
 
@@ -60,6 +65,9 @@ public class KafkaConnectorTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaConnectorListResponse listKafkaConnectors(
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
@@ -97,6 +105,9 @@ public class KafkaConnectorTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaConnectorResponse getKafkaConnector(
         @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CONNECTOR_NAME_DESC
