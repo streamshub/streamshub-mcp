@@ -31,6 +31,11 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
@@ -78,6 +83,7 @@ class GuardrailsST extends AbstractST {
     @ClassNamespace(name = Constants.KAFKA_NAMESPACE, labels = {"app=strimzi"})
     static Namespace kafkaNamespace;
     private McpAssured.McpStreamableTestClient mcpClient;
+    private String mcpBaseUrl;
     GuardrailsST() {
     }
 
@@ -107,8 +113,8 @@ class GuardrailsST extends AbstractST {
             .withEnv("MCP_GUARDRAIL_RATE_LIMIT_GENERAL_RPM", "0")
             .deploy();
 
-        String mcpUrl = ConnectivitySetup.expose(mcpNamespace.getMetadata().getName());
-        mcpClient = McpClientFactory.create(mcpUrl);
+        mcpBaseUrl = ConnectivitySetup.expose(mcpNamespace.getMetadata().getName());
+        mcpClient = McpClientFactory.create(mcpBaseUrl);
     }
 
     @AfterEach
@@ -260,6 +266,100 @@ class GuardrailsST extends AbstractST {
                     "Cluster readiness should be Ready");
             })
             .thenAssertResults();
+    }
+
+    /**
+     * Verify that a rate-limited rejection is recorded in tool-call metrics with
+     * {@code error_type="rate_limited"}, distinct from executed calls. The rate-limit guardrail
+     * records the rejection itself (the tool never runs, so the {@code @MeasuredTool} interceptor
+     * cannot), which is why a rejected call must still appear in {@code mcp.tool.calls} — and must
+     * not be conflated with the {@code tool_error} outcome of a call that actually ran.
+     * <p>
+     * Counters are asserted cumulatively ({@code >= 1}), so the check holds regardless of whether the
+     * per-test MCP server is fresh or reused across methods in this class.
+     */
+    @Test
+    @Story("Rate-limited rejections are recorded with error_type=rate_limited")
+    @Tag(LOGS)
+    void testRateLimitedRejectionRecordedInMetrics() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "namespace", kafkaNamespace.getMetadata().getName(),
+            "tailLines", 10);
+
+        // Two calls run (LOG_RPM=2); the third exceeds the window and is rejected by the guardrail.
+        for (int i = 1; i <= 3; i++) {
+            int callNum = i;
+            mcpClient.when()
+                .toolsCall("get_kafka_cluster_logs", args, response ->
+                    LOGGER.info("Log call #{} (isError={})", callNum, response.isError()))
+                .thenAssertResults();
+        }
+
+        // The guardrail increments the counter synchronously before throwing; poll to absorb scrape lag.
+        AtomicReference<String> lastMetrics = new AtomicReference<>();
+        Wait.until("mcp.tool.calls to record a rate_limited rejection for the log tool",
+            Constants.KAFKA_READY_POLL_MS, Constants.MCP_READY_TIMEOUT_MS, () -> {
+                try {
+                    String scraped = httpGet(mcpBaseUrl + "/q/metrics");
+                    lastMetrics.set(scraped);
+                    return sumToolCalls(scraped, "get_kafka_cluster_logs", "rate_limited") >= 1.0;
+                } catch (Exception e) {
+                    LOGGER.debug("Metrics scrape attempt failed, retrying: {}", e.getMessage());
+                    return false;
+                }
+            });
+
+        String metrics = lastMetrics.get();
+        double rateLimited = sumToolCalls(metrics, "get_kafka_cluster_logs", "rate_limited");
+        double executed = sumToolCalls(metrics, "get_kafka_cluster_logs", "none")
+            + sumToolCalls(metrics, "get_kafka_cluster_logs", "tool_error");
+        LOGGER.info("Log tool counters: rate_limited={}, executed(none+tool_error)={}", rateLimited, executed);
+
+        assertTrue(rateLimited >= 1.0,
+            "Rate-limited rejection must be recorded with error_type=rate_limited");
+        assertTrue(executed >= 1.0,
+            "Executed calls must be recorded separately from rejections (not lumped as rate_limited)");
+    }
+
+    /**
+     * Sums the value of all {@code mcp_tool_calls_total} samples matching a tool and error_type
+     * in a Prometheus text-format scrape.
+     *
+     * @param metrics   the Prometheus scrape body
+     * @param tool      the {@code tool} tag value to match
+     * @param errorType the {@code error_type} tag value to match
+     * @return the summed counter value, or {@code 0.0} if no matching sample is present
+     */
+    private static double sumToolCalls(final String metrics, final String tool, final String errorType) {
+        double total = 0.0;
+        for (String line : metrics.split("\n")) {
+            if (!line.startsWith("mcp_tool_calls_total")) {
+                continue;
+            }
+            if (!line.contains("tool=\"" + tool + "\"") || !line.contains("error_type=\"" + errorType + "\"")) {
+                continue;
+            }
+            int lastSpace = line.lastIndexOf(' ');
+            if (lastSpace > 0) {
+                total += Double.parseDouble(line.substring(lastSpace + 1).trim());
+            }
+        }
+        return total;
+    }
+
+    private static String httpGet(final String url) throws Exception {
+        HttpClient client = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .GET()
+            .timeout(Duration.ofSeconds(30))
+            .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, response.statusCode(), "HTTP GET " + url + " should return 200");
+        return response.body();
     }
 
     // ---- Log Redaction ----

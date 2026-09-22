@@ -314,6 +314,12 @@ errors (the framework skips output-guardrail processing for non-`ToolCallExcepti
 in an interceptor to record every outcome consistently. Every tool class carries `@MeasuredTool` at class level
 (the `ToolGuardrailsEnforcementTest` enforces this alongside the `@ToolGuardrails` palette).
 
+Sitting inside `@WrapBusinessError`, this interceptor also **normalizes error messages**: it re-wraps any
+uncaught business/infrastructure exception as `new ToolCallException(e.getMessage(), e)`. Without this,
+`@WrapBusinessError` would wrap via `new ToolCallException(cause)` — whose message is `cause.toString()` — and
+leak the fully-qualified exception class name into the tool response (see `ConfigValidationST.assertNoStackTrace`).
+`McpException`, `ToolCallException`, and `InputRequiredException` are propagated unwrapped.
+
 ### Tool rate limiting
 
 Rate category is chosen by **which** rate-limit guardrail class a tool lists in its `@ToolGuardrails`:

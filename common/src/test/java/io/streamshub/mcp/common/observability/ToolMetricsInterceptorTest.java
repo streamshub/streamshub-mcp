@@ -9,6 +9,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.quarkiverse.mcp.server.InputRequiredException;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Tool;
+import io.quarkiverse.mcp.server.ToolCallException;
 import jakarta.interceptor.InvocationContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
@@ -63,6 +65,38 @@ class ToolMetricsInterceptorTest {
         RuntimeException failure = new RuntimeException("boom");
         assertThrows(RuntimeException.class, () -> interceptor.measure(toolContext(null, failure)));
         assertCounter("error", "tool_error");
+    }
+
+    @Test
+    void genericExceptionIsNormalizedToCleanToolCallException() {
+        // A raw @WrapBusinessError wrap would surface "java.lang.IllegalStateException: boom"
+        // (the cause's toString()); the interceptor must strip the class name to just the message.
+        ToolCallException thrown = assertThrows(ToolCallException.class,
+            () -> interceptor.measure(toolContext(null, new IllegalStateException("boom"))));
+        assertEquals("boom", thrown.getMessage(), "message must not carry the exception class name");
+        assertCounter("error", "tool_error");
+    }
+
+    @Test
+    void existingToolCallExceptionIsNotDoubleWrapped() {
+        ToolCallException original = new ToolCallException("curated message");
+        ToolCallException thrown = assertThrows(ToolCallException.class,
+            () -> interceptor.measure(toolContext(null, original)));
+        assertSame(original, thrown, "an existing ToolCallException must propagate unwrapped");
+        assertCounter("error", "tool_error");
+    }
+
+    @Test
+    void genericExceptionIsNormalizedEvenWithoutRegistry() {
+        ToolCallMetricsRecorder noReg = new ToolCallMetricsRecorder();
+        noReg.registry = FakeInstance.unresolvable();
+        noReg.serverName = "test-mcp";
+        interceptor.recorder = noReg;
+
+        ToolCallException thrown = assertThrows(ToolCallException.class,
+            () -> interceptor.measure(toolContext(null, new IllegalStateException("boom"))));
+        assertEquals("boom", thrown.getMessage(), "normalization must run even when metrics are disabled");
+        assertNull(registry.find("mcp.tool.calls").counter());
     }
 
     @Test

@@ -8,6 +8,7 @@ import io.micrometer.core.instrument.Timer;
 import io.quarkiverse.mcp.server.InputRequiredException;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Tool;
+import io.quarkiverse.mcp.server.ToolCallException;
 import jakarta.annotation.Priority;
 import jakarta.inject.Inject;
 import jakarta.interceptor.AroundInvoke;
@@ -28,6 +29,13 @@ import jakarta.interceptor.InvocationContext;
  * sees the raw exception type before it is wrapped, allowing it to distinguish protocol
  * errors ({@code McpException}) from tool-execution errors. {@code InputRequiredException}
  * is a normal MRTR protocol signal, not an outcome, and is deliberately not recorded.</p>
+ *
+ * <p>Sitting inside {@code @WrapBusinessError} also lets it <em>normalize</em> the error surfaced
+ * to the client: {@code @WrapBusinessError} would otherwise wrap an uncaught business exception with
+ * {@code new ToolCallException(cause)}, whose message is {@code cause.toString()} and leaks the
+ * fully-qualified exception class name into the tool response. This interceptor re-wraps such
+ * exceptions with the contextual message only, so clients see a clean failed tool response.
+ * Normalization runs even when no meter registry is present (metrics disabled).</p>
  *
  * @see MeasuredTool
  * @see ToolCallMetricsRecorder
@@ -58,15 +66,12 @@ public class ToolMetricsInterceptor {
             return ctx.proceed();
         }
 
+        // sample is null when no meter registry is present; the invocation is still guarded so
+        // error-message normalization happens regardless of whether metrics are enabled.
         Timer.Sample sample = recorder.start();
-        if (sample == null) {
-            // No meter registry available - metrics disabled.
-            return ctx.proceed();
-        }
-
         String toolName = !tool.name().isEmpty() ? tool.name() : ctx.getMethod().getName();
         ToolCallOutcome outcome = ToolCallOutcome.SUCCESS;
-        boolean record = true;
+        boolean record = sample != null;
         try {
             return ctx.proceed();
         } catch (InputRequiredException e) {
@@ -74,11 +79,22 @@ public class ToolMetricsInterceptor {
             record = false;
             throw e;
         } catch (McpException e) {
+            // Structured JSON-RPC protocol error: propagate unwrapped so the framework renders it
+            // (with its error.data) rather than as a plain tool response.
             outcome = ToolCallOutcome.PROTOCOL_ERROR;
             throw e;
-        } catch (Exception e) {
+        } catch (ToolCallException e) {
+            // Already a tool-execution error with a curated message (e.g., cancellation):
+            // propagate unwrapped to avoid double-wrapping.
             outcome = ToolCallOutcome.TOOL_ERROR;
             throw e;
+        } catch (Exception e) {
+            // Uncaught business/infrastructure exception. @WrapBusinessError would wrap it with
+            // new ToolCallException(cause), whose message is cause.toString() and leaks the
+            // fully-qualified exception class name into the tool response. Re-wrap with the
+            // contextual message only so the client sees a clean failed tool response.
+            outcome = ToolCallOutcome.TOOL_ERROR;
+            throw new ToolCallException(e.getMessage(), e);
         } finally {
             if (record) {
                 recorder.record(sample, toolName, outcome);

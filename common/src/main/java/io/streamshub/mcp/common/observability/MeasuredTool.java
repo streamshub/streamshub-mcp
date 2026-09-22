@@ -17,7 +17,8 @@ import java.lang.annotation.Target;
  *
  * <p>Apply at class level on MCP tool classes to enable the {@link ToolMetricsInterceptor},
  * which measures every {@code @Tool} method invocation &mdash; including thrown
- * {@code McpException} protocol errors that output guardrails cannot observe.</p>
+ * {@code McpException} protocol errors that output guardrails cannot observe &mdash; and
+ * normalizes uncaught business exceptions so the class name is not leaked into the response.</p>
  *
  * @see ToolMetricsInterceptor
  */
