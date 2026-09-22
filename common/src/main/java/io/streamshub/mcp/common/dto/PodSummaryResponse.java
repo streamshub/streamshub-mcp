@@ -134,7 +134,6 @@ public record PodSummaryResponse(
      * @param component              the component type
      * @param restarts               the number of restarts
      * @param ageMinutes             the pod age in minutes
-     * @param nodePool               the node pool name (e.g. from strimzi.io/pool-name label)
      * @param lastTerminationReason  the reason the last container was terminated
      * @param lastTerminationTime    the time the last container was terminated
      * @param resources              the aggregated resource requests and limits for the pod
@@ -159,7 +158,6 @@ public record PodSummaryResponse(
         @JsonProperty("restarts") int restarts,
         @JsonProperty("age_minutes") long ageMinutes,
         // Enriched summary fields (nullable)
-        @JsonProperty("node_pool") String nodePool,
         @JsonProperty("last_termination_reason") String lastTerminationReason,
         @JsonProperty("last_termination_time") Instant lastTerminationTime,
         @JsonProperty("resources") ResourceInfo resources,
@@ -189,12 +187,12 @@ public record PodSummaryResponse(
         public static PodInfo summary(String name, String phase, boolean ready,
                                       String component, int restarts, long ageMinutes) {
             return new PodInfo(name, phase, ready, component, restarts, ageMinutes,
-                null, null, null, null,
+                null, null, null,
                 null, null, null, null, null, null, null, null, null, null);
         }
 
         /**
-         * Enriched summary -- core fields plus termination info and resources.
+         * Enriched summary -- core fields plus termination info, resources, labels, and annotations.
          *
          * @param name                   the pod name
          * @param phase                  the pod phase
@@ -202,20 +200,22 @@ public record PodSummaryResponse(
          * @param component              the component type
          * @param restarts               the number of restarts
          * @param ageMinutes             the pod age in minutes
-         * @param nodePool               the node pool name
          * @param lastTerminationReason  the reason the last container was terminated
          * @param lastTerminationTime    the time the last container was terminated
          * @param resources              the aggregated resource requests and limits
+         * @param labels                 the pod labels
+         * @param annotations            the pod annotations
          * @return an enriched summary PodInfo
          */
         @SuppressWarnings("checkstyle:ParameterNumber")
         public static PodInfo enrichedSummary(String name, String phase, boolean ready,
                                               String component, int restarts, long ageMinutes,
-                                              String nodePool, String lastTerminationReason,
-                                              Instant lastTerminationTime, ResourceInfo resources) {
+                                              String lastTerminationReason,
+                                              Instant lastTerminationTime, ResourceInfo resources,
+                                              Map<String, String> labels, Map<String, String> annotations) {
             return new PodInfo(name, phase, ready, component, restarts, ageMinutes,
-                nodePool, lastTerminationReason, lastTerminationTime, resources,
-                null, null, null, null, null, null, null, null, null, null);
+                lastTerminationReason, lastTerminationTime, resources,
+                null, null, null, null, labels, annotations, null, null, null, null);
         }
 
         /**
@@ -227,7 +227,6 @@ public record PodSummaryResponse(
          * @param component              the component type
          * @param restarts               the number of restarts
          * @param ageMinutes             the pod age in minutes
-         * @param nodePool               the node pool name
          * @param lastTerminationReason  the reason the last container was terminated
          * @param lastTerminationTime    the time the last container was terminated
          * @param resources              the aggregated resource requests and limits
@@ -246,7 +245,7 @@ public record PodSummaryResponse(
         @SuppressWarnings("checkstyle:ParameterNumber")
         public static PodInfo detailed(String name, String phase, boolean ready,
                                        String component, int restarts, long ageMinutes,
-                                       String nodePool, String lastTerminationReason,
+                                       String lastTerminationReason,
                                        Instant lastTerminationTime, ResourceInfo resources,
                                        String nodeName, String hostIP, String podIP,
                                        String serviceAccount,
@@ -254,7 +253,7 @@ public record PodSummaryResponse(
                                        List<ContainerDetail> containers, List<VolumeInfo> volumes,
                                        List<ConditionInfo> conditions, Instant startTime) {
             return new PodInfo(name, phase, ready, component, restarts, ageMinutes,
-                nodePool, lastTerminationReason, lastTerminationTime, resources,
+                lastTerminationReason, lastTerminationTime, resources,
                 nodeName, hostIP, podIP, serviceAccount, labels, annotations,
                 containers, volumes, conditions, startTime);
         }

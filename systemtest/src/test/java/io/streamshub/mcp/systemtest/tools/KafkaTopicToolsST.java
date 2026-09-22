@@ -13,6 +13,7 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.skodjob.kubetest4j.wait.Wait;
 import io.streamshub.mcp.systemtest.AbstractST;
 import io.streamshub.mcp.systemtest.Constants;
 import io.streamshub.mcp.systemtest.Environment;
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
 import static io.streamshub.mcp.systemtest.TestTags.TOOLS;
@@ -247,6 +249,20 @@ class KafkaTopicToolsST extends AbstractST {
                     "Topic should have a status field");
                 assertEquals("Ready", topic.path("status").asText(),
                     "Topic status should be Ready");
+                // Reconciliation status (A1)
+                assertReconciliationInfo(topic);
+                // KafkaTopic.status surface (A4)
+                assertFalse(topic.path("topic_id").asText("").isEmpty(),
+                    "Should have a non-empty topic_id");
+                assertEquals(kafkaNamespace.getMetadata().getName(), topic.path("namespace").asText(),
+                    "Namespace should match");
+                JsonNode conditions = topic.path("conditions");
+                assertTrue(conditions.isArray() && !conditions.isEmpty(),
+                    "Should have at least one condition");
+                // replicas_change is only populated during an in-flight Cruise Control RF change;
+                // this topic is steady, so the field must be absent/null (see plan §3.4 / A4)
+                assertTrue(topic.path("replicas_change").isMissingNode() || topic.path("replicas_change").isNull(),
+                    "replicas_change should be absent for a steady topic");
             })
             .thenAssertResults();
     }
@@ -410,5 +426,73 @@ class KafkaTopicToolsST extends AbstractST {
                 assertTrue(root.path("message").asText().contains("6 steps succeeded"), "Message should indicate 6 steps succeeded");
             })
             .thenAssertResults();
+    }
+
+    /**
+     * Verify a KafkaTopic annotated with {@code strimzi.io/pause-reconciliation} is distinguishable
+     * from a normal or stalled topic. Strimzi surfaces a dedicated {@code ReconciliationPaused}
+     * condition for paused resources, which is what makes this case unambiguous (A5).
+     */
+    @Test
+    @Story("get_kafka_topic distinguishes a paused topic from a normal/stalled one")
+    void testGetKafkaTopicPaused() {
+        String kafkaNs = kafkaNamespace.getMetadata().getName();
+        String pausedTopicName = "mcp-topic-paused";
+
+        krm.createOrUpdateResourceWithoutWait(
+            KafkaTopicTemplates.topic(kafkaNs, pausedTopicName, Constants.KAFKA_CLUSTER_NAME, 1, 1)
+                .editMetadata()
+                    .addToAnnotations("strimzi.io/pause-reconciliation", "true")
+                .endMetadata()
+                .build());
+
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "topicName", pausedTopicName,
+            "namespace", kafkaNs);
+
+        AtomicBoolean paused = new AtomicBoolean(false);
+        Wait.until("KafkaTopic '" + pausedTopicName + "' to report a ReconciliationPaused condition",
+            Constants.KAFKA_READY_POLL_MS, Constants.KAFKA_TOPIC_READY_TIMEOUT_MS, () -> {
+                try {
+                    mcpClient.when()
+                        .toolsCall("get_kafka_topic", args, response -> {
+                            JsonNode topic = assertToolSuccess(response);
+                            paused.set(hasCondition(topic.path("conditions"), "ReconciliationPaused"));
+                        })
+                        .thenAssertResults();
+                } catch (Exception | AssertionError ignored) {
+                    LOGGER.debug("Tool call attempt failed, retrying: {}", ignored.getMessage());
+                    return false;
+                }
+                return paused.get();
+            });
+
+        mcpClient.when()
+            .toolsCall("get_kafka_topic", args, response -> {
+                JsonNode topic = assertToolSuccess(response);
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_topic (paused) response:\n{}", json);
+                assertEquals(pausedTopicName, topic.path("name").asText(), "Topic name should match");
+                assertFalse("Ready".equals(topic.path("status").asText()),
+                    "A paused topic should not report status Ready");
+                assertTrue(hasCondition(topic.path("conditions"), "ReconciliationPaused"),
+                    "Paused topic should carry a ReconciliationPaused condition, distinguishing it "
+                        + "from a stalled/erroring resource");
+            })
+            .thenAssertResults();
+    }
+
+    private static boolean hasCondition(final JsonNode conditions, final String type) {
+        if (!conditions.isArray()) {
+            return false;
+        }
+        for (JsonNode condition : conditions) {
+            if (type.equals(condition.path("type").asText())) {
+                return true;
+            }
+        }
+        return false;
     }
 }

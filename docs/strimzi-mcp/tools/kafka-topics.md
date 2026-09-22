@@ -34,7 +34,13 @@ Get detailed information for a specific Kafka topic including configuration, par
 - `topicName` (required) -- Name of the topic
 - `namespace` (optional) -- Kubernetes namespace
 
-**Returns**: Detailed topic information including partition count, replicas, status, and configuration (e.g., retention.ms, cleanup.policy)
+**Returns**: Detailed topic information including:
+- **Core** -- `name`, `namespace`, `cluster`, `partitions`, `replicas`, `status`
+- **Kafka internals** -- `topic_id` (internal Kafka UUID) and `topic_name` (actual Kafka topic name, may differ from resource name)
+- **Replication change** -- `replicas_change` with `target_replicas`, `state`, `session_id`, and `message` when a Cruise Control replication-factor change is in progress
+- **Conditions** -- full status conditions list
+- **Configuration** -- topic config map (e.g., `retention.ms`, `cleanup.policy`)
+- **Reconciliation** -- `reconciliation` object with `generation`, `observed_generation`, and `up_to_date` flag
 
 **Example**:
 ```
@@ -67,7 +73,12 @@ Get detailed information about a specific KafkaNodePool including roles, replica
 - `nodePoolName` (required) -- Name of the node pool
 - `namespace` (optional) -- Kubernetes namespace
 
-**Returns**: Detailed node pool information including roles, replicas, and storage configuration
+**Returns**: Detailed node pool information including:
+- **Spec** -- `roles` (spec-declared), `replicas` (desired)
+- **Status** -- `status_replicas` (actual), `status_roles` (assigned), `node_ids` (list of KRaft node IDs used by this pool)
+- **Storage** -- `storage_type` and `storage_size`
+- **Readiness** -- `ready` boolean and full `conditions` list
+- **Reconciliation** -- `reconciliation` object with `generation`, `observed_generation`, and `up_to_date` flag
 
 **Example**:
 ```

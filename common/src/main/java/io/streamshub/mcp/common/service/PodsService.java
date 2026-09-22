@@ -215,8 +215,10 @@ public class PodsService {
 
         // Return enriched summary if no detail sections requested
         if (sections.isEmpty()) {
+            Map<String, String> podAnnotations = metadata.getAnnotations();
             return PodSummaryResponse.PodInfo.enrichedSummary(podName, phase, ready, component,
-                restarts, ageMinutes, null, lastTerminationReason, lastTerminationTime, podResources);
+                restarts, ageMinutes, lastTerminationReason, lastTerminationTime, podResources,
+                podLabels, podAnnotations);
         }
 
         boolean full = sections.contains("full");
@@ -291,7 +293,7 @@ public class PodsService {
 
         return PodSummaryResponse.PodInfo.detailed(
             podName, phase, ready, component, restarts, ageMinutes,
-            null, lastTerminationReason, lastTerminationTime, podResources,
+            lastTerminationReason, lastTerminationTime, podResources,
             nodeName, hostIP, podIP, serviceAccount, labels, annotations,
             containers, volumes, conditions, startTimeDetail
         );

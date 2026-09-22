@@ -10,6 +10,7 @@ import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
@@ -234,6 +235,10 @@ public class KafkaBridgeService {
     }
 
     private KafkaBridgeResponse createBridgeSummary(final KafkaBridge bridge) {
+        ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
+            bridge.getMetadata().getGeneration(),
+            bridge.getStatus() != null ? bridge.getStatus().getObservedGeneration() : 0L);
+
         return KafkaBridgeResponse.summary(
             bridge.getMetadata().getName(),
             bridge.getMetadata().getNamespace(),
@@ -241,7 +246,8 @@ public class KafkaBridgeService {
             extractReplicas(bridge),
             extractBootstrapServers(bridge),
             extractHttpUrl(bridge),
-            extractConditions(bridge));
+            extractConditions(bridge),
+            reconciliation);
     }
 
     private KafkaBridgeResponse createBridgeDetail(final KafkaBridge bridge) {
@@ -250,6 +256,10 @@ public class KafkaBridgeService {
         if (creationTime != null) {
             ageMinutes = Math.max(0, Duration.between(creationTime, Instant.now()).toMinutes());
         }
+
+        ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
+            bridge.getMetadata().getGeneration(),
+            bridge.getStatus() != null ? bridge.getStatus().getObservedGeneration() : 0L);
 
         return KafkaBridgeResponse.of(
             bridge.getMetadata().getName(),
@@ -268,7 +278,7 @@ public class KafkaBridgeService {
             extractTlsEnabled(bridge),
             extractLogging(bridge),
             extractConditions(bridge),
-            creationTime, ageMinutes);
+            creationTime, ageMinutes, reconciliation);
     }
 
     private String determineResourceStatus(final KafkaBridge bridge) {

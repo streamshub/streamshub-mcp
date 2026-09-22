@@ -143,6 +143,9 @@ Parameters: {}
 - [ ] Returns array containing `mcp-cluster` (namespace: `strimzi-kafka`)
 - [ ] If `--mirror-maker` deployed: also contains `mcp-cluster-mirror` (namespace: `strimzi-kafka-mirror`)
 - [ ] Each object has: name, namespace, status, version (`4.2.0`), listeners
+- [ ] Each entry includes: `running_kafka_version`, `kafka_metadata_version`, `operator_last_successful_version`, `cluster_id`
+- [ ] Each entry includes: `auto_rebalance` (state, modes), `cluster_security` (encryption, authentication)
+- [ ] Each entry includes: `reconciliation` (generation, observed_generation, up_to_date)
 
 ### T1.4 - List Kafka Clusters (namespace-scoped)
 
@@ -202,6 +205,13 @@ Parameters: { "clusterName": "mcp-cluster" }
   - `console`: port 9777, internal, tls=true, auth=scram-sha-512
 - [ ] Authorization type: `simple`
 - [ ] Conditions section shows Ready condition
+- [ ] `running_kafka_version` present and matches `4.2.0` (or a patch thereof)
+- [ ] `kafka_metadata_version` present (non-null string)
+- [ ] `operator_last_successful_version` present
+- [ ] `cluster_id` present and non-empty
+- [ ] `auto_rebalance` present: `state` is `Idle` (no active rebalance on dev cluster), `modes` list present
+- [ ] `cluster_security` present: `encryption` and `authentication` fields populated
+- [ ] `reconciliation` present: `generation` and `observed_generation` are equal, `up_to_date` is `true`
 
 ### T2.2 - Get Kafka Cluster (with explicit namespace)
 
@@ -261,6 +271,8 @@ Parameters: { "clusterName": "mcp-cluster" }
 - [ ] Certificate is not expired
 - [ ] No private key material exposed
 - [ ] TLS listeners (`tls`, `route`, `console`) have certificate data
+- [ ] `cluster_ca_policy` present: `renewal_days`, `validity_days`, `generate_certificate_authority`, `certificate_expiration_policy`, `calculated_renewal_date` all populated
+- [ ] `clients_ca_policy` present: same sub-fields as `cluster_ca_policy`
 
 ### T2.7 - Get Cluster Certificates (specific listener)
 
@@ -290,6 +302,11 @@ Parameters: { "clusterName": "mcp-cluster" }
 - [ ] All pods are in Running status
 - [ ] All pods are Ready
 - [ ] Kafka node pods follow naming pattern `mcp-cluster-<pool>-<id>`
+- [ ] Each Kafka node pod entry includes `revision` (non-null string from `strimzi.io/revision` annotation)
+- [ ] Each Kafka node pod entry includes `cluster_ca_cert_generation` (integer, e.g. `0`)
+- [ ] Each Kafka node pod entry includes `clients_ca_cert_generation` (integer, e.g. `0`)
+- [ ] Each Kafka node pod entry includes `server_cert_hash` (non-null hash string from `strimzi.io/server-cert-hash` annotation)
+- [ ] Non-Kafka pods (EO, CC, KE) may have these fields null/absent (annotation-based, present only on Kafka node pods)
 
 ### T2.9 - Get Cluster Config
 
@@ -306,6 +323,8 @@ Parameters: { "clusterName": "mcp-cluster" }
   - `log.retention.hours`: -1
   - `log.retention.bytes`: 128000000
   - `log.segment.bytes`: 64000000
+- [ ] `tiered_storage` field present (null or a `TieredStorageInfo` object — dev cluster does not use tiered storage, so it should be null/absent)
+- [ ] `quotas` field present (null or a `QuotasInfo` object — dev cluster has no cluster-level quotas plugin configured, so it should be null/absent)
 
 ### T2.10 - Get Cluster Logs (basic)
 
@@ -395,6 +414,9 @@ Parameters: { "clusterName": "mcp-cluster" }
 - [ ] Contains `mcp-test-topic` (if test-clients deployed)
 - [ ] Each topic has: name, partitions, replicas, status
 - [ ] Internal Kafka topics managed by Connect/MM2 may also appear (e.g., `mcp-connect-offsets`)
+- [ ] Each topic entry includes: `topic_id` (non-null UUID string), `topic_name` (actual Kafka topic name)
+- [ ] Each topic entry includes: `conditions` list and `reconciliation` (generation, observed_generation, up_to_date)
+- [ ] `replicas_change` is null/absent for topics not currently undergoing a replication factor change
 
 ### T3.2 - List Topics (paginated)
 
@@ -431,6 +453,11 @@ Parameters: { "clusterName": "mcp-cluster", "topicName": "mcp-test-topic" }
 - [ ] Partitions: 3
 - [ ] Replicas: 3
 - [ ] Status condition shows Ready
+- [ ] `topic_id` present and non-empty (UUID assigned by Kafka)
+- [ ] `topic_name` present (equals `mcp-test-topic` unless a custom `spec.topicName` is set)
+- [ ] `replicas_change` is null/absent (no RF change in progress)
+- [ ] `conditions` list present with at least one Ready condition
+- [ ] `reconciliation.up_to_date` is `true` (generation == observed_generation)
 
 ### T3.5 - Get Topic (nonexistent)
 
@@ -458,6 +485,9 @@ Parameters: { "clusterName": "mcp-cluster" }
   - `controller-np`: role=controller, replicas=3
   - `broker-np1`: role=broker, replicas=3
   - `broker-np2`: role=broker, replicas=3
+- [ ] Each entry includes: `node_ids` (list of assigned node ID integers), `status_replicas` (actual running replicas), `status_roles` (roles from status)
+- [ ] Each entry includes: `conditions` list and `ready` boolean
+- [ ] Each entry includes: `reconciliation` (generation, observed_generation, up_to_date)
 
 ### T4.2 - Get Node Pool (controller)
 
@@ -470,6 +500,12 @@ Parameters: { "clusterName": "mcp-cluster", "nodePoolName": "controller-np" }
 - [ ] Roles: `[controller]`
 - [ ] Replicas: 3
 - [ ] Storage: JBOD with 1 volume, 10Gi persistent-claim
+- [ ] `node_ids` contains exactly 3 integers (controller node IDs)
+- [ ] `status_replicas` is 3
+- [ ] `status_roles` is `[controller]`
+- [ ] `ready` is `true`
+- [ ] `conditions` list present with a Ready condition
+- [ ] `reconciliation.up_to_date` is `true`
 
 ### T4.3 - Get Node Pool (broker)
 
@@ -482,6 +518,12 @@ Parameters: { "clusterName": "mcp-cluster", "nodePoolName": "broker-np1" }
 - [ ] Roles: `[broker]`
 - [ ] Replicas: 3
 - [ ] Storage: JBOD with 2 volumes, each 50Gi persistent-claim
+- [ ] `node_ids` contains exactly 3 integers (broker node IDs, distinct from `controller-np`)
+- [ ] `status_replicas` is 3
+- [ ] `status_roles` is `[broker]`
+- [ ] `ready` is `true`
+- [ ] `conditions` list present with a Ready condition
+- [ ] `reconciliation.up_to_date` is `true`
 
 ### T4.4 - Get Node Pool Pods
 
@@ -494,6 +536,7 @@ Parameters: { "clusterName": "mcp-cluster", "nodePoolName": "broker-np1" }
 - [ ] Returns exactly 3 pods
 - [ ] All pods are Running and Ready
 - [ ] Pod names contain `broker-np1`
+- [ ] Each pod entry includes `revision`, `cluster_ca_cert_generation`, `clients_ca_cert_generation`, `server_cert_hash` (all non-null — these are Kafka broker pods)
 
 ### T4.5 - Get Node Pool (nonexistent)
 
@@ -1064,6 +1107,10 @@ Parameters: { "clusterName": "mcp-cluster-mirror" }
 - [ ] Version: 4.2.0
 - [ ] Only 1 listener: `plain` on port 9092, no TLS
 - [ ] No authorization configured
+- [ ] `running_kafka_version` present
+- [ ] `cluster_id` present and non-empty
+- [ ] `reconciliation.up_to_date` is `true`
+- [ ] `cluster_security` present (may show no encryption/auth for a plain, unauthenticated cluster)
 
 ### T13.7 - List Mirror Cluster Node Pools
 
@@ -1076,6 +1123,11 @@ Parameters: { "clusterName": "mcp-cluster-mirror" }
 - [ ] Returns 1 pool: `mirror-combined`
 - [ ] Roles: `[controller, broker]` (combined)
 - [ ] Replicas: 1
+- [ ] `node_ids` contains exactly 1 integer
+- [ ] `status_replicas` is 1
+- [ ] `status_roles` contains both `controller` and `broker`
+- [ ] `ready` is `true`
+- [ ] `reconciliation.up_to_date` is `true`
 
 ---
 

@@ -515,6 +515,9 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         }
         summary.put("cluster_readiness", cluster.readiness());
         summary.put("cluster_version", cluster.kafkaVersion());
+        if (cluster.kafkaMetadataVersion() != null) {
+            summary.put("kafka_metadata_version", cluster.kafkaMetadataVersion());
+        }
         if (cluster.brokerReplicas() != null) {
             summary.put("expected_broker_replicas", cluster.brokerReplicas().expected());
             summary.put("ready_broker_replicas", cluster.brokerReplicas().ready());

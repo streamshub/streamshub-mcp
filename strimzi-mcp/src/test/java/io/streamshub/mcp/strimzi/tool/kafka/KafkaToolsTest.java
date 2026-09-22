@@ -75,7 +75,7 @@ class KafkaToolsTest {
     void testListKafkaClusters() {
         when(kafkaService.listClusters(null)).thenReturn(List.of(
             new KafkaClusterResponse("my-cluster", "kafka", "Kafka", "4.2.0",
-                "Ready",
+                "4.2.0", null, null, null, "Ready",
                 List.of(new ConditionInfo("Ready", "True", null, null, null)),
                 List.of(new ListenerInfo("plain", "internal",
                     "my-cluster-kafka-bootstrap.kafka.svc:9092"),
@@ -84,7 +84,7 @@ class KafkaToolsTest {
                 new RoleReplicasInfo(3, 3, "jbod", "100Gi"),
                 null,
                 false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi",
-                List.of())
+                null, null, null, List.of())
         ));
 
         client.when()
@@ -103,14 +103,14 @@ class KafkaToolsTest {
     void testGetKafkaCluster() {
         when(kafkaService.getCluster(null, "my-cluster")).thenReturn(
             new KafkaClusterResponse("my-cluster", "kafka", "Kafka", "4.2.0",
-                "Ready",
+                "4.2.0", null, null, null, "Ready",
                 List.of(new ConditionInfo("Ready", "True", null, null, null)),
                 List.of(new ListenerInfo("plain", "internal",
                     "my-cluster-kafka-bootstrap.kafka.svc:9092")),
                 new RoleReplicasInfo(3, 3, "jbod", "100Gi"),
                 null,
                 false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi",
-                List.of())
+                null, null, null, List.of())
         );
 
         client.when()
@@ -166,6 +166,7 @@ class KafkaToolsTest {
     void testGetKafkaClusterCertificates() {
         when(kafkaCertificateService.getCertificates(null, "my-cluster", null)).thenReturn(
             KafkaCertificateResponse.of("my-cluster", "kafka",
+                null, null,
                 List.of(
                     KafkaCertificateResponse.CertificateInfo.of(
                         "my-cluster-cluster-ca-cert", "cluster-ca",
@@ -261,14 +262,14 @@ class KafkaToolsTest {
     void testNamespaceParameterPassedThrough() {
         when(kafkaService.listClusters("production")).thenReturn(List.of(
             new KafkaClusterResponse("prod-cluster", "production", "Kafka", "4.2.0",
-                "Ready",
+                "4.2.0", null, null, null, "Ready",
                 List.of(new ConditionInfo("Ready", "True", null, null, null)),
                 List.of(new ListenerInfo("tls", "internal",
                     "prod-cluster-kafka-bootstrap.production.svc:9093")),
                 new RoleReplicasInfo(3, 3, "jbod", "100Gi"),
                 null,
                 false, true, true, Instant.parse("2025-01-01T00:00:00Z"), 120L, "strimzi",
-                List.of())
+                null, null, null, List.of())
         ));
 
         client.when()

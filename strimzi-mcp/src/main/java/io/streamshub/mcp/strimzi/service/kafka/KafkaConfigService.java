@@ -44,6 +44,7 @@ import io.strimzi.api.kafka.model.kafka.cruisecontrol.CruiseControlSpec;
 import io.strimzi.api.kafka.model.kafka.entityoperator.EntityOperatorSpec;
 import io.strimzi.api.kafka.model.kafka.exporter.KafkaExporterSpec;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
+import io.strimzi.api.kafka.model.kafka.tieredstorage.RemoteStorageManager;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -59,6 +60,7 @@ import java.util.Objects;
  * <p>Assembles configuration from the Kafka CR spec, resolves referenced
  * ConfigMaps for metrics and logging, and includes per-node-pool overrides.</p>
  */
+@SuppressWarnings("checkstyle:ClassFanOutComplexity")
 @ApplicationScoped
 public class KafkaConfigService {
 
@@ -118,8 +120,81 @@ public class KafkaConfigService {
             kafka.getSpec() != null ? extractCruiseControl(kafka.getSpec().getCruiseControl()) : null,
             kafka.getSpec() != null ? extractKafkaExporter(kafka.getSpec().getKafkaExporter()) : null,
             kafka.getSpec() != null ? kafka.getSpec().getMaintenanceTimeWindows() : null,
+            kafkaSpec != null ? extractTieredStorage(kafkaSpec.getTieredStorage()) : null,
+            kafkaSpec != null ? extractQuotas(kafkaSpec.getQuotas()) : null,
             nodePoolConfigs.isEmpty() ? null : nodePoolConfigs
         );
+    }
+
+    private static final java.util.Set<String> SENSITIVE_CONFIG_PATTERNS = java.util.Set.of(
+        "secret", "password", "key", "token", "credential", "auth"
+    );
+
+    private static Map<String, Object> sanitizeConfigMap(Map<String, Object> original) {
+        if (original == null || original.isEmpty()) {
+            return original;
+        }
+        Map<String, Object> sanitized = new java.util.LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : original.entrySet()) {
+            String k = entry.getKey();
+            String lowerK = k.toLowerCase(Locale.ROOT);
+            boolean isSensitive = SENSITIVE_CONFIG_PATTERNS.stream().anyMatch(lowerK::contains);
+            if (isSensitive) {
+                sanitized.put(k, "[REDACTED]");
+            } else {
+                sanitized.put(k, entry.getValue());
+            }
+        }
+        return sanitized;
+    }
+
+    private KafkaEffectiveConfigResponse.TieredStorageInfo extractTieredStorage(
+            final io.strimzi.api.kafka.model.kafka.tieredstorage.TieredStorage tieredStorage) {
+        if (tieredStorage == null) {
+            return null;
+        }
+        String type = tieredStorage.getType();
+        KafkaEffectiveConfigResponse.RemoteStorageManagerInfo rsmInfo = null;
+        if (tieredStorage instanceof io.strimzi.api.kafka.model.kafka.tieredstorage.TieredStorageCustom custom) {
+            if (custom.getRemoteStorageManager() != null) {
+                RemoteStorageManager rsm = custom.getRemoteStorageManager();
+                Map<String, Object> rawConfig = rsm.getConfig() != null
+                    ? new java.util.LinkedHashMap<>(rsm.getConfig()) : null;
+                Map<String, Object> safeConfig = sanitizeConfigMap(rawConfig);
+                rsmInfo = new KafkaEffectiveConfigResponse.RemoteStorageManagerInfo(
+                    rsm.getClassName(), rsm.getClassPath(), safeConfig);
+            }
+        }
+        return new KafkaEffectiveConfigResponse.TieredStorageInfo(type, rsmInfo);
+    }
+
+    private KafkaEffectiveConfigResponse.QuotasInfo extractQuotas(
+            final io.strimzi.api.kafka.model.kafka.quotas.QuotasPlugin quotas) {
+        if (quotas == null) {
+            return null;
+        }
+        String type = quotas.getType();
+        Map<String, Object> safeConfig = null;
+        if (quotas instanceof io.strimzi.api.kafka.model.kafka.quotas.QuotasPluginStrimzi strimziQuotas) {
+            Map<String, Object> cfg = new java.util.LinkedHashMap<>();
+            if (strimziQuotas.getExcludedPrincipals() != null) {
+                cfg.put("excludedPrincipals", strimziQuotas.getExcludedPrincipals());
+            }
+            if (strimziQuotas.getProducerByteRate() != null) {
+                cfg.put("producerByteRate", strimziQuotas.getProducerByteRate());
+            }
+            if (strimziQuotas.getConsumerByteRate() != null) {
+                cfg.put("consumerByteRate", strimziQuotas.getConsumerByteRate());
+            }
+            if (strimziQuotas.getMinAvailableBytesPerVolume() != null) {
+                cfg.put("minAvailableBytesPerVolume", strimziQuotas.getMinAvailableBytesPerVolume());
+            }
+            if (strimziQuotas.getMinAvailableRatioPerVolume() != null) {
+                cfg.put("minAvailableRatioPerVolume", strimziQuotas.getMinAvailableRatioPerVolume());
+            }
+            safeConfig = cfg;
+        }
+        return new KafkaEffectiveConfigResponse.QuotasInfo(type, safeConfig);
     }
 
     /**

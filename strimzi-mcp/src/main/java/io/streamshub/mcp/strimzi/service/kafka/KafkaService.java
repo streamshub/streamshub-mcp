@@ -10,6 +10,7 @@ import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.service.log.LogCollectionService;
@@ -27,6 +28,9 @@ import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceMode;
+import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceStatus;
+import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceStatusBrokers;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerAddress;
@@ -146,18 +150,7 @@ public class KafkaService {
         }
 
         List<PodSummaryResponse.PodInfo> podInfos = pods.stream()
-            .map(pod -> {
-                PodSummaryResponse.PodInfo info = podsService.extractPodSummary(finalNamespace, pod);
-                String nodePool = pod.getMetadata().getLabels() != null
-                    ? pod.getMetadata().getLabels().get(StrimziConstants.Labels.POOL_NAME) : null;
-                if (nodePool != null) {
-                    return PodSummaryResponse.PodInfo.enrichedSummary(
-                        info.name(), info.phase(), info.ready(), info.component(),
-                        info.restarts(), info.ageMinutes(), nodePool,
-                        info.lastTerminationReason(), info.lastTerminationTime(), info.resources());
-                }
-                return info;
-            })
+            .map(pod -> podsService.extractPodSummary(finalNamespace, pod))
             .toList();
 
         PodSummaryResponse podSummary = PodSummaryResponse.of(finalNamespace, podInfos);
@@ -317,7 +310,15 @@ public class KafkaService {
             readiness = KubernetesConstants.ResourceStatus.UNKNOWN;
         }
 
-        String version = extractVersion(kafka);
+        String specVersion = extractSpecVersion(kafka);
+        String runningVersion = extractRunningVersion(kafka);
+        String kafkaVersion = specVersion != null ? specVersion : runningVersion;
+        String kafkaMetadataVersion = extractKafkaMetadataVersion(kafka);
+        String operatorLastSuccessfulVersion = extractOperatorLastSuccessfulVersion(kafka);
+        String clusterId = extractClusterId(kafka);
+        KafkaClusterResponse.AutoRebalanceInfo autoRebalance = extractAutoRebalance(kafka);
+        KafkaClusterResponse.ClusterSecurityInfo clusterSecurity = extractClusterSecurity(kafka);
+
         List<ConditionInfo> conditions = extractConditions(kafka);
         List<ListenerInfo> listeners = extractListenerInfos(kafka);
 
@@ -332,12 +333,18 @@ public class KafkaService {
             ageMinutes = Math.max(0, Duration.between(creationTime, Instant.now()).toMinutes());
         }
 
+        ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
+            kafka.getMetadata().getGeneration(),
+            kafka.getStatus() != null ? kafka.getStatus().getObservedGeneration() : 0L);
+
         return KafkaClusterResponse.of(
-            name, namespace, kind, version, readiness,
+            name, namespace, kind, kafkaVersion, runningVersion,
+            kafkaMetadataVersion, operatorLastSuccessfulVersion, clusterId, readiness,
             conditions, listeners, brokerReplicas, controllerReplicas,
             extractExternalAccess(kafka),
             extractAuthenticationEnabled(kafka), extractAuthorizationEnabled(kafka),
-            creationTime, ageMinutes, extractManagedBy(kafka), warnings);
+            creationTime, ageMinutes, extractManagedBy(kafka),
+            autoRebalance, clusterSecurity, reconciliation, warnings);
     }
 
     private String determineResourceStatus(final List<Condition> conditions) {
@@ -357,9 +364,68 @@ public class KafkaService {
         return hasError ? KubernetesConstants.ResourceStatus.ERROR : KubernetesConstants.ResourceStatus.NOT_READY;
     }
 
-    private String extractVersion(final Kafka kafka) {
-        if (kafka.getStatus() != null && kafka.getStatus().getKafkaVersion() != null) {
+    private String extractSpecVersion(final Kafka kafka) {
+        if (kafka.getSpec() != null && kafka.getSpec().getKafka() != null) {
+            return kafka.getSpec().getKafka().getVersion();
+        }
+        return null;
+    }
+
+    private String extractRunningVersion(final Kafka kafka) {
+        if (kafka.getStatus() != null) {
             return kafka.getStatus().getKafkaVersion();
+        }
+        return null;
+    }
+
+    private String extractKafkaMetadataVersion(final Kafka kafka) {
+        if (kafka.getStatus() != null) {
+            return kafka.getStatus().getKafkaMetadataVersion();
+        }
+        return null;
+    }
+
+    private String extractOperatorLastSuccessfulVersion(final Kafka kafka) {
+        if (kafka.getStatus() != null) {
+            return kafka.getStatus().getOperatorLastSuccessfulVersion();
+        }
+        return null;
+    }
+
+    private String extractClusterId(final Kafka kafka) {
+        if (kafka.getStatus() != null) {
+            return kafka.getStatus().getClusterId();
+        }
+        return null;
+    }
+
+    private KafkaClusterResponse.AutoRebalanceInfo extractAutoRebalance(final Kafka kafka) {
+        if (kafka.getStatus() == null || kafka.getStatus().getAutoRebalance() == null) {
+            return null;
+        }
+        KafkaAutoRebalanceStatus ar = kafka.getStatus().getAutoRebalance();
+        String state = ar.getState() != null ? ar.getState().name() : null;
+        List<String> modes = ar.getModes() != null
+            ? ar.getModes().stream()
+                .map(KafkaAutoRebalanceStatusBrokers::getMode)
+                .filter(Objects::nonNull)
+                .map(KafkaAutoRebalanceMode::toValue)
+                .toList()
+            : null;
+        return new KafkaClusterResponse.AutoRebalanceInfo(state, modes, ar.getLastTransitionTime());
+    }
+
+    private KafkaClusterResponse.ClusterSecurityInfo extractClusterSecurity(final Kafka kafka) {
+        if (kafka.getStatus() == null || kafka.getStatus().getClusterSecurity() == null) {
+            return null;
+        }
+        Object cs = kafka.getStatus().getClusterSecurity();
+        if (cs instanceof io.strimzi.api.kafka.model.kafka.clustersecurity.ClusterSecurityStatus secStatus) {
+            String encryption = secStatus.getEncryption() != null && secStatus.getEncryption().getType() != null
+                ? secStatus.getEncryption().getType().toValue() : null;
+            String authentication = secStatus.getAuthentication() != null && secStatus.getAuthentication().getType() != null
+                ? secStatus.getAuthentication().getType().toValue() : null;
+            return new KafkaClusterResponse.ClusterSecurityInfo(encryption, authentication);
         }
         return null;
     }

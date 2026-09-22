@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.dto.kafkaconnect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import java.util.Map;
  * @param connectorStatus the connector status from the Connect REST API (null for list operations)
  * @param conditions      the list of status conditions
  * @param config          the connector configuration map (null for list operations)
+ * @param reconciliation  reconciliation status tracking (generation vs observedGeneration)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record KafkaConnectorResponse(
@@ -40,7 +42,8 @@ public record KafkaConnectorResponse(
     @JsonProperty("topics") List<String> topics,
     @JsonProperty("connector_status") Map<String, Object> connectorStatus,
     @JsonProperty("conditions") List<ConditionInfo> conditions,
-    @JsonProperty("config") Map<String, Object> config
+    @JsonProperty("config") Map<String, Object> config,
+    @JsonProperty("reconciliation") ReconciliationInfo reconciliation
 ) {
 
     /**
@@ -94,9 +97,10 @@ public record KafkaConnectorResponse(
                                                    String className, Integer tasksMax, String state,
                                                    String readiness, AutoRestartInfo autoRestart,
                                                    List<String> topics,
-                                                   List<ConditionInfo> conditions) {
+                                                   List<ConditionInfo> conditions,
+                                                   ReconciliationInfo reconciliation) {
         return new KafkaConnectorResponse(name, namespace, connectCluster, className, tasksMax,
-            state, readiness, autoRestart, topics, null, conditions, null);
+            state, readiness, autoRestart, topics, null, conditions, null, reconciliation);
     }
 
     /**
@@ -114,6 +118,7 @@ public record KafkaConnectorResponse(
      * @param connectorStatus the connector status from the Connect REST API
      * @param conditions      the status conditions
      * @param config          the connector configuration
+     * @param reconciliation  reconciliation status tracking
      * @return a detailed response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -123,8 +128,9 @@ public record KafkaConnectorResponse(
                                               List<String> topics,
                                               Map<String, Object> connectorStatus,
                                               List<ConditionInfo> conditions,
-                                              Map<String, Object> config) {
+                                              Map<String, Object> config,
+                                              ReconciliationInfo reconciliation) {
         return new KafkaConnectorResponse(name, namespace, connectCluster, className, tasksMax,
-            state, readiness, autoRestart, topics, connectorStatus, conditions, config);
+            state, readiness, autoRestart, topics, connectorStatus, conditions, config, reconciliation);
     }
 }

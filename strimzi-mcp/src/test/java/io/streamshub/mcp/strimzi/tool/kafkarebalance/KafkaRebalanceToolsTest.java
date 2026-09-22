@@ -63,7 +63,7 @@ class KafkaRebalanceToolsTest {
             KafkaRebalanceResponse.summary("my-rebalance", "kafka", "my-cluster",
                 "Rebalancing", "full", null, "session-123",
                 new OptimizationResultInfo(512L, 10, 5, 0, 100.0, 75.5, 92.3),
-                List.of(ConditionInfo.of("Rebalancing", "True", null, null, null)))
+                List.of(ConditionInfo.of("Rebalancing", "True", null, null, null)), null)
         ));
 
         client.when()
@@ -110,7 +110,7 @@ class KafkaRebalanceToolsTest {
                     List.of("RackAwareGoal", "ReplicaCapacityGoal"),
                     null, null, "__strimzi.*", 5, 2, 1000, 10485760L),
                 "my-rebalance-progress",
-                List.of(ConditionInfo.of("ProposalReady", "True", null, null, null)))
+                List.of(ConditionInfo.of("ProposalReady", "True", null, null, null)), null)
         );
 
         client.when()
@@ -141,7 +141,7 @@ class KafkaRebalanceToolsTest {
             KafkaRebalanceResponse.of("my-rebalance", "kafka", "my-cluster",
                 "Ready", "full", null, null,
                 null, null, null,
-                List.of(ConditionInfo.of("Ready", "True", null, null, null)))
+                List.of(ConditionInfo.of("Ready", "True", null, null, null)), null)
         );
 
         client.when()

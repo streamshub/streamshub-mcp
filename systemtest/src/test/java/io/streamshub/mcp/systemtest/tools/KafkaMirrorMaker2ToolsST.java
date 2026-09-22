@@ -177,6 +177,8 @@ class KafkaMirrorMaker2ToolsST extends AbstractST {
                 JsonNode connectorStatuses = root.path("connector_statuses");
                 assertTrue(connectorStatuses.isArray() && connectorStatuses.size() >= 1, "Should have at least 1 connector status");
                 assertEquals("RUNNING", connectorStatuses.get(0).path("connector").path("state").asText(), "Connector state should be RUNNING");
+                // Reconciliation status (A1)
+                assertReconciliationInfo(root);
             })
             .thenAssertResults();
     }

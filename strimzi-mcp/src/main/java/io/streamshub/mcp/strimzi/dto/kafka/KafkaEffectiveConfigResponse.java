@@ -28,6 +28,8 @@ import java.util.Map;
  * @param cruiseControl      Cruise Control configuration
  * @param kafkaExporter      Kafka Exporter configuration
  * @param maintenanceWindows maintenance time windows
+ * @param tieredStorage      tiered storage configuration
+ * @param quotas             quotas configuration
  * @param nodePools          per-node-pool configuration overrides
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -47,8 +49,51 @@ public record KafkaEffectiveConfigResponse(
     @JsonProperty("cruise_control") CruiseControlInfo cruiseControl,
     @JsonProperty("kafka_exporter") KafkaExporterInfo kafkaExporter,
     @JsonProperty("maintenance_windows") List<String> maintenanceWindows,
+    @JsonProperty("tiered_storage") TieredStorageInfo tieredStorage,
+    @JsonProperty("quotas") QuotasInfo quotas,
     @JsonProperty("node_pools") List<NodePoolConfigInfo> nodePools
 ) {
+
+    /**
+     * Tiered storage configuration with sensitive credentials redacted.
+     *
+     * @param type                 tiered storage type (e.g., custom)
+     * @param remoteStorageManager remote storage manager class details and safe config
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record TieredStorageInfo(
+        @JsonProperty("type") String type,
+        @JsonProperty("remote_storage_manager") RemoteStorageManagerInfo remoteStorageManager
+    ) {
+    }
+
+    /**
+     * Remote storage manager details.
+     *
+     * @param className className of the storage manager
+     * @param classPath classPath of the storage manager
+     * @param config    safe configuration properties
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record RemoteStorageManagerInfo(
+        @JsonProperty("class_name") String className,
+        @JsonProperty("class_path") String classPath,
+        @JsonProperty("config") Map<String, Object> config
+    ) {
+    }
+
+    /**
+     * Quotas plugin configuration with sensitive credentials redacted.
+     *
+     * @param type   quotas plugin type (e.g., strimzi, kafka)
+     * @param config safe quotas plugin configuration properties
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record QuotasInfo(
+        @JsonProperty("type") String type,
+        @JsonProperty("config") Map<String, Object> config
+    ) {
+    }
 
     /**
      * CPU and memory resource requests and limits.

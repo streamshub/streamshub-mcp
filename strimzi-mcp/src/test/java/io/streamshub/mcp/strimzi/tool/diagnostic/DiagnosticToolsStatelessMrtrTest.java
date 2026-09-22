@@ -100,7 +100,7 @@ class DiagnosticToolsStatelessMrtrTest {
         KafkaMirrorMaker2Response mm2 = KafkaMirrorMaker2Response.summary(
             "my-mm2", "kafka", "Ready", ReplicasInfo.of(1, 1), "target-cluster",
             List.of("source-cluster"),
-            List.of(ConditionInfo.of("Ready", "True", null, null, null)));
+            List.of(ConditionInfo.of("Ready", "True", null, null, null)), null);
         KafkaMirrorMaker2DiagnosticReport report = KafkaMirrorMaker2DiagnosticReport.of(
             mm2, null, null, null, "Root cause: source cluster connectivity",
             List.of("mm2_status"), null);

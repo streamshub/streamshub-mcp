@@ -56,7 +56,7 @@ class KafkaNodePoolToolsTest {
     void testListKafkaNodePools() {
         when(nodePoolService.listNodePools(null, "my-cluster")).thenReturn(List.of(
             new KafkaNodePoolResponse("broker", "kafka", "my-cluster",
-                List.of("broker"), 3, "jbod", "100Gi")
+                List.of("broker"), 3, null, null, null, "jbod", "100Gi", null, null, null)
         ));
 
         client.when()
@@ -74,7 +74,7 @@ class KafkaNodePoolToolsTest {
     void testGetKafkaNodePool() {
         when(nodePoolService.getNodePool(null, "my-cluster", "broker")).thenReturn(
             new KafkaNodePoolResponse("broker", "kafka", "my-cluster",
-                List.of("broker"), 3, "jbod", "100Gi")
+                List.of("broker"), 3, null, null, null, "jbod", "100Gi", null, null, null)
         );
 
         client.when()

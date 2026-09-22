@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.dto.kafkamirrormaker2;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
 
 import java.time.Instant;
@@ -30,6 +31,7 @@ import java.util.Map;
  * @param conditions           the status conditions
  * @param creationTime         the creation time (null for list)
  * @param ageMinutes           the age in minutes (null for list)
+ * @param reconciliation       reconciliation status tracking (generation vs observedGeneration)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record KafkaMirrorMaker2Response(
@@ -46,7 +48,8 @@ public record KafkaMirrorMaker2Response(
     @JsonProperty("bootstrap_servers") String bootstrapServers,
     @JsonProperty("conditions") List<ConditionInfo> conditions,
     @JsonProperty("creation_time") Instant creationTime,
-    @JsonProperty("age_minutes") Long ageMinutes
+    @JsonProperty("age_minutes") Long ageMinutes,
+    @JsonProperty("reconciliation") ReconciliationInfo reconciliation
 ) {
 
     /**
@@ -122,10 +125,11 @@ public record KafkaMirrorMaker2Response(
                                                      final String readiness, final ReplicasInfo replicas,
                                                      final String targetCluster,
                                                      final List<String> sourceClusterAliases,
-                                                     final List<ConditionInfo> conditions) {
+                                                     final List<ConditionInfo> conditions,
+                                                     final ReconciliationInfo reconciliation) {
         return new KafkaMirrorMaker2Response(name, namespace, readiness, replicas,
             targetCluster, sourceClusterAliases, null, null, null, null, null,
-            conditions, null, null);
+            conditions, null, null, reconciliation);
     }
 
     /**
@@ -145,6 +149,7 @@ public record KafkaMirrorMaker2Response(
      * @param conditions           the status conditions
      * @param creationTime         the creation time
      * @param ageMinutes           the age in minutes
+     * @param reconciliation       reconciliation status tracking
      * @return a detailed response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -157,9 +162,10 @@ public record KafkaMirrorMaker2Response(
                                                 final List<Map<String, Object>> connectorStatuses,
                                                 final String version, final String bootstrapServers,
                                                 final List<ConditionInfo> conditions,
-                                                final Instant creationTime, final Long ageMinutes) {
+                                                final Instant creationTime, final Long ageMinutes,
+                                                final ReconciliationInfo reconciliation) {
         return new KafkaMirrorMaker2Response(name, namespace, readiness, replicas,
             targetCluster, sourceClusterAliases, mirrors, clusters, connectorStatuses,
-            version, bootstrapServers, conditions, creationTime, ageMinutes);
+            version, bootstrapServers, conditions, creationTime, ageMinutes, reconciliation);
     }
 }

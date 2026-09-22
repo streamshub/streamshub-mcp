@@ -13,6 +13,7 @@ import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
 import io.strimzi.api.ResourceLabels;
+import io.strimzi.api.kafka.model.common.CertificateAuthority;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -88,12 +89,55 @@ public class KafkaCertificateService {
         List<KafkaCertificateResponse.CertificateInfo> certificates =
             fetchCertificateMetadata(resolvedNs, normalizedName, errors);
 
-        if (certificates.isEmpty() && listenerAuth.isEmpty()) {
+        KafkaCertificateResponse.CaPolicyInfo clusterCaPolicy = extractClusterCaPolicy(kafka, certificates);
+        KafkaCertificateResponse.CaPolicyInfo clientsCaPolicy = extractClientsCaPolicy(kafka, certificates);
+
+        if (certificates.isEmpty() && listenerAuth.isEmpty() && clusterCaPolicy == null && clientsCaPolicy == null) {
             return KafkaCertificateResponse.empty(normalizedName, resolvedNs,
                 "No certificate secrets found. Ensure the sensitive RBAC Role is configured.");
         }
 
-        return KafkaCertificateResponse.of(normalizedName, resolvedNs, certificates, listenerAuth, errors);
+        return KafkaCertificateResponse.of(normalizedName, resolvedNs,
+            clusterCaPolicy, clientsCaPolicy, certificates, listenerAuth, errors);
+    }
+
+    private KafkaCertificateResponse.CaPolicyInfo extractClusterCaPolicy(
+            final Kafka kafka, final List<KafkaCertificateResponse.CertificateInfo> certificates) {
+        if (kafka.getSpec() == null || kafka.getSpec().getClusterCa() == null) {
+            return null;
+        }
+        CertificateAuthority ca = kafka.getSpec().getClusterCa();
+        Integer renewalDays = ca.getRenewalDays();
+        Integer validityDays = ca.getValidityDays();
+        Boolean generateCa = ca.isGenerateCertificateAuthority();
+        String policy = ca.getCertificateExpirationPolicy() != null ? ca.getCertificateExpirationPolicy().name() : null;
+
+        Instant calculatedRenewal = calculateRenewalDate(certificates, CLUSTER_CA_TYPE, renewalDays != null ? renewalDays : 30);
+        return new KafkaCertificateResponse.CaPolicyInfo(renewalDays, validityDays, generateCa, policy, calculatedRenewal);
+    }
+
+    private KafkaCertificateResponse.CaPolicyInfo extractClientsCaPolicy(
+            final Kafka kafka, final List<KafkaCertificateResponse.CertificateInfo> certificates) {
+        if (kafka.getSpec() == null || kafka.getSpec().getClientsCa() == null) {
+            return null;
+        }
+        CertificateAuthority ca = kafka.getSpec().getClientsCa();
+        Integer renewalDays = ca.getRenewalDays();
+        Integer validityDays = ca.getValidityDays();
+        Boolean generateCa = ca.isGenerateCertificateAuthority();
+        String policy = ca.getCertificateExpirationPolicy() != null ? ca.getCertificateExpirationPolicy().name() : null;
+
+        Instant calculatedRenewal = calculateRenewalDate(certificates, CLIENTS_CA_TYPE, renewalDays != null ? renewalDays : 30);
+        return new KafkaCertificateResponse.CaPolicyInfo(renewalDays, validityDays, generateCa, policy, calculatedRenewal);
+    }
+
+    private Instant calculateRenewalDate(
+            final List<KafkaCertificateResponse.CertificateInfo> certificates, final String type, final int renewalDays) {
+        return certificates.stream()
+            .filter(c -> type.equals(c.type()) && !c.expired())
+            .map(c -> c.notAfter().minus(java.time.Duration.ofDays(renewalDays)))
+            .findFirst()
+            .orElse(null);
     }
 
     private List<KafkaCertificateResponse.CertificateInfo> fetchCertificateMetadata(

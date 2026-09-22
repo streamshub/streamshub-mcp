@@ -55,6 +55,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class KafkaClusterToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaClusterToolsST.class);
+    private static final int CLUSTER_CA_RENEWAL_DAYS = 30;
+    private static final int CLUSTER_CA_VALIDITY_DAYS = 365;
 
     @InjectResourceManager
     KubeResourceManager krm;
@@ -88,7 +90,14 @@ class KafkaClusterToolsST extends AbstractST {
                     Constants.KAFKA_CLUSTER_NAME, 3).build());
 
             krm.createOrUpdateResourceWithWait(
-                KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 3).build());
+                KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 3)
+                    .editSpec()
+                        .withNewClusterCa()
+                            .withRenewalDays(CLUSTER_CA_RENEWAL_DAYS)
+                            .withValidityDays(CLUSTER_CA_VALIDITY_DAYS)
+                        .endClusterCa()
+                    .endSpec()
+                    .build());
         }
 
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
@@ -235,6 +244,17 @@ class KafkaClusterToolsST extends AbstractST {
                     "Should have age_minutes");
                 assertTrue(cluster.path("age_minutes").asLong() >= 0,
                     "Age should be non-negative");
+                // Reconciliation status (A1)
+                assertReconciliationInfo(cluster);
+                // Kafka.status upgrade surface (A2)
+                assertFalse(cluster.path("cluster_id").asText("").isEmpty(),
+                    "Should have a non-empty cluster_id");
+                assertFalse(cluster.path("running_kafka_version").asText("").isEmpty(),
+                    "Should have a non-empty running_kafka_version");
+                assertFalse(cluster.path("kafka_metadata_version").asText("").isEmpty(),
+                    "Should have a non-empty kafka_metadata_version");
+                assertFalse(cluster.path("operator_last_successful_version").asText("").isEmpty(),
+                    "Should have a non-empty operator_last_successful_version");
             })
             .thenAssertResults();
     }
@@ -465,6 +485,15 @@ class KafkaClusterToolsST extends AbstractST {
                     }
                 }
                 assertTrue(hasTlsListener, "Should have 'tls' listener in authentication list");
+                // CA renewal policy (A6)
+                JsonNode clusterCaPolicy = root.path("cluster_ca_policy");
+                assertFalse(clusterCaPolicy.isMissingNode(), "Should have cluster_ca_policy");
+                assertEquals(CLUSTER_CA_RENEWAL_DAYS, clusterCaPolicy.path("renewal_days").asInt(),
+                    "renewal_days should match the configured clusterCa policy");
+                assertEquals(CLUSTER_CA_VALIDITY_DAYS, clusterCaPolicy.path("validity_days").asInt(),
+                    "validity_days should match the configured clusterCa policy");
+                assertFalse(clusterCaPolicy.path("calculated_renewal_date").isMissingNode(),
+                    "Should have a computed calculated_renewal_date");
             })
             .thenAssertResults();
     }
@@ -482,6 +511,7 @@ class KafkaClusterToolsST extends AbstractST {
                 LOGGER.debug("get_kafka_cluster_pods response:\n{}",
                     response.content().getFirst().asText().text());
                 assertPodSummaryResponse(root.path("pod_summary"));
+                assertPodAnnotationsPresent(root.path("pod_summary"));
                 assertEquals(Environment.KAFKA_NAMESPACE,
                     root.path("namespace").asText(),
                     "namespace should match");

@@ -245,6 +245,8 @@ class KafkaUserToolsST extends AbstractST {
                 // CRITICAL: verify no secret data is exposed
                 assertFalse(json.contains("password"), "Must NOT contain password data");
                 assertFalse(json.contains("sasl.jaas.config"), "Must NOT contain JAAS config");
+                // Reconciliation status (A1)
+                assertReconciliationInfo(user);
             })
             .thenAssertResults();
     }

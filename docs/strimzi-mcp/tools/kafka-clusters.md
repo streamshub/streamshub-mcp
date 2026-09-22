@@ -46,7 +46,17 @@ Get detailed information about a specific Kafka cluster including status, versio
 - `clusterName` (required) -- Name of the Kafka cluster
 - `namespace` (optional) -- Kubernetes namespace
 
-**Returns**: Comprehensive cluster details including status, conditions, version, listeners, and separate broker/controller replica counts with per-role storage information
+**Returns**: Comprehensive cluster details including:
+- **Core identity** -- name, namespace, kind, `kafka_version` (spec), `running_kafka_version` (status), `kafka_metadata_version` (KRaft), `operator_last_successful_version`, `cluster_id`
+- **Readiness and conditions** -- readiness string and full conditions list
+- **Listeners** -- configured listeners with type and bootstrap address
+- **Replica info** -- separate `broker_replicas` and `controller_replicas` objects each with `expected`, `ready`, `storage_type`, and `storage_size`
+- **Security flags** -- `external_access`, `authentication_enabled`, `authorization_enabled`
+- **Age** -- `creation_time` and `age_minutes`
+- **Auto-rebalance status** -- `auto_rebalance` with `state`, `modes`, and `last_transition_time` (when Cruise Control auto-rebalance is configured)
+- **Cluster security status** -- `cluster_security` with `encryption` and `authentication` values from status
+- **Reconciliation** -- `reconciliation` object with `generation`, `observed_generation`, and `up_to_date` flag
+- **Warnings** -- data gathering issues, omitted when empty
 
 **Example**:
 ```
@@ -119,7 +129,11 @@ Get TLS certificate information for a Kafka cluster.
 - `namespace` (optional) -- Kubernetes namespace
 - `listenerName` (optional) -- Filter certificates by listener name
 
-**Returns**: Certificate details including CA certificates and listener certificates (requires sensitive RBAC permissions)
+**Returns**: Certificate details including:
+- **CA policies** -- `cluster_ca_policy` and `clients_ca_policy` objects, each with `renewal_days`, `validity_days`, `generate_certificate_authority`, `certificate_expiration_policy`, and a pre-calculated `calculated_renewal_date`
+- **Certificates** -- metadata per Strimzi-managed secret (`secret_name`, `type`, `subject`, `issuer`, `not_before`, `not_after`, `days_until_expiry`, `expired`, and `san` Subject Alternative Names)
+- **Listener authentication** -- per-listener auth config (`listener_name`, `listener_type`, `tls_enabled`, `authentication_type`)
+- **Errors** -- list of any secrets that could not be read (requires sensitive RBAC permissions)
 
 **Example**:
 ```
@@ -161,7 +175,14 @@ Returns the effective configuration of a Kafka cluster including broker config, 
 - `clusterName` (required) -- Name of the Kafka cluster
 - `namespace` (optional) -- Kubernetes namespace
 
-**Returns**: Complete configuration breakdown with all Kafka CR spec sections and resolved ConfigMap content
+**Returns**: Complete configuration breakdown with all Kafka CR spec sections and resolved ConfigMap content, including:
+- **Broker config** -- `broker_config` map, `jvm_options`, `rack_awareness`, `listeners`, `authorization`
+- **Observability** -- `metrics_config` and `logging` with resolved ConfigMap content
+- **Components** -- `entity_operator`, `cruise_control`, `kafka_exporter`
+- **Tiered storage** -- `tiered_storage` with type and `remote_storage_manager` class details and safe config (sensitive credentials redacted)
+- **Quotas** -- `quotas` with plugin type and safe config properties (sensitive credentials redacted)
+- **Maintenance** -- `maintenance_windows` list
+- **Node pools** -- per-pool overrides (`node_pools`) with roles, replicas, storage, resources, and JVM options
 
 **Example**:
 ```

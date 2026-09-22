@@ -73,7 +73,7 @@ class KafkaTopicDiagnosticServiceStatelessLoopTest {
         when(topicService.getTopic(isNull(), isNull(), eq("my-topic"))).thenThrow(ambiguous);
 
         KafkaTopicResponse topic = KafkaTopicResponse.of(
-            "my-topic", "my-cluster", 3, 3, "Ready", null);
+            "my-topic", "kafka", "my-cluster", 3, 3, "Ready", null, null, null, null, null, null);
         when(topicService.getTopic(eq("kafka"), isNull(), eq("my-topic"))).thenReturn(topic);
 
         // AND: a stateless client that has already supplied the elicited namespace ("kafka").

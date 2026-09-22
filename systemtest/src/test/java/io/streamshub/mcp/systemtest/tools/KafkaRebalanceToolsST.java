@@ -281,6 +281,8 @@ class KafkaRebalanceToolsST extends AbstractST {
                     "Should have 'conditions' field");
                 assertFalse(rebalance.path("spec").isMissingNode(),
                     "Detail response should have 'spec' field");
+                // Reconciliation status (A1)
+                assertReconciliationInfo(rebalance);
             })
             .thenAssertResults();
     }

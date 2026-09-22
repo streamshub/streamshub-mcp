@@ -63,7 +63,7 @@ class KafkaConnectorToolsTest {
                 1, "running", "Ready",
                 KafkaConnectorResponse.AutoRestartInfo.of(true, null, 0, null),
                 List.of("my-topic"),
-                List.of(ConditionInfo.of("Ready", "True", null, null, null)))
+                List.of(ConditionInfo.of("Ready", "True", null, null, null)), null)
         ));
 
         client.when()
@@ -86,7 +86,7 @@ class KafkaConnectorToolsTest {
             KafkaConnectorResponse.summary("my-sink", "kafka", "my-connect",
                 "org.apache.kafka.connect.file.FileStreamSinkConnector",
                 1, "running", "Ready", null, null,
-                List.of(ConditionInfo.of("Ready", "True", null, null, null)))
+                List.of(ConditionInfo.of("Ready", "True", null, null, null)), null)
         ));
 
         client.when()
@@ -113,7 +113,7 @@ class KafkaConnectorToolsTest {
                 List.of("my-topic"),
                 Map.of("connector", Map.of("state", "RUNNING")),
                 List.of(ConditionInfo.of("Ready", "True", null, null, null)),
-                Map.of("file", "/tmp/output.txt", "topics", "my-topic"))
+                Map.of("file", "/tmp/output.txt", "topics", "my-topic"), null)
         );
 
         client.when()

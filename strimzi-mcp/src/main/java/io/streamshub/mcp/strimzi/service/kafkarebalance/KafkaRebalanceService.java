@@ -5,6 +5,7 @@
 package io.streamshub.mcp.strimzi.service.kafkarebalance;
 
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.service.KubernetesQueryException;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
@@ -168,6 +169,10 @@ public class KafkaRebalanceService {
     }
 
     private KafkaRebalanceResponse createRebalanceSummary(final KafkaRebalance rebalance) {
+        ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
+            rebalance.getMetadata().getGeneration(),
+            rebalance.getStatus() != null ? rebalance.getStatus().getObservedGeneration() : 0L);
+
         return KafkaRebalanceResponse.summary(
             rebalance.getMetadata().getName(),
             rebalance.getMetadata().getNamespace(),
@@ -177,10 +182,15 @@ public class KafkaRebalanceService {
             extractAutoApproval(rebalance),
             extractSessionId(rebalance),
             extractOptimizationResult(rebalance),
-            extractConditions(rebalance));
+            extractConditions(rebalance),
+            reconciliation);
     }
 
     private KafkaRebalanceResponse createRebalanceDetail(final KafkaRebalance rebalance) {
+        ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
+            rebalance.getMetadata().getGeneration(),
+            rebalance.getStatus() != null ? rebalance.getStatus().getObservedGeneration() : 0L);
+
         return KafkaRebalanceResponse.of(
             rebalance.getMetadata().getName(),
             rebalance.getMetadata().getNamespace(),
@@ -192,7 +202,8 @@ public class KafkaRebalanceService {
             extractOptimizationResult(rebalance),
             extractSpecInfo(rebalance),
             extractProgressConfigMap(rebalance),
-            extractConditions(rebalance));
+            extractConditions(rebalance),
+            reconciliation);
     }
 
     private String extractCluster(final KafkaRebalance rebalance) {

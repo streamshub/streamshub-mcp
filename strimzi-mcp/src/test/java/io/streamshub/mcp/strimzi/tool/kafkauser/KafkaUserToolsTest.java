@@ -61,7 +61,7 @@ class KafkaUserToolsTest {
             KafkaUserResponse.summary("alice", "kafka", "my-cluster",
                 "scram-sha-512", "simple", 3, "alice",
                 "alice", "Ready",
-                List.of(ConditionInfo.of("Ready", "True", null, null, null)))
+                List.of(ConditionInfo.of("Ready", "True", null, null, null)), null)
         ));
 
         client.when()
@@ -111,7 +111,7 @@ class KafkaUserToolsTest {
                 ),
                 "alice", "alice",
                 "Ready",
-                List.of(ConditionInfo.of("Ready", "True", null, null, null)))
+                List.of(ConditionInfo.of("Ready", "True", null, null, null)), null)
         );
 
         client.when()
@@ -141,7 +141,7 @@ class KafkaUserToolsTest {
                     "literal", "*", List.of("All"))),
                 "CN=bob", "bob",
                 "Ready",
-                List.of(ConditionInfo.of("Ready", "True", null, null, null)))
+                List.of(ConditionInfo.of("Ready", "True", null, null, null)), null)
         );
 
         client.when()

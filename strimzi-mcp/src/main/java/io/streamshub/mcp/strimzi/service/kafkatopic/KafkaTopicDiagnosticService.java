@@ -166,9 +166,9 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         StrimziOperatorLogsResponse operatorLogs = null;
         if (areas.operatorLogs) {
             operatorLogs = gatherOperatorLogs(
-                null, name, completed, failed);
+                resolvedNs, resolvedCluster, name, completed, failed);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
-                operatorLogs != null ? "Collected Strimzi operator logs" : "Failed to collect operator logs");
+                operatorLogs != null ? "Collected Strimzi Entity Operator logs" : "Failed to collect operator logs");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
@@ -280,6 +280,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
 
     @WithSpan("diagnose.topic.operator_logs")
     StrimziOperatorLogsResponse gatherOperatorLogs(final String namespace,
+                                                    final String clusterName,
                                                     final String topicName,
                                                     final List<String> completed,
                                                     final List<String> failed) {
@@ -289,12 +290,12 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
                 .keywords(List.of(topicName))
                 .build();
 
-            StrimziOperatorLogsResponse result = operatorService.getOperatorLogs(
-                namespace, null, params);
+            StrimziOperatorLogsResponse result = operatorService.getEntityOperatorLogs(
+                namespace, clusterName, params);
             completed.add(STEP_OPERATOR_LOGS);
             return result;
         } catch (Exception e) {
-            LOG.warnf("Failed to gather Strimzi operator logs: %s", e.getMessage());
+            LOG.warnf("Failed to gather Strimzi Entity Operator logs: %s", e.getMessage());
             failed.add(STEP_OPERATOR_LOGS + ": " + e.getMessage());
             return null;
         }

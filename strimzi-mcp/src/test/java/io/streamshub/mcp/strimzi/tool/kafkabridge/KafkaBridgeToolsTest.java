@@ -66,7 +66,7 @@ class KafkaBridgeToolsTest {
             KafkaBridgeResponse.summary("my-bridge", "kafka", "Ready",
                 ReplicasInfo.of(1, 1), "my-cluster-kafka-bootstrap:9092",
                 "http://my-bridge-bridge-service:8080",
-                List.of(ConditionInfo.of("Ready", "True", null, null, null)))
+                List.of(ConditionInfo.of("Ready", "True", null, null, null)), null)
         ));
 
         client.when()
@@ -90,7 +90,7 @@ class KafkaBridgeToolsTest {
                 "http://my-bridge-bridge-service:8080", 8080,
                 null, null, null, null, null, null, true, null,
                 List.of(ConditionInfo.of("Ready", "True", null, null, null)),
-                null, null)
+                null, null, null)
         );
 
         client.when()

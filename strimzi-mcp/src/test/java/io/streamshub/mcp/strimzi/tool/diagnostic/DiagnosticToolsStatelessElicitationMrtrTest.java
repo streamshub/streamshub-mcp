@@ -113,7 +113,7 @@ class DiagnosticToolsStatelessElicitationMrtrTest {
         KafkaMirrorMaker2Response mm2 = KafkaMirrorMaker2Response.summary(
             "my-mm2", "kafka-a", "Ready", ReplicasInfo.of(1, 1), "target-cluster",
             List.of("source-cluster"),
-            List.of(ConditionInfo.of("Ready", "True", null, null, null)));
+            List.of(ConditionInfo.of("Ready", "True", null, null, null)), null);
         when(mirrorMakerService.getMirrorMaker(eq("kafka-a"), eq("my-mm2"))).thenReturn(mm2);
 
         client.when()
