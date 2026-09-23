@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.common.guardrail;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkiverse.mcp.server.McpConnection;
 import io.quarkiverse.mcp.server.Meta;
 import io.quarkiverse.mcp.server.RequestId;
@@ -11,6 +12,7 @@ import io.quarkiverse.mcp.server.ToolInputGuardrail;
 import io.quarkiverse.mcp.server.ToolManager.ToolInfo;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,6 +27,11 @@ class ArgumentSanitizationGuardrailTest {
     private final ArgumentSanitizationGuardrail guardrail = new ArgumentSanitizationGuardrail();
 
     ArgumentSanitizationGuardrailTest() {
+    }
+
+    @BeforeEach
+    void setUp() {
+        guardrail.mapper = new ObjectMapper();
     }
 
     @Test

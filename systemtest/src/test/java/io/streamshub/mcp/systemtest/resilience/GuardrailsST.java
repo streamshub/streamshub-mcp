@@ -342,7 +342,11 @@ class GuardrailsST extends AbstractST {
             }
             int lastSpace = line.lastIndexOf(' ');
             if (lastSpace > 0) {
-                total += Double.parseDouble(line.substring(lastSpace + 1).trim());
+                try {
+                    total += Double.parseDouble(line.substring(lastSpace + 1).trim());
+                } catch (NumberFormatException e) {
+                    LOGGER.debug("Skipping non-numeric metrics sample: {}", line);
+                }
             }
         }
         return total;

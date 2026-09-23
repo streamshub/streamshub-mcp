@@ -43,7 +43,7 @@ class RateLimitGuardrailTest {
     void disabledByDefault() {
         TestRateLimitGuardrail guardrail = new TestRateLimitGuardrail("general", 0);
         guardrail.setClock(currentTime::get);
-        FakeToolInputContext context = createContext("testTool");
+        FakeToolInputContext context = createContext();
 
         for (int i = 0; i < 100; i++) {
             assertDoesNotThrow(() -> guardrail.apply(context));
@@ -54,7 +54,7 @@ class RateLimitGuardrailTest {
     void throwsAtLimitWithMessage() {
         TestRateLimitGuardrail guardrail = new TestRateLimitGuardrail("log", 3);
         guardrail.setClock(currentTime::get);
-        FakeToolInputContext context = createContext("testTool");
+        FakeToolInputContext context = createContext();
 
         guardrail.apply(context);
         guardrail.apply(context);
@@ -73,7 +73,7 @@ class RateLimitGuardrailTest {
     void slidingWindowExpiry() {
         TestRateLimitGuardrail guardrail = new TestRateLimitGuardrail("log", 2);
         guardrail.setClock(currentTime::get);
-        FakeToolInputContext context = createContext("testTool");
+        FakeToolInputContext context = createContext();
 
         guardrail.apply(context);
         guardrail.apply(context);
@@ -92,7 +92,7 @@ class RateLimitGuardrailTest {
         TestRateLimitGuardrail generalGuardrail = new TestRateLimitGuardrail("general", 2);
         generalGuardrail.setClock(currentTime::get);
 
-        FakeToolInputContext context = createContext("testTool");
+        FakeToolInputContext context = createContext();
 
         logGuardrail.apply(context);
         logGuardrail.apply(context);
@@ -110,7 +110,7 @@ class RateLimitGuardrailTest {
         guardrail.setClock(currentTime::get);
         ToolCallMetricsRecorder recorder = mock(ToolCallMetricsRecorder.class);
         guardrail.metricsRecorder = recorder;
-        FakeToolInputContext context = createContext("testTool");
+        FakeToolInputContext context = createContext();
 
         guardrail.apply(context);
         assertThrows(ToolCallException.class, () -> guardrail.apply(context));
@@ -118,7 +118,7 @@ class RateLimitGuardrailTest {
         verify(recorder).recordRejection("unknown", ToolCallOutcome.RATE_LIMITED);
     }
 
-    private FakeToolInputContext createContext(final String toolName) {
+    private FakeToolInputContext createContext() {
         return new FakeToolInputContext();
     }
 
