@@ -103,6 +103,10 @@ Add to the appropriate tools class in the domain sub-package under `strimzi-mcp/
         openWorldHint = false
     )
 )
+@ToolGuardrails(
+    input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+    output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class }
+)
 public XxxResponse verbNoun(
     @ToolArg(description = StrimziToolsPrompts.XXX_DESC) final String name,
     @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace
@@ -119,7 +123,8 @@ Rules:
 - Tool name: `snake_case`, `verb_resource` pattern
 - Namespace is always `@ToolArg(required = false)`
 - Use `StrimziToolsPrompts` constants for parameter descriptions (resource-specific: `CLUSTER_DESC`, `CONNECTOR_NAME_DESC`, `BRIDGE_NAME_DESC`, `MIRROR_MAKER_NAME_DESC`, `USER_NAME_DESC`, `REBALANCE_NAME_DESC`, `DRAIN_CLEANER_NAME_DESC`, `OPERATOR_NAME_DESC`)
-- Tool class must have `@Singleton`, `@Guarded`, and `@WrapBusinessError` on the class
+- Tool class must have `@Singleton`, `@MeasuredTool`, and `@WrapBusinessError` on the class
+- Each `@Tool` method must have `@ToolGuardrails(input = { <RateLimit>Guardrail.class, ArgumentSanitizationGuardrail.class }, output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })` — pick `GeneralRateLimitGuardrail` (default), `LogRateLimitGuardrail` (`get_*_logs`), or `MetricsRateLimitGuardrail` (`get_*_metrics`)
 
 Available `StrimziToolResources` constants: `KAFKA`, `KAFKA_TOPIC`, `KAFKA_USER`, `KAFKA_NODE_POOL`,
 `KAFKA_REBALANCE`, `KAFKA_CONNECT`, `KAFKA_CONNECTOR`, `KAFKA_BRIDGE`, `KAFKA_MIRROR_MAKER_2`,
@@ -154,6 +159,12 @@ Edit `strimzi-mcp/src/test/java/io/streamshub/mcp/strimzi/tool/McpDiscoveryTest.
        "verb_noun"
    );
    ```
+
+4. Bump `EXPECTED_TOOL_METHOD_COUNT` in
+   `strimzi-mcp/src/test/java/io/streamshub/mcp/strimzi/tool/ToolGuardrailsEnforcementTest.java`.
+   It asserts an exact `@Tool` method count and that every method carries the required guardrail
+   palette (`@ToolGuardrails`) plus class-level `@MeasuredTool` — a new tool fails the build until
+   the count is updated and the palette is present.
 
 ---
 

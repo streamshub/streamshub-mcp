@@ -178,6 +178,10 @@ Add the tool method to `strimzi-mcp/src/main/java/io/streamshub/mcp/strimzi/tool
         openWorldHint = false
     )
 )
+@ToolGuardrails(
+    input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+    output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class }
+)
 public XxxDiagnosticReport diagnoseXxx(
     @ToolArg(description = StrimziToolsPrompts.CLUSTER_DESC) final String clusterName,
     @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
@@ -190,7 +194,8 @@ public XxxDiagnosticReport diagnoseXxx(
 }
 ```
 
-Note: `DiagnosticTools` class has `@Guarded` at class level.
+Note: the `DiagnosticTools` class has `@MeasuredTool` at class level, and every `@Tool` method also declares
+`@ToolGuardrails(input = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class }, output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })`.
 
 ---
 
@@ -212,6 +217,12 @@ Edit `strimzi-mcp/src/test/java/io/streamshub/mcp/strimzi/tool/McpDiscoveryTest.
        "diagnose_xxx"
    );
    ```
+
+4. Bump `EXPECTED_TOOL_METHOD_COUNT` in
+   `strimzi-mcp/src/test/java/io/streamshub/mcp/strimzi/tool/ToolGuardrailsEnforcementTest.java`.
+   It asserts an exact `@Tool` method count and that every method carries the required guardrail
+   palette (`@ToolGuardrails`) plus class-level `@MeasuredTool` — the new diagnostic tool fails the
+   build until the count is updated and the palette is present.
 
 ---
 

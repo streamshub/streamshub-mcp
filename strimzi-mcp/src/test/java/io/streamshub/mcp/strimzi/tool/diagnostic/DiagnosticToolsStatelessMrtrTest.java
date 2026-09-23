@@ -31,12 +31,13 @@ import static org.mockito.Mockito.when;
 /**
  * End-to-end MRTR tests for the diagnostic tools driven by a STATELESS streamable HTTP client.
  *
- * <p>These exercise the full tool-invocation path — the {@code @Guarded} {@code GuardrailInterceptor},
- * {@code @WrapBusinessError}, and the MCP framework's {@code input_required} conversion — which the
- * service-layer unit tests bypass by calling {@code diagnose(...)} directly. Without the interceptor
- * passing {@link InputRequiredException} through unwrapped, the stateless client would receive a
- * wrapped tool error instead of an {@code input_required} result and MRTR would never work
- * end-to-end (regression guard for #251).</p>
+ * <p>These exercise the full tool-invocation path — {@code @WrapBusinessError} with
+ * {@code InputRequiredException} in the {@code unless} clause, and the MCP framework's
+ * {@code input_required} conversion — which the service-layer unit tests bypass by calling
+ * {@code diagnose(...)} directly. Without {@code @WrapBusinessError} excluding
+ * {@link InputRequiredException}, the stateless client would receive a wrapped tool error
+ * instead of an {@code input_required} result and MRTR would never work end-to-end
+ * (regression guard for #251).</p>
  */
 @QuarkusTest
 class DiagnosticToolsStatelessMrtrTest {
@@ -70,8 +71,8 @@ class DiagnosticToolsStatelessMrtrTest {
 
     /**
      * Round 1: a stateless client with no gathered input triggers an {@code input_required} result.
-     * This is the exact path the {@code @Guarded} interceptor previously broke by wrapping
-     * {@link InputRequiredException} in a {@code ToolCallException}.
+     * This verifies that {@code @WrapBusinessError} excludes {@link InputRequiredException} from
+     * wrapping (via the {@code unless} clause), allowing it to propagate as an elicitation.
      */
     @Test
     void testStatelessInputRequiredPropagatesAsInputRequiredResult() {

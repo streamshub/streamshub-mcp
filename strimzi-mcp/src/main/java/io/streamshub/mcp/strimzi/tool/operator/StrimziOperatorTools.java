@@ -12,13 +12,18 @@ import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.ToolGuardrails;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
-import io.streamshub.mcp.common.guardrail.Guarded;
-import io.streamshub.mcp.common.guardrail.RateCategory;
+import io.streamshub.mcp.common.guardrail.ArgumentSanitizationGuardrail;
+import io.streamshub.mcp.common.guardrail.GeneralRateLimitGuardrail;
+import io.streamshub.mcp.common.guardrail.LogRateLimitGuardrail;
+import io.streamshub.mcp.common.guardrail.LogRedactionGuardrail;
+import io.streamshub.mcp.common.guardrail.ResponseSizeLimitGuardrail;
+import io.streamshub.mcp.common.observability.MeasuredTool;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
@@ -38,7 +43,7 @@ import java.util.List;
  * MCP tools for Strimzi operator operations.
  */
 @Singleton
-@Guarded
+@MeasuredTool
 @WrapBusinessError(value = Exception.class, unless = {ToolCallException.class, McpException.class})
 public class StrimziOperatorTools {
 
@@ -77,6 +82,9 @@ public class StrimziOperatorTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public StrimziOperatorListResponse listStrimziOperators(
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
@@ -109,6 +117,9 @@ public class StrimziOperatorTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public StrimziOperatorResponse getStrimziOperator(
         @NotBlank @ToolArg(
             description = "Name of the operator deployment (e.g., 'strimzi-cluster-operator')."
@@ -152,7 +163,9 @@ public class StrimziOperatorTools {
             openWorldHint = false
         )
     )
-    @RateCategory("log")
+    @ToolGuardrails(
+        input  = { LogRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public StrimziOperatorLogsResponse getStrimziOperatorLogs(
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
@@ -233,6 +246,9 @@ public class StrimziOperatorTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public PodSummaryResponse getStrimziOperatorPod(
         @NotBlank @ToolArg(
             description = "Kubernetes namespace where the operator pod is deployed."

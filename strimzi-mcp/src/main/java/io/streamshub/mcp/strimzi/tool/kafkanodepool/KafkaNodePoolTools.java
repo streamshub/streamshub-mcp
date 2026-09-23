@@ -10,10 +10,15 @@ import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
+import io.quarkiverse.mcp.server.ToolGuardrails;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
-import io.streamshub.mcp.common.guardrail.Guarded;
+import io.streamshub.mcp.common.guardrail.ArgumentSanitizationGuardrail;
+import io.streamshub.mcp.common.guardrail.GeneralRateLimitGuardrail;
+import io.streamshub.mcp.common.guardrail.LogRedactionGuardrail;
+import io.streamshub.mcp.common.guardrail.ResponseSizeLimitGuardrail;
+import io.streamshub.mcp.common.observability.MeasuredTool;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolListResponse;
@@ -29,7 +34,7 @@ import java.util.List;
  * MCP tools for KafkaNodePool operations.
  */
 @Singleton
-@Guarded
+@MeasuredTool
 @WrapBusinessError(value = Exception.class, unless = {ToolCallException.class, McpException.class})
 public class KafkaNodePoolTools {
 
@@ -60,6 +65,9 @@ public class KafkaNodePoolTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaNodePoolListResponse listKafkaNodePools(
         @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
@@ -95,6 +103,9 @@ public class KafkaNodePoolTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaNodePoolResponse getKafkaNodePool(
         @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC
@@ -132,6 +143,9 @@ public class KafkaNodePoolTools {
             openWorldHint = false
         )
     )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaNodePoolPodsResponse getKafkaNodePoolPods(
         @NotBlank @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC

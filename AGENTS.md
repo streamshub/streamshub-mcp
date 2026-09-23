@@ -86,11 +86,14 @@ io.streamshub.mcp.common.
 │                     AggregationLevel (PARTITION→TOPIC→BROKER→CLUSTER hierarchy),
 │                     MetricTimeSeries (labeled metric series with sample list),
 │                     TimeSeriesSummary (min/max/avg/latest summary over a series)
-├── guardrail/      → Guarded, GuardrailFilter, GuardrailInterceptor, InputValidationFilter,
-│                     LogRedactionFilter, RateLimitFilter, ResponseSizeLimitFilter,
-│                     MetricsFilter (Micrometer tool call metrics), RateCategory,
+├── guardrail/      → ArgumentSanitizationGuardrail, AbstractRateLimitGuardrail,
+│                     GeneralRateLimitGuardrail, LogRateLimitGuardrail, MetricsRateLimitGuardrail,
+│                     LogRedactionGuardrail, ResponseSizeLimitGuardrail, GuardedResponses,
 │                     JsonNodeSanitizer (recursive text-node transformer for redaction)
-├── observability/  → McpTrafficLogger (MCP protocol traffic listener for DEBUG logging)
+├── observability/  → McpTrafficLogger (MCP protocol traffic listener for DEBUG logging),
+│                     MeasuredTool (@InterceptorBinding), ToolMetricsInterceptor (records tool-call
+│                     metrics around every outcome, incl. thrown McpException), ToolCallMetricsRecorder
+│                     (Micrometer recorder), ToolCallOutcome (success/protocol_error/tool_error/rate_limited)
 ├── readiness/      → KubernetesConnectionReadinessCheck (health check for kube API)
 ├── service/        → KubernetesResourceService, PodsService, DeploymentService, CompletionHelper,
 │   │                 CompletionCache (TTL-based cache for completion results),
@@ -237,7 +240,7 @@ io.streamshub.mcp.strimzi.
 
 ```java
 @Singleton
-@Guarded
+@MeasuredTool
 @WrapBusinessError(value = Exception.class, unless = {ToolCallException.class, McpException.class})
 public class XxxTools {
 
@@ -258,6 +261,10 @@ public class XxxTools {
             idempotentHint = true,
             openWorldHint = false
         )
+    )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class }
     )
     public TypedResponse toolMethod(
         @ToolArg(description = "...") final String requiredParam,
@@ -291,21 +298,37 @@ annotations — MCP clients like ChatGPT default tools to "write" mode without t
 
 ### Guardrails
 
-All tool classes are annotated with `@Guarded`, which enables the guardrail filter chain
-(input validation, rate limiting, response size limits, log redaction, metrics collection).
+All tool methods use native `@ToolGuardrails` to attach a guardrail palette:
+
+- **ArgumentSanitizationGuardrail** — strips control characters (below U+0020) from string arguments while preserving `\n`, `\t`, `\r`
+- **Rate-limit guardrails** — throttles calls per category (see below)
+- **LogRedactionGuardrail** — redacts sensitive patterns from responses (fail-closed: redaction failure returns generic error)
+- **ResponseSizeLimitGuardrail** — truncates oversized responses to fit `mcp.guardrail.max-response-bytes`
+
+The guardrails run in the declared order. All 56 `@Tool` methods use this palette; only the rate-limit guardrail class varies per category.
+
+**Tool-call metrics are NOT a guardrail.** They are recorded by the `@MeasuredTool` class-level CDI
+interceptor (`ToolMetricsInterceptor` → `ToolCallMetricsRecorder`), which wraps the whole invocation like
+`@WithSpan` tracing. This is deliberate: `ToolOutputGuardrail` cannot observe thrown `McpException` protocol
+errors (the framework skips output-guardrail processing for non-`ToolCallException` failures), so metrics live
+in an interceptor to record every outcome consistently. Every tool class carries `@MeasuredTool` at class level
+(the `ToolGuardrailsEnforcementTest` enforces this alongside the `@ToolGuardrails` palette).
+
+Sitting inside `@WrapBusinessError`, this interceptor also **normalizes error messages**: it re-wraps any
+uncaught business/infrastructure exception as `new ToolCallException(e.getMessage(), e)`. Without this,
+`@WrapBusinessError` would wrap via `new ToolCallException(cause)` — whose message is `cause.toString()` — and
+leak the fully-qualified exception class name into the tool response (see `ConfigValidationST.assertNoStackTrace`).
+`McpException`, `ToolCallException`, and `InputRequiredException` are propagated unwrapped.
 
 ### Tool rate limiting
 
-Tool methods may be annotated with `@RateCategory` to assign them to a rate limit category:
+Rate category is chosen by **which** rate-limit guardrail class a tool lists in its `@ToolGuardrails`:
 
-```java
-@RateCategory("log")
-@Tool(name = "get_kafka_cluster_logs", description = "...")
-public KafkaClusterLogsResponse getKafkaClusterLogs(...) { ... }
-```
+- **LogRateLimitGuardrail** — for log-collection tools (`get_*_logs`); throttled by `mcp.guardrail.rate-limit.log-rpm`
+- **MetricsRateLimitGuardrail** — for metrics tools (`get_*_metrics`); throttled by `mcp.guardrail.rate-limit.metrics-rpm`
+- **GeneralRateLimitGuardrail** — for all other tools; throttled by `mcp.guardrail.rate-limit.general-rpm`
 
-Standard categories: `"log"`, `"metrics"`, `"general"`. Methods without `@RateCategory` default
-to `"general"`. When `RateLimitFilter` is active, tool calls are throttled per category.
+Each rate-limit guardrail uses a 60-second sliding window. When the limit is exceeded, the guardrail returns a failed tool response (`isError: true`) with retry guidance. Default limits are `0` (unlimited); production deployments should set finite limits.
 
 ### Tool metadata
 
@@ -378,14 +401,21 @@ composite tools are server-driven (server gathers all data internally).
 
 ```java
 @Singleton
-@Guarded
+@MeasuredTool
 @WrapBusinessError(value = Exception.class, unless = {ToolCallException.class, McpException.class})
 public class DiagnosticTools {
 
     @Inject
     KafkaClusterDiagnosticService clusterDiagnosticService;
 
-    @Tool(name = "diagnose_kafka_cluster", description = "...")
+    @Tool(
+        name = "diagnose_kafka_cluster",
+        description = "..."
+    )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class }
+    )
     public KafkaClusterDiagnosticReport diagnoseKafkaCluster(
         @ToolArg(description = StrimziToolsPrompts.CLUSTER_DESC) final String clusterName,
         @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
@@ -542,7 +572,7 @@ Diagnostic and comparison tools support both stateful (SSE) and stateless (strea
 **Key patterns:**
 - **Transport detection is centralized** in `DiagnosticHelper.analysisSamplingMrtr()` (for analysis) and `NamespaceElicitationHelper.elicitNamespaceMrtr()` (for namespace disambiguation). Services call `BaseDiagnosticService.performAnalysisMrtr(...)` or `elicitNamespaceMrtr(...)` — they never branch on transport type themselves.
 - **Triage is stateful-only** (SSE). It is a token/scope optimization; stateless clients skip triage (guarded in `BaseDiagnosticService.performTriage` on `isServerInitiatedRequestSupported()`) and run analysis over all gathered data. Note `Sampling.isSupported()` reflects the client's *capability* and is `true` even for stateless clients, so the skip must key off `isServerInitiatedRequestSupported()`, not `isSupported()`.
-- **`InputRequiredException` MUST propagate uncaught AND unwrapped** to the framework (it is converted to an `input_required` JSON-RPC result). Every interceptor and `catch` between the service and the framework must pass it through: it is excluded from `@WrapBusinessError(unless = ...)` on `DiagnosticTools`, explicitly rethrown ahead of the generic `catch (Exception)` in `DiagnosticHelper.sendSampling`/`analysisSamplingMrtr`, and passed through unwrapped by `GuardrailInterceptor` (which otherwise wraps generic exceptions in `ToolCallException`, defeating MRTR). Any new tool interceptor or `catch (Exception)` on the diagnostic path must do the same — treat `InputRequiredException` exactly like `McpException`.
+- **`InputRequiredException` MUST propagate uncaught AND unwrapped** to the framework (it is converted to an `input_required` JSON-RPC result). Every `catch` between the service and the framework must pass it through: it is excluded from `@WrapBusinessError(unless = ...)` on `DiagnosticTools` and explicitly rethrown ahead of the generic `catch (Exception)` in `DiagnosticHelper.sendSampling`/`analysisSamplingMrtr`. Any new `catch (Exception)` on the diagnostic path must do the same — treat `InputRequiredException` exactly like `McpException`.
 - **`requestState` carries the resolved namespace** across round-trips because `InputResponses` does not accumulate. Pass the gathered resource's resolved namespace as the `String requestState` argument when calling `performAnalysisMrtr`. When the primary elicited resource has no namespace accessor (e.g. `KafkaTopicResponse`), thread the namespace that resolved the gather out to the caller (see `KafkaTopicDiagnosticService.TopicStatusResult`) rather than falling back to a nullable secondary resource.
 - **Namespace disambiguation:** The 9 single-namespace diagnostic tools use MRTR elicitation (`elicitNamespaceMrtr`) when the namespace is ambiguous. `compare_kafka_clusters` (two namespaces) uses the structured-error fallback (#229) instead — stateless clients re-call with explicit `namespace1`/`namespace2`.
 
@@ -702,12 +732,12 @@ Errors fall into two client-visible shapes:
 
 - **Structured JSON-RPC errors** (carry machine-readable `error.data`, i.e. `McpErrorData`) — build these with the
   `McpErrors` factory (`common/.../util/McpErrors.java`). They propagate unwrapped through `@WrapBusinessError`
-  (which excludes `McpException`) and the `GuardrailInterceptor`. Use for:
+  (which excludes `McpException`). Use for:
   - Missing/invalid params: `throw McpErrors.invalidParams("Cluster name is required")` → code `-32602`, category `INVALID_PARAMS`
   - Resource not found: `throw McpErrors.notFound("Kafka cluster", name, namespace)` → code `-32002`, category `RESOURCE_NOT_FOUND` (pass `namespace = null` for all-namespace searches; `name = null` when there is no single name)
   - Multiple matches: `throw McpErrors.ambiguous("Kafka cluster", name, candidateNamespaces)` → code `-32602`, category `AMBIGUOUS` (candidates carried in `error.data.candidates`)
 - **Failed tool responses** (`isError: true`, text only) — plain `ToolCallException`. Use for errors the LLM
-  should reason over as tool output rather than protocol failures: rate-limit (`RateLimitFilter`) and cancellation
+  should reason over as tool output rather than protocol failures: rate-limit (from the rate-limit guardrails) and cancellation
   (`DiagnosticHelper`). `@WrapBusinessError` also wraps any uncaught infrastructure exception into this shape —
   notably `KubernetesResourceService` wraps Kubernetes failures (including **RBAC/403**) in `KubernetesQueryException`
   with a contextual message, which surfaces as a failed tool response and lets tools do graceful degradation.

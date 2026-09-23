@@ -41,18 +41,19 @@ Scan the changed files and classify into categories. This guides which checks ap
 - [ ] DTOs are immutable `record` types with `@JsonProperty` + `@JsonInclude(NON_NULL)`.
 - [ ] DTO construction uses static factory methods (`of()`, `empty()`) — not `new` directly in callers.
 - [ ] Metrics queries go through `MetricsQueryService`, never via direct `MetricsProvider` injection in domain services.
-- [ ] Diagnostic services extend `BaseDiagnosticService`; all tool classes use `@Guarded`.
+- [ ] Diagnostic services extend `BaseDiagnosticService`; all tool classes use `@MeasuredTool` (class level) and every `@Tool` method declares `@ToolGuardrails`.
 - [ ] Resource templates use `StrimziConstants.ResourceUris.*` — no hardcoded URI strings.
 - [ ] Completions delegate to `CompletionService` or `CompletionHelper` — no logic inline.
 
 ### 2.2 — Tool Pattern (category: Tool)
 
-- [ ] Class annotated `@Singleton`, `@WrapBusinessError(value = Exception.class, unless = {ToolCallException.class, McpException.class})`.
+- [ ] Class annotated `@Singleton`, `@MeasuredTool`, `@WrapBusinessError(value = Exception.class, unless = {ToolCallException.class, McpException.class})`.
 - [ ] Package-private no-arg constructor present for CDI.
 - [ ] Every tool method has `@WithSpan("tool.<tool_name>")` matching the `@Tool(name = ...)` value.
 - [ ] Every tool method has `@MetaField` annotations for `type` (from `ToolMetaFields`) and `resource` (from `StrimziToolResources`).
 - [ ] Composite tools have `@MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)`.
 - [ ] Tool annotations nested: `@Tool(... annotations = @Tool.Annotations(readOnlyHint = true, destructiveHint = false, idempotentHint = true, openWorldHint = false))`.
+- [ ] Every `@Tool` method declares `@ToolGuardrails(input = { <RateLimit>Guardrail.class, ArgumentSanitizationGuardrail.class }, output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })` with the correct rate-limit class: `GeneralRateLimitGuardrail` (default), `LogRateLimitGuardrail` (`get_*_logs`), or `MetricsRateLimitGuardrail` (`get_*_metrics`).
 - [ ] Tool description: 1-2 sentences, no filler phrases ("Perfect for...", "Use this to..."), states what it returns.
 - [ ] Tool name is `snake_case` following the `verb_resource` pattern.
 - [ ] Namespace parameter is `@ToolArg(required = false)`.
@@ -134,6 +135,7 @@ Scan the changed files and classify into categories. This guides which checks ap
 ### 2.10 — Tests (category: Tests or any new tool/service)
 
 - [ ] New tools have their name added to `McpDiscoveryTest.testToolDiscovery()` (in `strimzi-mcp/src/test/.../tool/`).
+- [ ] `ToolGuardrailsEnforcementTest.EXPECTED_TOOL_METHOD_COUNT` bumped for the new tool, and its `@ToolGuardrails` palette + class-level `@MeasuredTool` pass the enforcement checks.
 - [ ] New services have a corresponding unit test class.
 - [ ] Test names follow pattern `testDescriptiveName` in camelCase (e.g., `testListClustersReturnsEmptyWhenNoneExist`).
 - [ ] System tests call `assertToolSuccess()` / `assertToolError()` from `AbstractST` — not bare `assertFalse(isError())`.
