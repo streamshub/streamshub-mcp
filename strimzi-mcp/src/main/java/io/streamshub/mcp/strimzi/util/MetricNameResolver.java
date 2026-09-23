@@ -5,6 +5,7 @@
 package io.streamshub.mcp.strimzi.util;
 
 import io.streamshub.mcp.common.util.McpErrors;
+import io.streamshub.mcp.common.util.metrics.MetricNameSuffixes;
 import io.streamshub.mcp.metrics.prometheus.util.PromQLSanitizer;
 import org.jboss.logging.Logger;
 
@@ -35,12 +36,6 @@ public final class MetricNameResolver {
 
     /** Appended to an {@link #UNMAPPED} name in interpretation text — see {@code alignInterpretation}. */
     private static final String UNAVAILABLE_NOTE = " (not exposed by the Strimzi Metrics Reporter)";
-
-    /** Counter suffix renamed by the Prometheus provider; kept in sync with {@code PrometheusMetricsProvider}. */
-    private static final String TOTAL_SUFFIX = "_total";
-
-    /** What the Prometheus provider renames {@link #TOTAL_SUFFIX} to once rate-converted. */
-    private static final String RATE_SUFFIX = "_rate_per_second";
 
     private static final Logger LOG = Logger.getLogger(MetricNameResolver.class);
 
@@ -206,9 +201,9 @@ public final class MetricNameResolver {
         // rather than re-deciding here which names are counters.
         Map<String, String> rateNames = new LinkedHashMap<>();
         for (String name : returnedNames) {
-            if (name.endsWith(RATE_SUFFIX)) {
-                rateNames.put(name.substring(0, name.length() - RATE_SUFFIX.length())
-                    + TOTAL_SUFFIX, name);
+            String preRename = MetricNameSuffixes.toTotal(name);
+            if (preRename != null) {
+                rateNames.put(preRename, name);
             }
         }
         return rewriteNames(aligned, rateNames);

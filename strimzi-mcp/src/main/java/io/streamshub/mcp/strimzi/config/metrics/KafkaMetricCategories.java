@@ -143,7 +143,7 @@ public final class KafkaMetricCategories {
             "kafka_server_brokertopicmetrics_messagesin_total: Cumulative messages received. "
                 + "Rate of change = messages/sec. Sudden drops = producer issues.\n"
                 + "kafka_server_brokertopicmetrics_bytesin_total: Cumulative bytes received. "
-                + "Compare across brokers — large imbalance = hot partitions.\n"
+                + "Request aggregation=broker to compare brokers — large imbalance = hot partitions.\n"
                 + "kafka_server_brokertopicmetrics_bytesout_total: Cumulative bytes sent to consumers. "
                 + "bytesout >> bytesin can indicate replication or high consumer fan-out.\n"
                 + "kafka_server_brokertopicmetrics_totalproducerequests_total: Total produce requests. "
@@ -154,7 +154,12 @@ public final class KafkaMetricCategories {
                 + "Rate of failed produce attempts. >0 indicates producer-side authentication, authorization, or format errors.\n"
                 + "kafka_server_brokertopicmetrics_failedfetchrequests_total: Failed fetch requests per second (under Prometheus). "
                 + "Rate of failed fetch attempts. >0 indicates consumer-side errors or invalid offsets.\n"
-                + "kafka_server_socket_server_metrics_connection_count: Current active socket connection count per listener and network processor.",
+                + "kafka_server_socket_server_metrics_connection_count: Current active socket connection count per listener and network processor.\n\n"
+                + "**[AGGREGATION]** These are cluster totals, summed across brokers — each series "
+                + "carries `aggregation_fn` = \"sum\". Kafka publishes each of them per topic *and* as a "
+                + "broker-wide roll-up; at the default level only the roll-up is used. Request "
+                + "aggregation=topic for a per-topic breakdown — that response also carries one row "
+                + "with no `topic` label, which is the total of the others, so do not sum the rows.",
         RESOURCES,
             MetricsDescriptions.jvmDescription("get_kafka_cluster_pods",
                 "performance degradation or pod restarts"),

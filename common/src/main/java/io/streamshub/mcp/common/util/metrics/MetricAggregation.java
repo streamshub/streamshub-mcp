@@ -22,7 +22,14 @@ import java.util.stream.DoubleStream;
  * <p>Only metrics where averaging changes the answer a client would act on are listed
  * here. Metrics whose interpretation is explicitly per-broker — {@code leadercount},
  * {@code partitioncount}, both documented as "should be roughly equal across brokers" —
- * stay on {@link #AVG} on purpose.</p>
+ * stay on {@link #AVG} on purpose, as do latency and {@code *_avg}/{@code *_max} metrics
+ * and the JVM/process resource block.</p>
+ *
+ * <p>The table covers every component whose samples can actually collapse. Strimzi operator
+ * metrics carry {@code kind} and {@code namespace}, and most Bridge metrics carry
+ * {@code clientId}, and those labels survive every aggregation level — so their series never
+ * share a group and the function is moot. Bridge entries exist for the {@code replicas > 1}
+ * case, where the same {@code clientId} appears on every pod.</p>
  */
 public enum MetricAggregation {
 
@@ -35,29 +42,104 @@ public enum MetricAggregation {
     /** Largest across source series — for metrics that are already a maximum. */
     MAX;
 
-    private static final Map<String, MetricAggregation> BY_METRIC = Map.of(
+    private static final Map<String, MetricAggregation> BY_METRIC = Map.ofEntries(
+        // --- Kafka broker: replication ---
         // "Should be exactly 1" — the average across N controllers can never be 1.
-        "kafka_controller_kafkacontroller_activecontrollercount", SUM,
+        Map.entry("kafka_controller_kafkacontroller_activecontrollercount", SUM),
         // Only the active controller reports a real value; standbys report 0.
-        "kafka_controller_kafkacontroller_offlinepartitionscount", MAX,
+        Map.entry("kafka_controller_kafkacontroller_offlinepartitionscount", MAX),
         // Cluster-wide partition counts: "3 under-replicated" must not read as 0.5.
-        "kafka_server_replicamanager_underreplicatedpartitions", SUM,
-        "kafka_server_replicamanager_offlinereplicacount", SUM,
+        Map.entry("kafka_server_replicamanager_underreplicatedpartitions", SUM),
+        Map.entry("kafka_server_replicamanager_offlinereplicacount", SUM),
         // Already a maximum; averaging maxima understates the worst case.
-        "kafka_server_replicafetchermanager_maxlag", MAX,
+        Map.entry("kafka_server_replicafetchermanager_maxlag", MAX),
         // Per-partition 0/1 health flags: the count of bad partitions, not their mean.
-        "kafka_cluster_partition_underminisr", SUM,
-        "kafka_cluster_partition_atminisr", SUM
+        Map.entry("kafka_cluster_partition_underminisr", SUM),
+        Map.entry("kafka_cluster_partition_atminisr", SUM),
+
+        // --- Kafka broker: throughput ---
+        // Cluster ingress/egress is the total across brokers, not one broker's share. Listed
+        // under both spellings because every one of these is aliased on the Strimzi Metrics
+        // Reporter; the shared rate-suffix fallback in forMetric covers the other rename.
+        Map.entry("kafka_server_brokertopicmetrics_messagesin_total", SUM),
+        Map.entry("kafka_server_brokertopicmetrics_messagesinpersec_total", SUM),
+        Map.entry("kafka_server_brokertopicmetrics_bytesin_total", SUM),
+        Map.entry("kafka_server_brokertopicmetrics_bytesinpersec_total", SUM),
+        Map.entry("kafka_server_brokertopicmetrics_bytesout_total", SUM),
+        Map.entry("kafka_server_brokertopicmetrics_bytesoutpersec_total", SUM),
+        Map.entry("kafka_server_brokertopicmetrics_totalproducerequests_total", SUM),
+        Map.entry("kafka_server_brokertopicmetrics_totalproducerequestspersec_total", SUM),
+        Map.entry("kafka_server_brokertopicmetrics_totalfetchrequests_total", SUM),
+        Map.entry("kafka_server_brokertopicmetrics_totalfetchrequestspersec_total", SUM),
+        Map.entry("kafka_server_brokertopicmetrics_failedproducerequests_total", SUM),
+        Map.entry("kafka_server_brokertopicmetrics_failedproducerequestspersec_total", SUM),
+        Map.entry("kafka_server_brokertopicmetrics_failedfetchrequests_total", SUM),
+        Map.entry("kafka_server_brokertopicmetrics_failedfetchrequestspersec_total", SUM),
+        // Spelled the same on both backends.
+        Map.entry("kafka_server_socket_server_metrics_connection_count", SUM),
+
+        // --- Kafka Connect: worker ---
+        // Worker-level MBeans counting what runs on *this* worker. The category is pinned to
+        // CLUSTER, so the pod label is always stripped and a multi-worker cluster would report
+        // the mean per worker where the caller reads a cluster count.
+        Map.entry("kafka_connect_worker_connector_count", SUM),
+        Map.entry("kafka_connect_worker_task_count", SUM),
+        Map.entry("kafka_connect_worker_connector_startup_failure_total", SUM),
+        Map.entry("kafka_connect_worker_connector_startup_success_total", SUM),
+        Map.entry("kafka_connect_worker_task_startup_failure_total", SUM),
+        Map.entry("kafka_connect_worker_task_startup_success_total", SUM),
+
+        // --- Kafka Exporter: consumer lag ---
+        // Total messages a group is behind. The category defaults to PARTITION, so this only
+        // applies when a caller explicitly asks for a coarser level — where the mean lag per
+        // partition is not the number anyone means by "consumer lag".
+        Map.entry("kafka_consumergroup_lag", SUM),
+
+        // --- Kafka Bridge ---
+        // Bites at replicas > 1: clientId is identical on every replica, so the series do
+        // collapse and additive counters would be averaged across pods.
+        Map.entry("strimzi_bridge_http_server_active_connections", SUM),
+        Map.entry("strimzi_bridge_http_server_active_requests", SUM),
+        Map.entry("strimzi_bridge_http_server_requests_total", SUM),
+        // Micrometer summary triple: count and sum are additive, max is already a maximum.
+        Map.entry("strimzi_bridge_http_server_request_bytes_count", SUM),
+        Map.entry("strimzi_bridge_http_server_request_bytes_sum", SUM),
+        Map.entry("strimzi_bridge_http_server_request_bytes_max", MAX),
+        Map.entry("strimzi_bridge_http_server_response_bytes_count", SUM),
+        Map.entry("strimzi_bridge_http_server_response_bytes_sum", SUM),
+        Map.entry("strimzi_bridge_http_server_response_bytes_max", MAX),
+        Map.entry("strimzi_bridge_kafka_producer_record_send_total", SUM),
+        Map.entry("strimzi_bridge_kafka_producer_record_send_rate", SUM),
+        Map.entry("strimzi_bridge_kafka_producer_record_error_total", SUM),
+        Map.entry("strimzi_bridge_kafka_producer_record_error_rate", SUM),
+        Map.entry("strimzi_bridge_kafka_producer_byte_total", SUM),
+        Map.entry("strimzi_bridge_kafka_consumer_records_consumed_total", SUM),
+        Map.entry("strimzi_bridge_kafka_consumer_records_consumed_rate", SUM),
+        Map.entry("strimzi_bridge_kafka_consumer_bytes_consumed_total", SUM),
+        Map.entry("strimzi_bridge_kafka_consumer_bytes_consumed_rate", SUM),
+        Map.entry("strimzi_bridge_kafka_consumer_fetch_total", SUM),
+        Map.entry("strimzi_bridge_kafka_consumer_fetch_rate", SUM)
     );
 
     /**
      * Returns the aggregation function for a metric, defaulting to {@link #AVG}.
      *
-     * @param metricName the Prometheus metric name
+     * <p>The table is written in catalog spelling, but this is called with the name as it
+     * appears in the response — and the Prometheus provider renames rate-converted counters
+     * from {@code _total} to {@code _rate_per_second} on the way out. An exact miss therefore
+     * retries under the counter's pre-rename name, otherwise every counter entry above would
+     * be dead.</p>
+     *
+     * @param metricName the Prometheus metric name as it appears in the response
      * @return the function to combine source series for this metric
      */
     public static MetricAggregation forMetric(final String metricName) {
-        return BY_METRIC.getOrDefault(metricName, AVG);
+        MetricAggregation exact = BY_METRIC.get(metricName);
+        if (exact != null) {
+            return exact;
+        }
+        String preRename = MetricNameSuffixes.toTotal(metricName);
+        return preRename == null ? AVG : BY_METRIC.getOrDefault(preRename, AVG);
     }
 
     /**

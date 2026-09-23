@@ -109,6 +109,26 @@ public final class MetricLabelFilter {
         return deduplicateByValue(filtered);
     }
 
+    /**
+     * Returns the dimension labels this level aggregates over, for callers that need to know
+     * <em>which</em> dimension a group was collapsed on rather than just the resulting labels.
+     *
+     * <p>Only {@code topic} and {@code partition} are reported. Pod identity is excluded
+     * deliberately: every scraped sample carries a pod label, so a group can never be split on
+     * it, and reporting it would only invite callers to special-case something that never
+     * varies.</p>
+     *
+     * @param level the aggregation level
+     * @return the topic/partition labels stripped at this level; empty at PARTITION level
+     */
+    public static Set<String> strippedDimensions(final AggregationLevel level) {
+        return switch (level) {
+            case PARTITION -> Set.of();
+            case TOPIC -> PARTITION_LABELS;
+            case BROKER, CLUSTER -> TOPIC_PARTITION_LABELS;
+        };
+    }
+
     static Map<String, String> deduplicateByValue(final Map<String, String> labels) {
         if (labels == null || labels.size() <= 1) {
             return labels == null ? Map.of() : labels;

@@ -1595,17 +1595,11 @@ strimzi_resources
 #   port at all and KafkaConnectMetricCategories cannot be verified here. Add a
 #   metricsConfig to the MM2 manifest, re-scrape, then move these up.
 #
-# The remaining four are suspected wrong names — the scrapes show a differently
-# spelled series with the same purpose:
-#   strimzi_bridge_http_server_requestCount_total -> observed: ..._requests_total
-#   strimzi_bridge_http_server_request_size_bytes -> observed:
-#       ..._request_bytes_count / _sum / _max
-#   strimzi_bridge_http_server_response_size_bytes -> observed:
-#       ..._response_bytes_count / _sum / _max
-#   strimzi_resource_state -> not present; the operator exposes strimzi_resources
-#       (a count per kind), which is NOT the same metric (per-resource readiness).
-#   kafka_consumergroup_lag_seconds -> not present; the exporter exposes
-#       kafka_consumergroup_lag, which is in messages, NOT seconds.
+# strimzi_resource_state is version drift, not a wrong name: added by
+#   strimzi-kafka-operator #3652 and removed as deprecated by #13025, first absent
+#   in the 1.2.0 release — which is what this cluster runs. Deliberately kept in
+#   StrimziOperatorMetricCategories for clusters still on 1.1.x, and listed here so
+#   the golden check stays green. Remove both once 1.1.x is out of support.
 # jvm_classes_loaded is golden-file-only (no catalog references it); the real
 #   names are jvm_classes_currently_loaded and jvm_classes_loaded_total.
 # ------------------------------------------------------------------
@@ -1628,8 +1622,4 @@ kafka_connect_worker_connector_startup_success_total
 kafka_connect_worker_task_count
 kafka_connect_worker_task_startup_failure_total
 kafka_connect_worker_task_startup_success_total
-kafka_consumergroup_lag_seconds
-strimzi_bridge_http_server_requestCount_total
-strimzi_bridge_http_server_request_size_bytes
-strimzi_bridge_http_server_response_size_bytes
 strimzi_resource_state
