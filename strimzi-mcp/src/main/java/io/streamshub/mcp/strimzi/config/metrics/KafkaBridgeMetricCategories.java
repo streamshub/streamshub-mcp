@@ -40,9 +40,13 @@ public final class KafkaBridgeMetricCategories {
 
     private static final Map<String, List<String>> CATEGORIES = Map.of(
         HTTP, List.of(
-            "strimzi_bridge_http_server_requestCount_total",
-            "strimzi_bridge_http_server_request_size_bytes",
-            "strimzi_bridge_http_server_response_size_bytes",
+            "strimzi_bridge_http_server_requests_total",
+            "strimzi_bridge_http_server_request_bytes_count",
+            "strimzi_bridge_http_server_request_bytes_sum",
+            "strimzi_bridge_http_server_request_bytes_max",
+            "strimzi_bridge_http_server_response_bytes_count",
+            "strimzi_bridge_http_server_response_bytes_sum",
+            "strimzi_bridge_http_server_response_bytes_max",
             "strimzi_bridge_http_server_active_connections",
             "strimzi_bridge_http_server_active_requests"
         ),
@@ -79,14 +83,18 @@ public final class KafkaBridgeMetricCategories {
     private static final Map<String, String> DESCRIPTIONS = Map.of(
         HTTP,
             "**[HIGH - HTTP REQUEST METRICS]**\n\n"
-                + "strimzi_bridge_http_server_requestCount_total: Total HTTP requests handled by the bridge. "
+                + "strimzi_bridge_http_server_requests_total: Total HTTP requests handled by the bridge. "
                 + "Rate of change = throughput. Sudden drops may indicate connectivity issues.\n\n"
                 + "strimzi_bridge_http_server_active_connections: Current active HTTP connections. "
                 + "Sustained high values may indicate connection leaks or slow consumers.\n\n"
                 + "strimzi_bridge_http_server_active_requests: In-flight HTTP requests. "
                 + "High values indicate the bridge is under heavy load or Kafka is slow to respond.\n\n"
-                + "strimzi_bridge_http_server_request_size_bytes / strimzi_bridge_http_server_response_size_bytes: "
-                + "Request and response payload sizes. Monitor for unusually large messages.",
+                + "strimzi_bridge_http_server_request_bytes_count / strimzi_bridge_http_server_request_bytes_sum "
+                + "/ strimzi_bridge_http_server_request_bytes_max, and the matching "
+                + "strimzi_bridge_http_server_response_bytes_count / strimzi_bridge_http_server_response_bytes_sum "
+                + "/ strimzi_bridge_http_server_response_bytes_max: Payload size summaries. "
+                + "Divide sum by count for the average payload size; max is the largest single payload "
+                + "observed — watch it for unusually large messages.",
         PRODUCER,
             "**[HIGH - PRODUCER METRICS]**\n\n"
                 + "strimzi_bridge_kafka_producer_record_send_total / strimzi_bridge_kafka_producer_record_send_rate: "

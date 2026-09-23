@@ -246,6 +246,119 @@ class AggregatedTimeSeriesTest {
         assertNull(result.getFirst().aggregationFn());
     }
 
+    // ---------------------------------------------------------------
+    // Roll-up preference — a total must not be averaged with its own parts
+    // ---------------------------------------------------------------
+
+    /**
+     * Kafka publishes BrokerTopicMetrics per topic <em>and</em> as a broker-wide roll-up with no
+     * {@code topic} label. Stripping {@code topic} gives them one group key, so without the
+     * roll-up preference the result is the mean of a total and its own constituents.
+     */
+    @Test
+    void rollUpWinsOverPerTopicPartsWhenTopicIsStripped() {
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_server_brokertopicmetrics_bytesin_rate_per_second",
+                Map.of("pod", "b-0"), 700.0),
+            MetricSample.of("kafka_server_brokertopicmetrics_bytesin_rate_per_second",
+                Map.of("pod", "b-0", "topic", "t1"), 500.0),
+            MetricSample.of("kafka_server_brokertopicmetrics_bytesin_rate_per_second",
+                Map.of("pod", "b-0", "topic", "t2"), 200.0)
+        );
+
+        List<AggregatedTimeSeries> result =
+            AggregatedTimeSeries.fromSamples(samples, AggregationLevel.BROKER);
+
+        assertEquals(1, result.size());
+        assertEquals(700.0, result.getFirst().summary().latest(), 0.001,
+            "only the broker roll-up may feed the value, not the mean of 700/500/200");
+        assertEquals(1, result.getFirst().sourceCount(),
+            "source_count must report the one real source series, not all three");
+    }
+
+    /**
+     * The throughput payoff: roll-ups are picked per broker, then summed into a cluster total.
+     */
+    @Test
+    void rollUpsAreSummedAcrossBrokersAtClusterLevel() {
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_server_brokertopicmetrics_bytesin_rate_per_second",
+                Map.of("pod", "b-0"), 700.0),
+            MetricSample.of("kafka_server_brokertopicmetrics_bytesin_rate_per_second",
+                Map.of("pod", "b-0", "topic", "t1"), 700.0),
+            MetricSample.of("kafka_server_brokertopicmetrics_bytesin_rate_per_second",
+                Map.of("pod", "b-1"), 300.0),
+            MetricSample.of("kafka_server_brokertopicmetrics_bytesin_rate_per_second",
+                Map.of("pod", "b-1", "topic", "t1"), 300.0)
+        );
+
+        List<AggregatedTimeSeries> result =
+            AggregatedTimeSeries.fromSamples(samples, AggregationLevel.CLUSTER);
+
+        assertEquals(1, result.size());
+        assertEquals(1000.0, result.getFirst().summary().latest(), 0.001);
+        assertEquals("sum", result.getFirst().aggregationFn());
+    }
+
+    /**
+     * Every scraped sample carries a pod label, so a group never splits on it and the roll-up
+     * rule must leave ordinary cross-pod aggregation completely alone.
+     */
+    @Test
+    void groupWhereNoSampleCarriesTheStrippedLabelIsUntouched() {
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_server_replicamanager_leadercount", Map.of("pod", "b-0"), 10.0),
+            MetricSample.of("kafka_server_replicamanager_leadercount", Map.of("pod", "b-1"), 20.0),
+            MetricSample.of("kafka_server_replicamanager_leadercount", Map.of("pod", "b-2"), 30.0)
+        );
+
+        List<AggregatedTimeSeries> result =
+            AggregatedTimeSeries.fromSamples(samples, AggregationLevel.CLUSTER);
+
+        assertEquals(20.0, result.getFirst().summary().latest(), 0.001);
+        assertEquals(3, result.getFirst().sourceCount(), "all three pods must still feed the mean");
+    }
+
+    /**
+     * A metric with no roll-up sibling — the ordinary case — keeps averaging all its parts.
+     */
+    @Test
+    void groupWhereEverySampleCarriesTheStrippedLabelIsUntouched() {
+        List<MetricSample> samples = List.of(
+            MetricSample.of("m", Map.of("pod", "b-0", "topic", "t1"), 10.0),
+            MetricSample.of("m", Map.of("pod", "b-0", "topic", "t2"), 20.0)
+        );
+
+        List<AggregatedTimeSeries> result =
+            AggregatedTimeSeries.fromSamples(samples, AggregationLevel.BROKER);
+
+        assertEquals(15.0, result.getFirst().summary().latest(), 0.001);
+        assertEquals(2, result.getFirst().sourceCount());
+    }
+
+    /**
+     * At TOPIC level the {@code topic} label survives, so the roll-up lands in its own group and
+     * is returned as an extra row rather than replacing the per-topic breakdown.
+     */
+    @Test
+    void topicLevelKeepsPartsAndReturnsTheRollUpAsItsOwnSeries() {
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_server_brokertopicmetrics_bytesin_rate_per_second",
+                Map.of("pod", "b-0"), 700.0),
+            MetricSample.of("kafka_server_brokertopicmetrics_bytesin_rate_per_second",
+                Map.of("pod", "b-0", "topic", "t1"), 500.0),
+            MetricSample.of("kafka_server_brokertopicmetrics_bytesin_rate_per_second",
+                Map.of("pod", "b-0", "topic", "t2"), 200.0)
+        );
+
+        List<AggregatedTimeSeries> result =
+            AggregatedTimeSeries.fromSamples(samples, AggregationLevel.TOPIC);
+
+        assertEquals(3, result.size());
+        assertEquals(1, result.stream().filter(s -> !s.labels().containsKey("topic")).count(),
+            "the roll-up must survive as exactly one un-topiced row");
+    }
+
     @Test
     void differentMetricNamesProduceSeparateSeries() {
         List<MetricSample> samples = List.of(

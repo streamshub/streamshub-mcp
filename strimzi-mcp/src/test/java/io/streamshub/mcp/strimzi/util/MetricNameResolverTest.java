@@ -5,6 +5,7 @@
 package io.streamshub.mcp.strimzi.util;
 
 import io.quarkiverse.mcp.server.McpException;
+import io.streamshub.mcp.common.util.metrics.MetricAggregation;
 import io.streamshub.mcp.strimzi.config.metrics.KafkaMetricCategories;
 import org.junit.jupiter.api.Test;
 
@@ -248,6 +249,31 @@ class MetricNameResolverTest {
         overlap.retainAll(IDENTICAL_ON_SMR);
         assertTrue(overlap.isEmpty(),
             "A name cannot be both aliased and identical under SMR: " + overlap);
+    }
+
+    /**
+     * {@code MetricAggregation} is keyed in JMX catalog spelling, but it is consulted with the
+     * name in the response — which on an SMR cluster is the alias. A non-default aggregation
+     * would then silently degrade to the mean on SMR only, the hardest kind of bug to notice.
+     * The rate rename is absorbed by {@code forMetric} itself; the alias cannot be, because the
+     * alias map lives in this module and the table lives in {@code common}. So enforce the
+     * pairing here.
+     */
+    @Test
+    void everyAliasedMetricWithANonDefaultAggregationCoversItsSmrSpelling() {
+        Set<String> missing = new TreeSet<>();
+        KafkaMetricCategories.aliasMap().forEach((jmxName, smrName) -> {
+            if (MetricNameResolver.UNMAPPED.equals(smrName)) {
+                return;
+            }
+            MetricAggregation jmxFn = MetricAggregation.forMetric(jmxName);
+            if (jmxFn != MetricAggregation.AVG && MetricAggregation.forMetric(smrName) != jmxFn) {
+                missing.add(smrName + " (should be " + jmxFn + ", like " + jmxName + ")");
+            }
+        });
+        assertTrue(missing.isEmpty(),
+            "SMR aliases missing from MetricAggregation — add them or the metric averages on "
+            + "SMR clusters while summing on JMX ones: " + missing);
     }
 
     // ---------------------------------------------------------------

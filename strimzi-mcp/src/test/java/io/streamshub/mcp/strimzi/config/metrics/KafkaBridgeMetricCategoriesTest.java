@@ -27,7 +27,7 @@ class KafkaBridgeMetricCategoriesTest {
     void resolveValidCategoryReturnsMetrics() {
         List<String> metrics = KafkaBridgeMetricCategories.resolve("http");
         assertFalse(metrics.isEmpty());
-        assertTrue(metrics.contains("strimzi_bridge_http_server_requestCount_total"));
+        assertTrue(metrics.contains("strimzi_bridge_http_server_requests_total"));
     }
 
     @Test
@@ -71,7 +71,7 @@ class KafkaBridgeMetricCategoriesTest {
     void interpretationWithValidCategoryReturnsGuide() {
         String interpretation = KafkaBridgeMetricCategories.interpretation(List.of("http"));
         assertNotNull(interpretation);
-        assertTrue(interpretation.contains("strimzi_bridge_http_server_requestCount_total"));
+        assertTrue(interpretation.contains("strimzi_bridge_http_server_requests_total"));
     }
 
     @Test

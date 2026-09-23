@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 public final class KafkaExporterMetricCategories {
 
     /**
-     * Consumer group lag category (offset, lag, lag seconds).
+     * Consumer group lag category (committed offset and lag in messages).
      */
     public static final String CONSUMER_LAG = "consumer_lag";
 
@@ -36,8 +36,7 @@ public final class KafkaExporterMetricCategories {
     private static final Map<String, List<String>> CATEGORIES = Map.of(
         CONSUMER_LAG, List.of(
             "kafka_consumergroup_current_offset",
-            "kafka_consumergroup_lag",
-            "kafka_consumergroup_lag_seconds"
+            "kafka_consumergroup_lag"
         ),
         PARTITIONS, List.of(
             "kafka_topic_partitions",
@@ -62,8 +61,9 @@ public final class KafkaExporterMetricCategories {
                 + "**THRESHOLDS**: 0 = fully caught up, <1000 = healthy, 1000-10000 = monitor, "
                 + ">10000 = consumers falling behind (scale consumers or investigate slowness). "
                 + "Sustained growth = consumers cannot keep up with producer throughput.\n\n"
-                + "kafka_consumergroup_lag_seconds: Estimated time in seconds for the consumer group "
-                + "to catch up. >60s = significant delay, >300s = investigate consumer health.\n\n"
+                + "The unit is messages, not time — the exporter does not publish a "
+                + "seconds-to-catch-up metric. To estimate catch-up time, divide the lag by the "
+                + "group's consumption rate derived from kafka_consumergroup_current_offset.\n\n"
                 + "kafka_consumergroup_current_offset: Current committed offset per consumer group/partition. "
                 + "Stalled offset = consumer is stuck or dead. Compare with partition end offset to calculate lag.",
         PARTITIONS,

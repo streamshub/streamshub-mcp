@@ -44,6 +44,7 @@ public final class StrimziOperatorMetricCategories {
         ),
         RESOURCES, List.of(
             "strimzi_resources",
+            // Removed from the operator in Strimzi 1.2.0; kept for clusters still on 1.1.x.
             "strimzi_resource_state",
             "strimzi_certificate_expiration_timestamp_ms"
         ),
@@ -89,7 +90,10 @@ public final class StrimziOperatorMetricCategories {
                 + "strimzi_resource_state: Health state of each managed resource. "
                 + "1 = healthy/ready, 0 = unhealthy/not ready. "
                 + "**IMMEDIATE ACTION**: Any value != 1 indicates a resource that needs attention. "
-                + "Check resource status with get_kafka_cluster or get_kafka_topics.\n\n"
+                + "Check resource status with get_kafka_cluster or get_kafka_topics. "
+                + "**DEPRECATED**: removed from the Strimzi operator in 1.2.0, so it is absent on "
+                + "1.2.0 and later — its absence is expected there, not a fault. Fall back to the "
+                + "resource's own status condition via get_kafka_cluster.\n\n"
                 + "**[MEDIUM - CERTIFICATE LIFECYCLE]**\n\n"
                 + "strimzi_certificate_expiration_timestamp_ms: Epoch milliseconds until which Strimzi-managed "
                 + "certificates are valid. Declining values = certificates approaching expiry. "

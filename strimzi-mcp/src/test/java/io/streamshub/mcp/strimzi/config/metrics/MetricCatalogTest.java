@@ -51,6 +51,14 @@ class MetricCatalogTest {
     private static final Set<String> TOOL_NAME_PREFIXES = Set.of("get_", "list_", "diagnose_", "compare_", "assess_");
 
     /**
+     * Response field names a description may legitimately point the client at. They are
+     * snake_case like a metric name, but they name part of the response envelope rather than a
+     * series, so the backward check must not demand a catalog entry for them.
+     */
+    private static final Set<String> RESPONSE_FIELDS = Set.of(
+        "aggregation_fn", "source_count", "data_points");
+
+    /**
      * Forbidden metric names per backend, per the §4.9 finding.
      * A name in the forbidden set for a class means the class uses a different backend.
      */
@@ -163,7 +171,7 @@ class MetricCatalogTest {
                 if (TOOL_NAME_PREFIXES.stream().anyMatch(match::startsWith)) {
                     continue;
                 }
-                if (!match.contains("_")) {
+                if (!match.contains("_") || RESPONSE_FIELDS.contains(match)) {
                     continue;
                 }
                 extracted.add(match);

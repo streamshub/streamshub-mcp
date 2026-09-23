@@ -89,7 +89,7 @@ public record AggregatedTimeSeries(
         List<AggregatedTimeSeries> result = new ArrayList<>();
 
         for (Map.Entry<String, List<MetricSample>> entry : groups.entrySet()) {
-            List<MetricSample> groupSamples = entry.getValue();
+            List<MetricSample> groupSamples = preferRollUp(entry.getValue(), level);
             Map<String, String> labels = groupLabels.get(entry.getKey());
             String metricName = groupSamples.getFirst().name();
 
@@ -122,5 +122,37 @@ public record AggregatedTimeSeries(
         }
 
         return List.copyOf(result);
+    }
+
+    /**
+     * Drops a group's per-dimension parts when the source also publishes its own roll-up of them.
+     *
+     * <p>Kafka exposes {@code BrokerTopicMetrics} twice: once per topic and once as a broker
+     * total with no {@code topic} label. Stripping {@code topic} gives both the same group key,
+     * so without this the group combines a total with its own constituents — on one broker that
+     * is eleven series where only one is the answer, and the mean of a total and its parts is
+     * not a quantity at all.</p>
+     *
+     * <p>A sample missing the stripped dimension is by definition the coarser generation, so
+     * when a group holds both, only the samples lacking the dimension are kept. Groups where
+     * every sample carries the dimension (the normal case) or none does (pod, which every
+     * scraped sample has) are left untouched.</p>
+     *
+     * @param groupSamples the samples sharing one aggregation key
+     * @param level        the aggregation level, which decides the stripped dimensions
+     * @return the samples to combine; the input list when no roll-up is present
+     */
+    private static List<MetricSample> preferRollUp(final List<MetricSample> groupSamples,
+                                                    final AggregationLevel level) {
+        List<MetricSample> remaining = groupSamples;
+        for (String dimension : MetricLabelFilter.strippedDimensions(level)) {
+            List<MetricSample> rollUps = remaining.stream()
+                .filter(s -> s.labels() == null || !s.labels().containsKey(dimension))
+                .toList();
+            if (!rollUps.isEmpty() && rollUps.size() < remaining.size()) {
+                remaining = rollUps;
+            }
+        }
+        return remaining;
     }
 }
