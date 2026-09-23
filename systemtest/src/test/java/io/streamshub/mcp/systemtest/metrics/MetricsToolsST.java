@@ -31,7 +31,6 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Map;
 
 import static io.streamshub.mcp.systemtest.TestTags.METRICS;
@@ -52,21 +51,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MetricsToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsToolsST.class);
-
-    /**
-     * The replication category as advertised by {@code KafkaMetricCategories.REPLICATION}.
-     * Duplicated here on purpose — the systemtest module asserts against the deployed server's
-     * contract, not against the same constants the server was built from.
-     */
-    private static final List<String> REPLICATION_METRICS = List.of(
-        "kafka_server_replicamanager_underreplicatedpartitions",
-        "kafka_server_replicamanager_leadercount",
-        "kafka_server_replicamanager_partitioncount",
-        "kafka_server_replicamanager_offlinereplicacount",
-        "kafka_controller_kafkacontroller_offlinepartitionscount",
-        "kafka_controller_controllerstats_uncleanleaderelections_total",
-        "kafka_controller_kafkacontroller_activecontrollercount",
-        "kafka_server_replicafetchermanager_maxlag");
 
     @InjectResourceManager
     KubeResourceManager krm;
@@ -185,7 +169,7 @@ class MetricsToolsST extends AbstractST {
 
                 // Every name the replication catalog advertises must actually come back —
                 // this is what catches a metric name that no longer exists on the broker.
-                assertAllMetricsPresent(root, root.path("provider").asText(), REPLICATION_METRICS);
+                assertAllMetricsPresent(root, root.path("provider").asText(), CatalogNames.KAFKA_REPLICATION);
             })
             .thenAssertResults();
     }
@@ -233,7 +217,8 @@ class MetricsToolsST extends AbstractST {
     @Story("get_kafka_bridge_metrics returns metrics for Bridge")
     void testGetKafkaBridgeMetrics() {
         Map<String, Object> args = Map.of(
-            "bridgeName", Constants.BRIDGE_NAME);
+            "bridgeName", Constants.BRIDGE_NAME,
+            "category", "resources");
         mcpClient.when()
             .toolsCall("get_kafka_bridge_metrics", args, response -> {
                 JsonNode root = assertToolSuccess(response);
@@ -242,10 +227,13 @@ class MetricsToolsST extends AbstractST {
                 LOGGER.info("get_kafka_bridge_metrics response (length={})", text.length());
                 LOGGER.debug("get_kafka_bridge_metrics response:\n{}", text);
 
-                assertEquals(Constants.BRIDGE_NAME, root.path("bridge_name").asText(), "bridge_name should match");
                 assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText());
                 assertEquals("streamshub-pod-scraping", root.path("provider").asText());
                 assertFalse(root.path("interpretation").isMissingNode(), "Should have interpretation text");
+                // Non-empty, and every advertised name really comes back. A bridge scrape that
+                // reaches the wrong port answers with zero samples and would otherwise pass.
+                assertMetricsResponse(root, "bridge_name", Constants.BRIDGE_NAME);
+                assertAllMetricsPresent(root, root.path("provider").asText(), CatalogNames.BRIDGE_RESOURCES);
             })
             .thenAssertResults();
     }
@@ -256,7 +244,8 @@ class MetricsToolsST extends AbstractST {
     @Story("get_kafka_connect_metrics returns metrics for Connect cluster")
     void testGetKafkaConnectMetrics() {
         Map<String, Object> args = Map.of(
-            "connectName", Constants.CONNECT_CLUSTER_NAME);
+            "connectName", Constants.CONNECT_CLUSTER_NAME,
+            "category", "worker");
         mcpClient.when()
             .toolsCall("get_kafka_connect_metrics", args, response -> {
                 JsonNode root = assertToolSuccess(response);
@@ -265,10 +254,11 @@ class MetricsToolsST extends AbstractST {
                 LOGGER.info("get_kafka_connect_metrics response (length={})", text.length());
                 LOGGER.debug("get_kafka_connect_metrics response:\n{}", text);
 
-                assertEquals(Constants.CONNECT_CLUSTER_NAME, root.path("connect_name").asText(), "connect_name should match");
                 assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText());
                 assertEquals("streamshub-pod-scraping", root.path("provider").asText());
                 assertFalse(root.path("interpretation").isMissingNode(), "Should have interpretation text");
+                assertMetricsResponse(root, "connect_name", Constants.CONNECT_CLUSTER_NAME);
+                assertAllMetricsPresent(root, root.path("provider").asText(), CatalogNames.CONNECT_WORKER);
             })
             .thenAssertResults();
     }
@@ -278,7 +268,7 @@ class MetricsToolsST extends AbstractST {
     @Test
     @Story("get_strimzi_operator_metrics returns operator metrics")
     void testGetStrimziOperatorMetrics() {
-        Map<String, Object> args = Map.of();
+        Map<String, Object> args = Map.of("category", "reconciliation");
         mcpClient.when()
             .toolsCall("get_strimzi_operator_metrics", args, response -> {
                 JsonNode root = assertToolSuccess(response);
@@ -289,13 +279,10 @@ class MetricsToolsST extends AbstractST {
 
                 assertFalse(root.path("operator_name").asText("").isEmpty(),
                     "operator_name should be present and non-empty");
-                assertFalse(root.path("namespace").isMissingNode(), "Should have namespace");
-                assertTrue(root.path("categories").isArray(), "categories should be an array");
-                assertTrue(root.path("time_series").isArray(), "time_series should be an array");
-                assertTrue(root.path("metric_count").isNumber(), "metric_count should be a number");
-                assertTrue(root.path("sample_count").isNumber(), "sample_count should be a number");
-                assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
-                assertFalse(root.path("message").isMissingNode(), "Should have message");
+                // Operator name is auto-discovered, so it is echoed back rather than asserted;
+                // the value of this call is the envelope and non-empty checks it carries.
+                assertMetricsResponse(root, "operator_name", root.path("operator_name").asText());
+                assertAllMetricsPresent(root, root.path("provider").asText(), CatalogNames.OPERATOR_RECONCILIATION);
             })
             .thenAssertResults();
     }
