@@ -106,7 +106,10 @@ public class StrimziOperatorMetricsService {
         List<MetricSample> samples = queryByNamespace(
             coPods, eoPods, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
 
-        String interpretation = buildInterpretation(categories, metricNames);
+        List<String> effectiveCategories = effectiveCategories(categories, metricNames);
+        String interpretation = MetricNameResolver.alignInterpretation(
+            StrimziOperatorMetricCategories.interpretation(effectiveCategories),
+            samples.stream().map(MetricSample::name).toList());
         String resolvedNs = !coPods.isEmpty()
             ? coPods.getFirst().getMetadata().getNamespace()
             : eoPods.getFirst().getMetadata().getNamespace();
@@ -114,10 +117,10 @@ public class StrimziOperatorMetricsService {
         AggregationLevel level = AggregationLevel.fromString(aggregation);
         if (cat != null || metricNames == null || metricNames.isBlank()) {
             String effectiveCat = cat != null ? cat : DEFAULT_CATEGORY;
-            level = level.clampTo(StrimziOperatorMetricCategories.maxGranularity(effectiveCat));
+            level = AggregationLevel.resolve(aggregation, StrimziOperatorMetricCategories.maxGranularity(effectiveCat));
         }
         return StrimziOperatorMetricsResponse.of(resolvedName, cluster, resolvedNs,
-            metricsQueryService.providerName(), categories, samples, interpretation, level);
+            metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
     }
 
     private void validatePodsFound(final List<Pod> coPods, final List<Pod> eoPods, final String namespace) {
@@ -190,12 +193,16 @@ public class StrimziOperatorMetricsService {
         return allSamples;
     }
 
-    private String buildInterpretation(final List<String> categories, final String metricNames) {
-        List<String> effectiveCategories = new ArrayList<>(categories);
-        if (effectiveCategories.isEmpty() && (metricNames == null || metricNames.isBlank())) {
-            effectiveCategories.add(DEFAULT_CATEGORY);
+    /**
+     * The categories actually queried: an omitted category means the default was used,
+     * so the response must report it rather than an empty list.
+     */
+    private static List<String> effectiveCategories(final List<String> categories, final String metricNames) {
+        List<String> effective = new ArrayList<>(categories);
+        if (effective.isEmpty() && (metricNames == null || metricNames.isBlank())) {
+            effective.add(DEFAULT_CATEGORY);
         }
-        return StrimziOperatorMetricCategories.interpretation(effectiveCategories);
+        return effective;
     }
 
 }

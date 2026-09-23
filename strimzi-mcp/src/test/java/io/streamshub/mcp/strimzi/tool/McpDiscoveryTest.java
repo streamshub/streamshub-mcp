@@ -109,6 +109,7 @@ class McpDiscoveryTest {
                     "get_kafka_bridge_metrics",
                     "get_kafka_connect_metrics",
                     "get_strimzi_operator_metrics",
+                    "get_cruise_control_metrics",
                     "diagnose_kafka_topic",
                     "assess_upgrade_readiness",
                     "list_kafka_mirror_makers",
@@ -279,6 +280,7 @@ class McpDiscoveryTest {
         map.put("get_kafka_bridge_metrics", new String[]{ToolMetaFields.Types.METRICS, StrimziToolResources.KAFKA_BRIDGE});
         map.put("get_kafka_connect_metrics", new String[]{ToolMetaFields.Types.METRICS, StrimziToolResources.KAFKA_CONNECT});
         map.put("get_strimzi_operator_metrics", new String[]{ToolMetaFields.Types.METRICS, StrimziToolResources.STRIMZI_OPERATOR});
+        map.put("get_cruise_control_metrics", new String[]{ToolMetaFields.Types.METRICS, StrimziToolResources.CRUISE_CONTROL});
         map.put("diagnose_kafka_connect", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA_CONNECT});
         map.put("diagnose_kafka_connector", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA_CONNECTOR});
         map.put("diagnose_kafka_cluster", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA});

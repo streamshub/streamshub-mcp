@@ -12,6 +12,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -186,6 +187,63 @@ class AggregatedTimeSeriesTest {
         assertEquals(150.0, result.getFirst().summary().latest(), 0.001);
         // single aggregated data point: min/max/avg are null
         assertEquals(1, result.getFirst().summary().originalDataPointCount());
+    }
+
+    /**
+     * A healthy cluster has exactly one active controller. Averaging that 0/1 gauge
+     * across three controllers yields 0.33, contradicting the "should be exactly 1"
+     * guidance the interpretation text ships.
+     */
+    @Test
+    void activeControllerCountIsSummedNotAveraged() {
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_controller_kafkacontroller_activecontrollercount", Map.of("pod", "c-0"), 1.0),
+            MetricSample.of("kafka_controller_kafkacontroller_activecontrollercount", Map.of("pod", "c-1"), 0.0),
+            MetricSample.of("kafka_controller_kafkacontroller_activecontrollercount", Map.of("pod", "c-2"), 0.0)
+        );
+
+        List<AggregatedTimeSeries> result =
+            AggregatedTimeSeries.fromSamples(samples, AggregationLevel.CLUSTER);
+
+        assertEquals(1, result.size());
+        assertEquals(1.0, result.getFirst().summary().latest(), 0.001);
+        assertEquals("sum", result.getFirst().aggregationFn());
+    }
+
+    /**
+     * maxlag is already a maximum; averaging maxima hides the worst broker, which is
+     * the only value the documented thresholds are about.
+     */
+    @Test
+    void maxLagTakesTheWorstBrokerNotTheMean() {
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_server_replicafetchermanager_maxlag", Map.of("pod", "b-0"), 0.0),
+            MetricSample.of("kafka_server_replicafetchermanager_maxlag", Map.of("pod", "b-1"), 12000.0)
+        );
+
+        List<AggregatedTimeSeries> result =
+            AggregatedTimeSeries.fromSamples(samples, AggregationLevel.CLUSTER);
+
+        assertEquals(12000.0, result.getFirst().summary().latest(), 0.001);
+        assertEquals("max", result.getFirst().aggregationFn());
+    }
+
+    /**
+     * leadercount is documented per-broker ("should be roughly equal across brokers"),
+     * so it must keep averaging — the fix must not turn every metric into a sum.
+     */
+    @Test
+    void perBrokerMetricsStillAverageAndOmitTheFunction() {
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_server_replicamanager_leadercount", Map.of("pod", "b-0"), 10.0),
+            MetricSample.of("kafka_server_replicamanager_leadercount", Map.of("pod", "b-1"), 20.0)
+        );
+
+        List<AggregatedTimeSeries> result =
+            AggregatedTimeSeries.fromSamples(samples, AggregationLevel.CLUSTER);
+
+        assertEquals(15.0, result.getFirst().summary().latest(), 0.001);
+        assertNull(result.getFirst().aggregationFn());
     }
 
     @Test

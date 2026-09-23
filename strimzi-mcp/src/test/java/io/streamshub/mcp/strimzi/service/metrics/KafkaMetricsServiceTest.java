@@ -12,13 +12,18 @@ import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
+import io.streamshub.mcp.strimzi.config.metrics.KafkaMetricCategories;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import io.strimzi.api.ResourceLabels;
+import io.strimzi.api.kafka.model.common.metrics.StrimziMetricsReporter;
 import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.KafkaClusterSpec;
+import io.strimzi.api.kafka.model.kafka.KafkaSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -29,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -170,6 +176,9 @@ class KafkaMetricsServiceTest {
 
         assertNotNull(response);
         assertEquals("my-cluster", response.clusterName());
+        // The response must name the category it actually queried, not an empty list —
+        // otherwise the caller cannot tell which metrics the numbers belong to.
+        assertEquals(List.of(KafkaMetricCategories.REPLICATION), response.categories());
     }
 
     @Test
@@ -264,6 +273,70 @@ class KafkaMetricsServiceTest {
         assertEquals(1, response.sampleCount());
     }
 
+    /**
+     * A live 382-partition cluster returned 390 KB of almost entirely zero samples,
+     * overflowing the response limit. Only the unhealthy partitions are reported.
+     */
+    @Test
+    void partitionsCategoryReportsOnlyUnhealthyPartitions() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster")).thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_cluster_partition_underminisr", Map.of("topic", "t", "partition", "0"), 0.0),
+            MetricSample.of("kafka_cluster_partition_underminisr", Map.of("topic", "t", "partition", "1"), 1.0),
+            MetricSample.of("kafka_cluster_partition_atminisr", Map.of("topic", "t", "partition", "0"), 0.0),
+            MetricSample.of("kafka_cluster_partition_atminisr", Map.of("topic", "t", "partition", "1"), 0.0),
+            MetricSample.of("kafka_cluster_partition_replicascount", Map.of("topic", "t", "partition", "0"), 3.0),
+            MetricSample.of("kafka_cluster_partition_replicascount", Map.of("topic", "t", "partition", "1"), 3.0));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(samples);
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "partitions", null, null, null, null, null, null, null);
+
+        // The under-min-ISR flag for t/1, plus t/1's replica count for context. Nothing for t/0.
+        assertEquals(2, response.sampleCount());
+        assertTrue(response.interpretation().contains("Scanned 2 partitions: 1 under min ISR, 0 at min ISR"),
+            "interpretation should report the scan: " + response.interpretation());
+    }
+
+    /**
+     * An all-healthy cluster returns no series. The interpretation has to say so,
+     * otherwise the caller reads "no data" as "metrics are broken".
+     */
+    @Test
+    void partitionsCategoryOnHealthyClusterExplainsTheEmptyResult() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster")).thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_cluster_partition_underminisr", Map.of("topic", "t", "partition", "0"), 0.0),
+            MetricSample.of("kafka_cluster_partition_atminisr", Map.of("topic", "t", "partition", "0"), 0.0),
+            MetricSample.of("kafka_cluster_partition_replicascount", Map.of("topic", "t", "partition", "0"), 3.0));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(samples);
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "partitions", null, null, null, null, null, null, null);
+
+        assertEquals(0, response.sampleCount());
+        assertTrue(response.interpretation().contains("Scanned 1 partitions: 0 under min ISR, 0 at min ISR"),
+            "interpretation should report the scan: " + response.interpretation());
+        assertTrue(response.interpretation().contains("every partition is healthy"),
+            "interpretation must explain that an empty list is good news");
+    }
+
     @Test
     void requestTypesFilterKeepsMatchingAndNonRequestSamples() {
         Kafka kafka = createKafka("my-cluster", "kafka");
@@ -282,7 +355,7 @@ class KafkaMetricsServiceTest {
                 Map.of("request", "Fetch", "quantile", "0.99"), 3.0),
             MetricSample.of("kafka_network_requestmetrics_totaltimems",
                 Map.of("request", "Metadata", "quantile", "0.99"), 1.0),
-            MetricSample.of("kafka_server_kafkarequesthandlerpool_brokerrequesthandleravgidle_percent",
+            MetricSample.of("kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent",
                 Map.of(), 0.8));
         when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
@@ -322,22 +395,19 @@ class KafkaMetricsServiceTest {
     }
 
     @Test
-    void controllerPodSamplesFilteredByBrokerRoleLabel() {
+    void brokerOnlySampleKept() {
         Kafka kafka = createKafka("my-cluster", "kafka");
         Pod brokerPod = createPod("my-cluster-broker-0", "kafka");
-        Pod controllerPod = createPod("my-cluster-controller-0", "kafka");
 
         when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
         when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
             eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
-            .thenReturn(List.of(brokerPod, controllerPod));
+            .thenReturn(List.of(brokerPod));
 
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
-                Map.of("pod", "my-cluster-broker-0", "strimzi_io_broker_role", "true"), 0.0),
-            MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
-                Map.of("pod", "my-cluster-controller-0", "strimzi_io_broker_role", "false"), 0.0));
+                Map.of("pod", "my-cluster-broker-0", "strimzi_io_broker_role", "true"), 0.0));
         when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
@@ -346,6 +416,80 @@ class KafkaMetricsServiceTest {
 
         assertNotNull(response);
         assertEquals(1, response.sampleCount());
+    }
+
+    @Test
+    void controllerOnlySampleKept() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod controllerPod = createPod("my-cluster-controller-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(controllerPod));
+
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_controller_kafkacontroller_offlinepartitionscount",
+                Map.of("pod", "my-cluster-controller-0",
+                    "strimzi_io_broker_role", "false",
+                    "strimzi_io_controller_role", "true"), 0.0));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(samples);
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "replication", null, null, null, null, null, null, null);
+
+        assertNotNull(response);
+        assertEquals(1, response.sampleCount());
+    }
+
+    @Test
+    void neitherRoleLabelPreserved() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod brokerPod = createPod("my-cluster-broker-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(brokerPod));
+
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
+                Map.of("namespace", "kafka"), 0.0));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(samples);
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "replication", null, null, null, null, null, null, null);
+
+        assertNotNull(response);
+        assertEquals(1, response.sampleCount());
+    }
+
+    @Test
+    void bothRolesFalseDropped() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-broker-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
+                Map.of("strimzi_io_broker_role", "false", "strimzi_io_controller_role", "false"), 0.0));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(samples);
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "replication", null, null, null, null, null, null, null);
+
+        assertNotNull(response);
+        assertEquals(0, response.sampleCount());
     }
 
     @Test
@@ -421,7 +565,7 @@ class KafkaMetricsServiceTest {
                 Map.of("request", "Produce", "quantile", "0.95"), 10.0),
             MetricSample.of("kafka_network_requestmetrics_totaltimems",
                 Map.of("request", "Produce", "quantile", "0.99"), 15.0),
-            MetricSample.of("kafka_server_kafkarequesthandlerpool_brokerrequesthandleravgidle_percent",
+            MetricSample.of("kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent",
                 Map.of(), 0.8));
         when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
@@ -476,7 +620,7 @@ class KafkaMetricsServiceTest {
                 Map.of("request", "Produce", "quantile", "0.99"), 15.0),
             MetricSample.of("kafka_network_requestmetrics_totaltimems",
                 Map.of("request", "AddRaftVoter", "quantile", "0.99"), 0.0),
-            MetricSample.of("kafka_server_kafkarequesthandlerpool_brokerrequesthandleravgidle_percent",
+            MetricSample.of("kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent",
                 Map.of(), 0.8));
         when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
@@ -530,6 +674,23 @@ class KafkaMetricsServiceTest {
             "kafka", "my-cluster", "replication", null, null, null, null, null, "partition", null);
 
         assertEquals("broker", response.aggregation());
+    }
+
+    @Test
+    void aggregationNotClampedForPartitionsAtPartitionLevel() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "partitions", null, null, null, null, null, "partition", null);
+
+        assertEquals("partition", response.aggregation());
     }
 
     @Test
@@ -609,6 +770,16 @@ class KafkaMetricsServiceTest {
         return kafka;
     }
 
+    private Kafka createKafkaWithSmr(final String name, final String namespace) {
+        Kafka kafka = createKafka(name, namespace);
+        KafkaSpec spec = new KafkaSpec();
+        KafkaClusterSpec clusterSpec = new KafkaClusterSpec();
+        clusterSpec.setMetricsConfig(new StrimziMetricsReporter());
+        spec.setKafka(clusterSpec);
+        kafka.setSpec(spec);
+        return kafka;
+    }
+
     private Pod createPod(final String name, final String namespace) {
         return createPod(name, namespace, StrimziConstants.ComponentTypes.KAFKA);
     }
@@ -624,6 +795,88 @@ class KafkaMetricsServiceTest {
         }
         pod.setMetadata(meta);
         return pod;
+    }
+
+    @Test
+    void smrBackendTranslatesThroughputMetricNames() {
+        Kafka kafka = createKafkaWithSmr("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        // Capture the metric names handed to the provider
+        ArgumentCaptor<List<String>> metricsCaptor = ArgumentCaptor.forClass(List.class);
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), metricsCaptor.capture(),
+            isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(List.of());
+
+        kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "throughput", null, null, null, null, null, null, null);
+
+        List<String> queriedMetrics = metricsCaptor.getValue();
+        // JMX name should be translated to SMR name
+        assertTrue(queriedMetrics.contains("kafka_server_brokertopicmetrics_messagesinpersec_total"),
+            "SMR name messagesinpersec should be present");
+        assertFalse(queriedMetrics.contains("kafka_server_brokertopicmetrics_messagesin_total"),
+            "JMX-only name messagesin should not be present");
+    }
+
+    @Test
+    void smrBackendExcludesUnmappedMetric() {
+        Kafka kafka = createKafkaWithSmr("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        ArgumentCaptor<List<String>> metricsCaptor = ArgumentCaptor.forClass(List.class);
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), metricsCaptor.capture(),
+            isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(List.of());
+
+        kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "performance", null, null, null, null, null, null, null);
+
+        List<String> queriedMetrics = metricsCaptor.getValue();
+        // requesthandleravgidle is UNMAPPED on SMR (unit difference, F7)
+        assertFalse(queriedMetrics.contains("kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent"),
+            "UNMAPPED metric should be excluded on SMR backend");
+        // networkprocessoravgidle has a valid SMR alias
+        assertTrue(queriedMetrics.contains("kafka_network_socketserver_networkprocessoravgidlepercent"),
+            "SMR alias for networkprocessoravgidle should be present");
+    }
+
+    @Test
+    void jmxBackendPassesNamesUnchanged() {
+        Kafka kafka = createKafka("my-cluster", "kafka");  // no metricsConfig → JMX_EXPORTER
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        ArgumentCaptor<List<String>> metricsCaptor = ArgumentCaptor.forClass(List.class);
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), metricsCaptor.capture(),
+            isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(List.of());
+
+        kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "throughput", null, null, null, null, null, null, null);
+
+        List<String> queriedMetrics = metricsCaptor.getValue();
+        assertTrue(queriedMetrics.contains("kafka_server_brokertopicmetrics_messagesin_total"),
+            "JMX name should pass through unchanged on JMX backend");
+        assertFalse(queriedMetrics.contains("kafka_server_brokertopicmetrics_messagesinpersec_total"),
+            "SMR-only name should not appear on JMX backend");
     }
 
     private static void setField(final Object target, final String fieldName,

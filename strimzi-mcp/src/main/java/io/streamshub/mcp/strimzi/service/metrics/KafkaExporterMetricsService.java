@@ -147,14 +147,16 @@ public class KafkaExporterMetricsService {
         if (effectiveCategories.isEmpty() && (metricNames == null || metricNames.isBlank())) {
             effectiveCategories.add(DEFAULT_CATEGORY);
         }
-        String interpretation = KafkaExporterMetricCategories.interpretation(effectiveCategories);
+        String interpretation = MetricNameResolver.alignInterpretation(
+            KafkaExporterMetricCategories.interpretation(effectiveCategories),
+            samples.stream().map(MetricSample::name).toList());
 
         AggregationLevel level = AggregationLevel.fromString(aggregation);
         if (cat != null || metricNames == null || metricNames.isBlank()) {
             String effectiveCat = cat != null ? cat : DEFAULT_CATEGORY;
-            level = level.clampTo(KafkaExporterMetricCategories.maxGranularity(effectiveCat));
+            level = AggregationLevel.resolve(aggregation, KafkaExporterMetricCategories.maxGranularity(effectiveCat));
         }
         return KafkaExporterMetricsResponse.of(name, resolvedNs,
-            metricsQueryService.providerName(), categories, samples, interpretation, level);
+            metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
     }
 }

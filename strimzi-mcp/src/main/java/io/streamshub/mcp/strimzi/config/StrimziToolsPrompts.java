@@ -105,8 +105,9 @@ public final class StrimziToolsPrompts {
      */
     public static final String METRICS_CATEGORY_DESC =
         "Metric category: 'replication', 'performance',"
-            + " 'resources', or 'throughput'."
-            + " Defaults to 'replication' if omitted.";
+            + " 'resources', 'throughput', 'kraft', or 'partitions'."
+            + " Defaults to 'replication' if omitted."
+            + " 'partitions' returns per-partition samples and is not aggregated by default.";
 
     /**
      * Operator metrics category parameter description.
@@ -124,6 +125,13 @@ public final class StrimziToolsPrompts {
         "Metric category: 'consumer_lag', 'partitions',"
             + " or 'resources'."
             + " Defaults to 'consumer_lag' if omitted.";
+
+    /**
+     * Cruise Control metrics category parameter description.
+     */
+    public static final String CRUISE_CONTROL_METRICS_CATEGORY_DESC =
+        "Metric category: 'sampling' or 'anomaly'."
+            + " Defaults to 'sampling' if omitted.";
 
     /**
      * Metric names parameter description.

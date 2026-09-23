@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 
 import static io.streamshub.mcp.systemtest.TestTags.METRICS;
@@ -51,6 +52,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MetricsToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsToolsST.class);
+
+    /**
+     * The replication category as advertised by {@code KafkaMetricCategories.REPLICATION}.
+     * Duplicated here on purpose — the systemtest module asserts against the deployed server's
+     * contract, not against the same constants the server was built from.
+     */
+    private static final List<String> REPLICATION_METRICS = List.of(
+        "kafka_server_replicamanager_underreplicatedpartitions",
+        "kafka_server_replicamanager_leadercount",
+        "kafka_server_replicamanager_partitioncount",
+        "kafka_server_replicamanager_offlinereplicacount",
+        "kafka_controller_kafkacontroller_offlinepartitionscount",
+        "kafka_controller_controllerstats_uncleanleaderelections_total",
+        "kafka_controller_kafkacontroller_activecontrollercount",
+        "kafka_server_replicafetchermanager_maxlag");
 
     @InjectResourceManager
     KubeResourceManager krm;
@@ -166,6 +182,10 @@ class MetricsToolsST extends AbstractST {
                     }
                 }
                 assertTrue(hasReplication, "categories should contain 'replication'");
+
+                // Every name the replication catalog advertises must actually come back —
+                // this is what catches a metric name that no longer exists on the broker.
+                assertAllMetricsPresent(root, root.path("provider").asText(), REPLICATION_METRICS);
             })
             .thenAssertResults();
     }

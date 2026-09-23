@@ -185,7 +185,7 @@ io.streamshub.mcp.strimzi.
 │   │                    KafkaMirrorMaker2DiagnosticService
 │   ├── metrics/       → KafkaMetricsService, KafkaExporterMetricsService,
 │   │                    KafkaBridgeMetricsService, KafkaConnectMetricsService,
-│   │                    StrimziOperatorMetricsService
+│   │                    StrimziOperatorMetricsService, CruiseControlMetricsService
 │   └── (root)         → CompletionService
 ├── dto/               → Strimzi response records and diagnostic reports
 │   ├── kafkabridge/   → KafkaBridgeResponse, etc.
@@ -193,7 +193,7 @@ io.streamshub.mcp.strimzi.
 │   ├── kafkamirrormaker2/ → KafkaMirrorMaker2Response, KafkaMirrorMaker2DiagnosticReport, etc.
 │   └── metrics/       → KafkaMetricsResponse, KafkaExporterMetricsResponse,
 │                        KafkaBridgeMetricsResponse, KafkaConnectMetricsResponse,
-│                        StrimziOperatorMetricsResponse
+│                        StrimziOperatorMetricsResponse, CruiseControlMetricsResponse
 ├── prompt/            → MCP prompt templates (DiagnoseClusterIssuePrompt, TroubleshootConnectivityPrompt,
 │                        TroubleshootTopicPrompt, TroubleshootConnectPrompt, TroubleshootConnectorPrompt,
 │                        TroubleshootBridgePrompt, TroubleshootMirrorMakerPrompt,
@@ -205,8 +205,8 @@ io.streamshub.mcp.strimzi.
 ├── config/            → StrimziConstants (labels, resource URIs), StrimziToolsPrompts
 │   └── metrics/       → KafkaMetricCategories, KafkaExporterMetricCategories,
 │                        KafkaBridgeMetricCategories, KafkaConnectMetricCategories,
-│                        StrimziOperatorMetricCategories (category constants + metric name mappings)
-└── util/              → MetricNameResolver
+│                        StrimziOperatorMetricCategories, CruiseControlMetricCategories (category constants + metric name mappings)
+└── util/              → MetricNameResolver, MetricsBackend
 ```
 
 ### Layer rules

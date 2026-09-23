@@ -29,7 +29,7 @@ public final class KafkaExporterMetricCategories {
     public static final String PARTITIONS = "partitions";
 
     /**
-     * JVM and system resource category (heap, GC, CPU, threads).
+     * Go runtime and process metrics (CPU, memory, file descriptors, goroutines).
      */
     public static final String RESOURCES = "resources";
 
@@ -48,12 +48,10 @@ public final class KafkaExporterMetricCategories {
             "kafka_topic_partition_replicas"
         ),
         RESOURCES, List.of(
-            "jvm_memory_used_bytes",
-            "jvm_memory_max_bytes",
-            "jvm_gc_collection_seconds_count",
-            "jvm_gc_collection_seconds_sum",
             "process_cpu_seconds_total",
-            "jvm_threads_current"
+            "process_resident_memory_bytes",
+            "process_open_fds",
+            "go_goroutines"
         )
     );
 
@@ -85,8 +83,7 @@ public final class KafkaExporterMetricCategories {
                 + "Oldest offset advancing = log segments being cleaned/compacted.\n\n"
                 + "kafka_topic_partitions: Number of partitions per topic.",
         RESOURCES,
-            MetricsDescriptions.jvmDescription("get_kafka_cluster_pods",
-                "exporter scraping failures or missing metrics")
+            MetricsDescriptions.goProcessDescription()
     );
 
     private KafkaExporterMetricCategories() {
