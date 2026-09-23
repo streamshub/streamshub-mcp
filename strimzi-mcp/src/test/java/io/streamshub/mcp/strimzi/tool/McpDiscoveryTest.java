@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * MCP integration tests for tool, prompt, and resource template discovery.
@@ -121,6 +123,45 @@ class McpDiscoveryTest {
                 }
             })
             .thenAssertResults();
+    }
+
+    /**
+     * Verify {@code tools/list} returns tools in a stable, deterministic order across
+     * consecutive requests, as recommended by the MCP 2026-07-28 specification. The
+     * quarkus-mcp-server framework sorts by registration timestamp then name, so the
+     * order is fixed for the lifetime of a running instance; this test guards against a
+     * future regression that would reorder the list between calls.
+     */
+    @Test
+    void testToolListingOrderIsDeterministic() {
+        final List<String> firstOrder = new ArrayList<>();
+        client.when()
+            .toolsList(page -> {
+                assertNull(page.nextCursor(),
+                    "tools/list should fit in a single page (quarkus.mcp.server.tools.page-size); "
+                        + "raise page-size or paginate the test if the tool count grew");
+                for (final McpAssured.ToolInfo tool : page.tools()) {
+                    firstOrder.add(tool.name());
+                }
+            })
+            .thenAssertResults();
+
+        assertFalse(firstOrder.isEmpty(), "tools/list should return at least one tool");
+        assertEquals(firstOrder.size(), firstOrder.stream().distinct().count(),
+            "tool names in tools/list should be unique");
+
+        final List<String> secondOrder = new ArrayList<>();
+        client.when()
+            .toolsList(page -> {
+                for (final McpAssured.ToolInfo tool : page.tools()) {
+                    secondOrder.add(tool.name());
+                }
+            })
+            .thenAssertResults();
+
+        assertEquals(firstOrder, secondOrder,
+            "tools/list must return tools in the same order across consecutive calls "
+                + "(MCP 2026-07-28 deterministic ordering)");
     }
 
     /**
