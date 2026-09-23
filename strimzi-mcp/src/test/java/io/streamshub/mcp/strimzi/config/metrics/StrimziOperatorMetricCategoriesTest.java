@@ -82,6 +82,36 @@ class StrimziOperatorMetricCategoriesTest {
     }
 
     @Test
+    void resolveJvmCategoryReturnsMicrometerNames() {
+        List<String> metrics = StrimziOperatorMetricCategories.resolve("jvm");
+        assertEquals(6, metrics.size());
+        assertTrue(metrics.contains("jvm_memory_used_bytes"));
+        assertTrue(metrics.contains("jvm_memory_max_bytes"));
+        assertTrue(metrics.contains("jvm_gc_pause_seconds_count"));
+        assertTrue(metrics.contains("jvm_gc_pause_seconds_sum"));
+        assertTrue(metrics.contains("process_cpu_usage"));
+        assertTrue(metrics.contains("jvm_threads_live_threads"));
+        // Micrometer forms only — JMX exporter forms must be absent
+        assertFalse(metrics.contains("jvm_gc_collection_seconds_count"));
+        assertFalse(metrics.contains("jvm_gc_collection_seconds_sum"));
+        assertFalse(metrics.contains("process_cpu_seconds_total"));
+        assertFalse(metrics.contains("jvm_threads_current"));
+    }
+
+    @Test
+    void resolveReconciliationCategoryIncludesNewMetrics() {
+        List<String> metrics = StrimziOperatorMetricCategories.resolve("reconciliation");
+        assertTrue(metrics.contains("strimzi_reconciliations_locked_total"));
+        assertTrue(metrics.contains("strimzi_reconciliations_periodical_total"));
+    }
+
+    @Test
+    void resolveResourcesCategoryIncludesCertificateMetric() {
+        List<String> metrics = StrimziOperatorMetricCategories.resolve("resources");
+        assertTrue(metrics.contains("strimzi_certificate_expiration_timestamp_ms"));
+    }
+
+    @Test
     void maxGranularityAlwaysReturnsCluster() {
         assertEquals(AggregationLevel.CLUSTER, StrimziOperatorMetricCategories.maxGranularity("reconciliation"));
         assertEquals(AggregationLevel.CLUSTER, StrimziOperatorMetricCategories.maxGranularity("resources"));

@@ -18,6 +18,7 @@ import io.streamshub.mcp.strimzi.config.metrics.KafkaMetricCategories;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import io.streamshub.mcp.strimzi.util.MetricNameResolver;
+import io.streamshub.mcp.strimzi.util.MetricsBackend;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -40,6 +41,11 @@ public class KafkaMetricsService {
     private static final Logger LOG = Logger.getLogger(KafkaMetricsService.class);
     private static final String DEFAULT_CATEGORY = KafkaMetricCategories.REPLICATION;
     private static final Set<String> DEFAULT_QUANTILES = Set.of("0.50", "0.99");
+
+    /** Per-partition 0/1 gauges: a non-zero value marks the partition as worth reporting. */
+    private static final Set<String> PARTITION_HEALTH_FLAGS = Set.of(
+        "kafka_cluster_partition_underminisr",
+        "kafka_cluster_partition_atminisr");
 
     @Inject
     KubernetesResourceService k8sService;
@@ -91,18 +97,20 @@ public class KafkaMetricsService {
         // Validate time range parameters
         TimeRangeValidator.validateTimeRangeParameters(rangeMinutes, startTime, endTime);
 
-        // Resolve metric names from category + explicit names
+        // Find the Kafka cluster
+        Kafka kafka = kafkaService.findKafkaCluster(ns, name);
+        String resolvedNs = kafka.getMetadata().getNamespace();
+
+        // Resolve metric names — translate to backend-specific names when using SMR
+        MetricsBackend backend = MetricsBackend.fromKafka(kafka);
         List<String> resolvedMetrics = MetricNameResolver.resolve(
             cat, metricNames, DEFAULT_CATEGORY,
-            KafkaMetricCategories::resolve, KafkaMetricCategories.allCategories());
+            KafkaMetricCategories::resolve, KafkaMetricCategories.allCategories(),
+            backend, KafkaMetricCategories.aliasMap());
         List<String> categories = new ArrayList<>();
         if (cat != null) {
             categories.add(cat);
         }
-
-        // Find the Kafka cluster
-        Kafka kafka = kafkaService.findKafkaCluster(ns, name);
-        String resolvedNs = kafka.getMetadata().getNamespace();
 
         LOG.infof("Getting metrics for cluster '%s' in namespace '%s' (provider=%s)",
             name, resolvedNs, metricsQueryService.providerName());
@@ -147,7 +155,7 @@ public class KafkaMetricsService {
         List<MetricSample> samples = metricsQueryService.queryMetrics(
             podTargets, labelMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
 
-        samples = filterByBrokerPods(samples, pods);
+        samples = filterByKafkaNodePods(samples, pods);
         samples = filterByRequestTypes(samples, requestTypes);
 
         // Build interpretation from effective categories
@@ -164,18 +172,30 @@ public class KafkaMetricsService {
 
         String interpretation = KafkaMetricCategories.interpretation(effectiveCategories);
 
+        // Healthy partitions are dropped from the partitions category — see the method javadoc.
+        if (effectiveCategories.contains(KafkaMetricCategories.PARTITIONS)) {
+            String note = partitionScanNote(samples);
+            samples = filterHealthyPartitions(samples);
+            interpretation = interpretation + note;
+        }
+
+        // The guide is written in JMX Exporter spelling; rewrite it to the names actually returned.
+        interpretation = MetricNameResolver.alignInterpretation(
+            interpretation, backend, KafkaMetricCategories.aliasMap(),
+            samples.stream().map(MetricSample::name).toList());
+
         AggregationLevel level = AggregationLevel.fromString(aggregation);
         if (cat != null || metricNames == null || metricNames.isBlank()) {
             String effectiveCat = cat != null ? cat : DEFAULT_CATEGORY;
-            level = level.clampTo(KafkaMetricCategories.maxGranularity(effectiveCat));
+            level = AggregationLevel.resolve(aggregation, KafkaMetricCategories.maxGranularity(effectiveCat));
         }
         return KafkaMetricsResponse.of(name, resolvedNs,
-            metricsQueryService.providerName(), categories, samples, interpretation, level);
+            metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
     }
 
-    private static List<MetricSample> filterByBrokerPods(final List<MetricSample> samples,
-                                                          final List<Pod> brokerPods) {
-        Set<String> brokerPodNames = brokerPods.stream()
+    private static List<MetricSample> filterByKafkaNodePods(final List<MetricSample> samples,
+                                                           final List<Pod> kafkaNodePods) {
+        Set<String> podNames = kafkaNodePods.stream()
             .map(p -> p.getMetadata().getName())
             .collect(Collectors.toSet());
         return samples.stream()
@@ -183,14 +203,15 @@ public class KafkaMetricsService {
                 if (s.labels() == null) {
                     return true;
                 }
-                // Filter by Prometheus metric label (reliable for both providers)
+                // Keep samples from broker or controller pods (both are Kafka node pods)
                 String brokerRole = s.labels().get("strimzi_io_broker_role");
-                if (brokerRole != null) {
-                    return "true".equals(brokerRole);
+                String controllerRole = s.labels().get("strimzi_io_controller_role");
+                if (brokerRole != null || controllerRole != null) {
+                    return "true".equals(brokerRole) || "true".equals(controllerRole);
                 }
                 // Fallback: filter by pod name
                 String podLabel = s.labels().get("pod");
-                return podLabel == null || brokerPodNames.contains(podLabel);
+                return podLabel == null || podNames.contains(podLabel);
             })
             .toList();
     }
@@ -209,6 +230,70 @@ public class KafkaMetricsService {
         return samples.stream()
             .filter(s -> s.value() != 0.0)
             .toList();
+    }
+
+    /**
+     * Drops healthy partitions from the {@code partitions} category.
+     *
+     * <p>This category emits one sample per partition per metric. A live 382-partition
+     * cluster returned 390 KB — over the response limit — and all but a handful of those
+     * samples were zeros. Aggregating them away is not the fix: that is precisely the bug
+     * {@link AggregationLevel#resolve} exists to prevent, since 3 bad partitions out of
+     * 382 average to 0.008 and read as healthy. What an operator asks this category is
+     * "which partitions are in trouble", so keep those and drop the rest.</p>
+     *
+     * <p>{@code replicascount} is never zero, so it is kept only for partitions already
+     * flagged by one of the health gauges — on a healthy cluster it would otherwise be the
+     * entire remaining payload. To retrieve every partition regardless of health, request
+     * the metric names explicitly instead of the category.</p>
+     */
+    private static List<MetricSample> filterHealthyPartitions(final List<MetricSample> samples) {
+        Set<String> unhealthy = samples.stream()
+            .filter(s -> PARTITION_HEALTH_FLAGS.contains(s.name()) && s.value() != 0.0)
+            .map(KafkaMetricsService::partitionKey)
+            .collect(Collectors.toSet());
+
+        return samples.stream()
+            .filter(s -> PARTITION_HEALTH_FLAGS.contains(s.name())
+                ? s.value() != 0.0
+                : unhealthy.contains(partitionKey(s)))
+            .toList();
+    }
+
+    /**
+     * Describes what the partitions scan covered, so an empty list reads as
+     * "everything is healthy" rather than "the metrics are missing".
+     */
+    private static String partitionScanNote(final List<MetricSample> samples) {
+        long scanned = samples.stream()
+            .filter(s -> PARTITION_HEALTH_FLAGS.contains(s.name()))
+            .map(KafkaMetricsService::partitionKey)
+            .distinct()
+            .count();
+        long underMinIsr = countFlagged(samples, "kafka_cluster_partition_underminisr");
+        long atMinIsr = countFlagged(samples, "kafka_cluster_partition_atminisr");
+
+        return String.format("%n%n**[PARTITION SCAN]**%n%n"
+            + "Scanned %d partitions: %d under min ISR, %d at min ISR. "
+            + "Only partitions in a non-healthy state are listed; healthy partitions are "
+            + "omitted so the response stays readable on large clusters. An empty series "
+            + "list therefore means every partition is healthy, not that data is missing. "
+            + "Request the metric names explicitly instead of the category to see all partitions.",
+            scanned, underMinIsr, atMinIsr);
+    }
+
+    private static long countFlagged(final List<MetricSample> samples, final String metricName) {
+        return samples.stream()
+            .filter(s -> metricName.equals(s.name()) && s.value() != 0.0)
+            .count();
+    }
+
+    private static String partitionKey(final MetricSample sample) {
+        Map<String, String> labels = sample.labels();
+        if (labels == null) {
+            return "?/?";
+        }
+        return labels.get("topic") + "/" + labels.get("partition");
     }
 
     private static List<MetricSample> filterByRequestTypes(final List<MetricSample> samples,

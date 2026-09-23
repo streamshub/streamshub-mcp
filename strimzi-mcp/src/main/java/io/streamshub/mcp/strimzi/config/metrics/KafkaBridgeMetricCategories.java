@@ -34,7 +34,7 @@ public final class KafkaBridgeMetricCategories {
     public static final String CONSUMER = "consumer";
 
     /**
-     * JVM and system resource category (heap, GC, CPU, threads).
+     * JVM resource category (Micrometer: heap, GC pause, CPU usage, threads).
      */
     public static final String RESOURCES = "resources";
 
@@ -69,10 +69,10 @@ public final class KafkaBridgeMetricCategories {
         RESOURCES, List.of(
             "jvm_memory_used_bytes",
             "jvm_memory_max_bytes",
-            "jvm_gc_collection_seconds_count",
-            "jvm_gc_collection_seconds_sum",
-            "process_cpu_seconds_total",
-            "jvm_threads_current"
+            "jvm_gc_pause_seconds_count",
+            "jvm_gc_pause_seconds_sum",
+            "process_cpu_usage",
+            "jvm_threads_live_threads"
         )
     );
 
@@ -85,27 +85,37 @@ public final class KafkaBridgeMetricCategories {
                 + "Sustained high values may indicate connection leaks or slow consumers.\n\n"
                 + "strimzi_bridge_http_server_active_requests: In-flight HTTP requests. "
                 + "High values indicate the bridge is under heavy load or Kafka is slow to respond.\n\n"
-                + "strimzi_bridge_http_server_request_size_bytes / response_size_bytes: "
+                + "strimzi_bridge_http_server_request_size_bytes / strimzi_bridge_http_server_response_size_bytes: "
                 + "Request and response payload sizes. Monitor for unusually large messages.",
         PRODUCER,
             "**[HIGH - PRODUCER METRICS]**\n\n"
-                + "strimzi_bridge_kafka_producer_record_send_total / rate: Total records and rate sent to Kafka via HTTP produce API. "
+                + "strimzi_bridge_kafka_producer_record_send_total / strimzi_bridge_kafka_producer_record_send_rate: "
+                + "Total records and rate sent to Kafka via HTTP produce API. "
                 + "Rate drop = producers stopped or bridge issue.\n\n"
-                + "strimzi_bridge_kafka_producer_record_error_total / rate: Failed record sends. Should be 0. "
+                + "strimzi_bridge_kafka_producer_record_error_total / strimzi_bridge_kafka_producer_record_error_rate: "
+                + "Failed record sends. Should be 0. "
                 + ">0 = investigate Kafka broker health or topic configuration.\n\n"
-                + "strimzi_bridge_kafka_producer_request_latency_avg / max: Latency for produce requests to Kafka. "
+                + "strimzi_bridge_kafka_producer_request_latency_avg / strimzi_bridge_kafka_producer_request_latency_max: "
+                + "Latency for produce requests to Kafka. "
                 + "**THRESHOLDS**: <10ms = healthy, 10-100ms = monitor, >100ms = investigate broker load.\n\n"
-                + "strimzi_bridge_kafka_producer_batch_size_avg: Average batch size. Small batches = low throughput efficiency.",
+                + "strimzi_bridge_kafka_producer_batch_size_avg: Average batch size. Small batches = low throughput efficiency.\n\n"
+                + "strimzi_bridge_kafka_producer_byte_total: Total bytes sent to Kafka via HTTP produce API. "
+                + "Compare with strimzi_bridge_kafka_producer_record_send_total to determine average message size.",
         CONSUMER,
             "**[HIGH - CONSUMER METRICS]**\n\n"
-                + "strimzi_bridge_kafka_consumer_fetch_latency_avg / max: Time to fetch records from Kafka. "
+                + "strimzi_bridge_kafka_consumer_fetch_latency_avg / strimzi_bridge_kafka_consumer_fetch_latency_max: "
+                + "Time to fetch records from Kafka. "
                 + "**THRESHOLDS**: <50ms = healthy, 50-200ms = monitor, >200ms = investigate.\n\n"
-                + "strimzi_bridge_kafka_consumer_records_consumed_total / rate: Records consumed via HTTP consumer API. "
+                + "strimzi_bridge_kafka_consumer_records_consumed_total / strimzi_bridge_kafka_consumer_records_consumed_rate: "
+                + "Records consumed via HTTP consumer API. "
                 + "Rate changes indicate consumer activity shifts.\n\n"
-                + "strimzi_bridge_kafka_consumer_bytes_consumed_total / rate: Bytes consumed. "
-                + "Monitor for throughput changes and capacity planning.",
+                + "strimzi_bridge_kafka_consumer_bytes_consumed_total / strimzi_bridge_kafka_consumer_bytes_consumed_rate: "
+                + "Bytes consumed. "
+                + "Monitor for throughput changes and capacity planning.\n\n"
+                + "strimzi_bridge_kafka_consumer_fetch_total / strimzi_bridge_kafka_consumer_fetch_rate: Total fetch requests and rate to Kafka. "
+                + "Low rate with healthy records-consumed rate = large batch sizes. High fetch rate with low throughput = small batches.",
         RESOURCES,
-            MetricsDescriptions.jvmDescription("get_kafka_bridge_pods",
+            MetricsDescriptions.micrometerJvmDescription("get_kafka_bridge_pods",
                 "bridge request failures or slow HTTP responses")
     );
 

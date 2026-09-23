@@ -76,6 +76,7 @@ public final class KafkaConnectMetricCategories {
             "jvm_gc_collection_seconds_count",
             "jvm_gc_collection_seconds_sum",
             "process_cpu_seconds_total",
+            "process_open_fds",
             "jvm_threads_current"
         )
     );
@@ -87,13 +88,14 @@ public final class KafkaConnectMetricCategories {
                 + "A drop may indicate connectors have been removed or failed to start.\n\n"
                 + "kafka_connect_worker_task_count: Number of active tasks across all connectors. "
                 + "Should match expected tasksMax sum. A drop indicates task failures.\n\n"
-                + "kafka_connect_worker_connector_startup_failure_total / success_total: Cumulative startup "
+                + "kafka_connect_worker_connector_startup_failure_total / kafka_connect_worker_connector_startup_success_total: Cumulative startup "
                 + "attempts. Rising failure count = connector configuration or dependency issues.\n\n"
-                + "kafka_connect_worker_task_startup_failure_total / success_total: Cumulative task startup "
+                + "kafka_connect_worker_task_startup_failure_total / kafka_connect_worker_task_startup_success_total: Cumulative task startup "
                 + "attempts. Rising failure count = task-level configuration or resource issues.",
         CONNECTOR,
             "**[HIGH - CONNECTOR TASK METRICS]**\n\n"
-                + "kafka_connect_connector_task_batch_size_avg / max: Average and maximum batch sizes. "
+                + "kafka_connect_connector_task_batch_size_avg / kafka_connect_connector_task_batch_size_max: "
+                + "Average and maximum batch sizes. "
                 + "Small batches = low throughput efficiency. Large batches = good throughput.\n\n"
                 + "kafka_connect_connector_task_offset_commit_avg_time_ms: Average time to commit offsets. "
                 + "**THRESHOLDS**: <100ms = healthy, 100-500ms = monitor, >500ms = investigate Kafka broker load.\n\n"
@@ -105,7 +107,7 @@ public final class KafkaConnectMetricCategories {
                 + "kafka_connect_source_task_source_record_poll_total: Total records polled from the source system. "
                 + "Rate of change = source throughput.\n\n"
                 + "kafka_connect_source_task_source_record_write_total: Total records written to Kafka. "
-                + "Should closely track poll_total. A growing gap indicates write failures.\n\n"
+                + "Should closely track kafka_connect_source_task_source_record_poll_total. A growing gap indicates write failures.\n\n"
                 + "kafka_connect_source_task_poll_batch_avg_time_ms: Average time per poll batch. "
                 + "**THRESHOLDS**: <100ms = healthy, 100-1000ms = monitor source system, >1000ms = investigate.",
         SINK,
@@ -113,7 +115,7 @@ public final class KafkaConnectMetricCategories {
                 + "kafka_connect_sink_task_sink_record_read_total: Total records read from Kafka. "
                 + "Rate of change = consumption throughput.\n\n"
                 + "kafka_connect_sink_task_sink_record_send_total: Total records sent to the sink system. "
-                + "Should closely track read_total. A growing gap indicates write failures.\n\n"
+                + "Should closely track kafka_connect_sink_task_sink_record_read_total. A growing gap indicates write failures.\n\n"
                 + "kafka_connect_sink_task_put_batch_avg_time_ms: Average time per put batch to the sink. "
                 + "**THRESHOLDS**: <100ms = healthy, 100-1000ms = monitor sink system, >1000ms = investigate.\n\n"
                 + "kafka_connect_sink_task_offset_commit_completion_total: Completed offset commits. "

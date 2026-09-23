@@ -70,6 +70,11 @@ public final class StrimziToolResources {
      */
     public static final String DRAIN_CLEANER = "drain-cleaner";
 
+    /**
+     * Cruise Control resource.
+     */
+    public static final String CRUISE_CONTROL = "cruise-control";
+
     private StrimziToolResources() {
     }
 }

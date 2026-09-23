@@ -14,12 +14,12 @@ import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
-import io.streamshub.mcp.strimzi.config.metrics.KafkaConnectMetricCategories;
-import io.streamshub.mcp.strimzi.dto.metrics.KafkaConnectMetricsResponse;
-import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectService;
+import io.streamshub.mcp.strimzi.config.metrics.CruiseControlMetricCategories;
+import io.streamshub.mcp.strimzi.dto.metrics.CruiseControlMetricsResponse;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import io.streamshub.mcp.strimzi.util.MetricNameResolver;
 import io.strimzi.api.ResourceLabels;
-import io.strimzi.api.kafka.model.connect.KafkaConnect;
+import io.strimzi.api.kafka.model.kafka.Kafka;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -28,16 +28,16 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
 /**
- * Service for retrieving KafkaConnect metrics via pluggable providers.
- * KafkaConnect exposes worker, connector task, source, sink,
- * and JVM metrics — distinct from Kafka broker JMX metrics.
+ * Service for retrieving Cruise Control metrics via pluggable providers.
+ * Cruise Control exposes sample collection, partition monitoring, and anomaly detection metrics.
  */
 @ApplicationScoped
-public class KafkaConnectMetricsService {
+public class CruiseControlMetricsService {
 
-    private static final Logger LOG = Logger.getLogger(KafkaConnectMetricsService.class);
-    private static final String DEFAULT_CATEGORY = KafkaConnectMetricCategories.WORKER;
+    private static final Logger LOG = Logger.getLogger(CruiseControlMetricsService.class);
+    private static final String DEFAULT_CATEGORY = CruiseControlMetricCategories.SAMPLING;
 
     @Inject
     KubernetesResourceService k8sService;
@@ -46,28 +46,29 @@ public class KafkaConnectMetricsService {
     MetricsQueryService metricsQueryService;
 
     @Inject
-    KafkaConnectService kafkaConnectService;
+    KafkaService kafkaService;
 
-    KafkaConnectMetricsService() {
+    CruiseControlMetricsService() {
+        // package-private no-arg constructor for CDI
     }
 
     /**
-     * Retrieves metrics from KafkaConnect pods.
+     * Retrieves metrics from Cruise Control pods for a cluster.
      *
      * @param namespace    the namespace (optional, null for auto-discovery)
-     * @param connectName  the KafkaConnect cluster name (required)
-     * @param category     the metric category (optional, defaults to "worker")
+     * @param clusterName  the Kafka cluster name (required)
+     * @param category     the metric category (optional, defaults to "sampling")
      * @param metricNames  explicit metric names (optional, merged with category)
      * @param rangeMinutes range query duration in minutes (optional, null for instant)
      * @param startTime    absolute start time in ISO 8601 format (optional, use with endTime)
      * @param endTime      absolute end time in ISO 8601 format (optional, use with startTime)
      * @param stepSeconds  range query step interval (optional, uses default)
-     * @param aggregation  aggregation level (optional, defaults to "broker")
-     * @return the KafkaConnect metrics response
+     * @param aggregation  aggregation level (optional, defaults to "cluster")
+     * @return the Cruise Control metrics response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
-    public KafkaConnectMetricsResponse getKafkaConnectMetrics(final String namespace,
-                                                               final String connectName,
+    public CruiseControlMetricsResponse getCruiseControlMetrics(final String namespace,
+                                                               final String clusterName,
                                                                final String category,
                                                                final String metricNames,
                                                                final Integer rangeMinutes,
@@ -76,44 +77,57 @@ public class KafkaConnectMetricsService {
                                                                final Integer stepSeconds,
                                                                final String aggregation) {
         String ns = InputUtils.normalizeInput(namespace);
-        String name = InputUtils.normalizeInput(connectName);
+        String name = InputUtils.normalizeInput(clusterName);
         String cat = InputUtils.normalizeInput(category);
 
         if (name == null) {
-            throw McpErrors.invalidParams("KafkaConnect name is required");
+            throw McpErrors.invalidParams("Cluster name is required");
         }
 
+        // Validate time range parameters
         TimeRangeValidator.validateTimeRangeParameters(rangeMinutes, startTime, endTime);
 
+        // Resolve metric names from category + explicit names
         List<String> resolvedMetrics = MetricNameResolver.resolve(
             cat, metricNames, DEFAULT_CATEGORY,
-            KafkaConnectMetricCategories::resolve, KafkaConnectMetricCategories.allCategories());
+            CruiseControlMetricCategories::resolve, CruiseControlMetricCategories.allCategories());
         List<String> categories = new ArrayList<>();
         if (cat != null) {
             categories.add(cat);
         }
 
-        KafkaConnect connect = kafkaConnectService.findKafkaConnect(ns, name);
-        String resolvedNs = connect.getMetadata().getNamespace();
+        // Find the Kafka cluster
+        Kafka kafka = kafkaService.findKafkaCluster(ns, name);
+        String resolvedNs = kafka.getMetadata().getNamespace();
 
-        LOG.infof("Getting KafkaConnect metrics for cluster '%s' in namespace '%s' (provider=%s)",
+        LOG.infof("Getting Cruise Control metrics for cluster '%s' in namespace '%s' (provider=%s)",
             name, resolvedNs, metricsQueryService.providerName());
 
-        Map<String, String> podLabels = Map.of(
-            ResourceLabels.STRIMZI_CLUSTER_LABEL, name,
-            ResourceLabels.STRIMZI_KIND_LABEL, StrimziConstants.KindValues.KAFKA_CONNECT);
-        List<Pod> pods = k8sService.queryResourcesByLabels(Pod.class, resolvedNs, podLabels);
+        // Find Cruise Control pods
+        List<Pod> pods = k8sService.queryResourcesByLabel(
+                Pod.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, name)
+            .stream()
+            .filter(pod -> {
+                Map<String, String> labels = pod.getMetadata().getLabels();
+                if (labels == null) {
+                    return false;
+                }
+                String componentType = labels.get(ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL);
+                return StrimziConstants.ComponentTypes.KAFKA_CRUISE_CONTROL.equals(componentType);
+            })
+            .toList();
 
-        LOG.debugf("Found %d KafkaConnect pod(s) for cluster '%s': %s",
+        LOG.debugf("Found %d Cruise Control pod(s) for cluster '%s': %s",
             pods.size(), name,
             pods.stream().map(p -> p.getMetadata().getName()).toList());
 
         if (pods.isEmpty()) {
-            return KafkaConnectMetricsResponse.empty(name, resolvedNs,
-                String.format("No KafkaConnect pods found for cluster '%s' in namespace '%s'",
+            return CruiseControlMetricsResponse.empty(name, resolvedNs,
+                String.format("No Cruise Control pods found for cluster '%s' in namespace '%s'",
                     name, resolvedNs));
         }
 
+        // Build pod targets and label matchers
         List<PodTarget> podTargets = pods.stream()
             .map(pod -> PodTarget.of(
                 pod.getMetadata().getNamespace(),
@@ -124,23 +138,25 @@ public class KafkaConnectMetricsService {
         labelMatchers.put("namespace", resolvedNs);
         labelMatchers.put("strimzi_io_cluster", name);
 
+        // Query metrics via general service
         List<MetricSample> samples = metricsQueryService.queryMetrics(
             podTargets, labelMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
 
+        // Build interpretation from effective categories
         List<String> effectiveCategories = new ArrayList<>(categories);
         if (effectiveCategories.isEmpty() && (metricNames == null || metricNames.isBlank())) {
             effectiveCategories.add(DEFAULT_CATEGORY);
         }
         String interpretation = MetricNameResolver.alignInterpretation(
-            KafkaConnectMetricCategories.interpretation(effectiveCategories),
+            CruiseControlMetricCategories.interpretation(effectiveCategories),
             samples.stream().map(MetricSample::name).toList());
 
         AggregationLevel level = AggregationLevel.fromString(aggregation);
         if (cat != null || metricNames == null || metricNames.isBlank()) {
             String effectiveCat = cat != null ? cat : DEFAULT_CATEGORY;
-            level = AggregationLevel.resolve(aggregation, KafkaConnectMetricCategories.maxGranularity(effectiveCat));
+            level = AggregationLevel.resolve(aggregation, CruiseControlMetricCategories.maxGranularity(effectiveCat));
         }
-        return KafkaConnectMetricsResponse.of(name, resolvedNs,
+        return CruiseControlMetricsResponse.of(name, resolvedNs,
             metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
     }
 }

@@ -127,6 +127,11 @@ public final class StrimziConstants {
         public static final String KAFKA_BRIDGE = "kafka-bridge";
 
         /**
+         * Component type value for Cruise Control components.
+         */
+        public static final String KAFKA_CRUISE_CONTROL = "cruise-control";
+
+        /**
          * Component types representing Kafka broker pods.
          */
         public static final java.util.Set<String> BROKER_TYPES =
