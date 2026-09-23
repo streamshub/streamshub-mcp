@@ -277,6 +277,7 @@ class MetricsPrometheusToolsST extends AbstractST {
     void testGetKafkaBridgeMetricsRange() {
         Map<String, Object> args = Map.of(
             "bridgeName", Constants.BRIDGE_NAME,
+            "category", "resources",
             "rangeMinutes", 30,
             "stepSeconds", 60);
 
@@ -289,10 +290,13 @@ class MetricsPrometheusToolsST extends AbstractST {
                             String text = response.content().getFirst().asText().text();
                             LOGGER.info("get_kafka_bridge_metrics range response (length={})", text.length());
                             LOGGER.debug("get_kafka_bridge_metrics range response:\n{}", text);
-                            assertEquals(Constants.BRIDGE_NAME, root.path("bridge_name").asText(), "bridge_name should match");
                             assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText());
                             assertEquals("streamshub-prometheus", root.path("provider").asText());
                             assertFalse(root.path("interpretation").isMissingNode(), "Should have interpretation text");
+                            // Non-empty, and every advertised name really comes back. A PodMonitor
+                            // pointed at the wrong port yields zero samples and would otherwise pass.
+                            assertMetricsResponse(root, "bridge_name", Constants.BRIDGE_NAME);
+                            assertAllMetricsPresent(root, root.path("provider").asText(), CatalogNames.BRIDGE_RESOURCES);
                         })
                         .thenAssertResults();
 
@@ -312,6 +316,7 @@ class MetricsPrometheusToolsST extends AbstractST {
     void testGetKafkaConnectMetricsRange() {
         Map<String, Object> args = Map.of(
             "connectName", Constants.CONNECT_CLUSTER_NAME,
+            "category", "worker",
             "rangeMinutes", 30,
             "stepSeconds", 60);
 
@@ -324,10 +329,11 @@ class MetricsPrometheusToolsST extends AbstractST {
                             String text = response.content().getFirst().asText().text();
                             LOGGER.info("get_kafka_connect_metrics range response (length={})", text.length());
                             LOGGER.debug("get_kafka_connect_metrics range response:\n{}", text);
-                            assertEquals(Constants.CONNECT_CLUSTER_NAME, root.path("connect_name").asText(), "connect_name should match");
                             assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText());
                             assertEquals("streamshub-prometheus", root.path("provider").asText());
                             assertFalse(root.path("interpretation").isMissingNode(), "Should have interpretation text");
+                            assertMetricsResponse(root, "connect_name", Constants.CONNECT_CLUSTER_NAME);
+                            assertAllMetricsPresent(root, root.path("provider").asText(), CatalogNames.CONNECT_WORKER);
                         })
                         .thenAssertResults();
 
@@ -346,6 +352,7 @@ class MetricsPrometheusToolsST extends AbstractST {
     @Story("get_strimzi_operator_metrics returns operator metrics with range")
     void testGetStrimziOperatorMetricsRange() {
         Map<String, Object> args = Map.of(
+            "category", "reconciliation",
             "rangeMinutes", 30,
             "stepSeconds", 60);
 
@@ -360,13 +367,11 @@ class MetricsPrometheusToolsST extends AbstractST {
                             LOGGER.debug("get_strimzi_operator_metrics range response:\n{}", text);
                             assertFalse(root.path("operator_name").asText("").isEmpty(),
                                 "operator_name should be present and non-empty");
-                            assertFalse(root.path("namespace").isMissingNode(), "Should have namespace");
-                            assertTrue(root.path("categories").isArray(), "categories should be an array");
-                            assertTrue(root.path("time_series").isArray(), "time_series should be an array");
-                            assertTrue(root.path("metric_count").isNumber(), "metric_count should be a number");
-                            assertTrue(root.path("sample_count").isNumber(), "sample_count should be a number");
-                            assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
-                            assertFalse(root.path("message").isMissingNode(), "Should have message");
+                            // Operator name is auto-discovered, so it is echoed back rather than
+                            // asserted; the value here is the envelope and non-empty checks.
+                            assertMetricsResponse(root, "operator_name", root.path("operator_name").asText());
+                            assertAllMetricsPresent(root, root.path("provider").asText(),
+                                CatalogNames.OPERATOR_RECONCILIATION);
                         })
                         .thenAssertResults();
                     return true;

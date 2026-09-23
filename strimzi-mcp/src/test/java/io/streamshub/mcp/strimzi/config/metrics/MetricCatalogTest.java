@@ -260,8 +260,15 @@ class MetricCatalogTest {
 
     /**
      * Every metric name in every category class must appear in the JMX-exporter golden file.
-     * The golden file is a sorted snapshot of Prometheus /api/v1/label/__name__/values.
+     * The golden file is a sorted snapshot of each pod's own {@code /metrics} endpoint — not of
+     * Prometheus, so a name can be golden while a broken PodMonitor keeps it out of Prometheus.
      * Compare catalog names (pre-rename), not response names — see §4.0 F2.
+     * <p>
+     * This check is one-directional: it proves the catalog is a subset of the file, never that a
+     * name in the file is real. Adding a name to the file's {@code UNCONFIRMED} trailer therefore
+     * always turns the check green, which is how four non-existent names once survived it. Treat
+     * a growing trailer as the signal, and see the trailer's own comments for what each entry
+     * is waiting on.
      */
     @ParameterizedTest
     @MethodSource("catalogs")
