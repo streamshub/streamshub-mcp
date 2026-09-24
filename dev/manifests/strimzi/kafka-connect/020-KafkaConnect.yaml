@@ -72,14 +72,32 @@ data:
     # See https://github.com/prometheus/jmx_exporter for more info about JMX Prometheus Exporter metrics
     lowercaseOutputName: true
     rules:
+      # Every `-total` attribute needs its own COUNTER rule ahead of the generic GAUGE one:
+      # the exporter treats _total as reserved for counters and silently drops the suffix
+      # from a gauge, so connector-startup-success-total would otherwise be published as
+      # kafka_connect_worker_connector_startup_success. Matches the upstream Strimzi example
+      # (packaging/examples/metrics/kafka-connect-metrics.yaml).
       # Kafka Connect Worker metrics
+      - pattern: kafka.connect<type=connect-worker-metrics><>([a-z-]+-total)
+        name: kafka_connect_worker_$1
+        type: COUNTER
       - pattern: kafka.connect<type=connect-worker-metrics><>([a-z-]+)
         name: kafka_connect_worker_$1
         type: GAUGE
       # Kafka Connect Worker Rebalance metrics
+      - pattern: kafka.connect<type=connect-worker-rebalance-metrics><>([a-z-]+-total)
+        name: kafka_connect_worker_rebalance_$1
+        type: COUNTER
       - pattern: kafka.connect<type=connect-worker-rebalance-metrics><>([a-z-]+)
         name: kafka_connect_worker_rebalance_$1
         type: GAUGE
+      # Task-level counters, all three task types at once (safeName maps '-' to '_')
+      - pattern: kafka.connect<type=(.+)-metrics, connector=(.+), task=(.+)><>([a-z-]+-total)
+        name: kafka_connect_$1_$4
+        type: COUNTER
+        labels:
+          connector: "$2"
+          task: "$3"
       # Kafka Connect Connector Task metrics
       - pattern: kafka.connect<type=connector-task-metrics, connector=(.+), task=(.+)><>([a-z-]+)
         name: kafka_connect_connector_task_$3

@@ -53,10 +53,14 @@ final class CatalogNames {
         "kafka_connect_worker_task_startup_failure_total",
         "kafka_connect_worker_task_startup_success_total");
 
-    /** {@code StrimziOperatorMetricCategories.RECONCILIATION} — emitted once anything reconciles. */
+    /**
+     * {@code StrimziOperatorMetricCategories.RECONCILIATION} — emitted once anything reconciles.
+     * Without {@code strimzi_reconciliations_failed_total}: the operator's counters are created
+     * per label set on first increment, so on a cluster that reconciles cleanly that series has
+     * never existed.
+     */
     static final List<String> OPERATOR_RECONCILIATION = List.of(
         "strimzi_reconciliations_successful_total",
-        "strimzi_reconciliations_failed_total",
         "strimzi_reconciliations_total",
         "strimzi_reconciliations_duration_seconds_sum",
         "strimzi_reconciliations_duration_seconds_count",
