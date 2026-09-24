@@ -366,6 +366,21 @@ Resource constants are in `io.streamshub.mcp.strimzi.config.StrimziToolResources
 - State what it returns, not what it's useful for
 - Use string concatenation for multi-line: `"First part." + " Second part."`
 
+### Tool ordering (tools/list)
+
+`tools/list` returns tools in a deterministic order. quarkus-mcp-server sorts features
+by registration timestamp (`FeatureInfo.compareTo` → `createdAt`, then `name`), and the
+timestamp is fixed at registration, so the order is stable for the lifetime of a running
+instance and across restarts of the same build. This satisfies the MCP 2026-07-28
+"deterministic order" recommendation. `McpDiscoveryTest.testToolListingOrderIsDeterministic`
+guards the guarantee. The order is *registration/scan order*, not alphabetical — the
+framework comparator is not configurable, so a build-independent alphabetical order is not
+available without an upstream change (tracked in #265).
+
+The production tool page size is set to `quarkus.mcp.server.tools.page-size=100` so the full
+tool list (56 tools) ships in a single `tools/list` page rather than the framework default
+of 50 (which would paginate into two pages).
+
 ### Tools with progress and cancellation
 
 Long-running tools (e.g., log collection across many pods) accept MCP framework parameters
