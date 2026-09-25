@@ -4,6 +4,8 @@
  */
 package io.streamshub.mcp.common.dto.metrics;
 
+import io.streamshub.mcp.common.util.McpErrors;
+
 import java.util.Locale;
 
 /**
@@ -55,7 +57,12 @@ public enum AggregationLevel {
         if (value == null || value.isBlank()) {
             return CLUSTER;
         }
-        return valueOf(value.toUpperCase(Locale.ROOT));
+        try {
+            return valueOf(value.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw McpErrors.invalidParams(
+                "aggregation level must be one of: partition, topic, broker, cluster");
+        }
     }
 
     /**

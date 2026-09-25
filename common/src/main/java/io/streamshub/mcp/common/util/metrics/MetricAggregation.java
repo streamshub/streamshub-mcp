@@ -145,7 +145,12 @@ public enum MetricAggregation {
     /**
      * Combines the values recorded at one timestamp by several source series.
      *
-     * @param values the values to combine; must not be empty
+     * <p>For {@link #AVG} and {@link #MAX}, an empty list produces {@code 0.0} via
+     * {@link java.util.OptionalDouble#orElse}. In practice this cannot occur because the
+     * caller always passes at least one value, but callers should not rely on the 0.0
+     * fallback for {@link #MAX} with a negative-valued series.</p>
+     *
+     * @param values the values to combine; must not be null
      * @return the combined value
      */
     public double reduce(final List<Double> values) {

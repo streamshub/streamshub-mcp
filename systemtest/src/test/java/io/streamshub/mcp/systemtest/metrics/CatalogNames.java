@@ -54,6 +54,15 @@ final class CatalogNames {
         "kafka_connect_worker_task_startup_success_total");
 
     /**
+     * {@code CruiseControlMetricCategories.SAMPLING} — emitted once Cruise Control has completed
+     * at least one sampling window. Excludes failure-rate counters which only exist after a failure.
+     */
+    static final List<String> CC_SAMPLING = List.of(
+        "kafka_cruisecontrol_loadmonitor_monitored_partitions_percentage_value",
+        "kafka_cruisecontrol_loadmonitor_valid_windows_value",
+        "kafka_cruisecontrol_loadmonitor_total_monitored_windows_value");
+
+    /**
      * {@code StrimziOperatorMetricCategories.RECONCILIATION} — emitted once anything reconciles.
      * Without {@code strimzi_reconciliations_failed_total}: the operator's counters are created
      * per label set on first increment, so on a cluster that reconciles cleanly that series has

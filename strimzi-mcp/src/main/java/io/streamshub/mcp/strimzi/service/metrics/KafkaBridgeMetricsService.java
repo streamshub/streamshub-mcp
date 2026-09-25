@@ -145,11 +145,12 @@ public class KafkaBridgeMetricsService {
             KafkaBridgeMetricCategories.interpretation(effectiveCategories),
             samples.stream().map(MetricSample::name).toList());
 
-        AggregationLevel level = AggregationLevel.fromString(aggregation);
-        if (cat != null || metricNames == null || metricNames.isBlank()) {
-            String effectiveCat = cat != null ? cat : DEFAULT_CATEGORY;
-            level = AggregationLevel.resolve(aggregation, KafkaBridgeMetricCategories.maxGranularity(effectiveCat));
-        }
+        String effectiveAggCat = (cat != null || metricNames == null || metricNames.isBlank())
+            ? (cat != null ? cat : DEFAULT_CATEGORY)
+            : null;
+        AggregationLevel level = effectiveAggCat != null
+            ? AggregationLevel.resolve(aggregation, KafkaBridgeMetricCategories.maxGranularity(effectiveAggCat))
+            : AggregationLevel.fromString(aggregation);
         return KafkaBridgeMetricsResponse.of(name, resolvedNs,
             metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
     }

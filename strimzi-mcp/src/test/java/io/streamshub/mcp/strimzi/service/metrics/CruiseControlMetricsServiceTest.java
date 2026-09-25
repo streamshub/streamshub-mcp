@@ -37,6 +37,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -201,6 +202,7 @@ class CruiseControlMetricsServiceTest {
             "kafka", "my-cluster", "sampling", null, 60, null, null, 15, null);
 
         assertNotNull(response);
+        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15));
     }
 
     @Test

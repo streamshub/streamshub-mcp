@@ -4,10 +4,12 @@
  */
 package io.streamshub.mcp.common.dto.metrics;
 
+import io.quarkiverse.mcp.server.McpException;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Unit tests for {@link AggregationLevel}.
@@ -45,7 +47,8 @@ class AggregationLevelTest {
 
     @Test
     void fromStringInvalidThrows() {
-        assertThrows(IllegalArgumentException.class, () -> AggregationLevel.fromString("invalid"));
+        McpException ex = assertThrows(McpException.class, () -> AggregationLevel.fromString("invalid"));
+        assertTrue(ex.getMessage().contains("aggregation level must be one of"));
     }
 
     @Test
@@ -98,7 +101,8 @@ class AggregationLevelTest {
 
     @Test
     void resolveRejectsAnUnknownLevel() {
-        assertThrows(IllegalArgumentException.class,
+        McpException ex = assertThrows(McpException.class,
             () -> AggregationLevel.resolve("rack", AggregationLevel.BROKER));
+        assertTrue(ex.getMessage().contains("aggregation level must be one of"));
     }
 }

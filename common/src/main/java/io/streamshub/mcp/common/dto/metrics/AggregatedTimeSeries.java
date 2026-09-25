@@ -93,7 +93,12 @@ public record AggregatedTimeSeries(
             Map<String, String> labels = groupLabels.get(entry.getKey());
             String metricName = groupSamples.getFirst().name();
 
-            // Sub-group by timestamp, combine values at each timestamp
+            // Sub-group by timestamp, combine values at each timestamp.
+            // NOTE: samples are bucketed on getEpochSecond(), so two pods scraped on
+            // opposite sides of a second boundary land in different buckets. For AVG
+            // this produces at most a one-second temporal jitter; for SUM/MAX it can
+            // emit two partial aggregates instead of one. The effect is small under
+            // normal scrape alignment but worth knowing when interpreting cluster totals.
             Map<Long, List<Double>> byTimestamp = new TreeMap<>();
             for (MetricSample s : groupSamples) {
                 long epoch = s.timestamp() != null ? s.timestamp().getEpochSecond() : 0L;

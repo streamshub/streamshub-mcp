@@ -7,9 +7,11 @@ package io.streamshub.mcp.strimzi.config.metrics;
 import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
 /**
  * Curated metric name categories for Strimzi cluster operator metrics.
  * Maps human-friendly category names to lists of Prometheus metric names,
@@ -128,7 +130,7 @@ public final class StrimziOperatorMetricCategories {
         if (category == null) {
             return List.of();
         }
-        return CATEGORIES.getOrDefault(category.toLowerCase(java.util.Locale.ROOT), List.of());
+        return CATEGORIES.getOrDefault(category.toLowerCase(Locale.ROOT), List.of());
     }
 
     /**
@@ -151,10 +153,11 @@ public final class StrimziOperatorMetricCategories {
             return null;
         }
         String result = categories.stream()
-            .map(c -> c.toLowerCase(java.util.Locale.ROOT))
+            .map(c -> c.toLowerCase(Locale.ROOT))
             .filter(DESCRIPTIONS::containsKey)
             .map(DESCRIPTIONS::get)
             .collect(Collectors.joining("\n\n"));
         return result.isEmpty() ? null : result;
     }
 }
+
