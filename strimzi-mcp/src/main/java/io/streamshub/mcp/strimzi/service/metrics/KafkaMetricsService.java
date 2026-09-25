@@ -255,9 +255,15 @@ public class KafkaMetricsService {
             .collect(Collectors.toSet());
 
         return samples.stream()
-            .filter(s -> PARTITION_HEALTH_FLAGS.contains(s.name())
-                ? s.value() != 0.0
-                : unhealthy.contains(partitionKey(s)))
+            .filter(s -> {
+                if (PARTITION_HEALTH_FLAGS.contains(s.name())) {
+                    return s.value() != 0.0;
+                }
+                if ("kafka_cluster_partition_replicascount".equals(s.name())) {
+                    return unhealthy.contains(partitionKey(s));
+                }
+                return true;
+            })
             .toList();
     }
 
@@ -286,6 +292,8 @@ public class KafkaMetricsService {
     private static long countFlagged(final List<MetricSample> samples, final String metricName) {
         return samples.stream()
             .filter(s -> metricName.equals(s.name()) && s.value() != 0.0)
+            .map(KafkaMetricsService::partitionKey)
+            .distinct()
             .count();
     }
 

@@ -21,6 +21,7 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
 /**
  * Resolves metric names from a combination of category and explicit metric names.
  * Shared across metrics services to avoid duplicated resolution logic.
@@ -110,26 +111,41 @@ public final class MetricNameResolver {
             resolved.addAll(categoryMetrics);
         }
 
+        Set<String> explicitSet = parseExplicitMetricNames(metricNames);
+        for (String validated : explicitSet) {
+            if (!resolved.contains(validated)) {
+                resolved.add(validated);
+            }
+        }
+
+        if (backend == MetricsBackend.JMX_EXPORTER || aliasMap == null || aliasMap.isEmpty()) {
+            return List.copyOf(resolved);
+        }
+
+        return translateToSmr(resolved, explicitSet, backend, aliasMap);
+    }
+
+    private static Set<String> parseExplicitMetricNames(final String metricNames) {
+        Set<String> explicitSet = new LinkedHashSet<>();
         if (metricNames != null && !metricNames.isBlank()) {
             for (String metric : metricNames.split(",")) {
                 String trimmed = metric.trim();
                 if (!trimmed.isEmpty()) {
                     try {
-                        String validated = PromQLSanitizer.sanitizeMetricName(trimmed);
-                        if (!resolved.contains(validated)) {
-                            resolved.add(validated);
-                        }
+                        explicitSet.add(PromQLSanitizer.sanitizeMetricName(trimmed));
                     } catch (IllegalArgumentException e) {
                         LOG.warnf("Invalid metric name '%s': %s", trimmed, e.getMessage());
                     }
                 }
             }
         }
+        return explicitSet;
+    }
 
-        if (backend == MetricsBackend.JMX_EXPORTER || aliasMap.isEmpty()) {
-            return List.copyOf(resolved);
-        }
-
+    private static List<String> translateToSmr(final List<String> resolved,
+                                               final Set<String> explicitSet,
+                                               final MetricsBackend backend,
+                                               final Map<String, String> aliasMap) {
         // Translate JMX names → SMR names, dropping UNMAPPED entries.
         // LinkedHashSet so a translated name cannot collide with an untranslated one.
         Set<String> translated = new LinkedHashSet<>();
@@ -141,7 +157,12 @@ public final class MetricNameResolver {
                 translated.add(alias);
                 LOG.debugf("Backend %s: mapped metric name '%s' → '%s'", backend, name, alias);
             } else {
-                LOG.debugf("Backend %s: excluded unmappable metric name '%s'", backend, name);
+                if (explicitSet.contains(name)) {
+                    LOG.warnf("Backend %s: explicitly requested metric '%s' cannot be mapped to Strimzi Metrics Reporter",
+                        backend, name);
+                } else {
+                    LOG.debugf("Backend %s: excluded unmappable metric name '%s'", backend, name);
+                }
             }
         }
         return List.copyOf(translated);
@@ -199,11 +220,17 @@ public final class MetricNameResolver {
 
         // The rate rename is the provider's, not the backend's, so derive it from what came back
         // rather than re-deciding here which names are counters.
+        if (returnedNames == null || returnedNames.isEmpty()) {
+            return aligned;
+        }
+
         Map<String, String> rateNames = new LinkedHashMap<>();
         for (String name : returnedNames) {
-            String preRename = MetricNameSuffixes.toTotal(name);
-            if (preRename != null) {
-                rateNames.put(preRename, name);
+            if (name != null) {
+                String preRename = MetricNameSuffixes.toTotal(name);
+                if (preRename != null) {
+                    rateNames.put(preRename, name);
+                }
             }
         }
         return rewriteNames(aligned, rateNames);

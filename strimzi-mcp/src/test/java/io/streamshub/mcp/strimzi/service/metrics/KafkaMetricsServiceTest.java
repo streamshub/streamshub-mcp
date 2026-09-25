@@ -333,10 +333,36 @@ class KafkaMetricsServiceTest {
             "kafka", "my-cluster", "partitions", null, null, null, null, null, null, null);
 
         assertEquals(0, response.sampleCount());
+        assertTrue(response.message().contains("All scanned partitions are healthy"));
         assertTrue(response.interpretation().contains("Scanned 1 partitions: 0 under min ISR, 0 at min ISR"),
             "interpretation should report the scan: " + response.interpretation());
         assertTrue(response.interpretation().contains("every partition is healthy"),
             "interpretation must explain that an empty list is good news");
+    }
+
+    @Test
+    void partitionsCategoryWithCoRequestedNonPartitionMetricPreservesNonPartitionMetric() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster")).thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_cluster_partition_underminisr", Map.of("topic", "t", "partition", "0"), 0.0),
+            MetricSample.of("kafka_cluster_partition_atminisr", Map.of("topic", "t", "partition", "0"), 0.0),
+            MetricSample.of("kafka_cluster_partition_replicascount", Map.of("topic", "t", "partition", "0"), 3.0),
+            MetricSample.of("jvm_memory_used_bytes", Map.of("area", "heap"), 1024.0));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(samples);
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "partitions", "jvm_memory_used_bytes", null, null, null, null, null, null);
+
+        assertEquals(1, response.sampleCount());
+        assertEquals("jvm_memory_used_bytes", response.timeSeries().getFirst().name());
     }
 
     @Test

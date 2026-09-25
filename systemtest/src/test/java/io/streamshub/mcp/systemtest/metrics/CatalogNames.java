@@ -9,11 +9,10 @@ import java.util.List;
 /**
  * Metric names the server advertises, restated here so a live cluster can confirm them.
  * <p>
- * Deliberately a copy of the {@code *MetricCategories} lists rather than an import: the
- * systemtest module asserts against the deployed server's contract, not against the same
- * constants the server was built from. If the two drift, these tests fail — which is the point.
- * That is also the difference between this and {@code known-series-jmx-exporter.txt}, which can
- * only ever prove a name is written down in a second place.
+ * Deliberately a decoupled subset of expected metric names rather than directly importing
+ * server constants: the systemtest module asserts against the deployed server's behavior
+ * on a live cluster independently of server build internals. If a name drifts or is dropped
+ * from the live component metrics output, these tests detect the regression.
  * <p>
  * Each list is a category subset chosen to be emitted unconditionally by a freshly deployed
  * component, so a failure means a real regression rather than a workload that never ran.

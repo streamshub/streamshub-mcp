@@ -104,18 +104,10 @@ public class CruiseControlMetricsService {
             name, resolvedNs, metricsQueryService.providerName());
 
         // Find Cruise Control pods
-        List<Pod> pods = k8sService.queryResourcesByLabel(
-                Pod.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, name)
-            .stream()
-            .filter(pod -> {
-                Map<String, String> labels = pod.getMetadata().getLabels();
-                if (labels == null) {
-                    return false;
-                }
-                String componentType = labels.get(ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL);
-                return StrimziConstants.ComponentTypes.KAFKA_CRUISE_CONTROL.equals(componentType);
-            })
-            .toList();
+        Map<String, String> podLabels = Map.of(
+            ResourceLabels.STRIMZI_CLUSTER_LABEL, name,
+            ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL, StrimziConstants.ComponentTypes.KAFKA_CRUISE_CONTROL);
+        List<Pod> pods = k8sService.queryResourcesByLabels(Pod.class, resolvedNs, podLabels);
 
         LOG.debugf("Found %d Cruise Control pod(s) for cluster '%s': %s",
             pods.size(), name,

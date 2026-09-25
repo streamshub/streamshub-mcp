@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.quarkiverse.mcp.server.JsonRpcErrorCodes;
 import io.quarkiverse.mcp.server.McpException;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
+import io.streamshub.mcp.common.dto.metrics.PodTarget;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
@@ -19,6 +20,8 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -60,6 +63,12 @@ class CruiseControlMetricsServiceTest {
     @Mock
     KafkaService kafkaService;
 
+    @Captor
+    ArgumentCaptor<List<PodTarget>> podTargetsCaptor;
+
+    @Captor
+    ArgumentCaptor<List<String>> metricNamesCaptor;
+
     private CruiseControlMetricsService cruiseControlMetricsService;
 
     @BeforeEach
@@ -98,8 +107,10 @@ class CruiseControlMetricsServiceTest {
         Kafka kafka = createKafka("my-cluster", "kafka");
         when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
-        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
-            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+        Map<String, String> podLabels = Map.of(
+            ResourceLabels.STRIMZI_CLUSTER_LABEL, "my-cluster",
+            ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL, StrimziConstants.ComponentTypes.KAFKA_CRUISE_CONTROL);
+        when(k8sService.queryResourcesByLabels(eq(Pod.class), eq("kafka"), eq(podLabels)))
             .thenReturn(List.of());
 
         CruiseControlMetricsResponse response = cruiseControlMetricsService.getCruiseControlMetrics(
@@ -117,8 +128,10 @@ class CruiseControlMetricsServiceTest {
 
         when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
-        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
-            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+        Map<String, String> podLabels = Map.of(
+            ResourceLabels.STRIMZI_CLUSTER_LABEL, "my-cluster",
+            ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL, StrimziConstants.ComponentTypes.KAFKA_CRUISE_CONTROL);
+        when(k8sService.queryResourcesByLabels(eq(Pod.class), eq("kafka"), eq(podLabels)))
             .thenReturn(List.of(ccPod));
 
         List<MetricSample> samples = List.of(
@@ -144,8 +157,10 @@ class CruiseControlMetricsServiceTest {
 
         when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
-        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
-            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+        Map<String, String> podLabels = Map.of(
+            ResourceLabels.STRIMZI_CLUSTER_LABEL, "my-cluster",
+            ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL, StrimziConstants.ComponentTypes.KAFKA_CRUISE_CONTROL);
+        when(k8sService.queryResourcesByLabels(eq(Pod.class), eq("kafka"), eq(podLabels)))
             .thenReturn(List.of(ccPod));
 
         CruiseControlMetricsResponse response = cruiseControlMetricsService.getCruiseControlMetrics(
@@ -153,6 +168,7 @@ class CruiseControlMetricsServiceTest {
 
         assertNotNull(response);
         assertEquals("my-cluster", response.clusterName());
+        assertEquals(List.of("sampling"), response.categories());
     }
 
     @Test
@@ -174,8 +190,10 @@ class CruiseControlMetricsServiceTest {
 
         when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
-        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
-            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+        Map<String, String> podLabels = Map.of(
+            ResourceLabels.STRIMZI_CLUSTER_LABEL, "my-cluster",
+            ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL, StrimziConstants.ComponentTypes.KAFKA_CRUISE_CONTROL);
+        when(k8sService.queryResourcesByLabels(eq(Pod.class), eq("kafka"), eq(podLabels)))
             .thenReturn(List.of(ccPod));
 
         CruiseControlMetricsResponse response = cruiseControlMetricsService.getCruiseControlMetrics(
@@ -183,6 +201,10 @@ class CruiseControlMetricsServiceTest {
             null, null, null, null, null);
 
         assertNotNull(response);
+        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), metricNamesCaptor.capture(),
+            isNull(), isNull(), isNull(), isNull());
+        assertTrue(metricNamesCaptor.getValue()
+            .contains("kafka_cruisecontrol_anomalydetector_balancedness_score_value"));
     }
 
     @Test
@@ -192,8 +214,10 @@ class CruiseControlMetricsServiceTest {
 
         when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
-        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
-            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+        Map<String, String> podLabels = Map.of(
+            ResourceLabels.STRIMZI_CLUSTER_LABEL, "my-cluster",
+            ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL, StrimziConstants.ComponentTypes.KAFKA_CRUISE_CONTROL);
+        when(k8sService.queryResourcesByLabels(eq(Pod.class), eq("kafka"), eq(podLabels)))
             .thenReturn(List.of(ccPod));
         when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15)))
             .thenReturn(List.of());
@@ -213,9 +237,11 @@ class CruiseControlMetricsServiceTest {
 
         when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
-        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
-            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
-            .thenReturn(List.of(ccPod, brokerPod));
+        Map<String, String> podLabels = Map.of(
+            ResourceLabels.STRIMZI_CLUSTER_LABEL, "my-cluster",
+            ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL, StrimziConstants.ComponentTypes.KAFKA_CRUISE_CONTROL);
+        when(k8sService.queryResourcesByLabels(eq(Pod.class), eq("kafka"), eq(podLabels)))
+            .thenReturn(List.of(ccPod));
 
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_cruisecontrol_loadmonitor_monitored_partitions_percentage_value",
@@ -227,6 +253,11 @@ class CruiseControlMetricsServiceTest {
             "kafka", "my-cluster", "sampling", null, null, null, null, null, null);
 
         assertNotNull(response);
+        verify(metricsQueryService).queryMetrics(podTargetsCaptor.capture(), anyMap(), anyList(),
+            isNull(), isNull(), isNull(), isNull());
+        List<PodTarget> targets = podTargetsCaptor.getValue();
+        assertEquals(1, targets.size());
+        assertEquals("my-cluster-cruise-control-0", targets.getFirst().podName());
         assertEquals(1, response.sampleCount());
     }
 
@@ -237,8 +268,10 @@ class CruiseControlMetricsServiceTest {
 
         when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
-        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
-            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+        Map<String, String> podLabels = Map.of(
+            ResourceLabels.STRIMZI_CLUSTER_LABEL, "my-cluster",
+            ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL, StrimziConstants.ComponentTypes.KAFKA_CRUISE_CONTROL);
+        when(k8sService.queryResourcesByLabels(eq(Pod.class), eq("kafka"), eq(podLabels)))
             .thenReturn(List.of(pod));
 
         CruiseControlMetricsResponse response = cruiseControlMetricsService.getCruiseControlMetrics(
