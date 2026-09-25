@@ -36,6 +36,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+
 /**
  * MCP tools for metrics retrieval from Kafka clusters and Strimzi operators.
  */
@@ -165,7 +166,7 @@ public class MetricsTools {
     @Tool(
         name = "get_kafka_exporter_metrics",
         description = "Retrieves Prometheus metrics from Kafka Exporter pods by category or explicit metric names."
-            + " Returns consumer group lag, topic partition offsets, and JVM metrics with interpretation guide.",
+            + " Returns consumer group lag, topic partition offsets, and process metrics with interpretation guide.",
         structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
