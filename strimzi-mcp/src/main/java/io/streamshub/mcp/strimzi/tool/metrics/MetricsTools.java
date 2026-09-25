@@ -20,11 +20,13 @@ import io.streamshub.mcp.common.guardrail.ResponseSizeLimitGuardrail;
 import io.streamshub.mcp.common.observability.MeasuredTool;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.dto.metrics.CruiseControlMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaBridgeMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaConnectMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaExporterMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.StrimziOperatorMetricsResponse;
+import io.streamshub.mcp.strimzi.service.metrics.CruiseControlMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaBridgeMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaConnectMetricsService;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaExporterMetricsService;
@@ -34,6 +36,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+
 /**
  * MCP tools for metrics retrieval from Kafka clusters and Strimzi operators.
  */
@@ -56,6 +59,9 @@ public class MetricsTools {
 
     @Inject
     StrimziOperatorMetricsService strimziOperatorMetricsService;
+
+    @Inject
+    CruiseControlMetricsService cruiseControlMetricsService;
 
     MetricsTools() {
         // package-private no-arg constructor for CDI
@@ -160,7 +166,7 @@ public class MetricsTools {
     @Tool(
         name = "get_kafka_exporter_metrics",
         description = "Retrieves Prometheus metrics from Kafka Exporter pods by category or explicit metric names."
-            + " Returns consumer group lag, topic partition offsets, and JVM metrics with interpretation guide.",
+            + " Returns consumer group lag, topic partition offsets, and process metrics with interpretation guide.",
         structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
@@ -227,6 +233,7 @@ public class MetricsTools {
      * @param aggregation  optional aggregation level
      * @return the KafkaBridge metrics response
      */
+    @WithSpan("tool.get_kafka_bridge_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.METRICS)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)
     @Tool(
@@ -438,5 +445,78 @@ public class MetricsTools {
     ) {
         return strimziOperatorMetricsService.getOperatorMetrics(
             namespace, operatorName, clusterName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds, aggregation);
+    }
+
+    /**
+     * Retrieves metrics from Cruise Control pods.
+     *
+     * @param clusterName  the Kafka cluster name
+     * @param namespace    optional namespace
+     * @param category     optional metric category
+     * @param metricNames  optional explicit metric names
+     * @param rangeMinutes optional range duration in minutes
+     * @param startTime    optional absolute start time in ISO 8601 format
+     * @param endTime      optional absolute end time in ISO 8601 format
+     * @param stepSeconds  optional range query step in seconds
+     * @param aggregation  optional aggregation level
+     * @return the Cruise Control metrics response
+     */
+    @WithSpan("tool.get_cruise_control_metrics")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.METRICS)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.CRUISE_CONTROL)
+    @Tool(
+        name = "get_cruise_control_metrics",
+        description = "Retrieves Prometheus metrics from Cruise Control pods by category or explicit metric names."
+            + " Returns partition monitoring, sampling status, and anomaly detection metrics with interpretation guide.",
+        structuredContent = true,
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    @ToolGuardrails(
+        input  = { MetricsRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
+    public CruiseControlMetricsResponse getCruiseControlMetrics(
+        @NotBlank @ToolArg(
+            description = StrimziToolsPrompts.CLUSTER_DESC
+        ) final String clusterName,
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace,
+        @ToolArg(
+            description = StrimziToolsPrompts.CRUISE_CONTROL_METRICS_CATEGORY_DESC,
+            required = false
+        ) final String category,
+        @ToolArg(
+            description = StrimziToolsPrompts.METRICS_NAMES_DESC,
+            required = false
+        ) final String metricNames,
+        @Min(1) @ToolArg(
+            description = StrimziToolsPrompts.RANGE_MINUTES_DESC,
+            required = false
+        ) final Integer rangeMinutes,
+        @ToolArg(
+            description = StrimziToolsPrompts.START_TIME_DESC,
+            required = false
+        ) final String startTime,
+        @ToolArg(
+            description = StrimziToolsPrompts.END_TIME_DESC,
+            required = false
+        ) final String endTime,
+        @Min(1) @ToolArg(
+            description = StrimziToolsPrompts.STEP_SECONDS_DESC,
+            required = false
+        ) final Integer stepSeconds,
+        @ToolArg(
+            description = StrimziToolsPrompts.AGGREGATION_DESC,
+            required = false
+        ) final String aggregation
+    ) {
+        return cruiseControlMetricsService.getCruiseControlMetrics(
+            namespace, clusterName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds, aggregation);
     }
 }

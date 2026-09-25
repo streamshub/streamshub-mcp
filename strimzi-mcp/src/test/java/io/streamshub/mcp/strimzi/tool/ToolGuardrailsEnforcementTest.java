@@ -41,7 +41,7 @@ class ToolGuardrailsEnforcementTest {
     }
 
     private static final String TOOL_PACKAGE = "io.streamshub.mcp.strimzi.tool";
-    private static final int EXPECTED_TOOL_METHOD_COUNT = 56;
+    private static final int EXPECTED_TOOL_METHOD_COUNT = 57;
 
     // Known tool sub-packages - add new sub-packages here when creating new tool categories
     private static final List<String> TOOL_SUBPACKAGES = List.of(

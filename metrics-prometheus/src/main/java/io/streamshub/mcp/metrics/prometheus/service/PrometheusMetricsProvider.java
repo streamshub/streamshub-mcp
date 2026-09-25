@@ -11,6 +11,7 @@ import io.streamshub.mcp.common.service.metrics.MetricsProvider;
 import io.streamshub.mcp.common.service.metrics.MetricsQueryException;
 import io.streamshub.mcp.common.util.ExceptionUtils;
 import io.streamshub.mcp.common.util.metrics.MetricLabelFilter;
+import io.streamshub.mcp.common.util.metrics.MetricNameSuffixes;
 import io.streamshub.mcp.metrics.prometheus.dto.PrometheusResponse;
 import io.streamshub.mcp.metrics.prometheus.util.PromQLSanitizer;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -43,8 +44,6 @@ public class PrometheusMetricsProvider implements MetricsProvider {
         // package-private no-arg constructor for CDI
     }
 
-    private static final String TOTAL_SUFFIX = "_total";
-    private static final String RATE_SUFFIX = "_rate_per_second";
     private static final String DEFAULT_RATE_WINDOW = "5m";
 
     @Override
@@ -91,9 +90,8 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             LOG.debugf("Executing PromQL query (counter rate): %s", promql);
 
             PrometheusResponse response = executeQuery(client, promql, params);
-            String renamedMetric = metric.substring(0, metric.length() - TOTAL_SUFFIX.length())
-                + RATE_SUFFIX;
-            result.addAll(convertResponseWithName(response, params.maxSamples(), renamedMetric));
+            result.addAll(convertResponseWithName(response, params.maxSamples(),
+                MetricNameSuffixes.toRate(metric)));
         }
         return result;
     }
@@ -126,7 +124,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             return;
         }
         for (String name : metricNames) {
-            if (name.endsWith(TOTAL_SUFFIX)) {
+            if (name.endsWith(MetricNameSuffixes.TOTAL)) {
                 counters.add(name);
             } else {
                 gauges.add(name);

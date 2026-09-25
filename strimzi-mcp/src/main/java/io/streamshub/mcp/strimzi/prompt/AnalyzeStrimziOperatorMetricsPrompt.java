@@ -75,7 +75,8 @@ public class AnalyzeStrimziOperatorMetricsPrompt {
             Call `get_strimzi_operator_metrics(%scategory='resources')`.
             Look for:
             - strimzi_resources count changes = resources added/removed
-            - strimzi_resource_state != 1 = unhealthy resource
+            - strimzi_resource_state != 1 = unhealthy resource (absent on Strimzi 1.2.0+, \
+            where it was removed — use `get_kafka_cluster` status conditions instead)
             - Cross-reference with `get_kafka_cluster` for details
 
             ## Step 3: Operator JVM health

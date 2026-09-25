@@ -27,7 +27,7 @@ class KafkaBridgeMetricCategoriesTest {
     void resolveValidCategoryReturnsMetrics() {
         List<String> metrics = KafkaBridgeMetricCategories.resolve("http");
         assertFalse(metrics.isEmpty());
-        assertTrue(metrics.contains("strimzi_bridge_http_server_requestCount_total"));
+        assertTrue(metrics.contains("strimzi_bridge_http_server_requests_total"));
     }
 
     @Test
@@ -51,10 +51,27 @@ class KafkaBridgeMetricCategoriesTest {
     }
 
     @Test
+    void resolveResourcesCategoryReturnsMicrometerNames() {
+        List<String> metrics = KafkaBridgeMetricCategories.resolve("resources");
+        assertEquals(6, metrics.size());
+        assertTrue(metrics.contains("jvm_memory_used_bytes"));
+        assertTrue(metrics.contains("jvm_memory_max_bytes"));
+        assertTrue(metrics.contains("jvm_gc_pause_seconds_count"));
+        assertTrue(metrics.contains("jvm_gc_pause_seconds_sum"));
+        assertTrue(metrics.contains("process_cpu_usage"));
+        assertTrue(metrics.contains("jvm_threads_live_threads"));
+        // JMX exporter forms must be absent
+        assertFalse(metrics.contains("jvm_gc_collection_seconds_count"));
+        assertFalse(metrics.contains("jvm_gc_collection_seconds_sum"));
+        assertFalse(metrics.contains("process_cpu_seconds_total"));
+        assertFalse(metrics.contains("jvm_threads_current"));
+    }
+
+    @Test
     void interpretationWithValidCategoryReturnsGuide() {
         String interpretation = KafkaBridgeMetricCategories.interpretation(List.of("http"));
         assertNotNull(interpretation);
-        assertTrue(interpretation.contains("strimzi_bridge_http_server_requestCount_total"));
+        assertTrue(interpretation.contains("strimzi_bridge_http_server_requests_total"));
     }
 
     @Test

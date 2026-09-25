@@ -4,6 +4,8 @@
  */
 package io.streamshub.mcp.common.dto.metrics;
 
+import io.streamshub.mcp.common.util.McpErrors;
+
 import java.util.Locale;
 
 /**
@@ -55,6 +57,33 @@ public enum AggregationLevel {
         if (value == null || value.isBlank()) {
             return CLUSTER;
         }
-        return valueOf(value.toUpperCase(Locale.ROOT));
+        try {
+            return valueOf(value.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw McpErrors.invalidParams(
+                "aggregation level must be one of: partition, topic, broker, cluster");
+        }
+    }
+
+    /**
+     * Resolves the effective level for a category-scoped request.
+     *
+     * <p>An explicitly requested level is parsed and clamped to {@code finest} — a caller
+     * cannot ask for more detail than the category's data carries. When the caller did not
+     * request a level, the default is {@link #CLUSTER} <em>except</em> for categories whose
+     * finest level is {@link #PARTITION}: those expose per-partition 0/1 gauges
+     * (e.g. {@code kafka_cluster_partition_underminisr}) where averaging destroys the signal —
+     * 3 bad partitions out of 1000 would read as 0.003 instead of 3. Those default to
+     * {@link #PARTITION}.</p>
+     *
+     * @param requested the caller-supplied level name (may be null or blank)
+     * @param finest    the finest meaningful level for the category in play
+     * @return the effective aggregation level; never null
+     */
+    public static AggregationLevel resolve(final String requested, final AggregationLevel finest) {
+        if (requested == null || requested.isBlank()) {
+            return finest == PARTITION ? PARTITION : CLUSTER;
+        }
+        return fromString(requested).clampTo(finest);
     }
 }

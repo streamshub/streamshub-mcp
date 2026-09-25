@@ -50,6 +50,18 @@ class KafkaExporterMetricCategoriesTest {
     }
 
     @Test
+    void resolveResourcesCategoryReturnsGoProcessNames() {
+        List<String> metrics = KafkaExporterMetricCategories.resolve("resources");
+        assertEquals(4, metrics.size());
+        assertTrue(metrics.contains("process_cpu_seconds_total"));
+        assertTrue(metrics.contains("process_resident_memory_bytes"));
+        assertTrue(metrics.contains("process_open_fds"));
+        assertTrue(metrics.contains("go_goroutines"));
+        // No JVM metrics — kafka_exporter is a Go binary
+        assertFalse(metrics.stream().anyMatch(m -> m.startsWith("jvm_")));
+    }
+
+    @Test
     void interpretationWithValidCategoryReturnsGuide() {
         String interpretation = KafkaExporterMetricCategories.interpretation(List.of("consumer_lag"));
         assertNotNull(interpretation);

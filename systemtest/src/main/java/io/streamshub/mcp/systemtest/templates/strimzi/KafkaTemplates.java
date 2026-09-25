@@ -96,6 +96,31 @@ public final class KafkaTemplates {
     }
 
     /**
+     * Create a Kafka builder with JMX Prometheus exporter metrics and CruiseControl metrics enabled.
+     * Combines {@link #kafkaWithMetrics} and a CruiseControl block that reads its metrics config from
+     * the {@code kafka-metrics} ConfigMap key {@code cruise-control-metrics-config.yml}.
+     *
+     * @param namespace    the namespace
+     * @param name         the cluster name
+     * @param replicas     the number of broker replicas
+     * @return a pre-configured KafkaBuilder with Kafka + CruiseControl metrics
+     */
+    public static KafkaBuilder kafkaWithMetricsAndCruiseControl(final String namespace, final String name,
+                                                                  final int replicas) {
+        return kafkaWithMetrics(namespace, name, replicas)
+            .editSpec()
+                .withNewCruiseControl()
+                    .withMetricsConfig(new JmxPrometheusExporterMetricsBuilder()
+                        .withValueFrom(new ExternalConfigurationReferenceBuilder()
+                            .withNewConfigMapKeyRef("cruise-control-metrics-config.yml",
+                                METRICS_CONFIG_MAP_NAME, false)
+                            .build())
+                        .build())
+                .endCruiseControl()
+            .endSpec();
+    }
+
+    /**
      * Create a Kafka builder with CruiseControl and auto-rebalance enabled.
      * Configures auto-rebalance for both add-brokers and remove-brokers modes.
      *

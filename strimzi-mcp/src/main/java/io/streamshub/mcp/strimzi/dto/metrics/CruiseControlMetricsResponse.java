@@ -15,8 +15,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+
 /**
- * Response containing metrics data from a Kafka cluster.
+ * Response containing metrics data from Cruise Control.
  * Metrics are always grouped and aggregated into time series based on the
  * configured {@link AggregationLevel}.
  *
@@ -34,7 +35,7 @@ import java.util.Map;
  * @param message        a human-readable summary of the result
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record KafkaMetricsResponse(
+public record CruiseControlMetricsResponse(
     @JsonProperty("cluster_name") String clusterName,
     @JsonProperty("namespace") String namespace,
     @JsonProperty("provider") String provider,
@@ -61,29 +62,18 @@ public record KafkaMetricsResponse(
      * @param level          the aggregation level
      * @return a response with the aggregated metric data
      */
-    public static KafkaMetricsResponse of(final String clusterName, final String namespace,
-                                           final String provider, final List<String> categories,
-                                           final List<MetricSample> samples,
-                                           final String interpretation,
-                                           final AggregationLevel level) {
+    public static CruiseControlMetricsResponse of(final String clusterName, final String namespace,
+                                                  final String provider, final List<String> categories,
+                                                  final List<MetricSample> samples,
+                                                  final String interpretation,
+                                                  final AggregationLevel level) {
         long metricCount = samples.stream()
             .map(MetricSample::name)
             .distinct()
             .count();
 
-        String msg;
-        if (samples.isEmpty()) {
-            if (categories != null && categories.contains("partitions")) {
-                msg = String.format("All scanned partitions are healthy for cluster '%s' (provider: %s)",
-                    clusterName, provider);
-            } else {
-                msg = String.format("No metrics data available for cluster '%s' (provider: %s, categories: %s)",
-                    clusterName, provider, categories);
-            }
-        } else {
-            msg = String.format("Retrieved %d samples across %d metrics from cluster '%s'",
-                samples.size(), metricCount, clusterName);
-        }
+        String msg = String.format("Retrieved %d samples across %d metrics from Cruise Control for cluster '%s'",
+            samples.size(), metricCount, clusterName);
 
         List<AggregatedTimeSeries> series = samples.isEmpty()
             ? List.of() : AggregatedTimeSeries.fromSamples(samples, level);
@@ -91,44 +81,9 @@ public record KafkaMetricsResponse(
         CommonLabelExtractor.Result extracted = CommonLabelExtractor.extract(series);
         Map<String, String> common = extracted.commonLabels().isEmpty() ? null : extracted.commonLabels();
 
-        return new KafkaMetricsResponse(clusterName, namespace, provider, categories,
+        return new CruiseControlMetricsResponse(clusterName, namespace, provider, categories,
             metricCount, samples.size(), level.name().toLowerCase(Locale.ROOT),
             common, extracted.strippedSeries(), interpretation, Instant.now(), msg);
-    }
-
-    /**
-     * Creates a response from pre-grouped time series (avoids re-aggregating).
-     *
-     * @param clusterName    the Kafka cluster name
-     * @param namespace      the Kubernetes namespace
-     * @param provider       the metrics provider name
-     * @param categories     the requested categories
-     * @param series         the pre-grouped time series
-     * @param interpretation brief guide for interpreting the returned metrics
-     * @return a response wrapping the provided time series
-     */
-    public static KafkaMetricsResponse ofTimeSeries(final String clusterName, final String namespace,
-                                                     final String provider, final List<String> categories,
-                                                     final List<AggregatedTimeSeries> series,
-                                                     final String interpretation) {
-        long metricCount = series.stream()
-            .map(AggregatedTimeSeries::name)
-            .distinct()
-            .count();
-        int sampleCount = series.stream()
-            .mapToInt(ts -> ts.summary() != null
-                ? ts.summary().originalDataPointCount() : ts.dataPoints().size())
-            .sum();
-
-        String msg = String.format("Retrieved %d samples across %d metrics from cluster '%s'",
-            sampleCount, metricCount, clusterName);
-
-        CommonLabelExtractor.Result extracted = CommonLabelExtractor.extract(series);
-        Map<String, String> common = extracted.commonLabels().isEmpty() ? null : extracted.commonLabels();
-
-        return new KafkaMetricsResponse(clusterName, namespace, provider, categories,
-            metricCount, sampleCount, null, common, extracted.strippedSeries(),
-            interpretation, Instant.now(), msg);
     }
 
     /**
@@ -139,9 +94,9 @@ public record KafkaMetricsResponse(
      * @param message     descriptive message explaining why no metrics are available
      * @return an empty response
      */
-    public static KafkaMetricsResponse empty(final String clusterName, final String namespace,
-                                              final String message) {
-        return new KafkaMetricsResponse(clusterName, namespace, null, List.of(),
+    public static CruiseControlMetricsResponse empty(final String clusterName, final String namespace,
+                                                     final String message) {
+        return new CruiseControlMetricsResponse(clusterName, namespace, null, List.of(),
             0, 0, null, null, List.of(), null, Instant.now(), message);
     }
 }
