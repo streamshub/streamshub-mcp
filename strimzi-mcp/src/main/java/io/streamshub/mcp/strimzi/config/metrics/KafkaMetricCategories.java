@@ -12,6 +12,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
 /**
  * Curated metric name categories for Kafka broker metrics.
  * Maps human-friendly category names to lists of Prometheus metric names,
@@ -369,3 +370,4 @@ public final class KafkaMetricCategories {
         return result.isEmpty() ? null : result;
     }
 }
+

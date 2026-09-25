@@ -232,6 +232,7 @@ public class MetricsTools {
      * @param aggregation  optional aggregation level
      * @return the KafkaBridge metrics response
      */
+    @WithSpan("tool.get_kafka_bridge_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.METRICS)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)
     @Tool(

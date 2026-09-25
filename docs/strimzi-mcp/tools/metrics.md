@@ -57,7 +57,7 @@ Get consumer lag metrics for mcp-cluster at topic level
 ## get_kafka_bridge_metrics
 
 Retrieves Prometheus metrics from KafkaBridge pods by category or explicit metric names.
-Returns HTTP request, producer, consumer, and JVM metrics with interpretation guide.
+Returns HTTP request, producer, consumer, and resource (Micrometer JVM) metrics with interpretation guide.
 
 **Parameters**:
 - `bridgeName` (required) -- Name of the KafkaBridge

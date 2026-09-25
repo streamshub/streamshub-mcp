@@ -127,7 +127,7 @@ public final class MetricNameResolver {
         }
 
         if (backend == MetricsBackend.JMX_EXPORTER || aliasMap.isEmpty()) {
-            return resolved;
+            return List.copyOf(resolved);
         }
 
         // Translate JMX names → SMR names, dropping UNMAPPED entries.

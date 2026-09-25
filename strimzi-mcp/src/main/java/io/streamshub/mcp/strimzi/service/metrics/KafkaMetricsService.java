@@ -184,11 +184,12 @@ public class KafkaMetricsService {
             interpretation, backend, KafkaMetricCategories.aliasMap(),
             samples.stream().map(MetricSample::name).toList());
 
-        AggregationLevel level = AggregationLevel.fromString(aggregation);
-        if (cat != null || metricNames == null || metricNames.isBlank()) {
-            String effectiveCat = cat != null ? cat : DEFAULT_CATEGORY;
-            level = AggregationLevel.resolve(aggregation, KafkaMetricCategories.maxGranularity(effectiveCat));
-        }
+        String effectiveAggCat = (cat != null || metricNames == null || metricNames.isBlank())
+            ? (cat != null ? cat : DEFAULT_CATEGORY)
+            : null;
+        AggregationLevel level = effectiveAggCat != null
+            ? AggregationLevel.resolve(aggregation, KafkaMetricCategories.maxGranularity(effectiveAggCat))
+            : AggregationLevel.fromString(aggregation);
         return KafkaMetricsResponse.of(name, resolvedNs,
             metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
     }

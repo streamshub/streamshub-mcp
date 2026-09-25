@@ -151,11 +151,12 @@ public class CruiseControlMetricsService {
             CruiseControlMetricCategories.interpretation(effectiveCategories),
             samples.stream().map(MetricSample::name).toList());
 
-        AggregationLevel level = AggregationLevel.fromString(aggregation);
-        if (cat != null || metricNames == null || metricNames.isBlank()) {
-            String effectiveCat = cat != null ? cat : DEFAULT_CATEGORY;
-            level = AggregationLevel.resolve(aggregation, CruiseControlMetricCategories.maxGranularity(effectiveCat));
-        }
+        String effectiveAggCat = (cat != null || metricNames == null || metricNames.isBlank())
+            ? (cat != null ? cat : DEFAULT_CATEGORY)
+            : null;
+        AggregationLevel level = effectiveAggCat != null
+            ? AggregationLevel.resolve(aggregation, CruiseControlMetricCategories.maxGranularity(effectiveAggCat))
+            : AggregationLevel.fromString(aggregation);
         return CruiseControlMetricsResponse.of(name, resolvedNs,
             metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
     }

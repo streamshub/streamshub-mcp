@@ -102,7 +102,7 @@ class MetricsPrometheusToolsST extends AbstractST {
                     Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
-                KafkaTemplates.kafkaWithMetrics(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
+                KafkaTemplates.kafkaWithMetricsAndCruiseControl(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
                 KafkaBridgeTemplates.kafkaBridge(
@@ -378,6 +378,46 @@ class MetricsPrometheusToolsST extends AbstractST {
 
                 } catch (Exception | AssertionError ignored) {
                     LOGGER.info("Prometheus doesn't scrape metrics yet, retrying...");
+                    return false;
+                }
+            }
+        );
+    }
+
+    // ---- Cruise Control Metrics ----
+
+    @Test
+    @Story("get_cruise_control_metrics returns sampling metrics with range via Prometheus")
+    void testGetCruiseControlMetricsRange() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "category", "sampling",
+            "rangeMinutes", 30,
+            "stepSeconds", 60);
+
+        Wait.until("Prometheus to return Cruise Control metric data",
+            Constants.KAFKA_READY_POLL_MS, Constants.MCP_READY_TIMEOUT_MS, () -> {
+                try {
+                    mcpClient.when()
+                        .toolsCall("get_cruise_control_metrics", args, response -> {
+                            JsonNode root = assertToolSuccess(response);
+                            String text = response.content().getFirst().asText().text();
+                            LOGGER.info("get_cruise_control_metrics range response (length={})", text.length());
+                            LOGGER.debug("get_cruise_control_metrics range response:\n{}", text);
+                            assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText(),
+                                "cluster_name should match");
+                            assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
+                                "namespace should match");
+                            assertEquals("streamshub-prometheus", root.path("provider").asText());
+                            assertFalse(root.path("interpretation").isMissingNode(), "Should have interpretation text");
+                            assertMetricsResponse(root, "cluster_name", Constants.KAFKA_CLUSTER_NAME);
+                            assertAllMetricsPresent(root, root.path("provider").asText(), CatalogNames.CC_SAMPLING);
+                        })
+                        .thenAssertResults();
+
+                    return true;
+                } catch (Exception | AssertionError ignored) {
+                    LOGGER.info("Prometheus doesn't scrape CC metrics yet, retrying...");
                     return false;
                 }
             }
