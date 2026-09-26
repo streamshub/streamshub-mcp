@@ -102,7 +102,7 @@ class MetricsPrometheusToolsST extends AbstractST {
                     Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
-                KafkaTemplates.kafkaWithMetricsAndCruiseControl(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
+                KafkaTemplates.kafkaWithMetricsAndCruiseControl(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 3).build());
 
             krm.createOrUpdateResourceWithWait(
                 KafkaBridgeTemplates.kafkaBridge(
