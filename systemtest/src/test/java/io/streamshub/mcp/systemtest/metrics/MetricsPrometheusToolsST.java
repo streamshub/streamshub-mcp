@@ -97,12 +97,12 @@ class MetricsPrometheusToolsST extends AbstractST {
 
             krm.createOrUpdateResourceWithoutWait(
                 KafkaNodePoolTemplates.controllerPool(kafkaNs, "controller-np",
-                    Constants.KAFKA_CLUSTER_NAME, 1).build(),
+                    Constants.KAFKA_CLUSTER_NAME, 3).build(),
                 KafkaNodePoolTemplates.brokerPool(kafkaNs, "broker-np",
-                    Constants.KAFKA_CLUSTER_NAME, 1).build());
+                    Constants.KAFKA_CLUSTER_NAME, 3).build());
 
             krm.createOrUpdateResourceWithWait(
-                KafkaTemplates.kafkaWithMetricsAndCruiseControl(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 3).build());
+                KafkaTemplates.kafkaWithMetricsAndCruiseControl(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
 
             krm.createOrUpdateResourceWithWait(
                 KafkaBridgeTemplates.kafkaBridge(
