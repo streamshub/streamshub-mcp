@@ -122,15 +122,17 @@ spec:
       log.retention.bytes: 128000000  # 128 MB
       log.segment.bytes: 64000000
     metricsConfig:
-      type: jmxPrometheusExporter
-      valueFrom:
-        configMapKeyRef:
-          key: kafka-metrics-config.yml
-          name: kafka-metrics
+      type: strimziMetricsReporter
   entityOperator:
     topicOperator: {}
     userOperator: {}
-  cruiseControl: {}
+  cruiseControl:
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          key: cruise-control-metrics-config.yml
+          name: kafka-metrics
   kafkaExporter:
     topicRegex: ".*"
     groupRegex: ".*"
@@ -145,6 +147,19 @@ metadata:
     mcp: strimzi
     system: strimzi
 data:
+  cruise-control-metrics-config.yml: |
+    # Cruise Control MBeans are kafka.cruisecontrol:name=<Component>-<metric>, so one rule
+    # covers them all. safeName() lowercases and maps '-' to '_', producing the names in
+    # CruiseControlMetricCategories (e.g. kafka_cruisecontrol_loadmonitor_valid_windows_value).
+    lowercaseOutputName: true
+    rules:
+      - pattern: kafka.cruisecontrol<name=(.+)><>(\w+)
+        name: kafka_cruisecontrol_$1_$2
+        type: GAUGE
+  # Not referenced by the Kafka CR above — the brokers moved to strimziMetricsReporter. Kept
+  # because the systemtests read this ConfigMap out of this file and build a Kafka CR that
+  # points at this key (KafkaTemplates.kafkaWithMetrics), which is how the JMX-exporter path
+  # stays covered. Delete only together with that template.
   kafka-metrics-config.yml: |
     # See https://github.com/prometheus/jmx_exporter for more info about JMX Prometheus Exporter metrics
     lowercaseOutputName: true

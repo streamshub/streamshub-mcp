@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -75,6 +76,20 @@ class MetricsQueryServiceTest {
         IllegalStateException ex = assertThrows(IllegalStateException.class,
             () -> metricsQueryService.queryMetrics(targets, labels, metrics, null, null, null, null));
         assertTrue(ex.getMessage().contains("No metrics provider configured"));
+    }
+
+    /**
+     * An empty name list means "nothing resolved", never "everything". The pod-scraping provider
+     * treats an empty filter as no filter, so reaching it would dump the pod's whole exposition.
+     */
+    @Test
+    void emptyMetricNamesNeverReachesTheProvider() {
+        List<MetricSample> result = metricsQueryService.queryMetrics(
+            List.of(PodTarget.of("ns", "pod")), Map.of("namespace", "ns"), List.of(),
+            null, null, null, null);
+
+        assertTrue(result.isEmpty());
+        verify(metricsProvider, never()).queryMetrics(any(MetricsQueryParams.class));
     }
 
     @Test

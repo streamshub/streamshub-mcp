@@ -94,6 +94,14 @@ public class MetricsQueryService {
                                             final Integer stepSeconds) {
         requireProvider();
 
+        // An empty (but non-null) name list means "nothing resolved" — e.g. every name was
+        // dropped as unmappable for the cluster's metrics backend. The pod-scraping provider
+        // treats an empty filter as "no filter" and would return every series on the pod.
+        if (metricNames != null && metricNames.isEmpty()) {
+            LOG.debug("No metric names resolved for this query; returning no samples");
+            return List.of();
+        }
+
         MetricsQueryParams params = buildParams(podTargets, labelMatchers, metricNames,
             rangeMinutes, startTime, endTime, stepSeconds);
 

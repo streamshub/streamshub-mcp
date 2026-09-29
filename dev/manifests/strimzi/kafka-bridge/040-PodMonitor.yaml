@@ -15,7 +15,8 @@ spec:
       - strimzi-kafka
   podMetricsEndpoints:
     - path: /metrics
-      port: rest-api
+      # The bridge serves /metrics on the management port, not the REST API port.
+      port: rest-api-mgmt
       relabelings:
         - action: labelmap
           regex: __meta_kubernetes_pod_label_(strimzi_io_.+)

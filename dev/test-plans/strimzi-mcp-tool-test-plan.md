@@ -1157,9 +1157,23 @@ Parameters: { "clusterName": "mcp-cluster", "category": "replication" }
 
 **Expected:**
 - [ ] Returns replication metrics only
-- [ ] Includes: offlinepartitionscount (should be 0 on healthy cluster), underreplicatedpartitions, leadercount
+- [ ] Includes: `kafka_controller_kafkacontroller_offlinepartitionscount` (should be 0 on healthy cluster — controller pods now retained after B2a filter fix), `kafka_server_replicamanager_underreplicatedpartitions`, `kafka_server_replicamanager_leadercount`
 
-### T14.3 - Get Kafka Metrics (time range)
+### T14.3 - Get Kafka Metrics (performance — requesthandler idle)
+
+```
+Tool: get_kafka_metrics
+Parameters: {
+  "clusterName": "mcp-cluster",
+  "category": "performance",
+  "metricNames": "kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent"
+}
+```
+
+**Expected:**
+- [ ] `requesthandleravgidle_percent` returns data (was broken — queried `brokerrequesthandleravgidle_percent` which does not exist in the JMX exporter output; fixed in B1)
+
+### T14.3b - Get Kafka Metrics (time range)
 
 ```
 Tool: get_kafka_metrics
@@ -1186,6 +1200,7 @@ Parameters: { "clusterName": "mcp-cluster" }
 **Expected:**
 - [ ] Returns Kafka Exporter metrics (Kafka Exporter is enabled on `mcp-cluster` with `topicRegex: ".*"`)
 - [ ] Consumer lag and topic-level stats present
+- [ ] Resources category returns Go process metrics: `process_cpu_seconds_total`, `process_resident_memory_bytes`, `process_open_fds`, `go_goroutines` (kafka_exporter is a Go binary — no `jvm_*` metrics)
 
 ### T14.5 - Get Bridge Metrics
 
@@ -1197,7 +1212,8 @@ Parameters: { "bridgeName": "mcp-bridge" }
 ```
 
 **Expected:**
-- [ ] Returns bridge metrics (JMX exporter is configured on `mcp-bridge`)
+- [ ] Returns bridge metrics (Micrometer metrics from the JVM; JMX exporter is NOT used on the Bridge)
+- [ ] Resources category returns Micrometer JVM metrics: `jvm_gc_pause_seconds_count`, `jvm_gc_pause_seconds_sum`, `process_cpu_usage`, `jvm_threads_live_threads` (not the JMX-exporter names `jvm_gc_collection_seconds_*` / `jvm_threads_current` / `process_cpu_seconds_total`)
 
 ### T14.6 - Get Connect Metrics
 
@@ -1220,8 +1236,10 @@ Parameters: {}
 ```
 
 **Expected:**
-- [ ] Returns Strimzi operator metrics
+- [ ] Returns Strimzi operator metrics (Micrometer binders; JMX exporter is NOT used on the Operator)
 - [ ] Includes: reconciliation counts, durations, managed resource counts
+- [ ] JVM category returns Micrometer names: `jvm_gc_pause_seconds_count`, `jvm_gc_pause_seconds_sum`, `process_cpu_usage`, `jvm_threads_live_threads`
+- [ ] Resources category includes `strimzi_certificate_expiration_timestamp_ms` (pairing with `get_kafka_cluster_certificates`)
 
 ### T14.8 - Get Operator Metrics (specific cluster)
 
@@ -1232,9 +1250,22 @@ Parameters: { "clusterName": "mcp-cluster", "category": "reconciliation" }
 
 **Expected:**
 - [ ] Returns reconciliation metrics for `mcp-cluster`
-- [ ] Includes: strimzi_reconciliations_total, strimzi_reconciliations_failed_total
+- [ ] Includes: `strimzi_reconciliations_total`, `strimzi_reconciliations_failed_total`
+- [ ] Includes: `strimzi_reconciliations_locked_total` (lock contention), `strimzi_reconciliations_periodical_total` (timer-triggered)
 
-### T14.9 - Get Metrics (nonexistent cluster)
+### T14.9 - Get Cruise Control Metrics
+
+```
+Tool: get_cruise_control_metrics
+Parameters: { "clusterName": "mcp-cluster", "category": "sampling" }
+```
+
+**Expected:**
+- [ ] Returns Cruise Control partition monitoring and sample status metrics: `kafka_cruisecontrol_loadmonitor_monitored_partitions_percentage_value`, `kafka_cruisecontrol_loadmonitor_valid_windows_value`, `kafka_cruisecontrol_loadmonitor_total_monitored_windows_value`
+- [ ] Sample fetch failure metrics included
+- [ ] Category `anomaly` returns balancedness score and goal violation metrics
+
+### T14.10 - Get Metrics (nonexistent cluster)
 
 ```
 Tool: get_kafka_metrics

@@ -105,8 +105,9 @@ public final class StrimziToolsPrompts {
      */
     public static final String METRICS_CATEGORY_DESC =
         "Metric category: 'replication', 'performance',"
-            + " 'resources', or 'throughput'."
-            + " Defaults to 'replication' if omitted.";
+            + " 'resources', 'throughput', 'kraft', or 'partitions'."
+            + " Defaults to 'replication' if omitted."
+            + " 'partitions' returns per-partition samples and is not aggregated by default.";
 
     /**
      * Operator metrics category parameter description.
@@ -124,6 +125,13 @@ public final class StrimziToolsPrompts {
         "Metric category: 'consumer_lag', 'partitions',"
             + " or 'resources'."
             + " Defaults to 'consumer_lag' if omitted.";
+
+    /**
+     * Cruise Control metrics category parameter description.
+     */
+    public static final String CRUISE_CONTROL_METRICS_CATEGORY_DESC =
+        "Metric category: 'sampling' or 'anomaly'."
+            + " Defaults to 'sampling' if omitted.";
 
     /**
      * Metric names parameter description.
@@ -311,6 +319,14 @@ public final class StrimziToolsPrompts {
             + " requested category (e.g., 'partition' on a broker-only category becomes 'broker')."
             + " For performance metrics (which have request type, not topic/partition),"
             + " use requestTypes to control cardinality instead.";
+
+    /**
+     * Aggregation level parameter description for Cruise Control metrics tools.
+     * Cruise Control has no partition or topic granularity; all categories are always clamped to cluster level.
+     */
+    public static final String CC_AGGREGATION_DESC =
+        "Aggregation level (always clamped to 'cluster' for Cruise Control metrics,"
+            + " which have no partition or topic dimensions).";
 
     /**
      * Request types filter parameter description for Kafka metrics.

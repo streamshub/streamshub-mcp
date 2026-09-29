@@ -4,10 +4,12 @@
  */
 package io.streamshub.mcp.common.dto.metrics;
 
+import io.quarkiverse.mcp.server.McpException;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Unit tests for {@link AggregationLevel}.
@@ -45,7 +47,8 @@ class AggregationLevelTest {
 
     @Test
     void fromStringInvalidThrows() {
-        assertThrows(IllegalArgumentException.class, () -> AggregationLevel.fromString("invalid"));
+        McpException ex = assertThrows(McpException.class, () -> AggregationLevel.fromString("invalid"));
+        assertTrue(ex.getMessage().contains("aggregation level must be one of"));
     }
 
     @Test
@@ -68,5 +71,38 @@ class AggregationLevelTest {
         assertEquals(AggregationLevel.BROKER, AggregationLevel.BROKER.clampTo(AggregationLevel.BROKER));
         assertEquals(AggregationLevel.PARTITION, AggregationLevel.PARTITION.clampTo(AggregationLevel.PARTITION));
         assertEquals(AggregationLevel.CLUSTER, AggregationLevel.CLUSTER.clampTo(AggregationLevel.CLUSTER));
+    }
+
+    /**
+     * The F5 regression: a per-partition category must not fall back to CLUSTER, because
+     * averaging a 0/1 gauge across partitions turns "3 partitions under min ISR" into 0.003.
+     */
+    @Test
+    void resolveWithoutRequestKeepsPartitionDetailForPartitionCategories() {
+        assertEquals(AggregationLevel.PARTITION, AggregationLevel.resolve(null, AggregationLevel.PARTITION));
+        assertEquals(AggregationLevel.PARTITION, AggregationLevel.resolve("", AggregationLevel.PARTITION));
+        assertEquals(AggregationLevel.PARTITION, AggregationLevel.resolve("  ", AggregationLevel.PARTITION));
+    }
+
+    @Test
+    void resolveWithoutRequestDefaultsToClusterForEveryOtherCategory() {
+        assertEquals(AggregationLevel.CLUSTER, AggregationLevel.resolve(null, AggregationLevel.TOPIC));
+        assertEquals(AggregationLevel.CLUSTER, AggregationLevel.resolve(null, AggregationLevel.BROKER));
+        assertEquals(AggregationLevel.CLUSTER, AggregationLevel.resolve(null, AggregationLevel.CLUSTER));
+    }
+
+    @Test
+    void resolveClampsAnExplicitRequestToTheCategoryCeiling() {
+        assertEquals(AggregationLevel.TOPIC, AggregationLevel.resolve("partition", AggregationLevel.TOPIC));
+        assertEquals(AggregationLevel.BROKER, AggregationLevel.resolve("BROKER", AggregationLevel.TOPIC));
+        assertEquals(AggregationLevel.PARTITION, AggregationLevel.resolve("partition", AggregationLevel.PARTITION));
+        assertEquals(AggregationLevel.CLUSTER, AggregationLevel.resolve("cluster", AggregationLevel.PARTITION));
+    }
+
+    @Test
+    void resolveRejectsAnUnknownLevel() {
+        McpException ex = assertThrows(McpException.class,
+            () -> AggregationLevel.resolve("rack", AggregationLevel.BROKER));
+        assertTrue(ex.getMessage().contains("aggregation level must be one of"));
     }
 }

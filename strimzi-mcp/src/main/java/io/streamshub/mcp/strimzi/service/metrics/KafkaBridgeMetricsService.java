@@ -141,14 +141,23 @@ public class KafkaBridgeMetricsService {
         if (effectiveCategories.isEmpty() && (metricNames == null || metricNames.isBlank())) {
             effectiveCategories.add(DEFAULT_CATEGORY);
         }
-        String interpretation = KafkaBridgeMetricCategories.interpretation(effectiveCategories);
+        String interpretation = MetricNameResolver.alignInterpretation(
+            KafkaBridgeMetricCategories.interpretation(effectiveCategories),
+            samples.stream().map(MetricSample::name).toList());
 
-        AggregationLevel level = AggregationLevel.fromString(aggregation);
+        String effectiveAggCat;
         if (cat != null || metricNames == null || metricNames.isBlank()) {
-            String effectiveCat = cat != null ? cat : DEFAULT_CATEGORY;
-            level = level.clampTo(KafkaBridgeMetricCategories.maxGranularity(effectiveCat));
+            effectiveAggCat = cat != null ? cat : DEFAULT_CATEGORY;
+        } else {
+            effectiveAggCat = null;
+        }
+        AggregationLevel level;
+        if (effectiveAggCat != null) {
+            level = AggregationLevel.resolve(aggregation, KafkaBridgeMetricCategories.maxGranularity(effectiveAggCat));
+        } else {
+            level = AggregationLevel.fromString(aggregation);
         }
         return KafkaBridgeMetricsResponse.of(name, resolvedNs,
-            metricsQueryService.providerName(), categories, samples, interpretation, level);
+            metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
     }
 }

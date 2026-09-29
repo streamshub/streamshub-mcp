@@ -45,7 +45,11 @@ import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -323,6 +327,47 @@ public abstract class AbstractST {
         assertTrue(root.path("sample_count").isNumber(), "sample_count should be a number");
         assertFalse(root.path("timestamp").isMissingNode(), "Should have timestamp");
         assertFalse(root.path("message").isMissingNode(), "Should have message");
+    }
+
+    /**
+     * Asserts that all expected metric names are present in the metrics response.
+     * Under Prometheus provider, metrics ending in {@code _total} are normalized to
+     * {@code _rate_per_second} per F2.
+     *
+     * @param root     the root JSON node of the metrics response
+     * @param provider the provider name (e.g., "streamshub-prometheus" or "streamshub-pod-scraping")
+     * @param expected the list of expected metric names from the catalog
+     */
+    protected static void assertAllMetricsPresent(final JsonNode root,
+                                                  final String provider,
+                                                  final List<String> expected) {
+        JsonNode seriesArray = root.path("time_series");
+        assertTrue(seriesArray.isArray(), "time_series should be an array");
+
+        Set<String> returnedNames = new HashSet<>();
+        for (JsonNode series : seriesArray) {
+            String name = series.path("name").asText(null);
+            if (name != null) {
+                returnedNames.add(name);
+            }
+        }
+
+        boolean isPrometheus = provider != null && provider.contains("prometheus");
+        List<String> missing = new ArrayList<>();
+        for (String expectedName : expected) {
+            String matchName = expectedName;
+            if (isPrometheus && expectedName.endsWith("_total")) {
+                matchName = expectedName.substring(0, expectedName.length() - "_total".length()) + "_rate_per_second";
+            }
+            if (!returnedNames.contains(matchName) && !returnedNames.contains(expectedName)) {
+                missing.add(expectedName + " (looked for '" + matchName + "')");
+            }
+        }
+
+        assertTrue(missing.isEmpty(),
+            "Missing metrics in response for provider '" + provider + "':\n"
+                + String.join("\n", missing)
+                + "\nReturned names: " + returnedNames);
     }
 
     protected static void assertNoStackTrace(final String text) {

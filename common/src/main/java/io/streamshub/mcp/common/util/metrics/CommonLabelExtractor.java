@@ -53,7 +53,8 @@ public final class CommonLabelExtractor {
             AggregatedTimeSeries stripped = new AggregatedTimeSeries(
                 series.getFirst().name(), Map.of(),
                 series.getFirst().dataPoints(), series.getFirst().summary(),
-                series.getFirst().sourceCount(), series.getFirst().compressed());
+                series.getFirst().sourceCount(), series.getFirst().compressed(),
+                series.getFirst().aggregationFn());
             return new Result(common, List.of(stripped));
         }
 
@@ -91,7 +92,7 @@ public final class CommonLabelExtractor {
             }
             stripped.add(new AggregatedTimeSeries(
                 ts.name(), remaining, ts.dataPoints(), ts.summary(),
-                ts.sourceCount(), ts.compressed()));
+                ts.sourceCount(), ts.compressed(), ts.aggregationFn()));
         }
 
         return new Result(Map.copyOf(candidate), List.copyOf(stripped));

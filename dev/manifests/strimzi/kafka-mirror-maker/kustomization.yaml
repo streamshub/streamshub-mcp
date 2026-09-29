@@ -7,3 +7,4 @@ resources:
   - 030-KafkaMirrorMaker2.yaml
   - 040-KafkaTopic-source.yaml
   - 050-MirrorConsumer.yaml
+  - 060-PodMonitor.yaml

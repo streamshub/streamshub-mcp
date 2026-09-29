@@ -11,6 +11,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
 /**
  * Curated metric name categories for Kafka Exporter metrics.
  * Maps human-friendly category names to lists of Prometheus metric names,
@@ -19,7 +20,7 @@ import java.util.stream.Collectors;
 public final class KafkaExporterMetricCategories {
 
     /**
-     * Consumer group lag category (offset, lag, lag seconds).
+     * Consumer group lag category (committed offset and lag in messages).
      */
     public static final String CONSUMER_LAG = "consumer_lag";
 
@@ -29,15 +30,14 @@ public final class KafkaExporterMetricCategories {
     public static final String PARTITIONS = "partitions";
 
     /**
-     * JVM and system resource category (heap, GC, CPU, threads).
+     * Go runtime and process metrics (CPU, memory, file descriptors, goroutines).
      */
     public static final String RESOURCES = "resources";
 
     private static final Map<String, List<String>> CATEGORIES = Map.of(
         CONSUMER_LAG, List.of(
             "kafka_consumergroup_current_offset",
-            "kafka_consumergroup_lag",
-            "kafka_consumergroup_lag_seconds"
+            "kafka_consumergroup_lag"
         ),
         PARTITIONS, List.of(
             "kafka_topic_partitions",
@@ -48,12 +48,10 @@ public final class KafkaExporterMetricCategories {
             "kafka_topic_partition_replicas"
         ),
         RESOURCES, List.of(
-            "jvm_memory_used_bytes",
-            "jvm_memory_max_bytes",
-            "jvm_gc_collection_seconds_count",
-            "jvm_gc_collection_seconds_sum",
             "process_cpu_seconds_total",
-            "jvm_threads_current"
+            "process_resident_memory_bytes",
+            "process_open_fds",
+            "go_goroutines"
         )
     );
 
@@ -64,8 +62,9 @@ public final class KafkaExporterMetricCategories {
                 + "**THRESHOLDS**: 0 = fully caught up, <1000 = healthy, 1000-10000 = monitor, "
                 + ">10000 = consumers falling behind (scale consumers or investigate slowness). "
                 + "Sustained growth = consumers cannot keep up with producer throughput.\n\n"
-                + "kafka_consumergroup_lag_seconds: Estimated time in seconds for the consumer group "
-                + "to catch up. >60s = significant delay, >300s = investigate consumer health.\n\n"
+                + "The unit is messages, not time — the exporter does not publish a "
+                + "seconds-to-catch-up metric. To estimate catch-up time, divide the lag by the "
+                + "group's consumption rate derived from kafka_consumergroup_current_offset.\n\n"
                 + "kafka_consumergroup_current_offset: Current committed offset per consumer group/partition. "
                 + "Stalled offset = consumer is stuck or dead. Compare with partition end offset to calculate lag.",
         PARTITIONS,
@@ -85,8 +84,7 @@ public final class KafkaExporterMetricCategories {
                 + "Oldest offset advancing = log segments being cleaned/compacted.\n\n"
                 + "kafka_topic_partitions: Number of partitions per topic.",
         RESOURCES,
-            MetricsDescriptions.jvmDescription("get_kafka_cluster_pods",
-                "exporter scraping failures or missing metrics")
+            MetricsDescriptions.goProcessDescription()
     );
 
     private KafkaExporterMetricCategories() {
