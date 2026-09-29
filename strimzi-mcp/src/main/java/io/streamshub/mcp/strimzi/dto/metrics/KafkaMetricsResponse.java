@@ -10,6 +10,7 @@ import io.streamshub.mcp.common.dto.metrics.AggregatedTimeSeries;
 import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.util.metrics.CommonLabelExtractor;
+import io.streamshub.mcp.strimzi.config.metrics.KafkaMetricCategories;
 
 import java.time.Instant;
 import java.util.List;
@@ -73,7 +74,7 @@ public record KafkaMetricsResponse(
 
         String msg;
         if (samples.isEmpty()) {
-            if (categories != null && categories.contains("partitions")) {
+            if (categories != null && categories.contains(KafkaMetricCategories.PARTITIONS)) {
                 msg = String.format("All scanned partitions are healthy for cluster '%s' (provider: %s)",
                     clusterName, provider);
             } else {

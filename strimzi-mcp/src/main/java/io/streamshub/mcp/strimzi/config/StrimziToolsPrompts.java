@@ -321,6 +321,14 @@ public final class StrimziToolsPrompts {
             + " use requestTypes to control cardinality instead.";
 
     /**
+     * Aggregation level parameter description for Cruise Control metrics tools.
+     * Cruise Control has no partition or topic granularity; all categories are always clamped to cluster level.
+     */
+    public static final String CC_AGGREGATION_DESC =
+        "Aggregation level (always clamped to 'cluster' for Cruise Control metrics,"
+            + " which have no partition or topic dimensions).";
+
+    /**
      * Request types filter parameter description for Kafka metrics.
      */
     public static final String REQUEST_TYPES_DESC =

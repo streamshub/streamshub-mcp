@@ -467,7 +467,7 @@ public class MetricsTools {
     @Tool(
         name = "get_cruise_control_metrics",
         description = "Retrieves Prometheus metrics from Cruise Control pods by category or explicit metric names."
-            + " Returns partition monitoring, sampling status, and anomaly detection metrics with interpretation guide.",
+            + " Returns sample collection, partition monitoring, and anomaly detection metrics with interpretation guide.",
         structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
@@ -512,7 +512,7 @@ public class MetricsTools {
             required = false
         ) final Integer stepSeconds,
         @ToolArg(
-            description = StrimziToolsPrompts.AGGREGATION_DESC,
+            description = StrimziToolsPrompts.CC_AGGREGATION_DESC,
             required = false
         ) final String aggregation
     ) {

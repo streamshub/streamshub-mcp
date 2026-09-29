@@ -114,12 +114,18 @@ public class StrimziOperatorMetricsService {
             ? coPods.getFirst().getMetadata().getNamespace()
             : eoPods.getFirst().getMetadata().getNamespace();
 
-        String effectiveAggCat = (cat != null || metricNames == null || metricNames.isBlank())
-            ? (cat != null ? cat : DEFAULT_CATEGORY)
-            : null;
-        AggregationLevel level = effectiveAggCat != null
-            ? AggregationLevel.resolve(aggregation, StrimziOperatorMetricCategories.maxGranularity(effectiveAggCat))
-            : AggregationLevel.fromString(aggregation);
+        String effectiveAggCat;
+        if (cat != null || metricNames == null || metricNames.isBlank()) {
+            effectiveAggCat = cat != null ? cat : DEFAULT_CATEGORY;
+        } else {
+            effectiveAggCat = null;
+        }
+        AggregationLevel level;
+        if (effectiveAggCat != null) {
+            level = AggregationLevel.resolve(aggregation, StrimziOperatorMetricCategories.maxGranularity(effectiveAggCat));
+        } else {
+            level = AggregationLevel.fromString(aggregation);
+        }
         return StrimziOperatorMetricsResponse.of(resolvedName, cluster, resolvedNs,
             metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
     }
