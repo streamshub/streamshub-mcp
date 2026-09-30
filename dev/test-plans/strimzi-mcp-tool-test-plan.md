@@ -879,6 +879,16 @@ Parameters: { "rebalanceName": "nonexistent-rebalance" }
 **Expected:**
 - [ ] Returns error indicating rebalance not found
 
+### T8.4 - Diagnose Kafka Rebalance (nonexistent)
+
+```
+Tool: diagnose_kafka_rebalance
+Parameters: { "rebalanceName": "nonexistent-rebalance" }
+```
+
+**Expected:**
+- [ ] Returns error indicating rebalance not found
+
 ---
 
 ## Phase 9: Drain Cleaner Tools
@@ -2057,6 +2067,7 @@ This phase tests all three server-side error handling patterns under RBAC restri
 | 8     | T8.1    | list_kafka_rebalances (empty) | core | | |
 | 8     | T8.2    | list_kafka_rebalances (cluster) | core | | |
 | 8     | T8.3    | get_kafka_rebalance (nonexistent) | core | | |
+| 8     | T8.4    | diagnose_kafka_rebalance (nonexistent) | core | | |
 | 9     | T9.1    | list_drain_cleaners | --drain-cleaner | | |
 | 9     | T9.2    | get_drain_cleaner | --drain-cleaner | | |
 | 9     | T9.3    | check_drain_cleaner_readiness | --drain-cleaner | | |

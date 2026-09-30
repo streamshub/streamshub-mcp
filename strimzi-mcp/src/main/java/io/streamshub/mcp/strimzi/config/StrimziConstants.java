@@ -65,6 +65,11 @@ public final class StrimziConstants {
          */
         public static final String KAFKA_MIRROR_MAKER_2 = "KafkaMirrorMaker2";
 
+        /**
+         * Kind value for KafkaRebalance (used by the events tool).
+         */
+        public static final String KAFKA_REBALANCE = "KafkaRebalance";
+
         private KindValues() {
         }
     }
