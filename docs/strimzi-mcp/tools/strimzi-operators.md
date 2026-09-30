@@ -36,6 +36,24 @@ Get detailed information about a specific Strimzi operator including status, ver
 Get details for strimzi-cluster-operator
 ```
 
+### get_strimzi_operator_config
+
+Get the effective configuration of a Strimzi cluster operator: enabled feature gates, watched namespaces, supported Kafka versions, operation timeout, full reconciliation interval, and leader election.
+Use this to check whether the operator supports a target Kafka version before planning an upgrade with `assess_upgrade_readiness`.
+
+**Parameters**:
+- `operatorName` (optional) -- Name of the operator deployment. Omit to auto-discover the operator
+- `namespace` (optional) -- Kubernetes namespace
+
+**Returns**: `feature_gates`, `watched_namespaces` / `watches_all_namespaces`, `supported_kafka_versions` (parsed from `STRIMZI_KAFKA_IMAGES`), `operation_timeout_ms`, `full_reconciliation_interval_ms`, `leader_election_enabled`, and a `config` map of the raw values.
+
+**Security**: operator environment can carry credentials, so the response is built from an allow-list, not a redaction pass. Only `STRIMZI_FEATURE_GATES`, `STRIMZI_NAMESPACE`, `STRIMZI_KAFKA_IMAGES`, `STRIMZI_OPERATION_TIMEOUT_MS`, `STRIMZI_FULL_RECONCILIATION_INTERVAL_MS`, and `STRIMZI_LEADER_ELECTION_ENABLED` are ever returned. Values sourced from a Secret or ConfigMap reference are dropped -- only literal values are read. To inspect the full pod environment, use `get_strimzi_operator_pod`.
+
+**Example**:
+```
+Does the Strimzi operator support Kafka 4.1.0?
+```
+
 ### get_strimzi_operator_pod
 
 Get detailed description of a Strimzi operator pod including environment, resources, volumes, and conditions.

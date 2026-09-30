@@ -15,6 +15,7 @@ import io.streamshub.mcp.common.service.log.LogCollectionService;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorConfigResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorLogsResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorResponse;
 import io.strimzi.api.ResourceLabels;
@@ -22,8 +23,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Stream;
 /**
  * Service for Strimzi operator operations.
  */
@@ -32,6 +36,29 @@ public class StrimziOperatorService {
 
     private static final Logger LOG = Logger.getLogger(StrimziOperatorService.class);
     private static final double MINUTES_PER_HOUR = 60.0;
+
+    private static final String ENV_FEATURE_GATES = "STRIMZI_FEATURE_GATES";
+    private static final String ENV_NAMESPACE = "STRIMZI_NAMESPACE";
+    private static final String ENV_KAFKA_IMAGES = "STRIMZI_KAFKA_IMAGES";
+    private static final String ENV_OPERATION_TIMEOUT_MS = "STRIMZI_OPERATION_TIMEOUT_MS";
+    private static final String ENV_FULL_RECONCILIATION_INTERVAL_MS = "STRIMZI_FULL_RECONCILIATION_INTERVAL_MS";
+    private static final String ENV_LEADER_ELECTION_ENABLED = "STRIMZI_LEADER_ELECTION_ENABLED";
+
+    private static final String WATCH_ALL_NAMESPACES = "*";
+
+    /**
+     * Operator environment variables that may be returned to clients. This is an allow-list,
+     * not a deny-list: operator environment can carry credentials (registry pull secrets,
+     * webhook tokens), so any key not named here is dropped.
+     */
+    private static final Set<String> ALLOWED_CONFIG_KEYS = Set.of(
+        ENV_FEATURE_GATES,
+        ENV_NAMESPACE,
+        ENV_KAFKA_IMAGES,
+        ENV_OPERATION_TIMEOUT_MS,
+        ENV_FULL_RECONCILIATION_INTERVAL_MS,
+        ENV_LEADER_ELECTION_ENABLED
+    );
 
     @Inject
     KubernetesResourceService k8sService;
@@ -103,6 +130,120 @@ public class StrimziOperatorService {
         }
 
         return createOperatorResponse(operator);
+    }
+
+    /**
+     * Get the effective configuration of a Strimzi cluster operator.
+     *
+     * <p>Reads the operator Deployment's environment variables, keeping only the keys in
+     * {@link #ALLOWED_CONFIG_KEYS}. Operator environment can carry credentials, so the
+     * filter is an allow-list: anything not named there is never returned.</p>
+     *
+     * @param namespace    the namespace, or null for auto-discovery
+     * @param operatorName the operator deployment name, or null for auto-discovery
+     * @return the operator configuration response
+     */
+    public StrimziOperatorConfigResponse getOperatorConfig(final String namespace, final String operatorName) {
+        String ns = InputUtils.normalizeInput(namespace);
+        InputUtils.validateK8sName(operatorName, "operator name");
+        InputUtils.validateK8sName(ns, "namespace");
+
+        LOG.infof("Getting Strimzi operator config name=%s in namespace=%s",
+            operatorName != null ? operatorName : "auto", ns != null ? ns : "auto");
+
+        Deployment operator = findOperatorDeployment(ns, operatorName);
+        if (operator == null) {
+            throw McpErrors.notFound("Strimzi operator", operatorName, ns);
+        }
+
+        Map<String, String> config = allowedEnv(operator);
+
+        String watchedRaw = config.get(ENV_NAMESPACE);
+        boolean watchesAll = watchedRaw == null || watchedRaw.contains(WATCH_ALL_NAMESPACES);
+        List<String> watched = watchesAll ? List.of() : splitCsv(watchedRaw);
+
+        return StrimziOperatorConfigResponse.of(
+            operator.getMetadata().getName(),
+            operator.getMetadata().getNamespace(),
+            deploymentService.extractVersion(operator),
+            config.get(ENV_FEATURE_GATES),
+            watched,
+            watchesAll,
+            parseKafkaVersions(config.get(ENV_KAFKA_IMAGES)),
+            config.get(ENV_OPERATION_TIMEOUT_MS),
+            config.get(ENV_FULL_RECONCILIATION_INTERVAL_MS),
+            config.get(ENV_LEADER_ELECTION_ENABLED),
+            config);
+    }
+
+    /**
+     * Collect the operator container's environment variables, dropping every key that is not
+     * allow-listed and every entry whose value comes from a Secret or ConfigMap reference.
+     */
+    private Map<String, String> allowedEnv(final Deployment deployment) {
+        if (deployment.getSpec() == null || deployment.getSpec().getTemplate() == null
+            || deployment.getSpec().getTemplate().getSpec() == null) {
+            return Map.of();
+        }
+
+        Map<String, String> config = new LinkedHashMap<>();
+        deployment.getSpec().getTemplate().getSpec().getContainers().stream()
+            .flatMap(container -> container.getEnv() != null ? container.getEnv().stream() : Stream.empty())
+            .filter(env -> ALLOWED_CONFIG_KEYS.contains(env.getName()))
+            .filter(env -> env.getValue() != null)
+            .forEach(env -> config.putIfAbsent(env.getName(), env.getValue()));
+        return config;
+    }
+
+    /**
+     * Parse the Kafka versions from the {@code STRIMZI_KAFKA_IMAGES} value, which is a
+     * newline-separated list of {@code <version>=<image>} entries.
+     */
+    private List<String> parseKafkaVersions(final String kafkaImages) {
+        if (kafkaImages == null || kafkaImages.isBlank()) {
+            return List.of();
+        }
+        return kafkaImages.lines()
+            .map(String::trim)
+            .filter(line -> line.contains("="))
+            .map(line -> line.substring(0, line.indexOf('=')).trim())
+            .filter(version -> !version.isEmpty())
+            .distinct()
+            .toList();
+    }
+
+    private List<String> splitCsv(final String value) {
+        return Stream.of(value.split(","))
+            .map(String::trim)
+            .filter(part -> !part.isEmpty())
+            .toList();
+    }
+
+    /**
+     * Locate an operator deployment by optional namespace and optional name.
+     *
+     * @param ns           the namespace, or null to search all namespaces
+     * @param operatorName the deployment name, or null to match any operator
+     * @return the deployment, or null if none matched
+     */
+    private Deployment findOperatorDeployment(final String ns, final String operatorName) {
+        if (ns == null) {
+            return findOperatorInAllNamespaces(operatorName);
+        }
+        if (operatorName != null) {
+            return k8sService.getResource(Deployment.class, ns, operatorName);
+        }
+
+        List<Deployment> operators = k8sService.queryResourcesByLabel(
+            Deployment.class, ns, KubernetesConstants.Labels.APP, StrimziConstants.Operator.APP_LABEL_VALUE);
+        if (operators.isEmpty()) {
+            return null;
+        }
+        if (operators.size() > 1) {
+            throw McpErrors.invalidParams("Multiple Strimzi operators found in namespace " + ns
+                + "; specify operatorName");
+        }
+        return operators.getFirst();
     }
 
     /**

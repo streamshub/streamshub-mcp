@@ -4,9 +4,11 @@
  */
 package io.streamshub.mcp.strimzi.service;
 
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.AppsAPIGroupDSL;
@@ -15,9 +17,11 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorConfigResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorLogsResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorResponse;
 import io.streamshub.mcp.strimzi.service.operator.StrimziOperatorService;
@@ -27,9 +31,13 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -109,6 +117,116 @@ class StrimziOperatorServiceTest {
         assertEquals("kafka", result.namespace());
         assertNotNull(result.message());
         assertTrue(result.message().contains("No Strimzi operator pods found"));
+    }
+
+    @Test
+    void testGetOperatorConfigReturnsOnlyAllowListedEnvVars() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, Deployment.class,
+            List.of(operatorDeployment()));
+
+        StrimziOperatorConfigResponse result = operatorService.getOperatorConfig(
+            "kafka-system", "strimzi-cluster-operator");
+
+        assertEquals(Set.of("STRIMZI_FEATURE_GATES", "STRIMZI_NAMESPACE", "STRIMZI_KAFKA_IMAGES",
+                "STRIMZI_FULL_RECONCILIATION_INTERVAL_MS", "STRIMZI_LEADER_ELECTION_ENABLED"),
+            result.config().keySet(),
+            "Only allow-listed env vars may be returned");
+        assertFalse(result.config().toString().contains("hunter2"),
+            "Credential-shaped env vars must never reach the response");
+    }
+
+    @Test
+    void testGetOperatorConfigDropsEnvVarsWithoutLiteralValue() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, Deployment.class,
+            List.of(operatorDeployment()));
+
+        StrimziOperatorConfigResponse result = operatorService.getOperatorConfig(
+            "kafka-system", "strimzi-cluster-operator");
+
+        assertNull(result.operationTimeoutMs(),
+            "An allow-listed key sourced from a Secret has no literal value and must be dropped");
+    }
+
+    @Test
+    void testGetOperatorConfigParsesNamespacesAndKafkaVersions() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, Deployment.class,
+            List.of(operatorDeployment()));
+
+        StrimziOperatorConfigResponse result = operatorService.getOperatorConfig(
+            "kafka-system", "strimzi-cluster-operator");
+
+        assertEquals(List.of("kafka", "kafka-dev"), result.watchedNamespaces());
+        assertFalse(result.watchesAllNamespaces());
+        assertEquals(List.of("3.9.0", "4.0.0"), result.supportedKafkaVersions());
+        assertEquals("+UseKRaft", result.featureGates());
+        assertEquals("true", result.leaderElectionEnabled());
+    }
+
+    @Test
+    void testGetOperatorConfigDetectsWatchAllNamespaces() {
+        Deployment deployment = operatorDeployment();
+        deployment.getSpec().getTemplate().getSpec().getContainers().getFirst()
+            .setEnv(List.of(new EnvVarBuilder().withName("STRIMZI_NAMESPACE").withValue("*").build()));
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, Deployment.class, List.of(deployment));
+
+        StrimziOperatorConfigResponse result = operatorService.getOperatorConfig(
+            "kafka-system", "strimzi-cluster-operator");
+
+        assertTrue(result.watchesAllNamespaces());
+        assertTrue(result.watchedNamespaces().isEmpty());
+        assertTrue(result.supportedKafkaVersions().isEmpty());
+    }
+
+    @Test
+    void testGetOperatorConfigThrowsWhenOperatorNotFound() {
+        assertThrows(McpException.class,
+            () -> operatorService.getOperatorConfig("kafka-system", "missing-operator"));
+    }
+
+    private static Deployment operatorDeployment() {
+        return new DeploymentBuilder()
+            .withNewMetadata()
+                .withName("strimzi-cluster-operator")
+                .withNamespace("kafka-system")
+            .endMetadata()
+            .withNewSpec()
+                .withReplicas(1)
+                .withNewTemplate()
+                    .withNewSpec()
+                        .addNewContainer()
+                            .withName("strimzi-cluster-operator")
+                            .withImage("quay.io/strimzi/operator:0.48.0")
+                            .withEnv(
+                                new EnvVarBuilder().withName("STRIMZI_FEATURE_GATES")
+                                    .withValue("+UseKRaft").build(),
+                                new EnvVarBuilder().withName("STRIMZI_NAMESPACE")
+                                    .withValue("kafka,kafka-dev").build(),
+                                new EnvVarBuilder().withName("STRIMZI_KAFKA_IMAGES")
+                                    .withValue("3.9.0=quay.io/strimzi/kafka:0.48.0-kafka-3.9.0\n"
+                                        + "4.0.0=quay.io/strimzi/kafka:0.48.0-kafka-4.0.0").build(),
+                                new EnvVarBuilder().withName("STRIMZI_FULL_RECONCILIATION_INTERVAL_MS")
+                                    .withValue("120000").build(),
+                                new EnvVarBuilder().withName("STRIMZI_LEADER_ELECTION_ENABLED")
+                                    .withValue("true").build(),
+                                // Allow-listed but sourced from a Secret - no literal value to return
+                                new EnvVarBuilder().withName("STRIMZI_OPERATION_TIMEOUT_MS")
+                                    .withNewValueFrom()
+                                        .withNewSecretKeyRef("timeout", "operator-config", false)
+                                    .endValueFrom().build(),
+                                // Credential-shaped vars that must never be returned
+                                new EnvVarBuilder().withName("STRIMZI_REGISTRY_PASSWORD")
+                                    .withValue("hunter2").build(),
+                                new EnvVarBuilder().withName("STRIMZI_WEBHOOK_TOKEN")
+                                    .withValue("hunter2").build(),
+                                new EnvVarBuilder().withName("STRIMZI_TLS_KEY")
+                                    .withValue("hunter2").build(),
+                                new EnvVarBuilder().withName("STRIMZI_CLIENT_SECRET")
+                                    .withValue("hunter2").build())
+                        .endContainer()
+                    .endSpec()
+                .endTemplate()
+            .endSpec()
+            .build();
     }
 
     @SuppressWarnings("unchecked")
