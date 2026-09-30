@@ -287,6 +287,43 @@ class KafkaRebalanceToolsST extends AbstractST {
             .thenAssertResults();
     }
 
+    /**
+     * Verify diagnose_kafka_rebalance runs the diagnostic workflow for the deployed rebalance.
+     */
+    @Test
+    @Story("diagnose_kafka_rebalance returns diagnostic report for rebalance")
+    void testDiagnoseKafkaRebalance() {
+        String kafkaNs = kafkaNamespace.getMetadata().getName();
+
+        krm.createOrUpdateResourceWithoutWait(
+            KafkaRebalanceTemplates.rebalance(kafkaNs, REBALANCE_NAME,
+                Constants.KAFKA_CLUSTER_NAME).build());
+
+        waitForRebalanceToAppear(kafkaNs);
+
+        Map<String, Object> args = Map.of(
+            "rebalanceName", REBALANCE_NAME,
+            "namespace", kafkaNs);
+
+        mcpClient.when()
+            .toolsCall("diagnose_kafka_rebalance", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("diagnose_kafka_rebalance response (length={})", json.length());
+                LOGGER.debug("diagnose_kafka_rebalance response:\n{}", json);
+
+                assertDiagnosticReport(root);
+                JsonNode rebalance = root.path("rebalance");
+                assertFalse(rebalance.isMissingNode(), "Report must contain rebalance");
+                assertEquals(REBALANCE_NAME, rebalance.path("name").asText(),
+                    "Rebalance name should match");
+                assertEquals(kafkaNs, rebalance.path("namespace").asText(),
+                    "Namespace should match");
+            })
+            .thenAssertResults();
+    }
+
     // ---- Helpers ----
     private void waitForRebalanceToAppear(final String namespace) {
         LOGGER.info("Waiting for KafkaRebalance '{}' to appear in namespace '{}'",

@@ -271,6 +271,30 @@ Gathers node pool status (roles, replicas, node IDs, storage, conditions), pod h
 Diagnose why broker-np isn't scaling up
 ```
 
+## diagnose_kafka_rebalance
+
+Runs a multi-step diagnostic workflow for a KafkaRebalance (Strimzi Cruise Control rebalancing).
+Gathers rebalance status and conditions, optimization metrics, progress ConfigMap, Cruise Control pod logs, and Kubernetes events in a single call.
+
+**3-Phase workflow**:
+1. **Phase 1 -- Initial data gathering**: rebalance status, state machine position (`New`, `PendingProposal`, `ProposalReady`, `Rebalancing`, `Stopped`, `Ready`, `NotReady`), optimization results, conditions, and session ID.
+2. **Phase 2 -- Deep investigation**: progress ConfigMap (if referenced in `status.progress.rebalanceProgressConfigMap`), Cruise Control pod logs (error-filtered), and Kubernetes events on the KafkaRebalance CR. Sampling picks which areas to gather; without Sampling all three run.
+3. **Phase 3 -- Analysis**: Root cause analysis covering common rebalance failure modes: stuck in `PendingProposal` (not enough metric samples or calculation timeout), stuck in `ProposalReady` (waiting for user approval annotation), hard goal violations, execution bottlenecks, or failure conditions.
+
+**Parameters**:
+- `rebalanceName` (required) -- Name of the KafkaRebalance resource
+- `namespace` (optional) -- Kubernetes namespace
+- `symptom` (optional) -- Observed symptom
+- `sinceMinutes` (optional) -- Time window for events/logs
+
+**Uses Sampling**: Yes -- Triage and root cause analysis
+**Uses Elicitation**: Yes -- Namespace disambiguation
+
+**Example**:
+```
+Diagnose why rebalance my-rebalance is stuck in PendingProposal
+```
+
 ## compare_kafka_clusters
 
 Compares the effective configuration of two Kafka clusters.
