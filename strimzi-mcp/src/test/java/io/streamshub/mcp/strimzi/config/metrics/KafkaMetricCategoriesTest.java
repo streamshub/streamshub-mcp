@@ -73,15 +73,25 @@ class KafkaMetricCategoriesTest {
     }
 
     @Test
-    void allCategoriesReturnsSixCategories() {
+    void allCategoriesReturnsSevenCategories() {
         Set<String> categories = KafkaMetricCategories.allCategories();
-        assertEquals(6, categories.size());
+        assertEquals(7, categories.size());
         assertTrue(categories.contains("replication"));
         assertTrue(categories.contains("throughput"));
         assertTrue(categories.contains("resources"));
         assertTrue(categories.contains("performance"));
         assertTrue(categories.contains("kraft"));
         assertTrue(categories.contains("partitions"));
+        assertTrue(categories.contains("storage"));
+    }
+
+    @Test
+    void resolveStorageCategoryReturnsMetrics() {
+        List<String> storageMetrics = KafkaMetricCategories.resolve("storage");
+        assertEquals(3, storageMetrics.size());
+        assertTrue(storageMetrics.contains("kafka_log_log_size"));
+        assertTrue(storageMetrics.contains("kafka_server_kafkaserver_linux_disk_read_bytes"));
+        assertTrue(storageMetrics.contains("kafka_server_kafkaserver_linux_disk_write_bytes"));
     }
 
     @Test
