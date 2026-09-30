@@ -32,6 +32,7 @@ import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterListResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterOverviewResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPoliciesResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaFleetOverviewResponse;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaCertificateService;
@@ -340,6 +341,42 @@ public class KafkaTools {
         ) final String listenerName
     ) {
         return kafkaCertificateService.getCertificates(namespace, clusterName, listenerName);
+    }
+
+    /**
+     * Get PodDisruptionBudgets and NetworkPolicies for a Kafka cluster.
+     *
+     * @param clusterName the cluster name
+     * @param namespace   optional namespace
+     * @return the policies response
+     */
+    @WithSpan("tool.get_kafka_cluster_policies")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
+    @Tool(
+        name = "get_kafka_cluster_policies",
+        structuredContent = true,
+        description = "Get PodDisruptionBudgets and NetworkPolicies associated with a Kafka cluster.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
+    public KafkaClusterPoliciesResponse getKafkaClusterPolicies(
+        @NotBlank @ToolArg(
+            description = StrimziToolsPrompts.CLUSTER_DESC
+        ) final String clusterName,
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace
+    ) {
+        return kafkaService.getClusterPolicies(namespace, clusterName);
     }
 
     /**
