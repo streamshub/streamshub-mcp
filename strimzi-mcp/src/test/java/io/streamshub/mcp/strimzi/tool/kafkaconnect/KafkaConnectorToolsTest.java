@@ -113,7 +113,9 @@ class KafkaConnectorToolsTest {
                 List.of("my-topic"),
                 Map.of("connector", Map.of("state", "RUNNING")),
                 List.of(ConditionInfo.of("Ready", "True", null, null, null)),
-                Map.of("file", "/tmp/output.txt", "topics", "my-topic"), null)
+                Map.of("file", "/tmp/output.txt", "topics", "my-topic"), null,
+                KafkaConnectorResponse.OffsetsInfo.of("my-sink-offsets",
+                    Map.of("offsets", List.of(Map.of("offset", Map.of("position", 42))))))
         );
 
         client.when()
@@ -125,6 +127,8 @@ class KafkaConnectorToolsTest {
                     assertTrue(json.contains("FileStreamSinkConnector"));
                     assertTrue(json.contains("RUNNING"));
                     assertTrue(json.contains("output.txt"));
+                    assertTrue(json.contains("my-sink-offsets"));
+                    assertTrue(json.contains("\"position\":42"));
                 })
             .thenAssertResults();
     }

@@ -98,12 +98,31 @@ Get detailed information about a specific KafkaConnector including class, state,
 - `connectorName` (required) -- Name of the KafkaConnector
 - `namespace` (optional) -- Kubernetes namespace
 
-**Returns**: Detailed connector information including class_name, state, tasks_max, auto-restart status, topics, and config
+**Returns**: Detailed connector information including class_name, state, tasks_max, auto-restart status, topics, config, and `offsets`
 
 **Example**:
 ```
 Get details for my-debezium-connector
 ```
+
+#### Connector offsets
+
+When the KafkaConnector declares `spec.listOffsets.toConfigMap`, the response carries an `offsets` object read from that ConfigMap:
+
+| Field | Description |
+|---|---|
+| `config_map_name` | ConfigMap named by `spec.listOffsets.toConfigMap` |
+| `available` | `true` when the operator has written the `offsets.json` key and it parsed |
+| `offsets` | The parsed offsets payload (source connectors: partition/offset pairs; sink connectors: per topic-partition offsets) |
+| `message` | Present only when `available` is `false` -- why the payload could not be read |
+
+The Cluster Operator writes offsets on demand. If `available` is `false` with a "have not been written yet" message, annotate the resource and retry:
+
+```bash
+kubectl annotate kafkaconnector my-debezium-connector strimzi.io/connector-offsets=list
+```
+
+The `offsets` object is omitted entirely from `list_kafka_connectors` and from connectors that do not declare `spec.listOffsets`.
 
 ## Next steps
 

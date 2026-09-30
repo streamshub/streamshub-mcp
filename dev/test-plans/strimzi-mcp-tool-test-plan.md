@@ -968,6 +968,34 @@ Parameters: { "connectorName": "mcp-timer-source" }
 - [ ] Tasks max: 1
 - [ ] Config includes: `topics: mcp-connect-timer-topic`, `camel.kamelet.timer-source.period: 60000`
 - [ ] Task status: Running
+- [ ] `offsets.config_map_name`: `mcp-timer-source-offsets`
+
+### T11.4 - Get Connector Offsets
+
+The dev connector declares `spec.listOffsets.toConfigMap: mcp-timer-source-offsets`, but the operator only
+publishes offsets on request.
+
+```
+Tool: get_kafka_connector
+Parameters: { "connectorName": "mcp-timer-source" }
+```
+
+**Expected (before requesting offsets):**
+- [ ] `offsets.config_map_name`: `mcp-timer-source-offsets`
+- [ ] `offsets.available`: `false`
+- [ ] `offsets.message` names the `strimzi.io/connector-offsets` annotation
+- [ ] No `offsets.offsets` payload
+
+Then request them and re-run the tool:
+
+```bash
+kubectl annotate -n strimzi-kafka kafkaconnector mcp-timer-source strimzi.io/connector-offsets=list
+```
+
+**Expected (after the operator writes the ConfigMap):**
+- [ ] `offsets.available`: `true`
+- [ ] `offsets.offsets` carries an `offsets` array
+- [ ] No `offsets.message`
 
 ---
 
@@ -1932,6 +1960,7 @@ This phase tests all three server-side error handling patterns under RBAC restri
 | 11    | T11.1   | list_kafka_connectors | --connect | | |
 | 11    | T11.2   | list_kafka_connectors (cluster) | --connect | | |
 | 11    | T11.3   | get_kafka_connector | --connect | | |
+| 11    | T11.4   | get_kafka_connector (offsets) | --connect | | |
 | 12    | T12.1   | list_kafka_bridges | --bridge | | |
 | 12    | T12.2   | get_kafka_bridge | --bridge | | |
 | 12    | T12.3   | get_kafka_bridge_pods | --bridge | | |
