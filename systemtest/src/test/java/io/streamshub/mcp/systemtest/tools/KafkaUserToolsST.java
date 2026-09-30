@@ -296,6 +296,71 @@ class KafkaUserToolsST extends AbstractST {
     }
 
     @Test
+    @Story("get_kafka_user_acls_matrix aggregates ACLs across users and flags over-broad grants")
+    void testGetKafkaUserAclsMatrixTopics() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "namespace", Environment.KAFKA_NAMESPACE);
+
+        mcpClient.when()
+            .toolsCall("get_kafka_user_acls_matrix", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_user_acls_matrix response:\n{}", json);
+
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster").asText());
+                assertEquals("topic", root.path("resource_type").asText(),
+                    "resourceType should default to 'topic'");
+
+                JsonNode matrix = root.path("matrix");
+                assertTrue(matrix.has("*"),
+                    "matrix should have a '*' entry (admin and TLS users both grant on all topics)");
+                assertTrue(matrix.has("test-*"),
+                    "matrix should have a 'test-*' entry (SCRAM user's prefix ACL on 'test-')");
+
+                JsonNode broadGrants = root.path("broad_grants");
+                assertTrue(broadGrants.isArray() && broadGrants.size() >= 2,
+                    "Should flag at least 2 over-broad grants (admin wildcard+All, TLS wildcard)");
+                boolean hasWildcardAndAll = false;
+                boolean hasWildcardOnly = false;
+                for (JsonNode grant : broadGrants) {
+                    String reason = grant.path("reason").asText();
+                    if ("wildcard resource, All operations".equals(reason)) {
+                        hasWildcardAndAll = true;
+                    }
+                    if ("wildcard resource".equals(reason)) {
+                        hasWildcardOnly = true;
+                    }
+                }
+                assertTrue(hasWildcardAndAll, "Admin user's '*' topic grant with All operations should be flagged");
+                assertTrue(hasWildcardOnly, "TLS user's '*' topic grant should be flagged as a wildcard resource");
+
+                assertTrue(root.path("resource_count").asInt() >= 2, "Should have at least 2 resource keys");
+                assertTrue(root.path("principal_count").asInt() >= 2, "Should have at least 2 principals");
+                assertFalse(root.path("message").asText().isBlank(), "Should have a summary message");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @Story("get_kafka_user_acls_matrix returns error for invalid resourceType")
+    void testGetKafkaUserAclsMatrixInvalidResourceType() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "namespace", Environment.KAFKA_NAMESPACE,
+            "resourceType", "bogus");
+
+        mcpClient.when()
+            .toolsCall("get_kafka_user_acls_matrix")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32602, "INVALID_PARAMS",
+                "bogus", "topic"))
+            .send()
+            .thenAssertResults();
+    }
+
+    @Test
     @Story("get_kafka_user returns detailed admin user with ACLs")
     void testGetKafkaUserAdmin() {
         Map<String, Object> args = Map.of(

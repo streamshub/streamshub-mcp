@@ -37,6 +37,24 @@ Get detailed KafkaUser information including ACL rules, quotas, and Kafka princi
 Get details for user alice in my-cluster
 ```
 
+### get_kafka_user_acls_matrix
+
+Build an ACL matrix (resource to principal to operations) aggregated across all KafkaUsers on a Kafka cluster, to answer questions like "who can write to this topic". Flags over-broad allow grants (wildcard resource name or the `All` operation).
+
+**Parameters**:
+- `clusterName` (required) -- Kafka cluster name
+- `namespace` (optional) -- Kubernetes namespace
+- `resourceType` (optional) -- ACL resource type to filter on: `topic` (default), `group`, `transactionalId`, or `cluster`
+
+**Returns**: `matrix` (resource name to principal to sorted operations for allow rules), `denied` (same shape for deny rules, omitted when there are none), `principals` (sorted list of principals in `matrix`), `resource_count`, `principal_count`, `broad_grants` (principal, resource, operations, and a reason such as `"wildcard resource"` or `"All operations"`), and a summary `message`
+
+On clusters with many users or ACL rules the response may be truncated by the guardrail that caps response size; narrow the query with `resourceType` or inspect individual users with `get_kafka_user`.
+
+**Example**:
+```
+Who can write to topics on mcp-cluster, and are there any over-broad grants?
+```
+
 ## Security notes
 
 - Credential secret data (passwords, certificates, keys) is **never** exposed
