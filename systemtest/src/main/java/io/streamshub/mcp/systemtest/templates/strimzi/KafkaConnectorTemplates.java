@@ -16,6 +16,9 @@ public final class KafkaConnectorTemplates {
     /** Default connector name used in system tests. */
     public static final String CONNECTOR_NAME = "mcp-timer-source";
 
+    /** ConfigMap the Cluster Operator writes the default connector's offsets into. */
+    public static final String OFFSETS_CONFIG_MAP_NAME = CONNECTOR_NAME + "-offsets";
+
     private KafkaConnectorTemplates() {
     }
 
@@ -40,6 +43,9 @@ public final class KafkaConnectorTemplates {
             .withNewSpec()
                 .withClassName(CAMEL_TIMER_SOURCE_CLASS_NAME)
                 .withTasksMax(1)
+                .withNewListOffsets()
+                    .withNewToConfigMap(OFFSETS_CONFIG_MAP_NAME)
+                .endListOffsets()
                 .addToConfig("topics", topicName)
                 .addToConfig("camel.kamelet.timer-source.message", "mcp-test")
                 .addToConfig("camel.kamelet.timer-source.period", 60000)

@@ -28,6 +28,8 @@ import java.util.Map;
  * @param conditions      the list of status conditions
  * @param config          the connector configuration map (null for list operations)
  * @param reconciliation  reconciliation status tracking (generation vs observedGeneration)
+ * @param offsets         the connector offsets read from the {@code spec.listOffsets} ConfigMap
+ *                        (null for list operations and when {@code spec.listOffsets} is not configured)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record KafkaConnectorResponse(
@@ -43,8 +45,49 @@ public record KafkaConnectorResponse(
     @JsonProperty("connector_status") Map<String, Object> connectorStatus,
     @JsonProperty("conditions") List<ConditionInfo> conditions,
     @JsonProperty("config") Map<String, Object> config,
-    @JsonProperty("reconciliation") ReconciliationInfo reconciliation
+    @JsonProperty("reconciliation") ReconciliationInfo reconciliation,
+    @JsonProperty("offsets") OffsetsInfo offsets
 ) {
+
+    /**
+     * Connector offsets published by the operator into the ConfigMap named by
+     * {@code spec.listOffsets.toConfigMap}.
+     *
+     * @param configMapName the name of the ConfigMap the operator writes offsets to
+     * @param available     whether the offsets payload was found and parsed
+     * @param offsets       the parsed offsets payload, or null when unavailable
+     * @param message       explanation when the payload is unavailable or unparseable
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record OffsetsInfo(
+        @JsonProperty("config_map_name") String configMapName,
+        @JsonProperty("available") Boolean available,
+        @JsonProperty("offsets") Map<String, Object> offsets,
+        @JsonProperty("message") String message
+    ) {
+
+        /**
+         * Creates an offsets info carrying a parsed payload.
+         *
+         * @param configMapName the ConfigMap name
+         * @param offsets       the parsed offsets payload
+         * @return a new offsets info marked available
+         */
+        public static OffsetsInfo of(String configMapName, Map<String, Object> offsets) {
+            return new OffsetsInfo(configMapName, true, offsets, null);
+        }
+
+        /**
+         * Creates an offsets info for a payload that could not be read.
+         *
+         * @param configMapName the ConfigMap name
+         * @param message       why the payload is unavailable
+         * @return a new offsets info marked unavailable
+         */
+        public static OffsetsInfo unavailable(String configMapName, String message) {
+            return new OffsetsInfo(configMapName, false, null, message);
+        }
+    }
 
     /**
      * Auto-restart configuration and status information.
@@ -100,7 +143,7 @@ public record KafkaConnectorResponse(
                                                    List<ConditionInfo> conditions,
                                                    ReconciliationInfo reconciliation) {
         return new KafkaConnectorResponse(name, namespace, connectCluster, className, tasksMax,
-            state, readiness, autoRestart, topics, null, conditions, null, reconciliation);
+            state, readiness, autoRestart, topics, null, conditions, null, reconciliation, null);
     }
 
     /**
@@ -119,6 +162,7 @@ public record KafkaConnectorResponse(
      * @param conditions      the status conditions
      * @param config          the connector configuration
      * @param reconciliation  reconciliation status tracking
+     * @param offsets         the connector offsets read from the listOffsets ConfigMap
      * @return a detailed response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -129,8 +173,10 @@ public record KafkaConnectorResponse(
                                               Map<String, Object> connectorStatus,
                                               List<ConditionInfo> conditions,
                                               Map<String, Object> config,
-                                              ReconciliationInfo reconciliation) {
+                                              ReconciliationInfo reconciliation,
+                                              OffsetsInfo offsets) {
         return new KafkaConnectorResponse(name, namespace, connectCluster, className, tasksMax,
-            state, readiness, autoRestart, topics, connectorStatus, conditions, config, reconciliation);
+            state, readiness, autoRestart, topics, connectorStatus, conditions, config,
+            reconciliation, offsets);
     }
 }
