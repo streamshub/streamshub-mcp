@@ -69,6 +69,7 @@ Available diagnostic tools:
 - [`assess_upgrade_readiness`](tools/diagnostics.md#assess_upgrade_readiness) -- Pre-upgrade readiness check
 - [`diagnose_kafka_mirror_maker`](tools/diagnostics.md#diagnose_kafka_mirror_maker) -- MirrorMaker2 replication diagnosis
 - [`diagnose_kafka_bridge`](tools/diagnostics.md#diagnose_kafka_bridge) -- KafkaBridge HTTP gateway diagnosis
+- [`diagnose_kafka_node_pool`](tools/diagnostics.md#diagnose_kafka_node_pool) -- KafkaNodePool scaling, storage, and scheduling diagnosis
 - [`compare_kafka_clusters`](tools/diagnostics.md#compare_kafka_clusters) -- Cross-cluster configuration comparison
 
 ### Log collection

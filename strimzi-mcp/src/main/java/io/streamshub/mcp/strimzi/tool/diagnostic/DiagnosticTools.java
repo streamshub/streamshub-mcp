@@ -35,6 +35,7 @@ import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.operator.OperatorMetricsDiagnosticReport;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaClusterDiagnosticService;
@@ -46,6 +47,7 @@ import io.streamshub.mcp.strimzi.service.kafkabridge.KafkaBridgeDiagnosticServic
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectorDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticService;
+import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicDiagnosticService;
 import io.streamshub.mcp.strimzi.service.operator.OperatorMetricsDiagnosticService;
 import jakarta.inject.Inject;
@@ -96,6 +98,9 @@ public class DiagnosticTools {
 
     @Inject
     KafkaBridgeDiagnosticService bridgeDiagnosticService;
+
+    @Inject
+    KafkaNodePoolDiagnosticService nodePoolDiagnosticService;
 
     DiagnosticTools() {
     }
@@ -768,6 +773,61 @@ public class DiagnosticTools {
     ) {
         return bridgeDiagnosticService.diagnose(
             namespace, bridgeName, symptom, sinceMinutes,
+            sampling, elicitation, progress, cancellation);
+    }
+
+    /**
+     * Run a composite diagnostic workflow for a KafkaNodePool.
+     *
+     * @param nodePoolName the KafkaNodePool name
+     * @param namespace    optional namespace
+     * @param clusterName  optional parent Kafka cluster name
+     * @param symptom      optional symptom description
+     * @param sinceMinutes optional time window for events and logs
+     * @param sampling     MCP Sampling for LLM analysis
+     * @param elicitation  MCP Elicitation for namespace disambiguation
+     * @param progress     MCP progress tracking
+     * @param cancellation MCP cancellation checking
+     * @return a consolidated KafkaNodePool diagnostic report
+     */
+    @RunOnVirtualThread
+    @WithSpan("tool.diagnose_kafka_node_pool")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_NODE_POOL)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
+    @Tool(
+        name = "diagnose_kafka_node_pool",
+        description = "Multi-step diagnostic workflow for a KafkaNodePool."
+            + " Gathers node pool status (roles, replicas, node IDs, storage, conditions), pod health,"
+            + " PVC storage binding, Kubernetes events, and pod logs to diagnose scaling stuck,"
+            + " node IDs not assigned, storage not bound, and pods not scheduling.",
+        structuredContent = true,
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
+    public KafkaNodePoolDiagnosticReport diagnoseKafkaNodePool(
+        @NotBlank @ToolArg(
+            description = "Name of the node pool (e.g., 'kafka', 'controller')."
+        ) final String nodePoolName,
+        @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
+        @ToolArg(description = StrimziToolsPrompts.CLUSTER_DESC, required = false) final String clusterName,
+        @ToolArg(description = StrimziToolsPrompts.SYMPTOM_DESC, required = false) final String symptom,
+        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
+            required = false) final Integer sinceMinutes,
+        final Sampling sampling,
+        final Elicitation elicitation,
+        final Progress progress,
+        final Cancellation cancellation
+    ) {
+        return nodePoolDiagnosticService.diagnose(
+            namespace, nodePoolName, clusterName, symptom, sinceMinutes,
             sampling, elicitation, progress, cancellation);
     }
 }

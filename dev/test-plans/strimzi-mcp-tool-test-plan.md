@@ -548,6 +548,33 @@ Parameters: { "clusterName": "mcp-cluster", "nodePoolName": "nonexistent-pool" }
 **Expected:**
 - [ ] Returns error indicating node pool not found
 
+### T4.6 - Diagnose Node Pool
+
+```
+Tool: diagnose_kafka_node_pool
+Parameters: { "nodePoolName": "broker-np1", "clusterName": "mcp-cluster" }
+```
+
+**Expected:**
+- [ ] `node_pool.name` is `broker-np1`, `node_pool.cluster` is `mcp-cluster`
+- [ ] `pods` section present with pod health for the pool
+- [ ] `pvcs` is an array (PVC storage binding status)
+- [ ] `steps_completed` contains `node_pool` and `pods`
+- [ ] Phase 2 areas (`pvcs`, `events`, `logs`) appear in `steps_completed` or `steps_failed`
+- [ ] With a Sampling-capable client: `analysis` is present; without one it is omitted
+- [ ] `timestamp` and `message` are present
+
+### T4.7 - Diagnose Node Pool (not found)
+
+```
+Tool: diagnose_kafka_node_pool
+Parameters: { "nodePoolName": "nonexistent-pool" }
+```
+
+**Expected:**
+- [ ] JSON-RPC error `-32002` with `error.data.category` `RESOURCE_NOT_FOUND`
+- [ ] Message names `nonexistent-pool`, no stack trace
+
 ---
 
 ## Phase 5: KafkaUser Tools
@@ -2004,6 +2031,8 @@ This phase tests all three server-side error handling patterns under RBAC restri
 | 4     | T4.3    | get_kafka_node_pool (broker) | core | | |
 | 4     | T4.4    | get_kafka_node_pool_pods | core | | |
 | 4     | T4.5    | get_kafka_node_pool (nonexistent) | core | | |
+| 4     | T4.6    | diagnose_kafka_node_pool | core | | |
+| 4     | T4.7    | diagnose_kafka_node_pool (not found) | core | | |
 | 5     | T5.1    | list_kafka_users | core | | |
 | 5     | T5.2    | list_kafka_users (cluster) | core | | |
 | 5     | T5.3    | get_kafka_user (SCRAM+quotas) | core | | |
