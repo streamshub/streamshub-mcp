@@ -630,6 +630,30 @@ Parameters: { "userName": "nonexistent-user-xyz" }
 **Expected:**
 - [ ] Returns error indicating user not found
 
+### T5.7 - Get User ACLs Matrix (topics, default)
+
+```
+Tool: get_kafka_user_acls_matrix
+Parameters: { "clusterName": "mcp-cluster" }
+```
+
+**Expected:**
+- [ ] `resource_type` defaults to `topic`
+- [ ] `matrix` has a `*` entry aggregating the admin and TLS users' wildcard topic grants
+- [ ] `matrix` has a `test-`/`orders-`-prefixed entry rendered with a trailing `*` (prefix pattern)
+- [ ] `broad_grants` flags the admin user's `*` grant as `"wildcard resource, All operations"` and the TLS user's `*` grant as `"wildcard resource"`
+- [ ] `resource_count`, `principal_count`, and `message` are consistent with the matrix contents
+
+### T5.8 - Get User ACLs Matrix (invalid resourceType)
+
+```
+Tool: get_kafka_user_acls_matrix
+Parameters: { "clusterName": "mcp-cluster", "resourceType": "bogus" }
+```
+
+**Expected:**
+- [ ] Returns `INVALID_PARAMS` error listing the accepted resourceType values
+
 ---
 
 ## Phase 6: Strimzi Operator Tools
@@ -1986,6 +2010,8 @@ This phase tests all three server-side error handling patterns under RBAC restri
 | 5     | T5.4    | get_kafka_user (TLS) | core | | |
 | 5     | T5.5    | get_kafka_user (admin) | core | | |
 | 5     | T5.6    | get_kafka_user (nonexistent) | core | | |
+| 5     | T5.7    | get_kafka_user_acls_matrix (topics) | core | | |
+| 5     | T5.8    | get_kafka_user_acls_matrix (invalid resourceType) | core | | |
 | 6     | T6.1    | list_strimzi_operators | core | | |
 | 6     | T6.2    | get_strimzi_operator | core | | |
 | 6     | T6.3    | get_strimzi_operator (ns) | core | | |
