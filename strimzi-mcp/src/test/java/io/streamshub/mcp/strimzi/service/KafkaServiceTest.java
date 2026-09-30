@@ -10,6 +10,8 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
+import io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicy;
+import io.fabric8.kubernetes.api.model.policy.v1.PodDisruptionBudget;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.AppsAPIGroupDSL;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -20,6 +22,7 @@ import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPoliciesResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import io.strimzi.api.kafka.model.kafka.Kafka;
@@ -82,6 +85,8 @@ class KafkaServiceTest {
         Mockito.lenient().when(appsApi.deployments()).thenReturn(deploymentOp);
 
         KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Pod.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, PodDisruptionBudget.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, NetworkPolicy.class);
 
         kafkaOp = Mockito.mock(MixedOperation.class);
         kafkaNsOp = Mockito.mock(NonNamespaceOperation.class);
@@ -353,5 +358,17 @@ class KafkaServiceTest {
                 .build())
             .withStatus(status)
             .build();
+    }
+
+    @Test
+    void testGetClusterPolicies() {
+        mockKafkaResource(buildKafkaWithStatus(new KafkaStatusBuilder().build()));
+
+        KafkaClusterPoliciesResponse response = kafkaService.getClusterPolicies(NAMESPACE, CLUSTER_NAME);
+        assertNotNull(response);
+        assertEquals(CLUSTER_NAME, response.clusterName());
+        assertEquals(NAMESPACE, response.namespace());
+        assertNotNull(response.podDisruptionBudgets());
+        assertNotNull(response.networkPolicies());
     }
 }

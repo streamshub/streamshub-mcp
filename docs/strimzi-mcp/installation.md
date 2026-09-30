@@ -236,7 +236,9 @@ The ClusterRole grants read-only access to:
 - Deployments -- `get`, `list`, `watch`
 - Pods and logs -- `get`, `list`
 - Services and ConfigMaps -- `get`, `list`
-- Routes and Ingresses -- `get`, `list`
+- PersistentVolumeClaims -- `get`, `list`
+- Routes, Ingresses, and NetworkPolicies -- `get`, `list`
+- PodDisruptionBudgets -- `get`, `list`
 - Leases -- `get`, `list`
 - ValidatingWebhookConfigurations -- `get`, `list`
 

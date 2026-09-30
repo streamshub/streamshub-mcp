@@ -5,6 +5,8 @@
 package io.streamshub.mcp.strimzi.service.kafka;
 
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicy;
+import io.fabric8.kubernetes.api.model.policy.v1.PodDisruptionBudget;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
@@ -20,7 +22,10 @@ import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPoliciesResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaNetworkPolicyInfo;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaPodDisruptionBudgetInfo;
 import io.streamshub.mcp.strimzi.dto.kafka.ListenerInfo;
 import io.streamshub.mcp.strimzi.dto.kafka.RoleReplicasInfo;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
@@ -184,6 +189,114 @@ public class KafkaService {
         }
 
         return KafkaBootstrapResponse.of(resolvedNs, normalizedName, servers);
+    }
+
+    /**
+     * Get PodDisruptionBudgets and NetworkPolicies for a Kafka cluster.
+     *
+     * @param namespace   the namespace, or null for auto-discovery
+     * @param clusterName the cluster name
+     * @return the cluster policies response
+     */
+    public KafkaClusterPoliciesResponse getClusterPolicies(final String namespace, final String clusterName) {
+        String ns = InputUtils.normalizeInput(namespace);
+        String normalizedName = InputUtils.normalizeInput(clusterName);
+
+        if (normalizedName == null) {
+            throw McpErrors.invalidParams("Cluster name is required");
+        }
+        InputUtils.validateK8sName(normalizedName, "cluster name");
+        InputUtils.validateK8sName(ns, "namespace");
+
+        LOG.infof("Getting cluster policies for cluster=%s (namespace=%s)",
+            normalizedName, ns != null ? ns : "auto");
+
+        Kafka kafka = findKafkaCluster(ns, normalizedName);
+        String resolvedNs = kafka.getMetadata().getNamespace();
+
+        List<PodDisruptionBudget> pdbs = k8sService.queryResourcesByLabel(
+            PodDisruptionBudget.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, normalizedName);
+
+        List<NetworkPolicy> netpols = k8sService.queryResourcesByLabel(
+            NetworkPolicy.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, normalizedName);
+
+        List<KafkaPodDisruptionBudgetInfo> pdbInfos = pdbs.stream()
+            .map(this::createPdbInfo)
+            .toList();
+
+        List<KafkaNetworkPolicyInfo> netpolInfos = netpols.stream()
+            .map(this::createNetpolInfo)
+            .toList();
+
+        return KafkaClusterPoliciesResponse.of(normalizedName, resolvedNs, pdbInfos, netpolInfos);
+    }
+
+    private KafkaPodDisruptionBudgetInfo createPdbInfo(final PodDisruptionBudget pdb) {
+        String component = pdb.getMetadata().getLabels() != null
+            ? pdb.getMetadata().getLabels().get(ResourceLabels.STRIMZI_KIND_LABEL)
+            : null;
+        if (component == null && pdb.getMetadata().getLabels() != null) {
+            component = pdb.getMetadata().getLabels().get(ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL);
+        }
+
+        String minAvailable = pdb.getSpec() != null && pdb.getSpec().getMinAvailable() != null
+            ? pdb.getSpec().getMinAvailable().getValue() != null
+                ? pdb.getSpec().getMinAvailable().getValue().toString()
+                : null
+            : null;
+
+        String maxUnavailable = pdb.getSpec() != null && pdb.getSpec().getMaxUnavailable() != null
+            ? pdb.getSpec().getMaxUnavailable().getValue() != null
+                ? pdb.getSpec().getMaxUnavailable().getValue().toString()
+                : null
+            : null;
+
+        Integer currentHealthy = pdb.getStatus() != null ? pdb.getStatus().getCurrentHealthy() : null;
+        Integer desiredHealthy = pdb.getStatus() != null ? pdb.getStatus().getDesiredHealthy() : null;
+        Integer disruptionsAllowed = pdb.getStatus() != null ? pdb.getStatus().getDisruptionsAllowed() : null;
+        Integer expectedPods = pdb.getStatus() != null ? pdb.getStatus().getExpectedPods() : null;
+
+        return new KafkaPodDisruptionBudgetInfo(
+            pdb.getMetadata().getName(),
+            pdb.getMetadata().getNamespace(),
+            component,
+            minAvailable,
+            maxUnavailable,
+            currentHealthy,
+            desiredHealthy,
+            disruptionsAllowed,
+            expectedPods
+        );
+    }
+
+    private KafkaNetworkPolicyInfo createNetpolInfo(final NetworkPolicy netpol) {
+        String component = netpol.getMetadata().getLabels() != null
+            ? netpol.getMetadata().getLabels().get(ResourceLabels.STRIMZI_KIND_LABEL)
+            : null;
+        if (component == null && netpol.getMetadata().getLabels() != null) {
+            component = netpol.getMetadata().getLabels().get(ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL);
+        }
+
+        List<String> policyTypes = netpol.getSpec() != null && netpol.getSpec().getPolicyTypes() != null
+            ? netpol.getSpec().getPolicyTypes()
+            : List.of();
+
+        Integer ingressCount = netpol.getSpec() != null && netpol.getSpec().getIngress() != null
+            ? netpol.getSpec().getIngress().size()
+            : 0;
+
+        Integer egressCount = netpol.getSpec() != null && netpol.getSpec().getEgress() != null
+            ? netpol.getSpec().getEgress().size()
+            : 0;
+
+        return new KafkaNetworkPolicyInfo(
+            netpol.getMetadata().getName(),
+            netpol.getMetadata().getNamespace(),
+            component,
+            policyTypes,
+            ingressCount,
+            egressCount
+        );
     }
 
     /**
