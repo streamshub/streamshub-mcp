@@ -467,6 +467,26 @@ class KafkaClusterToolsST extends AbstractST {
     }
 
     @Test
+    @Story("get_kafka_pvcs returns PVCs for cluster")
+    void testGetKafkaPvcs() {
+        Map<String, Object> args = Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME);
+        mcpClient.when()
+            .toolsCall("get_kafka_pvcs", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_pvcs response (length={})", text.length());
+                LOGGER.debug("get_kafka_pvcs response:\n{}", text);
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText(),
+                    "cluster_name should match");
+                assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
+                    "namespace should match");
+                assertTrue(root.path("pvcs").isArray(), "pvcs should be an array");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
     @Story("get_kafka_cluster_certificates for specific listener")
     void testGetKafkaClusterCertificatesForListener() {
         Map<String, Object> args = Map.of(

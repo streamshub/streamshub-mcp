@@ -4,9 +4,12 @@
  */
 package io.streamshub.mcp.strimzi.service.kafka;
 
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicy;
 import io.fabric8.kubernetes.api.model.policy.v1.PodDisruptionBudget;
+import io.fabric8.kubernetes.api.model.storage.StorageClass;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
@@ -26,6 +29,8 @@ import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPoliciesResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaNetworkPolicyInfo;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaPodDisruptionBudgetInfo;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaPvcInfo;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaPvcResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.ListenerInfo;
 import io.streamshub.mcp.strimzi.dto.kafka.RoleReplicasInfo;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
@@ -229,6 +234,86 @@ public class KafkaService {
             .toList();
 
         return KafkaClusterPoliciesResponse.of(normalizedName, resolvedNs, pdbInfos, netpolInfos);
+    }
+
+    /**
+     * Get PersistentVolumeClaims for a Kafka cluster.
+     *
+     * @param namespace   optional namespace
+     * @param clusterName the Kafka cluster name
+     * @return the PVC response
+     */
+    public KafkaPvcResponse getClusterPvcs(final String namespace, final String clusterName) {
+        String ns = InputUtils.normalizeInput(namespace);
+        String normalizedName = InputUtils.normalizeInput(clusterName);
+
+        if (normalizedName == null) {
+            throw McpErrors.invalidParams("Cluster name is required");
+        }
+        InputUtils.validateK8sName(normalizedName, "cluster name");
+        InputUtils.validateK8sName(ns, "namespace");
+
+        LOG.infof("Getting cluster PVCs for cluster=%s (namespace=%s)",
+            normalizedName, ns != null ? ns : "auto");
+
+        Kafka kafka = findKafkaCluster(ns, normalizedName);
+        String resolvedNs = kafka.getMetadata().getNamespace();
+
+        List<PersistentVolumeClaim> pvcs = k8sService.queryResourcesByLabel(
+            PersistentVolumeClaim.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, normalizedName);
+
+        List<KafkaPvcInfo> pvcInfos = pvcs.stream()
+            .map(this::createPvcInfo)
+            .toList();
+
+        return KafkaPvcResponse.of(normalizedName, resolvedNs, pvcInfos);
+    }
+
+    private KafkaPvcInfo createPvcInfo(final PersistentVolumeClaim pvc) {
+        String name = pvc.getMetadata() != null ? pvc.getMetadata().getName() : null;
+        String namespace = pvc.getMetadata() != null ? pvc.getMetadata().getNamespace() : null;
+        String phase = pvc.getStatus() != null ? pvc.getStatus().getPhase() : null;
+        String storageClassName = pvc.getSpec() != null ? pvc.getSpec().getStorageClassName() : null;
+        String volumeName = pvc.getSpec() != null ? pvc.getSpec().getVolumeName() : null;
+
+        String requestedCapacity = null;
+        if (pvc.getSpec() != null && pvc.getSpec().getResources() != null
+                && pvc.getSpec().getResources().getRequests() != null) {
+            Quantity req = pvc.getSpec().getResources().getRequests().get("storage");
+            if (req != null) {
+                requestedCapacity = req.getAmount() + (req.getFormat() != null ? req.getFormat() : "");
+            }
+        }
+
+        String actualCapacity = null;
+        if (pvc.getStatus() != null && pvc.getStatus().getCapacity() != null) {
+            Quantity cap = pvc.getStatus().getCapacity().get("storage");
+            if (cap != null) {
+                actualCapacity = cap.getAmount() + (cap.getFormat() != null ? cap.getFormat() : "");
+            }
+        }
+
+        Boolean allowVolumeExpansion = null;
+        if (storageClassName != null && !storageClassName.isBlank()) {
+            try {
+                StorageClass sc = k8sService.getResource(StorageClass.class, null, storageClassName);
+                if (sc != null) {
+                    allowVolumeExpansion = sc.getAllowVolumeExpansion();
+                }
+            } catch (Exception e) {
+                LOG.debugf("Could not fetch StorageClass %s: %s", storageClassName, e.getMessage());
+            }
+        }
+
+        return KafkaPvcInfo.of(
+            name,
+            namespace,
+            phase,
+            storageClassName,
+            requestedCapacity,
+            actualCapacity,
+            volumeName,
+            allowVolumeExpansion);
     }
 
     private KafkaPodDisruptionBudgetInfo createPdbInfo(final PodDisruptionBudget pdb) {

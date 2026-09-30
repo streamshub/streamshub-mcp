@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.service;
 
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -24,6 +25,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPoliciesResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaPvcResponse;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
@@ -87,6 +89,7 @@ class KafkaServiceTest {
         KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Pod.class);
         KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, PodDisruptionBudget.class);
         KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, NetworkPolicy.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, PersistentVolumeClaim.class);
 
         kafkaOp = Mockito.mock(MixedOperation.class);
         kafkaNsOp = Mockito.mock(NonNamespaceOperation.class);
@@ -370,5 +373,16 @@ class KafkaServiceTest {
         assertEquals(NAMESPACE, response.namespace());
         assertNotNull(response.podDisruptionBudgets());
         assertNotNull(response.networkPolicies());
+    }
+
+    @Test
+    void testGetClusterPvcs() {
+        mockKafkaResource(buildKafkaWithStatus(new KafkaStatusBuilder().build()));
+
+        KafkaPvcResponse response = kafkaService.getClusterPvcs(NAMESPACE, CLUSTER_NAME);
+        assertNotNull(response);
+        assertEquals(CLUSTER_NAME, response.clusterName());
+        assertEquals(NAMESPACE, response.namespace());
+        assertNotNull(response.pvcs());
     }
 }

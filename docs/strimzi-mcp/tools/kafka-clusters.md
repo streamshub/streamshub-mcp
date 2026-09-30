@@ -159,6 +159,24 @@ Get PodDisruptionBudgets and NetworkPolicies associated with a Kafka cluster.
 Show me the PDBs and network policies for mcp-cluster
 ```
 
+## get_kafka_pvcs
+
+Get PersistentVolumeClaims backing a Kafka cluster including capacity and storage class volume expansion capability.
+
+**Parameters**:
+- `clusterName` (required) -- Name of the Kafka cluster
+- `namespace` (optional) -- Kubernetes namespace
+
+**Returns**: PVC details including:
+- `cluster_name` -- Name of the Kafka cluster
+- `namespace` -- Kubernetes namespace
+- `pvcs` -- List of PVC objects with `name`, `namespace`, `phase`, `storage_class`, `requested_capacity`, `actual_capacity`, `volume_name`, `allow_volume_expansion`
+
+**Example**:
+```
+List the PVCs and storage capacity for mcp-cluster
+```
+
 ## get_kafka_cluster_logs
 
 Get logs from Kafka cluster pods with error analysis and advanced filtering.
