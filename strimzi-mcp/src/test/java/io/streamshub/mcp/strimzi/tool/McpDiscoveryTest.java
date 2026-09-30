@@ -119,7 +119,8 @@ class McpDiscoveryTest {
                     "get_kafka_mirror_maker_pods",
                     "get_kafka_mirror_maker_logs",
                     "diagnose_kafka_mirror_maker",
-                    "diagnose_kafka_bridge"
+                    "diagnose_kafka_bridge",
+                    "diagnose_kafka_node_pool"
                 );
 
                 for (String toolName : expectedTools) {
@@ -297,6 +298,8 @@ class McpDiscoveryTest {
         map.put("assess_upgrade_readiness", new String[]{ToolMetaFields.Types.ASSESS, StrimziToolResources.KAFKA});
         map.put("diagnose_kafka_mirror_maker", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA_MIRROR_MAKER_2});
         map.put("diagnose_kafka_bridge", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA_BRIDGE});
+        map.put("diagnose_kafka_node_pool",
+            new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA_NODE_POOL});
         return map;
     }
 
@@ -314,7 +317,8 @@ class McpDiscoveryTest {
             "diagnose_kafka_topic",
             "assess_upgrade_readiness",
             "diagnose_kafka_mirror_maker",
-            "diagnose_kafka_bridge"
+            "diagnose_kafka_bridge",
+            "diagnose_kafka_node_pool"
         );
     }
 
