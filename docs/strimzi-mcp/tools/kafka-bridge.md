@@ -77,5 +77,5 @@ Get error logs from my-bridge for the last 30 minutes
 
 - **[Metrics tools](metrics.md)** -- Retrieve KafkaBridge metrics including HTTP request, producer, and consumer metrics
 - **[KafkaConnect tools](kafka-connect.md)** -- Manage KafkaConnect clusters and connectors
-- **[Diagnostic tools](diagnostics.md)** -- Run multi-step diagnostic workflows
+- **[Diagnostic tools](diagnostics.md)** -- Run `diagnose_kafka_bridge` for automated diagnosis
 - **[Tools reference](.)** -- Back to tools overview

@@ -68,6 +68,7 @@ Available diagnostic tools:
 - [`diagnose_kafka_topic`](tools/diagnostics.md#diagnose_kafka_topic) -- Topic diagnosis with scope detection
 - [`assess_upgrade_readiness`](tools/diagnostics.md#assess_upgrade_readiness) -- Pre-upgrade readiness check
 - [`diagnose_kafka_mirror_maker`](tools/diagnostics.md#diagnose_kafka_mirror_maker) -- MirrorMaker2 replication diagnosis
+- [`diagnose_kafka_bridge`](tools/diagnostics.md#diagnose_kafka_bridge) -- KafkaBridge HTTP gateway diagnosis
 - [`compare_kafka_clusters`](tools/diagnostics.md#compare_kafka_clusters) -- Cross-cluster configuration comparison
 
 ### Log collection

@@ -219,6 +219,30 @@ Gathers MM2 status, connector health, pod status, logs, and events in a single c
 Diagnose issues with my-mirror-maker
 ```
 
+## diagnose_kafka_bridge
+
+Runs a multi-step diagnostic workflow for a KafkaBridge instance.
+Gathers bridge status, HTTP listener and client configuration, pod health, logs, events, and `kafka_bridge_*` HTTP metrics in a single call.
+
+**3-Phase workflow**:
+1. **Phase 1 -- Initial data gathering**: bridge status (readiness, HTTP URL, bootstrap servers, authentication), pod health.
+2. **Phase 2 -- Deep investigation**: bridge logs (error-filtered), Kubernetes events, HTTP metrics. Sampling picks which of the three to gather; without Sampling all three run.
+3. **Phase 3 -- Analysis**: Root cause analysis distinguishing Kafka connectivity, HTTP listener problems, consumer lifecycle errors, authorization failures, resource exhaustion, and operator failures.
+
+**Parameters**:
+- `bridgeName` (required) -- Name of the KafkaBridge
+- `namespace` (optional) -- Kubernetes namespace
+- `symptom` (optional) -- Observed symptom
+- `sinceMinutes` (optional) -- Time window for logs/events
+
+**Uses Sampling**: Yes -- Triage and root cause analysis
+**Uses Elicitation**: Yes -- Namespace disambiguation
+
+**Example**:
+```
+Diagnose why my-bridge returns HTTP 500 for produce requests
+```
+
 ## compare_kafka_clusters
 
 Compares the effective configuration of two Kafka clusters.
