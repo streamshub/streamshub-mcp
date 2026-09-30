@@ -1059,6 +1059,32 @@ Parameters: { "resourceName": "mcp-bridge", "resourceKind": "KafkaBridge" }
 **Expected:**
 - [ ] Returns events for `mcp-bridge`
 
+### T12.6 - Diagnose Bridge
+
+```
+Tool: diagnose_kafka_bridge
+Parameters: { "bridgeName": "mcp-bridge" }
+```
+
+**Expected:**
+- [ ] `bridge.name` is `mcp-bridge`, `bridge.readiness` is `Ready`
+- [ ] `pods.pod_summary.total_pods` is 1
+- [ ] `steps_completed` contains `bridge_status` and `bridge_pods`
+- [ ] Phase 2 areas (`bridge_logs`, `events`, `metrics`) appear in `steps_completed` or `steps_failed`
+- [ ] With a Sampling-capable client: `analysis` is present; without one it is omitted
+- [ ] `timestamp` and `message` are present
+
+### T12.7 - Diagnose Bridge (not found)
+
+```
+Tool: diagnose_kafka_bridge
+Parameters: { "bridgeName": "no-such-bridge" }
+```
+
+**Expected:**
+- [ ] JSON-RPC error `-32002` with `error.data.category` `RESOURCE_NOT_FOUND`
+- [ ] Message names `no-such-bridge`, no stack trace
+
 ---
 
 ## Phase 13: KafkaMirrorMaker2 Tools
@@ -1966,6 +1992,8 @@ This phase tests all three server-side error handling patterns under RBAC restri
 | 12    | T12.3   | get_kafka_bridge_pods | --bridge | | |
 | 12    | T12.4   | get_kafka_bridge_logs | --bridge | | |
 | 12    | T12.5   | get_strimzi_events (KafkaBridge) | --bridge | | |
+| 12    | T12.6   | diagnose_kafka_bridge | --bridge | | |
+| 12    | T12.7   | diagnose_kafka_bridge (not found) | --bridge | | |
 | 13    | T13.1   | list_kafka_mirror_makers | --mirror-maker | | |
 | 13    | T13.2   | get_kafka_mirror_maker | --mirror-maker | | |
 | 13    | T13.3   | get_kafka_mirror_maker_pods | --mirror-maker | | |
