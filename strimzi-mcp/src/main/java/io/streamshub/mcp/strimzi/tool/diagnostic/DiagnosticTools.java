@@ -31,6 +31,7 @@ import io.streamshub.mcp.strimzi.dto.kafka.KafkaConfigComparisonReport;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaConnectivityDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaMetricsDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafka.UpgradeReadinessReport;
+import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticReport;
@@ -41,6 +42,7 @@ import io.streamshub.mcp.strimzi.service.kafka.KafkaConfigComparisonService;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaConnectivityDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaMetricsDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafka.UpgradeReadinessDiagnosticService;
+import io.streamshub.mcp.strimzi.service.kafkabridge.KafkaBridgeDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectorDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticService;
@@ -91,6 +93,9 @@ public class DiagnosticTools {
 
     @Inject
     KafkaMirrorMaker2DiagnosticService mirrorMakerDiagnosticService;
+
+    @Inject
+    KafkaBridgeDiagnosticService bridgeDiagnosticService;
 
     DiagnosticTools() {
     }
@@ -713,6 +718,56 @@ public class DiagnosticTools {
     ) {
         return mirrorMakerDiagnosticService.diagnose(
             namespace, mirrorMakerName, symptom, sinceMinutes,
+            sampling, elicitation, progress, cancellation);
+    }
+
+    /**
+     * Run a composite diagnostic workflow for a KafkaBridge instance.
+     *
+     * @param bridgeName   the KafkaBridge name
+     * @param namespace    optional namespace
+     * @param symptom      optional symptom description
+     * @param sinceMinutes optional time window for logs and events
+     * @param sampling     MCP Sampling for LLM analysis
+     * @param elicitation  MCP Elicitation for namespace disambiguation
+     * @param progress     MCP progress tracking
+     * @param cancellation MCP cancellation checking
+     * @return a consolidated KafkaBridge diagnostic report
+     */
+    @RunOnVirtualThread
+    @WithSpan("tool.diagnose_kafka_bridge")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
+    @Tool(
+        name = "diagnose_kafka_bridge",
+        description = "Multi-step diagnostic workflow for KafkaBridge."
+            + " Gathers bridge status, HTTP listener and client configuration, pod health,"
+            + " logs, events, and kafka_bridge_* HTTP metrics.",
+        structuredContent = true,
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
+    public KafkaBridgeDiagnosticReport diagnoseKafkaBridge(
+        @NotBlank @ToolArg(description = StrimziToolsPrompts.BRIDGE_NAME_DESC) final String bridgeName,
+        @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
+        @ToolArg(description = StrimziToolsPrompts.SYMPTOM_DESC, required = false) final String symptom,
+        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
+            required = false) final Integer sinceMinutes,
+        final Sampling sampling,
+        final Elicitation elicitation,
+        final Progress progress,
+        final Cancellation cancellation
+    ) {
+        return bridgeDiagnosticService.diagnose(
+            namespace, bridgeName, symptom, sinceMinutes,
             sampling, elicitation, progress, cancellation);
     }
 }
