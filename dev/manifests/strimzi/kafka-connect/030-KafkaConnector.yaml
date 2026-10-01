@@ -24,6 +24,11 @@ metadata:
 spec:
   class: org.apache.camel.kafkaconnector.timersource.CamelTimersourceSourceConnector
   tasksMax: 1
+  # Offsets are published on demand; annotate the resource with
+  # strimzi.io/connector-offsets=list to have the operator write this ConfigMap.
+  listOffsets:
+    toConfigMap:
+      name: mcp-timer-source-offsets
   config:
     topics: mcp-connect-timer-topic
     camel.kamelet.timer-source.message: mcp-test

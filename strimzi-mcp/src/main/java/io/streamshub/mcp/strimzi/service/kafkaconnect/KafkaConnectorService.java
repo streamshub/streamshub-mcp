@@ -4,16 +4,22 @@
  */
 package io.streamshub.mcp.strimzi.service.kafkaconnect;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.ReconciliationInfo;
+import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
+import io.streamshub.mcp.common.util.ExceptionUtils;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorResponse;
+import io.strimzi.api.ResourceAnnotations;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.connector.KafkaConnector;
+import io.strimzi.api.kafka.model.connector.ListOffsets;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -30,8 +36,14 @@ public class KafkaConnectorService {
     private static final Logger LOG = Logger.getLogger(KafkaConnectorService.class);
     private static final String DEFAULT_STATE = "running";
 
+    /** Key the Cluster Operator writes the connector offsets payload under. */
+    private static final String OFFSETS_CONFIG_MAP_KEY = "offsets.json";
+
     @Inject
     KubernetesResourceService k8sService;
+
+    @Inject
+    ObjectMapper objectMapper;
 
     KafkaConnectorService() {
     }
@@ -165,7 +177,51 @@ public class KafkaConnectorService {
             extractConnectorStatus(connector),
             extractConditions(connector),
             extractConfig(connector),
-            reconciliation);
+            reconciliation,
+            extractOffsets(connector));
+    }
+
+    /**
+     * Reads the connector offsets the operator publishes into the ConfigMap named by
+     * {@code spec.listOffsets.toConfigMap}. Returns null when the connector does not declare one.
+     */
+    private KafkaConnectorResponse.OffsetsInfo extractOffsets(final KafkaConnector connector) {
+        ListOffsets listOffsets = connector.getSpec() != null ? connector.getSpec().getListOffsets() : null;
+        if (listOffsets == null || listOffsets.getToConfigMap() == null
+            || listOffsets.getToConfigMap().getName() == null) {
+            return null;
+        }
+
+        String configMapName = listOffsets.getToConfigMap().getName();
+        String namespace = connector.getMetadata().getNamespace();
+
+        ConfigMap configMap;
+        try {
+            configMap = k8sService.getResource(ConfigMap.class, namespace, configMapName);
+        } catch (RuntimeException e) {
+            LOG.debugf("Failed to read offsets ConfigMap %s/%s: %s",
+                namespace, configMapName, ExceptionUtils.rootCauseMessage(e));
+            return KafkaConnectorResponse.OffsetsInfo.unavailable(configMapName,
+                "Failed to read offsets ConfigMap: " + ExceptionUtils.rootCauseMessage(e));
+        }
+
+        if (configMap == null || configMap.getData() == null
+            || configMap.getData().get(OFFSETS_CONFIG_MAP_KEY) == null) {
+            return KafkaConnectorResponse.OffsetsInfo.unavailable(configMapName,
+                "Offsets have not been written yet. Annotate the KafkaConnector with "
+                    + ResourceAnnotations.ANNO_STRIMZI_IO_CONNECTOR_OFFSETS + "=list to request them.");
+        }
+
+        try {
+            return KafkaConnectorResponse.OffsetsInfo.of(configMapName, objectMapper.readValue(
+                configMap.getData().get(OFFSETS_CONFIG_MAP_KEY), DiagnosticHelper.MAP_TYPE_REF));
+        } catch (Exception e) {
+            LOG.debugf("Failed to parse offsets ConfigMap %s/%s: %s",
+                namespace, configMapName, ExceptionUtils.rootCauseMessage(e));
+            return KafkaConnectorResponse.OffsetsInfo.unavailable(configMapName,
+                "Offsets ConfigMap key '" + OFFSETS_CONFIG_MAP_KEY + "' is not valid JSON: "
+                    + ExceptionUtils.rootCauseMessage(e));
+        }
     }
 
     private String extractConnectCluster(final KafkaConnector connector) {
