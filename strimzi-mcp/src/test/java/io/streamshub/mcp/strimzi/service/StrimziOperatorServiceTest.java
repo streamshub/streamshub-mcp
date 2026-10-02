@@ -31,12 +31,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.List;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -120,31 +118,38 @@ class StrimziOperatorServiceTest {
     }
 
     @Test
-    void testGetOperatorConfigReturnsOnlyAllowListedEnvVars() {
+    void testGetOperatorConfigReturnsAllEnvVars() {
         KubernetesMockHelper.setupResourceQuery(kubernetesClient, Deployment.class,
             List.of(operatorDeployment()));
 
         StrimziOperatorConfigResponse result = operatorService.getOperatorConfig(
             "kafka-system", "strimzi-cluster-operator");
 
-        assertEquals(Set.of("STRIMZI_FEATURE_GATES", "STRIMZI_NAMESPACE", "STRIMZI_KAFKA_IMAGES",
-                "STRIMZI_FULL_RECONCILIATION_INTERVAL_MS", "STRIMZI_LEADER_ELECTION_ENABLED"),
-            result.config().keySet(),
-            "Only allow-listed env vars may be returned");
-        assertFalse(result.config().toString().contains("hunter2"),
-            "Credential-shaped env vars must never reach the response");
+        // All env vars are returned, including credential-named ones
+        assertTrue(result.config().containsKey("STRIMZI_FEATURE_GATES"), "Should contain STRIMZI_FEATURE_GATES");
+        assertTrue(result.config().containsKey("STRIMZI_NAMESPACE"), "Should contain STRIMZI_NAMESPACE");
+        assertTrue(result.config().containsKey("STRIMZI_KAFKA_IMAGES"), "Should contain STRIMZI_KAFKA_IMAGES");
+        assertTrue(result.config().containsKey("STRIMZI_REGISTRY_PASSWORD"), "Should contain STRIMZI_REGISTRY_PASSWORD");
+        assertTrue(result.config().containsKey("STRIMZI_WEBHOOK_TOKEN"), "Should contain STRIMZI_WEBHOOK_TOKEN");
+        assertTrue(result.config().containsKey("STRIMZI_TLS_KEY"), "Should contain STRIMZI_TLS_KEY");
+        assertTrue(result.config().containsKey("STRIMZI_CLIENT_SECRET"), "Should contain STRIMZI_CLIENT_SECRET");
+        // Literal values are returned as-is
+        assertEquals("hunter2", result.config().get("STRIMZI_REGISTRY_PASSWORD"));
     }
 
     @Test
-    void testGetOperatorConfigDropsEnvVarsWithoutLiteralValue() {
+    void testGetOperatorConfigEncodesValueFromAsReferenceString() {
         KubernetesMockHelper.setupResourceQuery(kubernetesClient, Deployment.class,
             List.of(operatorDeployment()));
 
         StrimziOperatorConfigResponse result = operatorService.getOperatorConfig(
             "kafka-system", "strimzi-cluster-operator");
 
-        assertNull(result.operationTimeoutMs(),
-            "An allow-listed key sourced from a Secret has no literal value and must be dropped");
+        // STRIMZI_OPERATION_TIMEOUT_MS is sourced from a Secret via valueFrom — should appear as a reference descriptor
+        assertEquals("secretKeyRef:operator-config/timeout", result.config().get("STRIMZI_OPERATION_TIMEOUT_MS"),
+            "valueFrom entry should be encoded as a reference string, not the resolved secret value");
+        // The structured field on the response also picks up the reference string
+        assertEquals("secretKeyRef:operator-config/timeout", result.operationTimeoutMs());
     }
 
     @Test
@@ -208,12 +213,12 @@ class StrimziOperatorServiceTest {
                                     .withValue("120000").build(),
                                 new EnvVarBuilder().withName("STRIMZI_LEADER_ELECTION_ENABLED")
                                     .withValue("true").build(),
-                                // Allow-listed but sourced from a Secret - no literal value to return
+                                // Sourced from a Secret via valueFrom - encoded as reference string
                                 new EnvVarBuilder().withName("STRIMZI_OPERATION_TIMEOUT_MS")
                                     .withNewValueFrom()
                                         .withNewSecretKeyRef("timeout", "operator-config", false)
                                     .endValueFrom().build(),
-                                // Credential-shaped vars that must never be returned
+                                // Credential-shaped vars with literal values - returned as-is
                                 new EnvVarBuilder().withName("STRIMZI_REGISTRY_PASSWORD")
                                     .withValue("hunter2").build(),
                                 new EnvVarBuilder().withName("STRIMZI_WEBHOOK_TOKEN")

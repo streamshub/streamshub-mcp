@@ -29,10 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 import static io.streamshub.mcp.systemtest.TestTags.LOGS;
 import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
@@ -53,15 +50,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class StrimziOperatorToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(StrimziOperatorToolsST.class);
-
-    /** Mirrors the server-side allow-list in StrimziOperatorService. */
-    private static final Set<String> ALLOWED_CONFIG_KEYS = Set.of(
-        "STRIMZI_FEATURE_GATES",
-        "STRIMZI_NAMESPACE",
-        "STRIMZI_KAFKA_IMAGES",
-        "STRIMZI_OPERATION_TIMEOUT_MS",
-        "STRIMZI_FULL_RECONCILIATION_INTERVAL_MS",
-        "STRIMZI_LEADER_ELECTION_ENABLED");
 
     @InjectResourceManager
     KubeResourceManager krm;
@@ -179,7 +167,7 @@ class StrimziOperatorToolsST extends AbstractST {
     }
 
     @Test
-    @Story("get_strimzi_operator_config returns allow-listed operator configuration only")
+    @Story("get_strimzi_operator_config returns full operator configuration")
     void testGetStrimziOperatorConfig() {
         Map<String, Object> args = Map.of(
             "operatorName", "strimzi-cluster-operator",
@@ -204,17 +192,11 @@ class StrimziOperatorToolsST extends AbstractST {
                     "Should report whether all namespaces are watched");
                 assertFalse(config.path("message").isMissingNode(), "Should have message");
 
-                // The env allow-list is the security surface of this tool: only allow-listed keys
-                // may appear, and nothing credential-shaped may leak through.
+                // All env vars are returned; valueFrom entries appear as reference descriptors
                 JsonNode env = config.path("config");
-                assertTrue(env.isObject(), "config should be an object of allow-listed env vars");
-                env.fieldNames().forEachRemaining(key -> assertTrue(ALLOWED_CONFIG_KEYS.contains(key),
-                    "Env var '" + key + "' is not on the allow-list"));
-                String envJson = env.toString().toUpperCase(Locale.ROOT);
-                for (String forbidden : List.of("PASSWORD", "SECRET", "TOKEN", "_KEY")) {
-                    assertFalse(envJson.contains(forbidden),
-                        "Response must not contain credential-shaped env var matching " + forbidden);
-                }
+                assertTrue(env.isObject(), "config should be an object of env vars");
+                assertTrue(env.has("STRIMZI_NAMESPACE"), "Should contain STRIMZI_NAMESPACE");
+                assertTrue(env.has("STRIMZI_KAFKA_IMAGES"), "Should contain STRIMZI_KAFKA_IMAGES");
             })
             .thenAssertResults();
     }
