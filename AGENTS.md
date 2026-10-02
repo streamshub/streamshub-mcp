@@ -173,8 +173,8 @@ io.streamshub.mcp.strimzi.
 │   │                    KafkaMetricsDiagnosticService, UpgradeReadinessDiagnosticService
 │   ├── kafkatopic/    → KafkaTopicService, KafkaTopicDiagnosticService
 │   ├── kafkauser/     → KafkaUserService
-│   ├── kafkanodepool/ → KafkaNodePoolService
-│   ├── kafkarebalance/ → KafkaRebalanceService
+│   ├── kafkanodepool/ → KafkaNodePoolService, KafkaNodePoolDiagnosticService
+│   ├── kafkarebalance/ → KafkaRebalanceService, KafkaRebalanceDiagnosticService
 │   ├── draincleaner/  → DrainCleanerService
 │   ├── operator/      → StrimziOperatorService, StrimziEventsService,
 │   │                    OperatorMetricsDiagnosticService

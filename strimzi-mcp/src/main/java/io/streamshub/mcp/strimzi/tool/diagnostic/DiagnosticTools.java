@@ -36,6 +36,7 @@ import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectorDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.kafkarebalance.KafkaRebalanceDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.operator.OperatorMetricsDiagnosticReport;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaClusterDiagnosticService;
@@ -48,6 +49,7 @@ import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectDiagnosticServ
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectorDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolDiagnosticService;
+import io.streamshub.mcp.strimzi.service.kafkarebalance.KafkaRebalanceDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicDiagnosticService;
 import io.streamshub.mcp.strimzi.service.operator.OperatorMetricsDiagnosticService;
 import jakarta.inject.Inject;
@@ -101,6 +103,9 @@ public class DiagnosticTools {
 
     @Inject
     KafkaNodePoolDiagnosticService nodePoolDiagnosticService;
+
+    @Inject
+    KafkaRebalanceDiagnosticService rebalanceDiagnosticService;
 
     DiagnosticTools() {
     }
@@ -828,6 +833,59 @@ public class DiagnosticTools {
     ) {
         return nodePoolDiagnosticService.diagnose(
             namespace, nodePoolName, clusterName, symptom, sinceMinutes,
+            sampling, elicitation, progress, cancellation);
+    }
+
+    /**
+     * Run a composite diagnostic workflow for a KafkaRebalance.
+     *
+     * @param rebalanceName the KafkaRebalance name
+     * @param namespace     optional namespace
+     * @param symptom       optional symptom description
+     * @param sinceMinutes  optional time window for events and Cruise Control logs
+     * @param sampling      MCP Sampling for LLM analysis
+     * @param elicitation   MCP Elicitation for namespace disambiguation
+     * @param progress      MCP progress tracking
+     * @param cancellation  MCP cancellation checking
+     * @return a consolidated KafkaRebalance diagnostic report
+     */
+    @RunOnVirtualThread
+    @WithSpan("tool.diagnose_kafka_rebalance")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_REBALANCE)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
+    @Tool(
+        name = "diagnose_kafka_rebalance",
+        description = "Multi-step diagnostic workflow for KafkaRebalance."
+            + " Gathers rebalance status and conditions, optimization metrics, progress ConfigMap,"
+            + " Cruise Control pod logs, and Kubernetes events to diagnose stuck rebalances"
+            + " (PendingProposal, ProposalReady, Rebalancing, NotReady).",
+        structuredContent = true,
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
+    public KafkaRebalanceDiagnosticReport diagnoseKafkaRebalance(
+        @NotBlank @ToolArg(
+            description = StrimziToolsPrompts.REBALANCE_NAME_DESC
+        ) final String rebalanceName,
+        @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
+        @ToolArg(description = StrimziToolsPrompts.SYMPTOM_DESC, required = false) final String symptom,
+        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
+            required = false) final Integer sinceMinutes,
+        final Sampling sampling,
+        final Elicitation elicitation,
+        final Progress progress,
+        final Cancellation cancellation
+    ) {
+        return rebalanceDiagnosticService.diagnose(
+            namespace, rebalanceName, symptom, sinceMinutes,
             sampling, elicitation, progress, cancellation);
     }
 }
