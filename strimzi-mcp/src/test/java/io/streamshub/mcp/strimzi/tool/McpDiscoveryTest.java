@@ -94,6 +94,7 @@ class McpDiscoveryTest {
                     "get_kafka_bridge_logs",
                     "list_kafka_users",
                     "get_kafka_user",
+                    "get_kafka_user_acls_matrix",
                     "list_kafka_rebalances",
                     "get_kafka_rebalance",
                     "diagnose_kafka_cluster",
@@ -252,6 +253,7 @@ class McpDiscoveryTest {
         map.put("get_kafka_node_pool_pods", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_NODE_POOL});
         map.put("list_kafka_users", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.KAFKA_USER});
         map.put("get_kafka_user", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_USER});
+        map.put("get_kafka_user_acls_matrix", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_USER});
         map.put("list_kafka_rebalances", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.KAFKA_REBALANCE});
         map.put("get_kafka_rebalance", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_REBALANCE});
         map.put("list_strimzi_operators", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.STRIMZI_OPERATOR});
