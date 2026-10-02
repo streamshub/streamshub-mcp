@@ -190,6 +190,9 @@ Checks cluster health, operator status, pod health, replication, resource headro
 **Uses Sampling**: Yes -- GO/NO-GO verdict generation
 **Uses Elicitation**: Yes -- Namespace disambiguation
 
+This tool does not verify that the operator itself supports `targetVersion`.
+Call [`get_strimzi_operator_config`](strimzi-operators.md#get_strimzi_operator_config) first and check `supported_kafka_versions`.
+
 **Example**:
 ```
 Check if my-cluster is ready for upgrade to Kafka 4.2.0
