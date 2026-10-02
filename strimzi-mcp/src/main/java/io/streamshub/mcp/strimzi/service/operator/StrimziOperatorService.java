@@ -4,6 +4,8 @@
  */
 package io.streamshub.mcp.strimzi.service.operator;
 
+import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.EnvVarSource;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.streamshub.mcp.common.config.KubernetesConstants;
@@ -26,7 +28,6 @@ import org.jboss.logging.Logger;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Stream;
 /**
  * Service for Strimzi operator operations.
@@ -37,28 +38,14 @@ public class StrimziOperatorService {
     private static final Logger LOG = Logger.getLogger(StrimziOperatorService.class);
     private static final double MINUTES_PER_HOUR = 60.0;
 
-    private static final String ENV_FEATURE_GATES = "STRIMZI_FEATURE_GATES";
     private static final String ENV_NAMESPACE = "STRIMZI_NAMESPACE";
     private static final String ENV_KAFKA_IMAGES = "STRIMZI_KAFKA_IMAGES";
+    private static final String ENV_FEATURE_GATES = "STRIMZI_FEATURE_GATES";
     private static final String ENV_OPERATION_TIMEOUT_MS = "STRIMZI_OPERATION_TIMEOUT_MS";
     private static final String ENV_FULL_RECONCILIATION_INTERVAL_MS = "STRIMZI_FULL_RECONCILIATION_INTERVAL_MS";
     private static final String ENV_LEADER_ELECTION_ENABLED = "STRIMZI_LEADER_ELECTION_ENABLED";
 
     private static final String WATCH_ALL_NAMESPACES = "*";
-
-    /**
-     * Operator environment variables that may be returned to clients. This is an allow-list,
-     * not a deny-list: operator environment can carry credentials (registry pull secrets,
-     * webhook tokens), so any key not named here is dropped.
-     */
-    private static final Set<String> ALLOWED_CONFIG_KEYS = Set.of(
-        ENV_FEATURE_GATES,
-        ENV_NAMESPACE,
-        ENV_KAFKA_IMAGES,
-        ENV_OPERATION_TIMEOUT_MS,
-        ENV_FULL_RECONCILIATION_INTERVAL_MS,
-        ENV_LEADER_ELECTION_ENABLED
-    );
 
     @Inject
     KubernetesResourceService k8sService;
@@ -135,9 +122,10 @@ public class StrimziOperatorService {
     /**
      * Get the effective configuration of a Strimzi cluster operator.
      *
-     * <p>Reads the operator Deployment's environment variables, keeping only the keys in
-     * {@link #ALLOWED_CONFIG_KEYS}. Operator environment can carry credentials, so the
-     * filter is an allow-list: anything not named there is never returned.</p>
+     * <p>Reads all environment variables from the operator Deployment. Entries whose value
+     * comes from a {@code valueFrom} reference (Secret, ConfigMap, field, resource) are
+     * represented as a descriptive string (e.g. {@code secretKeyRef:my-secret/timeout})
+     * so that the reference target is visible without leaking the actual value.</p>
      *
      * @param namespace    the namespace, or null for auto-discovery
      * @param operatorName the operator deployment name, or null for auto-discovery
@@ -156,7 +144,7 @@ public class StrimziOperatorService {
             throw McpErrors.notFound("Strimzi operator", operatorName, ns);
         }
 
-        Map<String, String> config = allowedEnv(operator);
+        Map<String, String> config = allEnv(operator);
 
         String watchedRaw = config.get(ENV_NAMESPACE);
         boolean watchesAll = watchedRaw == null || watchedRaw.contains(WATCH_ALL_NAMESPACES);
@@ -177,10 +165,15 @@ public class StrimziOperatorService {
     }
 
     /**
-     * Collect the operator container's environment variables, dropping every key that is not
-     * allow-listed and every entry whose value comes from a Secret or ConfigMap reference.
+     * Collect all environment variables from the operator Deployment containers.
+     * Entries with a literal {@code value} are stored as-is. Entries whose value comes
+     * from a {@code valueFrom} reference are encoded as a descriptive string so the
+     * reference target is visible without exposing the resolved value.
+     *
+     * @param deployment the operator Deployment
+     * @return ordered map of env var name to value (or reference description)
      */
-    private Map<String, String> allowedEnv(final Deployment deployment) {
+    private Map<String, String> allEnv(final Deployment deployment) {
         if (deployment.getSpec() == null || deployment.getSpec().getTemplate() == null
             || deployment.getSpec().getTemplate().getSpec() == null) {
             return Map.of();
@@ -189,10 +182,39 @@ public class StrimziOperatorService {
         Map<String, String> config = new LinkedHashMap<>();
         deployment.getSpec().getTemplate().getSpec().getContainers().stream()
             .flatMap(container -> container.getEnv() != null ? container.getEnv().stream() : Stream.empty())
-            .filter(env -> ALLOWED_CONFIG_KEYS.contains(env.getName()))
-            .filter(env -> env.getValue() != null)
-            .forEach(env -> config.putIfAbsent(env.getName(), env.getValue()));
+            .forEach(env -> config.putIfAbsent(env.getName(), envValue(env)));
         return config;
+    }
+
+    /**
+     * Returns the string representation of an env var's value.
+     * If the entry has a literal value, that value is returned.
+     * If the value comes from a {@code valueFrom} reference, a descriptive string is returned instead.
+     *
+     * @param env the environment variable entry
+     * @return the literal value, or a reference description such as {@code secretKeyRef:name/key}
+     */
+    private String envValue(final EnvVar env) {
+        if (env.getValue() != null) {
+            return env.getValue();
+        }
+        EnvVarSource source = env.getValueFrom();
+        if (source == null) {
+            return null;
+        }
+        if (source.getSecretKeyRef() != null) {
+            return "secretKeyRef:" + source.getSecretKeyRef().getName() + "/" + source.getSecretKeyRef().getKey();
+        }
+        if (source.getConfigMapKeyRef() != null) {
+            return "configMapKeyRef:" + source.getConfigMapKeyRef().getName() + "/" + source.getConfigMapKeyRef().getKey();
+        }
+        if (source.getFieldRef() != null) {
+            return "fieldRef:" + source.getFieldRef().getFieldPath();
+        }
+        if (source.getResourceFieldRef() != null) {
+            return "resourceFieldRef:" + source.getResourceFieldRef().getResource();
+        }
+        return null;
     }
 
     /**

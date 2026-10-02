@@ -10,11 +10,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
 /**
- * Effective configuration of a Strimzi cluster operator, read from an allow-listed
- * subset of the operator Deployment's environment variables.
+ * Effective configuration of a Strimzi cluster operator, read from the operator Deployment's
+ * environment variables.
  *
- * <p>Only the keys in the allow-list are returned; operator environment can carry
- * credentials, so anything not explicitly allowed is dropped rather than redacted.</p>
+ * <p>All environment variables are returned. Entries whose value comes from a {@code valueFrom}
+ * reference (Secret, ConfigMap, field, resource) are represented as a descriptive string
+ * (e.g. {@code secretKeyRef:my-secret/timeout}) so the reference target is visible without
+ * leaking the actual resolved value.</p>
  *
  * @param name                        the operator deployment name
  * @param namespace                   the namespace where the operator is deployed
@@ -26,7 +28,8 @@ import java.util.Map;
  * @param operationTimeoutMs          the raw {@code STRIMZI_OPERATION_TIMEOUT_MS} value
  * @param fullReconciliationIntervalMs the raw {@code STRIMZI_FULL_RECONCILIATION_INTERVAL_MS} value
  * @param leaderElectionEnabled       the raw {@code STRIMZI_LEADER_ELECTION_ENABLED} value
- * @param config                      the allow-listed environment variables as returned, verbatim
+ * @param config                      all operator environment variables; {@code valueFrom} entries
+ *                                    are encoded as reference descriptors rather than resolved values
  * @param message                     a human-readable summary
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -58,7 +61,7 @@ public record StrimziOperatorConfigResponse(
      * @param operationTimeoutMs          the operation timeout
      * @param fullReconciliationIntervalMs the full reconciliation interval
      * @param leaderElectionEnabled       the leader election flag
-     * @param config                      the allow-listed environment variables
+     * @param config                      all operator environment variables
      * @return a new StrimziOperatorConfigResponse
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
