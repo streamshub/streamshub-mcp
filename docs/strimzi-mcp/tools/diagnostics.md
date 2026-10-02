@@ -246,6 +246,31 @@ Gathers bridge status, HTTP listener and client configuration, pod health, logs,
 Diagnose why my-bridge returns HTTP 500 for produce requests
 ```
 
+## diagnose_kafka_node_pool
+
+Runs a multi-step diagnostic workflow for a KafkaNodePool.
+Gathers node pool status (roles, replicas, node IDs, storage, conditions), pod health, PVC storage binding, Kubernetes events, and pod logs in a single call.
+
+**3-Phase workflow**:
+1. **Phase 1 -- Initial data gathering**: node pool status (roles, spec vs status replicas, node IDs, storage, conditions), pod health.
+2. **Phase 2 -- Deep investigation**: PVC storage binding status, Kubernetes events for the pool's pods, pod logs (error-filtered). Sampling picks which of the three to gather; without Sampling all three run.
+3. **Phase 3 -- Analysis**: Root cause analysis distinguishing four failure modes: scaling stuck (`replicas` vs `status_replicas` mismatch), node IDs not assigned, storage not bound (PVC stuck `Pending`), and pods not scheduling.
+
+**Parameters**:
+- `nodePoolName` (required) -- Name of the KafkaNodePool
+- `namespace` (optional) -- Kubernetes namespace
+- `clusterName` (optional) -- Parent Kafka cluster name
+- `symptom` (optional) -- Observed symptom
+- `sinceMinutes` (optional) -- Time window for events/logs
+
+**Uses Sampling**: Yes -- Triage and root cause analysis
+**Uses Elicitation**: Yes -- Namespace disambiguation
+
+**Example**:
+```
+Diagnose why broker-np isn't scaling up
+```
+
 ## compare_kafka_clusters
 
 Compares the effective configuration of two Kafka clusters.
