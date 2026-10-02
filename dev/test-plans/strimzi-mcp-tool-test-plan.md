@@ -284,6 +284,18 @@ Parameters: { "clusterName": "mcp-cluster", "listenerName": "tls" }
 **Expected:**
 - [ ] Returns certificate info specific to the `tls` listener
 
+### T2.7b - Get Cluster Policies
+
+```
+Tool: get_kafka_cluster_policies
+Parameters: { "clusterName": "mcp-cluster" }
+```
+
+**Expected:**
+- [ ] `cluster_name` matches "mcp-cluster"
+- [ ] `pod_disruption_budgets` array contains PDBs created for Kafka components
+- [ ] `network_policies` array contains NetworkPolicies created for Kafka components
+
 ### T2.8 - Get Cluster Pods
 
 ```

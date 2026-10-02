@@ -16,6 +16,7 @@ import io.streamshub.mcp.strimzi.dto.kafka.KafkaBootstrapResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPoliciesResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.ListenerInfo;
 import io.streamshub.mcp.strimzi.dto.kafka.RoleReplicasInfo;
@@ -95,6 +96,22 @@ class KafkaToolsTest {
                 assertTrue(json.contains("kafka"));
                 assertTrue(json.contains("Ready"));
                 assertTrue(json.contains("\"count\":1"));
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    void testGetKafkaClusterPolicies() {
+        when(kafkaService.getClusterPolicies("kafka", "my-cluster")).thenReturn(
+            KafkaClusterPoliciesResponse.of("my-cluster", "kafka", List.of(), List.of())
+        );
+
+        client.when()
+            .toolsCall("get_kafka_cluster_policies", Map.of("clusterName", "my-cluster", "namespace", "kafka"), response -> {
+                assertFalse(response.isError());
+                String json = response.structuredContent().toString();
+                assertTrue(json.contains("my-cluster"));
+                assertTrue(json.contains("kafka"));
             })
             .thenAssertResults();
     }

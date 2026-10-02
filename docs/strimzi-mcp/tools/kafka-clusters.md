@@ -140,6 +140,25 @@ Get TLS certificate information for a Kafka cluster.
 Show me the certificates for mcp-cluster
 ```
 
+## get_kafka_cluster_policies
+
+Get PodDisruptionBudgets and NetworkPolicies associated with a Kafka cluster.
+
+**Parameters**:
+- `clusterName` (required) -- Name of the Kafka cluster
+- `namespace` (optional) -- Kubernetes namespace
+
+**Returns**: Policies details including:
+- `cluster_name` -- Name of the Kafka cluster
+- `namespace` -- Kubernetes namespace
+- `pod_disruption_budgets` -- List of PDB objects with `name`, `namespace`, `component`, `min_available`, `max_unavailable`, `current_healthy`, `desired_healthy`, `disruptions_allowed`, `expected_pods`
+- `network_policies` -- List of NetworkPolicy objects with `name`, `namespace`, `component`, `policy_types`, `ingress_rules_count`, `egress_rules_count`
+
+**Example**:
+```
+Show me the PDBs and network policies for mcp-cluster
+```
+
 ## get_kafka_cluster_logs
 
 Get logs from Kafka cluster pods with error analysis and advanced filtering.

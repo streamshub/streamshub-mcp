@@ -48,9 +48,13 @@ rules:
   - apiGroups: ["route.openshift.io"]
     resources: ["routes"]
     verbs: ["get", "list"]
-  # Ingresses
+  # Ingresses and NetworkPolicies
   - apiGroups: ["networking.k8s.io"]
-    resources: ["ingresses"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list"]
+  # PodDisruptionBudgets (cluster resilience policies)
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
     verbs: ["get", "list"]
   # Leases (operator leader election status)
   - apiGroups: ["coordination.k8s.io"]

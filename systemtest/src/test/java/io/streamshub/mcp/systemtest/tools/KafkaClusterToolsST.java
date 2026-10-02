@@ -444,6 +444,29 @@ class KafkaClusterToolsST extends AbstractST {
     }
 
     @Test
+    @Story("get_kafka_cluster_policies returns PDBs and network policies")
+    void testGetKafkaClusterPolicies() {
+        Map<String, Object> args = Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME);
+        mcpClient.when()
+            .toolsCall("get_kafka_cluster_policies", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_cluster_policies response (length={})", text.length());
+                LOGGER.debug("get_kafka_cluster_policies response:\n{}", text);
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster_name").asText(),
+                    "cluster_name should match");
+                assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
+                    "namespace should match");
+                assertTrue(root.path("pod_disruption_budgets").isArray(),
+                    "pod_disruption_budgets should be an array");
+                assertTrue(root.path("network_policies").isArray(),
+                    "network_policies should be an array");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
     @Story("get_kafka_cluster_certificates for specific listener")
     void testGetKafkaClusterCertificatesForListener() {
         Map<String, Object> args = Map.of(
