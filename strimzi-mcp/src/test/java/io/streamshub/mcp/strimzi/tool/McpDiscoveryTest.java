@@ -69,6 +69,7 @@ class McpDiscoveryTest {
                     "get_kafka_cluster_certificates",
                     "get_kafka_cluster_logs",
                     "get_kafka_cluster_policies",
+                    "get_kafka_pvcs",
                     "get_kafka_cluster_config",
                     "list_kafka_topics",
                     "get_kafka_topic",
@@ -99,6 +100,7 @@ class McpDiscoveryTest {
                     "list_kafka_rebalances",
                     "get_kafka_rebalance",
                     "diagnose_kafka_cluster",
+                    "diagnose_kafka_storage",
                     "diagnose_kafka_connectivity",
                     "diagnose_kafka_metrics",
                     "diagnose_operator_metrics",
@@ -249,6 +251,7 @@ class McpDiscoveryTest {
         map.put("get_kafka_cluster_certificates", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA});
         map.put("get_kafka_cluster_logs", new String[]{ToolMetaFields.Types.LOGS, StrimziToolResources.KAFKA});
         map.put("get_kafka_cluster_policies", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA});
+        map.put("get_kafka_pvcs", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA});
         map.put("get_kafka_cluster_config", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA});
         map.put("list_kafka_topics", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.KAFKA_TOPIC});
         map.put("get_kafka_topic", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_TOPIC});
@@ -293,6 +296,7 @@ class McpDiscoveryTest {
         map.put("diagnose_kafka_connect", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA_CONNECT});
         map.put("diagnose_kafka_connector", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA_CONNECTOR});
         map.put("diagnose_kafka_cluster", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA});
+        map.put("diagnose_kafka_storage", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA});
         map.put("compare_kafka_clusters", new String[]{ToolMetaFields.Types.COMPARE, StrimziToolResources.KAFKA});
         map.put("diagnose_kafka_connectivity", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA});
         map.put("diagnose_kafka_metrics", new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA});
@@ -315,6 +319,7 @@ class McpDiscoveryTest {
             "diagnose_kafka_connect",
             "diagnose_kafka_connector",
             "diagnose_kafka_cluster",
+            "diagnose_kafka_storage",
             "compare_kafka_clusters",
             "diagnose_kafka_connectivity",
             "diagnose_kafka_metrics",

@@ -505,4 +505,26 @@ class DiagnoseToolsST extends AbstractST {
             .send()
             .thenAssertResults();
     }
+
+    @Test
+    @Story("diagnose_kafka_storage returns storage diagnostic report")
+    void testDiagnoseKafkaStorage() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "namespace", kafkaNamespace.getMetadata().getName());
+
+        mcpClient.when()
+            .toolsCall("diagnose_kafka_storage", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("diagnose_kafka_storage response (length={})", text.length());
+                LOGGER.debug("diagnose_kafka_storage response:\n{}", text);
+
+                assertDiagnosticReport(root);
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster").path("name").asText(),
+                    "cluster name should match");
+                assertTrue(root.path("pvcs").path("pvcs").isArray(), "pvcs array should be present");
+            })
+            .thenAssertResults();
+    }
 }

@@ -219,7 +219,11 @@ class MetricNameResolverTest {
         "jvm_gc_collection_seconds_sum",
         "jvm_threads_current",
         "process_cpu_seconds_total",
-        "process_open_fds"
+        "process_open_fds",
+        // STORAGE — disk metrics & log size
+        "kafka_log_log_size",
+        "kafka_server_kafkaserver_linux_disk_read_bytes",
+        "kafka_server_kafkaserver_linux_disk_write_bytes"
     );
 
     @Test
