@@ -147,6 +147,7 @@ public class KafkaUserService {
                                                     final String resourceType) {
         String ns = InputUtils.normalizeInput(namespace);
         String cluster = InputUtils.normalizeInput(clusterName);
+        String normalizedResourceType = InputUtils.normalizeInput(resourceType);
 
         if (cluster == null) {
             throw McpErrors.invalidParams("Cluster name is required");
@@ -154,7 +155,7 @@ public class KafkaUserService {
         InputUtils.validateK8sName(cluster, "cluster name");
         InputUtils.validateK8sName(ns, "namespace");
 
-        String effectiveResourceType = resolveAclMatrixResourceType(resourceType);
+        String effectiveResourceType = resolveAclMatrixResourceType(normalizedResourceType);
 
         LOG.infof("Building KafkaUser ACL matrix (namespace=%s, cluster=%s, resourceType=%s)",
             ns != null ? ns : "all", cluster, effectiveResourceType);
