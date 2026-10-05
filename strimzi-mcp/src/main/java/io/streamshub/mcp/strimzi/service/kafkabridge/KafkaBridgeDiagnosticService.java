@@ -17,6 +17,7 @@ import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
+import io.streamshub.mcp.strimzi.config.metrics.KafkaBridgeMetricCategories;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgePodsResponse;
@@ -51,9 +52,6 @@ public class KafkaBridgeDiagnosticService extends BaseDiagnosticService {
     private static final String STEP_BRIDGE_LOGS = "bridge_logs";
     private static final String STEP_EVENTS = "events";
     private static final String STEP_METRICS = "metrics";
-
-    /** Metric category covering the bridge HTTP listener (requests, latency, errors). */
-    private static final String METRICS_CATEGORY = "http";
 
     @Inject
     KafkaBridgeService bridgeService;
@@ -254,7 +252,7 @@ public class KafkaBridgeDiagnosticService extends BaseDiagnosticService {
                                               final List<String> failed) {
         try {
             KafkaBridgeMetricsResponse result = metricsService.getKafkaBridgeMetrics(
-                namespace, name, METRICS_CATEGORY, null, null, null, null, null, null);
+                namespace, name, KafkaBridgeMetricCategories.HTTP, null, null, null, null, null, null);
             completed.add(STEP_METRICS);
             return result;
         } catch (Exception e) {
