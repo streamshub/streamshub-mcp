@@ -150,8 +150,7 @@ public class StrimziOperatorTools {
             + " enabled feature gates, watched namespaces, supported Kafka versions,"
             + " operation timeout, full reconciliation interval, and leader election."
             + " Use this to check whether the operator supports a target Kafka version"
-            + " before planning an upgrade. Only an allow-list of non-sensitive operator"
-            + " environment variables is returned; credentials are never included.",
+            + " before planning an upgrade.",
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,

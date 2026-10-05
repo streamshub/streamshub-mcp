@@ -183,6 +183,19 @@ class StrimziOperatorServiceTest {
     }
 
     @Test
+    void testGetOperatorConfigHandlesNullContainers() {
+        Deployment deployment = operatorDeployment();
+        deployment.getSpec().getTemplate().getSpec().setContainers(null);
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, Deployment.class, List.of(deployment));
+
+        StrimziOperatorConfigResponse result = operatorService.getOperatorConfig(
+            "kafka-system", "strimzi-cluster-operator");
+
+        assertNotNull(result);
+        assertTrue(result.config().isEmpty());
+    }
+
+    @Test
     void testGetOperatorConfigThrowsWhenOperatorNotFound() {
         assertThrows(McpException.class,
             () -> operatorService.getOperatorConfig("kafka-system", "missing-operator"));

@@ -713,7 +713,7 @@ Parameters: { "operatorName": "strimzi-cluster-operator", "namespace": "strimzi"
 **Expected:**
 - [ ] Returns `feature_gates`, `watched_namespaces` / `watches_all_namespaces`, `operation_timeout_ms`, `full_reconciliation_interval_ms`, `leader_election_enabled`
 - [ ] `supported_kafka_versions` is a non-empty list parsed from `STRIMZI_KAFKA_IMAGES`
-- [ ] `config` contains ONLY allow-listed `STRIMZI_*` keys -- no `*_PASSWORD`, `*_SECRET`, `*_TOKEN`, or `*_KEY` entries
+- [ ] `config` contains operator environment variables, with `valueFrom` entries encoded as descriptive reference strings
 - [ ] Omitting `operatorName` auto-discovers the operator and returns the same result
 
 ---

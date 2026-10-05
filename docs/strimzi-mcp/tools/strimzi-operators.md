@@ -45,9 +45,9 @@ Use this to check whether the operator supports a target Kafka version before pl
 - `operatorName` (optional) -- Name of the operator deployment. Omit to auto-discover the operator
 - `namespace` (optional) -- Kubernetes namespace
 
-**Returns**: `feature_gates`, `watched_namespaces` / `watches_all_namespaces`, `supported_kafka_versions` (parsed from `STRIMZI_KAFKA_IMAGES`), `operation_timeout_ms`, `full_reconciliation_interval_ms`, `leader_election_enabled`, and a `config` map of the raw values.
+**Returns**: `feature_gates`, `watched_namespaces` / `watches_all_namespaces`, `supported_kafka_versions` (parsed from `STRIMZI_KAFKA_IMAGES`), `operation_timeout_ms`, `full_reconciliation_interval_ms`, `leader_election_enabled`, and a `config` map of all operator environment variables.
 
-**Security**: operator environment can carry credentials, so the response is built from an allow-list, not a redaction pass. Only `STRIMZI_FEATURE_GATES`, `STRIMZI_NAMESPACE`, `STRIMZI_KAFKA_IMAGES`, `STRIMZI_OPERATION_TIMEOUT_MS`, `STRIMZI_FULL_RECONCILIATION_INTERVAL_MS`, and `STRIMZI_LEADER_ELECTION_ENABLED` are ever returned. Values sourced from a Secret or ConfigMap reference are dropped -- only literal values are read. To inspect the full pod environment, use `get_strimzi_operator_pod`.
+**Security**: entries whose value comes from a `valueFrom` reference (Secret, ConfigMap, field, resource) are represented as descriptive strings (e.g., `secretKeyRef:my-secret/timeout`) rather than resolved values.
 
 **Example**:
 ```

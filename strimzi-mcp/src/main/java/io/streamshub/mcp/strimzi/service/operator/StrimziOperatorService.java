@@ -175,7 +175,8 @@ public class StrimziOperatorService {
      */
     private Map<String, String> allEnv(final Deployment deployment) {
         if (deployment.getSpec() == null || deployment.getSpec().getTemplate() == null
-            || deployment.getSpec().getTemplate().getSpec() == null) {
+            || deployment.getSpec().getTemplate().getSpec() == null
+            || deployment.getSpec().getTemplate().getSpec().getContainers() == null) {
             return Map.of();
         }
 
