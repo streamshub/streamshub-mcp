@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.service.kafka;
 
+import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicy;
 import io.fabric8.kubernetes.api.model.policy.v1.PodDisruptionBudget;
@@ -239,24 +240,28 @@ public class KafkaService {
             component = pdb.getMetadata().getLabels().get(ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL);
         }
 
-        String minAvailable = pdb.getSpec() != null && pdb.getSpec().getMinAvailable() != null
-            ? pdb.getSpec().getMinAvailable().getValue() != null
-                ? pdb.getSpec().getMinAvailable().getValue().toString()
-                : null
-            : null;
+        String minAvailable = null;
+        if (pdb.getSpec() != null && pdb.getSpec().getMinAvailable() != null) {
+            IntOrString minAvailableVal = pdb.getSpec().getMinAvailable();
+            if (minAvailableVal.getValue() != null) {
+                minAvailable = minAvailableVal.getValue().toString();
+            }
+        }
 
-        String maxUnavailable = pdb.getSpec() != null && pdb.getSpec().getMaxUnavailable() != null
-            ? pdb.getSpec().getMaxUnavailable().getValue() != null
-                ? pdb.getSpec().getMaxUnavailable().getValue().toString()
-                : null
-            : null;
+        String maxUnavailable = null;
+        if (pdb.getSpec() != null && pdb.getSpec().getMaxUnavailable() != null) {
+            IntOrString maxUnavailableVal = pdb.getSpec().getMaxUnavailable();
+            if (maxUnavailableVal.getValue() != null) {
+                maxUnavailable = maxUnavailableVal.getValue().toString();
+            }
+        }
 
         Integer currentHealthy = pdb.getStatus() != null ? pdb.getStatus().getCurrentHealthy() : null;
         Integer desiredHealthy = pdb.getStatus() != null ? pdb.getStatus().getDesiredHealthy() : null;
         Integer disruptionsAllowed = pdb.getStatus() != null ? pdb.getStatus().getDisruptionsAllowed() : null;
         Integer expectedPods = pdb.getStatus() != null ? pdb.getStatus().getExpectedPods() : null;
 
-        return new KafkaPodDisruptionBudgetInfo(
+        return KafkaPodDisruptionBudgetInfo.of(
             pdb.getMetadata().getName(),
             pdb.getMetadata().getNamespace(),
             component,
@@ -289,7 +294,7 @@ public class KafkaService {
             ? netpol.getSpec().getEgress().size()
             : 0;
 
-        return new KafkaNetworkPolicyInfo(
+        return KafkaNetworkPolicyInfo.of(
             netpol.getMetadata().getName(),
             netpol.getMetadata().getNamespace(),
             component,

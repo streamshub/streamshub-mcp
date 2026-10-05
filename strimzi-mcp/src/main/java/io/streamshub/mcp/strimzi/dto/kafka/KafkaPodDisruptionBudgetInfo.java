@@ -32,4 +32,26 @@ public record KafkaPodDisruptionBudgetInfo(
     @JsonProperty("disruptions_allowed") Integer disruptionsAllowed,
     @JsonProperty("expected_pods") Integer expectedPods
 ) {
+    /**
+     * Creates a new {@code KafkaPodDisruptionBudgetInfo} instance.
+     *
+     * @param name               the PDB resource name
+     * @param namespace          the namespace
+     * @param component          the Strimzi component label value
+     * @param minAvailable       minimum available pods requirement
+     * @param maxUnavailable     maximum unavailable pods allowed
+     * @param currentHealthy     current number of healthy pods
+     * @param desiredHealthy     desired number of healthy pods
+     * @param disruptionsAllowed number of pod disruptions currently allowed
+     * @param expectedPods       expected number of pods
+     * @return a new {@code KafkaPodDisruptionBudgetInfo} instance
+     */
+    public static KafkaPodDisruptionBudgetInfo of(final String name, final String namespace,
+                                                   final String component, final String minAvailable,
+                                                   final String maxUnavailable, final Integer currentHealthy,
+                                                   final Integer desiredHealthy, final Integer disruptionsAllowed,
+                                                   final Integer expectedPods) {
+        return new KafkaPodDisruptionBudgetInfo(name, namespace, component, minAvailable, maxUnavailable,
+            currentHealthy, desiredHealthy, disruptionsAllowed, expectedPods);
+    }
 }

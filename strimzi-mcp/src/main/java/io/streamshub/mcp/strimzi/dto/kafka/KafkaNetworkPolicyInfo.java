@@ -28,4 +28,20 @@ public record KafkaNetworkPolicyInfo(
     @JsonProperty("ingress_rules_count") Integer ingressRuleCount,
     @JsonProperty("egress_rules_count") Integer egressRuleCount
 ) {
+    /**
+     * Creates a new {@code KafkaNetworkPolicyInfo} instance.
+     *
+     * @param name             the NetworkPolicy resource name
+     * @param namespace        the namespace
+     * @param component        the Strimzi component label value
+     * @param policyTypes      policy types (Ingress, Egress)
+     * @param ingressRuleCount number of ingress rules defined
+     * @param egressRuleCount  number of egress rules defined
+     * @return a new {@code KafkaNetworkPolicyInfo} instance
+     */
+    public static KafkaNetworkPolicyInfo of(final String name, final String namespace,
+                                             final String component, final List<String> policyTypes,
+                                             final Integer ingressRuleCount, final Integer egressRuleCount) {
+        return new KafkaNetworkPolicyInfo(name, namespace, component, policyTypes, ingressRuleCount, egressRuleCount);
+    }
 }
