@@ -5,6 +5,7 @@
 package io.streamshub.mcp.systemtest.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
@@ -13,10 +14,12 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.skodjob.kubetest4j.annotations.InjectResourceManager;
 import io.skodjob.kubetest4j.resources.KubeResourceManager;
+import io.skodjob.kubetest4j.wait.Wait;
 import io.streamshub.mcp.systemtest.AbstractST;
 import io.streamshub.mcp.systemtest.Constants;
 import io.streamshub.mcp.systemtest.Environment;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
+import io.streamshub.mcp.systemtest.resources.strimzi.KafkaConnectorType;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
 import io.streamshub.mcp.systemtest.setup.strimzi.StrimziSetup;
@@ -24,6 +27,8 @@ import io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectorTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaNodePoolTemplates;
 import io.streamshub.mcp.systemtest.templates.strimzi.KafkaTemplates;
+import io.strimzi.api.ResourceAnnotations;
+import io.strimzi.api.kafka.model.connector.KafkaConnectorBuilder;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
@@ -38,6 +43,7 @@ import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
 import static io.streamshub.mcp.systemtest.TestTags.TOOLS;
 import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectTemplates.CAMEL_TIMER_SOURCE_CLASS_NAME;
 import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectorTemplates.CONNECTOR_NAME;
+import static io.streamshub.mcp.systemtest.templates.strimzi.KafkaConnectorTemplates.OFFSETS_CONFIG_MAP_NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -262,6 +268,54 @@ class KafkaConnectToolsST extends AbstractST {
                 assertTrue(connector.has("config"), "Should have config for get operation");
                 // Reconciliation status (A1)
                 assertReconciliationInfo(connector);
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @Story("get_kafka_connector returns offsets written to the spec.listOffsets ConfigMap")
+    void testGetKafkaConnectorOffsets() {
+        String kafkaNs = kafkaNamespace.getMetadata().getName();
+        Map<String, Object> args = Map.of(
+            "connectorName", CONNECTOR_NAME,
+            "namespace", kafkaNs);
+
+        // The connector declares spec.listOffsets, so the ConfigMap name is reported even before
+        // the operator has been asked to write it.
+        mcpClient.when()
+            .toolsCall("get_kafka_connector", args, response -> {
+                JsonNode offsets = assertToolSuccess(response).path("offsets");
+                LOGGER.info("get_kafka_connector offsets (pre-request):\n{}", offsets);
+                assertEquals(OFFSETS_CONFIG_MAP_NAME, offsets.path("config_map_name").asText(),
+                    "Offsets ConfigMap name should come from spec.listOffsets.toConfigMap");
+            })
+            .thenAssertResults();
+
+        // Ask the operator to publish the offsets; it removes the annotation once done.
+        KafkaConnectorType.kafkaConnectorClient().inNamespace(kafkaNs).withName(CONNECTOR_NAME)
+            .edit(c -> new KafkaConnectorBuilder(c)
+                .editMetadata()
+                    .addToAnnotations(ResourceAnnotations.ANNO_STRIMZI_IO_CONNECTOR_OFFSETS, "list")
+                .endMetadata()
+                .build());
+
+        Wait.until("offsets ConfigMap '" + OFFSETS_CONFIG_MAP_NAME + "' to be written",
+            Constants.KAFKA_READY_POLL_MS, Constants.KAFKA_READY_TIMEOUT_MS, () -> {
+                ConfigMap cm = KubeResourceManager.get().kubeClient().getClient()
+                    .configMaps().inNamespace(kafkaNs).withName(OFFSETS_CONFIG_MAP_NAME).get();
+                return cm != null && cm.getData() != null && cm.getData().containsKey("offsets.json");
+            });
+
+        mcpClient.when()
+            .toolsCall("get_kafka_connector", args, response -> {
+                JsonNode offsets = assertToolSuccess(response).path("offsets");
+                LOGGER.info("get_kafka_connector offsets (post-request):\n{}", offsets);
+                assertTrue(offsets.path("available").asBoolean(),
+                    "Offsets should be available once the operator wrote the ConfigMap");
+                assertTrue(offsets.path("offsets").has("offsets"),
+                    "Parsed offsets payload should carry the 'offsets' array");
+                assertFalse(offsets.has("message"),
+                    "No explanatory message should be present when offsets are available");
             })
             .thenAssertResults();
     }

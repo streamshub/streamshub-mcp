@@ -62,4 +62,52 @@ public final class KubernetesMockHelper {
         Mockito.lenient().when(resourceOp.withName(anyString())).thenReturn(resourceMock);
         Mockito.lenient().when(resourceMock.get()).thenReturn(null);
     }
+
+    /**
+     * Set up mock Kubernetes client chain that returns the given items for a resource type.
+     * List, labelled-list and by-name lookups all resolve against the same item list, so a
+     * {@code getResource(type, ns, name)} call returns the item whose metadata name matches.
+     *
+     * @param <T>              the resource type
+     * @param kubernetesClient the mocked Kubernetes client
+     * @param resourceClass    the resource class to mock
+     * @param items            the items the mocked chain should return
+     */
+    @SuppressWarnings("unchecked")
+    public static <T extends HasMetadata> void setupResourceQuery(
+            KubernetesClient kubernetesClient, Class<T> resourceClass, List<T> items) {
+        MixedOperation resourceOp = Mockito.mock(MixedOperation.class);
+        Mockito.lenient().when(kubernetesClient.resources(resourceClass)).thenReturn(resourceOp);
+
+        NonNamespaceOperation nsOp = Mockito.mock(NonNamespaceOperation.class);
+        Mockito.lenient().when(resourceOp.inNamespace(anyString())).thenReturn(nsOp);
+        Mockito.lenient().when(resourceOp.inAnyNamespace()).thenReturn(nsOp);
+
+        FilterWatchListDeletable labeledOp = Mockito.mock(FilterWatchListDeletable.class);
+        Mockito.lenient().when(nsOp.withLabel(anyString(), anyString())).thenReturn(labeledOp);
+        Mockito.lenient().when(nsOp.withLabels(any())).thenReturn(labeledOp);
+        Mockito.lenient().when(resourceOp.withLabel(anyString(), anyString())).thenReturn(labeledOp);
+
+        KubernetesResourceList itemList = Mockito.mock(KubernetesResourceList.class);
+        Mockito.lenient().when(itemList.getItems()).thenReturn(items);
+        Mockito.lenient().when(nsOp.list()).thenReturn(itemList);
+        Mockito.lenient().when(labeledOp.list()).thenReturn(itemList);
+        Mockito.lenient().when(resourceOp.list()).thenReturn(itemList);
+
+        Mockito.lenient().when(nsOp.withName(anyString()))
+            .thenAnswer(invocation -> namedResource(items, invocation.getArgument(0)));
+        Mockito.lenient().when(resourceOp.withName(anyString()))
+            .thenAnswer(invocation -> namedResource(items, invocation.getArgument(0)));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends HasMetadata> Resource<T> namedResource(final List<T> items, final String name) {
+        Resource<T> resourceMock = Mockito.mock(Resource.class);
+        T match = items.stream()
+            .filter(i -> i.getMetadata() != null && name.equals(i.getMetadata().getName()))
+            .findFirst()
+            .orElse(null);
+        Mockito.lenient().when(resourceMock.get()).thenReturn(match);
+        return resourceMock;
+    }
 }
