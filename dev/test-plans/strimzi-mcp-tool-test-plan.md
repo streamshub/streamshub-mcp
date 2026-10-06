@@ -296,6 +296,17 @@ Parameters: { "clusterName": "mcp-cluster" }
 - [ ] `pod_disruption_budgets` array contains PDBs created for Kafka components
 - [ ] `network_policies` array contains NetworkPolicies created for Kafka components
 
+### T2.7c - Get Cluster PersistentVolumeClaims
+
+```
+Tool: get_kafka_pvcs
+Parameters: { "clusterName": "mcp-cluster" }
+```
+
+**Expected:**
+- [ ] `cluster_name` matches "mcp-cluster"
+- [ ] `pvcs` array contains PVCs with phase `Bound`, storage class, requested/actual capacity, volume name, and `allow_volume_expansion`
+
 ### T2.8 - Get Cluster Pods
 
 ```
@@ -1461,6 +1472,20 @@ Parameters: {
 **Expected:**
 - [ ] Diagnosis focuses on latency-related metrics and logs
 - [ ] Time window matches `sinceMinutes: 60`
+
+### T15.2b - Diagnose Kafka Storage
+
+```
+Tool: diagnose_kafka_storage
+Parameters: {
+  "clusterName": "mcp-cluster",
+  "symptom": "disk pressure"
+}
+```
+
+**Expected:**
+- [ ] Report covers PVCs, storage capacity, volume expansion capability, node pool storage specs, pod health, storage metrics, and events
+- [ ] Report completed steps include `cluster_status`, `node_pools`, `pvcs`, `pods`, `storage_metrics`, `events`
 
 ### T15.3 - Diagnose Connectivity
 

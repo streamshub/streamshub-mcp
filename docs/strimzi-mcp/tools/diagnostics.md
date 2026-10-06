@@ -39,6 +39,25 @@ If not supported, returns raw data without analysis.
 Diagnose issues with mcp-cluster
 ```
 
+## diagnose_kafka_storage
+
+Runs a multi-step storage diagnostic workflow for a Kafka cluster.
+Cross-checks PersistentVolumeClaims, storage capacity, volume expansion capability, node pool declared storage layout, pod health, disk metrics (`kafka_log_log_size`, Linux disk I/O), and Kubernetes events.
+
+**Parameters**:
+- `clusterName` (required) -- Name of the Kafka cluster
+- `namespace` (optional) -- Kubernetes namespace
+- `symptom` (optional) -- Observed symptom or issue description
+- `sinceMinutes` (optional) -- Time window for events/metrics
+
+**Uses Sampling**: Yes
+**Uses Elicitation**: Yes
+
+**Example**:
+```
+Diagnose storage issues for mcp-cluster
+```
+
 ## diagnose_kafka_connectivity
 
 Runs a multi-step connectivity diagnostic workflow.

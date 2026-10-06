@@ -30,6 +30,7 @@ import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaConfigComparisonReport;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaConnectivityDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaMetricsDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaStorageDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafka.UpgradeReadinessReport;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectDiagnosticReport;
@@ -43,6 +44,7 @@ import io.streamshub.mcp.strimzi.service.kafka.KafkaClusterDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaConfigComparisonService;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaConnectivityDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaMetricsDiagnosticService;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaStorageDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafka.UpgradeReadinessDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkabridge.KafkaBridgeDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectDiagnosticService;
@@ -66,6 +68,7 @@ import jakarta.validation.constraints.NotBlank;
 @MeasuredTool
 @WrapBusinessError(value = Exception.class,
     unless = {ToolCallException.class, McpException.class, InputRequiredException.class})
+@SuppressWarnings("checkstyle:ClassFanOutComplexity")
 public class DiagnosticTools {
 
     @Inject
@@ -76,6 +79,9 @@ public class DiagnosticTools {
 
     @Inject
     KafkaMetricsDiagnosticService metricsDiagnosticService;
+
+    @Inject
+    KafkaStorageDiagnosticService storageDiagnosticService;
 
     @Inject
     KafkaConfigComparisonService configComparisonService;
@@ -399,6 +405,68 @@ public class DiagnosticTools {
     ) {
         return connectivityDiagnosticService.diagnose(
             namespace, clusterName, listenerName,
+            sampling, elicitation, progress, cancellation);
+    }
+
+    /**
+     * Run a composite storage diagnostic workflow for a Kafka cluster.
+     *
+     * @param clusterName  the Kafka cluster name
+     * @param namespace    optional namespace
+     * @param symptom      optional symptom description
+     * @param sinceMinutes optional time window for events/metrics
+     * @param sampling     MCP Sampling for LLM analysis
+     * @param elicitation  MCP Elicitation for user input
+     * @param progress     MCP progress tracking
+     * @param cancellation MCP cancellation checking
+     * @return a consolidated storage diagnostic report
+     */
+    @RunOnVirtualThread
+    @WithSpan("tool.diagnose_kafka_storage")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
+    @Tool(
+        name = "diagnose_kafka_storage",
+        description = "Runs a multi-step storage diagnostic for a Kafka cluster."
+            + " Cross-checks PersistentVolumeClaims, storage capacity, volume expansion capability,"
+            + " node pool storage specifications, pod health, disk metrics, and Kubernetes events."
+            + " Uses Sampling for analysis and Elicitation for disambiguation."
+            + " Falls back to gathering all data when Sampling is not supported.",
+        structuredContent = true,
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
+    public KafkaStorageDiagnosticReport diagnoseKafkaStorage(
+        @NotBlank @ToolArg(
+            description = StrimziToolsPrompts.CLUSTER_DESC
+        ) final String clusterName,
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace,
+        @ToolArg(
+            description = StrimziToolsPrompts.SYMPTOM_DESC,
+            required = false
+        ) final String symptom,
+        @ToolArg(
+            description = StrimziToolsPrompts.SINCE_MINUTES_DESC,
+            required = false
+        ) final Integer sinceMinutes,
+        final Sampling sampling,
+        final Elicitation elicitation,
+        final Progress progress,
+        final Cancellation cancellation
+    ) {
+        return storageDiagnosticService.diagnose(
+            namespace, clusterName, symptom, sinceMinutes,
             sampling, elicitation, progress, cancellation);
     }
 

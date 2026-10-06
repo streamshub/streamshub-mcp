@@ -50,6 +50,11 @@ public final class KafkaMetricCategories {
      */
     public static final String PARTITIONS = "partitions";
 
+    /**
+     * Storage and disk capacity / I/O category (log size, disk read/write bytes).
+     */
+    public static final String STORAGE = "storage";
+
     private static final Map<String, List<String>> CATEGORIES = Map.of(
         REPLICATION, List.of(
             "kafka_server_replicamanager_underreplicatedpartitions",
@@ -106,6 +111,11 @@ public final class KafkaMetricCategories {
             "kafka_cluster_partition_underminisr",
             "kafka_cluster_partition_atminisr",
             "kafka_cluster_partition_replicascount"
+        ),
+        STORAGE, List.of(
+            "kafka_log_log_size",
+            "kafka_server_kafkaserver_linux_disk_read_bytes",
+            "kafka_server_kafkaserver_linux_disk_write_bytes"
         )
     );
 
@@ -219,7 +229,14 @@ public final class KafkaMetricCategories {
                 + "**[HIGH - PARTITION AT-RISK]**\n\n"
                 + "kafka_cluster_partition_atminisr: Partitions where in-sync replicas are exactly at min.insync.replicas. "
                 + "Partitions are functioning but have no redundancy buffer — one more broker failure will cause producer errors.\n\n"
-                + "kafka_cluster_partition_replicascount: Total configured replica count per partition."
+                + "kafka_cluster_partition_replicascount: Total configured replica count per partition.",
+        STORAGE,
+            "**[HIGH - LOG STORAGE & CAPACITY]**\n\n"
+                + "kafka_log_log_size: Disk space in bytes used by log segments per topic and partition. "
+                + "Identifies large partitions and tracks storage growth over time.\n\n"
+                + "**[MEDIUM - DISK I/O ACTIVITY]**\n\n"
+                + "kafka_server_kafkaserver_linux_disk_read_bytes: Total bytes read from disk by the Kafka broker process.\n\n"
+                + "kafka_server_kafkaserver_linux_disk_write_bytes: Total bytes written to disk by the Kafka broker process."
     );
 
     private KafkaMetricCategories() {
@@ -318,6 +335,9 @@ public final class KafkaMetricCategories {
         if (category != null) {
             String lower = category.toLowerCase(Locale.ROOT);
             if (PARTITIONS.equals(lower)) {
+                return AggregationLevel.PARTITION;
+            }
+            if (STORAGE.equals(lower)) {
                 return AggregationLevel.PARTITION;
             }
             if (THROUGHPUT.equals(lower)) {

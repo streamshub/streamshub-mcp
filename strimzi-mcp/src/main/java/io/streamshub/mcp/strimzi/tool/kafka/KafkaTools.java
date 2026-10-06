@@ -35,6 +35,7 @@ import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPoliciesResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaFleetOverviewResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaPvcResponse;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaCertificateService;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaClusterOverviewService;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaFleetOverviewService;
@@ -377,6 +378,42 @@ public class KafkaTools {
         ) final String namespace
     ) {
         return kafkaService.getClusterPolicies(namespace, clusterName);
+    }
+
+    /**
+     * Get PersistentVolumeClaims for a Kafka cluster.
+     *
+     * @param clusterName the cluster name
+     * @param namespace   optional namespace
+     * @return the PVC response
+     */
+    @WithSpan("tool.get_kafka_pvcs")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
+    @Tool(
+        name = "get_kafka_pvcs",
+        structuredContent = true,
+        description = "Get PersistentVolumeClaims backing a Kafka cluster including capacity and storage class expansion.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
+    public KafkaPvcResponse getKafkaPvcs(
+        @NotBlank @ToolArg(
+            description = StrimziToolsPrompts.CLUSTER_DESC
+        ) final String clusterName,
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace
+    ) {
+        return kafkaService.getClusterPvcs(namespace, clusterName);
     }
 
     /**

@@ -18,6 +18,7 @@ import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPoliciesResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaPvcResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.ListenerInfo;
 import io.streamshub.mcp.strimzi.dto.kafka.RoleReplicasInfo;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaCertificateService;
@@ -108,6 +109,22 @@ class KafkaToolsTest {
 
         client.when()
             .toolsCall("get_kafka_cluster_policies", Map.of("clusterName", "my-cluster", "namespace", "kafka"), response -> {
+                assertFalse(response.isError());
+                String json = response.structuredContent().toString();
+                assertTrue(json.contains("my-cluster"));
+                assertTrue(json.contains("kafka"));
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    void testGetKafkaPvcs() {
+        when(kafkaService.getClusterPvcs("kafka", "my-cluster")).thenReturn(
+            KafkaPvcResponse.of("my-cluster", "kafka", List.of())
+        );
+
+        client.when()
+            .toolsCall("get_kafka_pvcs", Map.of("clusterName", "my-cluster", "namespace", "kafka"), response -> {
                 assertFalse(response.isError());
                 String json = response.structuredContent().toString();
                 assertTrue(json.contains("my-cluster"));
