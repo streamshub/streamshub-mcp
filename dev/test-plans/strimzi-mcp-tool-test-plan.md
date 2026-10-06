@@ -703,6 +703,33 @@ Parameters: { "namespace": "strimzi", "podName": "<pod-name-from-T6.2>" }
 
 ---
 
+### T6.7 - Get Operator Config
+
+```
+Tool: get_strimzi_operator_config
+Parameters: { "operatorName": "strimzi-cluster-operator", "namespace": "strimzi" }
+```
+
+**Expected:**
+- [ ] Returns `feature_gates`, `watched_namespaces` / `watches_all_namespaces`, `operation_timeout_ms`, `full_reconciliation_interval_ms`, `leader_election_enabled`
+- [ ] `supported_kafka_versions` is a non-empty list parsed from `STRIMZI_KAFKA_IMAGES`
+- [ ] `config` contains operator environment variables, with `valueFrom` entries encoded as descriptive reference strings
+- [ ] Omitting `operatorName` auto-discovers the operator and returns the same result
+
+---
+
+### T6.8 - Get Operator Config (not found)
+
+```
+Tool: get_strimzi_operator_config
+Parameters: { "operatorName": "non-existent-operator", "namespace": "strimzi" }
+```
+
+**Expected:**
+- [ ] Protocol error `-32002` with `category: RESOURCE_NOT_FOUND` naming the operator
+
+---
+
 ## Phase 7: Strimzi Events
 
 ### T7.1 - Get Events for Kafka Cluster
@@ -1965,6 +1992,8 @@ This phase tests all three server-side error handling patterns under RBAC restri
 | 6     | T6.4    | get_strimzi_operator_logs | core | | |
 | 6     | T6.5    | get_strimzi_operator_logs (filter) | core | | |
 | 6     | T6.6    | get_strimzi_operator_pod | core | | |
+| 6     | T6.7    | get_strimzi_operator_config | core | | |
+| 6     | T6.8    | get_strimzi_operator_config (not found) | core | | |
 | 7     | T7.1    | get_strimzi_events (Kafka) | core | | |
 | 7     | T7.2    | get_strimzi_events (time-scoped) | core | | |
 | 7     | T7.3    | get_strimzi_events (Operator) | core | | |

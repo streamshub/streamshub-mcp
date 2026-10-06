@@ -167,6 +167,57 @@ class StrimziOperatorToolsST extends AbstractST {
     }
 
     @Test
+    @Story("get_strimzi_operator_config returns full operator configuration")
+    void testGetStrimziOperatorConfig() {
+        Map<String, Object> args = Map.of(
+            "operatorName", "strimzi-cluster-operator",
+            "namespace", Constants.STRIMZI_NAMESPACE);
+
+        mcpClient.when()
+            .toolsCall("get_strimzi_operator_config", args, response -> {
+                JsonNode config = assertToolSuccess(response);
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("get_strimzi_operator_config response (length={})", json.length());
+                LOGGER.debug("get_strimzi_operator_config response:\n{}", json);
+                assertEquals("strimzi-cluster-operator", config.path("name").asText(),
+                    "Operator name should match");
+                assertEquals(Constants.STRIMZI_NAMESPACE, config.path("namespace").asText(),
+                    "Namespace should match");
+                assertFalse(config.path("version").asText("").isEmpty(), "Should have version");
+                JsonNode versions = config.path("supported_kafka_versions");
+                assertTrue(versions.isArray() && !versions.isEmpty(),
+                    "Should list supported Kafka versions parsed from STRIMZI_KAFKA_IMAGES");
+                assertTrue(config.has("watches_all_namespaces"),
+                    "Should report whether all namespaces are watched");
+                assertFalse(config.path("message").isMissingNode(), "Should have message");
+
+                // All env vars are returned; valueFrom entries appear as reference descriptors
+                JsonNode env = config.path("config");
+                assertTrue(env.isObject(), "config should be an object of env vars");
+                assertTrue(env.has("STRIMZI_NAMESPACE"), "Should contain STRIMZI_NAMESPACE");
+                assertTrue(env.has("STRIMZI_KAFKA_IMAGES"), "Should contain STRIMZI_KAFKA_IMAGES");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @Story("get_strimzi_operator_config returns error for non-existent operator")
+    void testGetStrimziOperatorConfigNotFound() {
+        Map<String, Object> args = Map.of(
+            "operatorName", "non-existent-operator",
+            "namespace", Constants.STRIMZI_NAMESPACE);
+
+        mcpClient.when()
+            .toolsCall("get_strimzi_operator_config")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "non-existent-operator"))
+            .send()
+            .thenAssertResults();
+    }
+
+    @Test
     @Story("get_strimzi_operator returns error for non-existent operator")
     void testGetStrimziOperatorNotFound() {
         Map<String, Object> args = Map.of(

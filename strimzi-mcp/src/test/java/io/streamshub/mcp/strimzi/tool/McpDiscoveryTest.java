@@ -76,6 +76,7 @@ class McpDiscoveryTest {
                     "get_kafka_node_pool_pods",
                     "list_strimzi_operators",
                     "get_strimzi_operator",
+                    "get_strimzi_operator_config",
                     "get_strimzi_operator_logs",
                     "get_strimzi_operator_pod",
                     "get_strimzi_events",
@@ -255,6 +256,7 @@ class McpDiscoveryTest {
         map.put("get_kafka_rebalance", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_REBALANCE});
         map.put("list_strimzi_operators", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.STRIMZI_OPERATOR});
         map.put("get_strimzi_operator", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.STRIMZI_OPERATOR});
+        map.put("get_strimzi_operator_config", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.STRIMZI_OPERATOR});
         map.put("get_strimzi_operator_logs", new String[]{ToolMetaFields.Types.LOGS, StrimziToolResources.STRIMZI_OPERATOR});
         map.put("get_strimzi_operator_pod", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.STRIMZI_OPERATOR});
         map.put("get_strimzi_events", new String[]{ToolMetaFields.Types.EVENTS, StrimziToolResources.STRIMZI_EVENT});
