@@ -457,4 +457,52 @@ class DiagnoseToolsST extends AbstractST {
             .send()
             .thenAssertResults();
     }
+
+    // ---- KafkaNodePool Diagnostics ----
+
+    @Test
+    @Story("diagnose_kafka_node_pool returns diagnostic info for a node pool")
+    void testDiagnoseKafkaNodePool() {
+        Map<String, Object> args = Map.of(
+            "nodePoolName", "broker-np",
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "namespace", kafkaNamespace.getMetadata().getName());
+
+        mcpClient.when()
+            .toolsCall("diagnose_kafka_node_pool", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("diagnose_kafka_node_pool response (length={})", text.length());
+                LOGGER.debug("diagnose_kafka_node_pool response:\n{}", text);
+                assertDiagnosticReport(root);
+                JsonNode nodePool = root.path("node_pool");
+                assertFalse(nodePool.isMissingNode(), "Should have node_pool section");
+                assertEquals("broker-np", nodePool.path("name").asText(), "Node pool name should match");
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, nodePool.path("cluster").asText(),
+                    "Node pool cluster should match");
+                assertFalse(root.path("pods").isMissingNode(), "Should have pods section");
+                assertTrue(root.path("pvcs").isArray(), "pvcs should be an array");
+                assertFalse(root.path("events").isMissingNode(), "Should have events section");
+                assertFalse(root.path("logs").isMissingNode(), "Should have logs section");
+                assertEquals(5, root.path("steps_completed").size(), "Should have 5 completed steps");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @Story("diagnose_kafka_node_pool returns error for non-existent node pool")
+    void testDiagnoseKafkaNodePoolNotFound() {
+        Map<String, Object> args = Map.of(
+            "nodePoolName", "nonexistent-pool-xyz",
+            "namespace", kafkaNamespace.getMetadata().getName());
+
+        mcpClient.when()
+            .toolsCall("diagnose_kafka_node_pool")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "nonexistent-pool-xyz"))
+            .send()
+            .thenAssertResults();
+    }
 }

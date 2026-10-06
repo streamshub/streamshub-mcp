@@ -28,6 +28,10 @@ rules:
   - apiGroups: [""]
     resources: ["pods", "services"]
     verbs: ["get", "list"]
+  # PersistentVolumeClaims (storage binding status for KafkaNodePool diagnostics)
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list"]
   # Pod logs (get only, no list)
   - apiGroups: [""]
     resources: ["pods/log"]
