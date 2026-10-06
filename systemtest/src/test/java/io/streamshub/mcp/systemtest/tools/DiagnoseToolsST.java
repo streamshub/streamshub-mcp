@@ -437,4 +437,24 @@ class DiagnoseToolsST extends AbstractST {
             })
             .thenAssertResults();
     }
+
+    // ---- KafkaBridge Diagnostics ----
+
+    /**
+     * Verify diagnose_kafka_bridge reports a structured not-found error for an unknown bridge.
+     * The happy path lives in {@code KafkaBridgeToolsST}, which deploys a KafkaBridge.
+     */
+    @Test
+    @Story("diagnose_kafka_bridge returns error for non-existent bridge")
+    void testDiagnoseKafkaBridgeNotFound() {
+        Map<String, Object> args = Map.of("bridgeName", "nonexistent-bridge-xyz");
+
+        mcpClient.when()
+            .toolsCall("diagnose_kafka_bridge")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "nonexistent-bridge-xyz"))
+            .send()
+            .thenAssertResults();
+    }
 }

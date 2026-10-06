@@ -76,6 +76,7 @@ Available diagnostic tools:
 - `diagnose_kafka_connector`
 - `diagnose_kafka_topic`
 - `diagnose_kafka_mirror_maker`
+- `diagnose_kafka_bridge`
 - `assess_upgrade_readiness`
 - `compare_kafka_clusters`
 

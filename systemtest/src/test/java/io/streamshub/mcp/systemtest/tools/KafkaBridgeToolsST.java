@@ -262,4 +262,40 @@ class KafkaBridgeToolsST extends AbstractST {
             })
             .thenAssertResults();
     }
+
+    /**
+     * Verify diagnose_kafka_bridge returns a consolidated report for a healthy bridge.
+     */
+    @Test
+    @Story("diagnose_kafka_bridge returns diagnostic info for a healthy bridge")
+    void testDiagnoseKafkaBridge() {
+        Map<String, Object> args = Map.of(
+            "bridgeName", Constants.BRIDGE_NAME,
+            "namespace", kafkaNamespace.getMetadata().getName());
+
+        mcpClient.when()
+            .toolsCall("diagnose_kafka_bridge", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("diagnose_kafka_bridge response (length={})", text.length());
+                LOGGER.debug("diagnose_kafka_bridge response:\n{}", text);
+                assertDiagnosticReport(root);
+                assertFalse(root.path("bridge").isMissingNode(), "Should have bridge section");
+                assertEquals(Constants.BRIDGE_NAME, root.path("bridge").path("name").asText(),
+                    "Bridge name should match");
+                assertEquals("Ready", root.path("bridge").path("readiness").asText(),
+                    "Bridge should be Ready");
+                assertFalse(root.path("pods").isMissingNode(), "Should have pods section");
+                assertEquals(1, root.path("pods").path("pod_summary").path("total_pods").asInt(),
+                    "Should have 1 bridge pod");
+                JsonNode steps = root.path("steps_completed");
+                assertTrue(steps.toString().contains("bridge_status"),
+                    "steps_completed should include bridge_status");
+                assertTrue(steps.toString().contains("bridge_pods"),
+                    "steps_completed should include bridge_pods");
+                assertNoStackTrace(text);
+            })
+            .thenAssertResults();
+    }
 }
