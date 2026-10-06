@@ -52,7 +52,8 @@ public class StrimziEventsService {
         StrimziConstants.KindValues.KAFKA_MIRROR_MAKER_2,
         StrimziConstants.KindValues.KAFKA_BRIDGE,
         StrimziConstants.KindValues.STRIMZI_OPERATOR,
-        StrimziConstants.KindValues.DRAIN_CLEANER);
+        StrimziConstants.KindValues.DRAIN_CLEANER,
+        StrimziConstants.KindValues.KAFKA_REBALANCE);
 
     @Inject
     KafkaService kafkaService;

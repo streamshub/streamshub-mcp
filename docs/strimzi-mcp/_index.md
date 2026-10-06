@@ -70,6 +70,7 @@ Available diagnostic tools:
 - [`diagnose_kafka_mirror_maker`](tools/diagnostics.md#diagnose_kafka_mirror_maker) -- MirrorMaker2 replication diagnosis
 - [`diagnose_kafka_bridge`](tools/diagnostics.md#diagnose_kafka_bridge) -- KafkaBridge HTTP gateway diagnosis
 - [`diagnose_kafka_node_pool`](tools/diagnostics.md#diagnose_kafka_node_pool) -- KafkaNodePool scaling, storage, and scheduling diagnosis
+- [`diagnose_kafka_rebalance`](tools/diagnostics.md#diagnose_kafka_rebalance) -- KafkaRebalance and Cruise Control rebalance diagnosis
 - [`compare_kafka_clusters`](tools/diagnostics.md#compare_kafka_clusters) -- Cross-cluster configuration comparison
 
 ### Log collection

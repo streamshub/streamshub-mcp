@@ -78,6 +78,7 @@ Available diagnostic tools:
 - `diagnose_kafka_mirror_maker`
 - `diagnose_kafka_bridge`
 - `diagnose_kafka_node_pool`
+- `diagnose_kafka_rebalance`
 - `assess_upgrade_readiness`
 - `compare_kafka_clusters`
 

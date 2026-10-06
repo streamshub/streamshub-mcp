@@ -174,7 +174,7 @@ io.streamshub.mcp.strimzi.
 │   ├── kafkatopic/    → KafkaTopicService, KafkaTopicDiagnosticService
 │   ├── kafkauser/     → KafkaUserService
 │   ├── kafkanodepool/ → KafkaNodePoolService, KafkaNodePoolDiagnosticService
-│   ├── kafkarebalance/ → KafkaRebalanceService
+│   ├── kafkarebalance/ → KafkaRebalanceService, KafkaRebalanceDiagnosticService
 │   ├── draincleaner/  → DrainCleanerService
 │   ├── operator/      → StrimziOperatorService, StrimziEventsService,
 │   │                    OperatorMetricsDiagnosticService
