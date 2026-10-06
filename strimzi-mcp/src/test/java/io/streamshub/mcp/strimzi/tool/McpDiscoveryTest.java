@@ -68,6 +68,7 @@ class McpDiscoveryTest {
                     "get_kafka_bootstrap_servers",
                     "get_kafka_cluster_certificates",
                     "get_kafka_cluster_logs",
+                    "get_kafka_cluster_policies",
                     "get_kafka_cluster_config",
                     "list_kafka_topics",
                     "get_kafka_topic",
@@ -247,6 +248,7 @@ class McpDiscoveryTest {
         map.put("get_kafka_bootstrap_servers", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA});
         map.put("get_kafka_cluster_certificates", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA});
         map.put("get_kafka_cluster_logs", new String[]{ToolMetaFields.Types.LOGS, StrimziToolResources.KAFKA});
+        map.put("get_kafka_cluster_policies", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA});
         map.put("get_kafka_cluster_config", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA});
         map.put("list_kafka_topics", new String[]{ToolMetaFields.Types.LIST, StrimziToolResources.KAFKA_TOPIC});
         map.put("get_kafka_topic", new String[]{ToolMetaFields.Types.GET, StrimziToolResources.KAFKA_TOPIC});
