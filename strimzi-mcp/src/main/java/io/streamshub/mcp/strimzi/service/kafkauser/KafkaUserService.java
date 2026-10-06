@@ -10,6 +10,7 @@ import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
+import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserAclMatrixResponse;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserResponse;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
@@ -27,8 +28,12 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.TreeSet;
 /**
  * Service for KafkaUser operations.
  */
@@ -36,6 +41,22 @@ import java.util.Map;
 public class KafkaUserService {
 
     private static final Logger LOG = Logger.getLogger(KafkaUserService.class);
+
+    private static final List<String> ACL_MATRIX_RESOURCE_TYPES =
+        List.of("topic", "group", "transactionalId", "cluster");
+
+    private static final String DEFAULT_ACL_MATRIX_RESOURCE_TYPE = "topic";
+
+    /**
+     * Matrix key used for ACL rules on the {@code cluster} resource type, which has no name.
+     */
+    private static final String CLUSTER_RESOURCE_MATRIX_KEY = "kafka-cluster";
+
+    private static final String ALLOW_RULE_TYPE = "allow";
+    private static final String DENY_RULE_TYPE = "deny";
+    private static final String ALL_OPERATIONS_VALUE = "All";
+    private static final String WILDCARD_RESOURCE_NAME = "*";
+    private static final String PREFIX_PATTERN_TYPE = "prefix";
 
     @Inject
     KubernetesResourceService k8sService;
@@ -110,6 +131,148 @@ public class KafkaUserService {
         }
 
         return createUserDetail(user);
+    }
+
+    /**
+     * Build an ACL matrix (resource to principal to operations) aggregated across all
+     * KafkaUsers labeled for a Kafka cluster, and flag over-broad allow grants.
+     *
+     * @param namespace    the namespace, or null for all namespaces
+     * @param clusterName  the Kafka cluster name (required)
+     * @param resourceType the ACL resource type to filter on (topic, group, transactionalId,
+     *                     cluster); defaults to {@code topic} when null or blank
+     * @return the ACL matrix response
+     */
+    public KafkaUserAclMatrixResponse getAclMatrix(final String namespace, final String clusterName,
+                                                    final String resourceType) {
+        String ns = InputUtils.normalizeInput(namespace);
+        String cluster = InputUtils.normalizeInput(clusterName);
+        String normalizedResourceType = InputUtils.normalizeInput(resourceType);
+
+        if (cluster == null) {
+            throw McpErrors.invalidParams("Cluster name is required");
+        }
+        InputUtils.validateK8sName(cluster, "cluster name");
+        InputUtils.validateK8sName(ns, "namespace");
+
+        String effectiveResourceType = resolveAclMatrixResourceType(normalizedResourceType);
+
+        LOG.infof("Building KafkaUser ACL matrix (namespace=%s, cluster=%s, resourceType=%s)",
+            ns != null ? ns : "all", cluster, effectiveResourceType);
+
+        List<KafkaUser> users;
+        if (ns != null) {
+            users = k8sService.queryResourcesByLabel(
+                KafkaUser.class, ns, ResourceLabels.STRIMZI_CLUSTER_LABEL, cluster);
+        } else {
+            users = k8sService.queryResourcesByLabelInAnyNamespace(
+                KafkaUser.class, ResourceLabels.STRIMZI_CLUSTER_LABEL, cluster);
+        }
+
+        Map<String, Map<String, TreeSet<String>>> allowed = new TreeMap<>();
+        Map<String, Map<String, TreeSet<String>>> denied = new TreeMap<>();
+        List<KafkaUserAclMatrixResponse.BroadGrant> broadGrants = new ArrayList<>();
+
+        for (KafkaUser user : users) {
+            collectUserAcls(user, effectiveResourceType, allowed, denied, broadGrants);
+        }
+
+        Map<String, Map<String, List<String>>> matrix = toSortedListMatrix(allowed);
+        Map<String, Map<String, List<String>>> deniedMatrix = denied.isEmpty() ? null : toSortedListMatrix(denied);
+
+        return KafkaUserAclMatrixResponse.of(cluster, ns, effectiveResourceType, matrix, deniedMatrix, broadGrants);
+    }
+
+    private void collectUserAcls(final KafkaUser user, final String resourceType,
+                                  final Map<String, Map<String, TreeSet<String>>> allowed,
+                                  final Map<String, Map<String, TreeSet<String>>> denied,
+                                  final List<KafkaUserAclMatrixResponse.BroadGrant> broadGrants) {
+        List<KafkaUserResponse.AclRuleInfo> rules = extractAclRules(user);
+        if (rules == null || rules.isEmpty()) {
+            return;
+        }
+
+        String principal = extractUsername(user);
+        if (principal == null) {
+            principal = user.getMetadata().getName();
+        }
+
+        for (KafkaUserResponse.AclRuleInfo rule : rules) {
+            if (!resourceType.equalsIgnoreCase(rule.resourceType())) {
+                continue;
+            }
+
+            String resourceKey = aclMatrixResourceKey(rule);
+            Map<String, Map<String, TreeSet<String>>> target =
+                DENY_RULE_TYPE.equals(rule.type()) ? denied : allowed;
+            target.computeIfAbsent(resourceKey, key -> new TreeMap<>())
+                .computeIfAbsent(principal, key -> new TreeSet<>())
+                .addAll(rule.operations() != null ? rule.operations() : List.of());
+
+            if (ALLOW_RULE_TYPE.equals(rule.type())) {
+                String reason = broadGrantReason(rule);
+                if (reason != null) {
+                    List<String> operations = rule.operations() != null
+                        ? new TreeSet<>(rule.operations()).stream().toList() : List.of();
+                    broadGrants.add(KafkaUserAclMatrixResponse.BroadGrant.of(
+                        principal, resourceKey, operations, reason));
+                }
+            }
+        }
+    }
+
+    private String aclMatrixResourceKey(final KafkaUserResponse.AclRuleInfo rule) {
+        String resourceName = rule.resourceName();
+        if (resourceName == null) {
+            return CLUSTER_RESOURCE_MATRIX_KEY;
+        }
+        if (PREFIX_PATTERN_TYPE.equals(rule.patternType())) {
+            return resourceName + WILDCARD_RESOURCE_NAME;
+        }
+        return resourceName;
+    }
+
+    private String broadGrantReason(final KafkaUserResponse.AclRuleInfo rule) {
+        boolean wildcardResource = WILDCARD_RESOURCE_NAME.equals(rule.resourceName());
+        boolean allOperations = rule.operations() != null && rule.operations().contains(ALL_OPERATIONS_VALUE);
+
+        if (!wildcardResource && !allOperations) {
+            return null;
+        }
+        if (wildcardResource && allOperations) {
+            return "wildcard resource, All operations";
+        }
+        if (wildcardResource) {
+            return "wildcard resource";
+        }
+        return "All operations";
+    }
+
+    private String resolveAclMatrixResourceType(final String resourceType) {
+        if (resourceType == null || resourceType.isBlank()) {
+            return DEFAULT_ACL_MATRIX_RESOURCE_TYPE;
+        }
+        String trimmed = resourceType.trim();
+        for (String accepted : ACL_MATRIX_RESOURCE_TYPES) {
+            if (accepted.toLowerCase(Locale.ROOT).equals(trimmed.toLowerCase(Locale.ROOT))) {
+                return accepted;
+            }
+        }
+        throw McpErrors.invalidParams("Invalid resourceType '" + trimmed
+            + "': accepted values are " + String.join(", ", ACL_MATRIX_RESOURCE_TYPES));
+    }
+
+    private Map<String, Map<String, List<String>>> toSortedListMatrix(
+            final Map<String, Map<String, TreeSet<String>>> source) {
+        Map<String, Map<String, List<String>>> result = new TreeMap<>();
+        for (Map.Entry<String, Map<String, TreeSet<String>>> resourceEntry : source.entrySet()) {
+            Map<String, List<String>> byPrincipal = new TreeMap<>();
+            for (Map.Entry<String, TreeSet<String>> principalEntry : resourceEntry.getValue().entrySet()) {
+                byPrincipal.put(principalEntry.getKey(), List.copyOf(principalEntry.getValue()));
+            }
+            result.put(resourceEntry.getKey(), byPrincipal);
+        }
+        return result;
     }
 
     private KafkaUser findUserInAllNamespaces(final String userName) {

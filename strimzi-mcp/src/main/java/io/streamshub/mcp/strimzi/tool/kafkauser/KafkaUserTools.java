@@ -20,6 +20,7 @@ import io.streamshub.mcp.common.guardrail.ResponseSizeLimitGuardrail;
 import io.streamshub.mcp.common.observability.MeasuredTool;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
+import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserAclMatrixResponse;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserListResponse;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserResponse;
 import io.streamshub.mcp.strimzi.service.kafkauser.KafkaUserService;
@@ -118,5 +119,53 @@ public class KafkaUserTools {
         ) final String namespace
     ) {
         return userService.getUser(namespace, userName);
+    }
+
+    /**
+     * Build an ACL matrix across all KafkaUsers of a Kafka cluster.
+     *
+     * @param clusterName  the Kafka cluster name
+     * @param namespace    optional namespace
+     * @param resourceType optional ACL resource type filter
+     * @return the ACL matrix response
+     */
+    @WithSpan("tool.get_kafka_user_acls_matrix")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_USER)
+    @Tool(
+        name = "get_kafka_user_acls_matrix",
+        structuredContent = true,
+        description = "Build an ACL matrix (resource to principal to operations) aggregated"
+            + " across all KafkaUsers on a Kafka cluster, to answer questions like"
+            + " \"who can write to this topic\"."
+            + " Filter by resourceType: 'topic' (default), 'group', 'transactionalId', or 'cluster'."
+            + " Flags over-broad allow grants (wildcard resource name or the 'All' operation) in broad_grants."
+            + " On clusters with many users or ACL rules the response may be truncated;"
+            + " narrow the query with resourceType or inspect individual users with get_kafka_user.",
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
+    public KafkaUserAclMatrixResponse getKafkaUserAclsMatrix(
+        @NotBlank @ToolArg(
+            description = StrimziToolsPrompts.CLUSTER_DESC
+        ) final String clusterName,
+        @ToolArg(
+            description = StrimziToolsPrompts.NS_DESC,
+            required = false
+        ) final String namespace,
+        @ToolArg(
+            description = "ACL resource type to filter on: 'topic', 'group',"
+                + " 'transactionalId', or 'cluster'. Defaults to 'topic'.",
+            required = false
+        ) final String resourceType
+    ) {
+        return userService.getAclMatrix(namespace, clusterName, resourceType);
     }
 }
