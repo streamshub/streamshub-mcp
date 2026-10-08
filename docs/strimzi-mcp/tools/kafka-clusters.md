@@ -177,6 +177,28 @@ Get PersistentVolumeClaims backing a Kafka cluster including capacity and storag
 List the PVCs and storage capacity for mcp-cluster
 ```
 
+## get_strimzi_pod_sets
+
+Lists the StrimziPodSets owned by a Kafka cluster to inspect rolling-update state -- which pods are on the current revision and which are still on a previous one. StrimziPodSet is a Strimzi-internal resource managed by the operator (it replaces StatefulSets).
+
+**Parameters**:
+- `clusterName` (required) -- Name of the Kafka cluster
+- `namespace` (optional) -- Kubernetes namespace
+
+**Returns**: A list of StrimziPodSets (`items`, `count`), where each item includes:
+- `name` -- Name of the StrimziPodSet
+- `namespace` -- Kubernetes namespace
+- `cluster` -- Owning Kafka cluster name (from the `strimzi.io/cluster` label)
+- `pods` -- Number of pods managed by this StrimziPodSet
+- `ready_pods` -- Number of managed pods that are ready
+- `current_pods` -- Number of managed pods on the current revision
+- `pod_revisions` -- Map of pod name to `strimzi.io/revision`, present **only when a rolling update is in progress** (the pods carry more than one distinct revision)
+
+**Example**:
+```
+Is a rolling update in progress for mcp-cluster, and which pods are still on the old config?
+```
+
 ## get_kafka_cluster_logs
 
 Get logs from Kafka cluster pods with error analysis and advanced filtering.

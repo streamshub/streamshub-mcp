@@ -27,6 +27,20 @@ public final class StrimziConstants {
     }
 
     /**
+     * Strimzi annotation keys not available in the Strimzi API ResourceAnnotations class.
+     */
+    public static final class Annotations {
+        /**
+         * Strimzi annotation key on pods recording the StrimziPodSet revision the pod was created from.
+         * Differing values across a pod set's pods indicate a rolling update in progress.
+         */
+        public static final String REVISION = "strimzi.io/revision";
+
+        private Annotations() {
+        }
+    }
+
+    /**
      * Values for the strimzi.io/kind label.
      */
     public static final class KindValues {

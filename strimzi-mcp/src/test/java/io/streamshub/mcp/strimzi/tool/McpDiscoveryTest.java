@@ -124,7 +124,8 @@ class McpDiscoveryTest {
                     "diagnose_kafka_mirror_maker",
                     "diagnose_kafka_bridge",
                     "diagnose_kafka_node_pool",
-                    "diagnose_kafka_rebalance"
+                    "diagnose_kafka_rebalance",
+                    "get_strimzi_pod_sets"
                 );
 
                 for (String toolName : expectedTools) {
@@ -309,6 +310,8 @@ class McpDiscoveryTest {
             new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA_NODE_POOL});
         map.put("diagnose_kafka_rebalance",
             new String[]{ToolMetaFields.Types.DIAGNOSE, StrimziToolResources.KAFKA_REBALANCE});
+        map.put("get_strimzi_pod_sets",
+            new String[]{ToolMetaFields.Types.GET, StrimziToolResources.STRIMZI_POD_SET});
         return map;
     }
 

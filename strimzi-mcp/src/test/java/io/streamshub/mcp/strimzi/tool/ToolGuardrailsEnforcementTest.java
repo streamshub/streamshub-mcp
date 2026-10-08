@@ -41,13 +41,13 @@ class ToolGuardrailsEnforcementTest {
     }
 
     private static final String TOOL_PACKAGE = "io.streamshub.mcp.strimzi.tool";
-    private static final int EXPECTED_TOOL_METHOD_COUNT = 65;
+    private static final int EXPECTED_TOOL_METHOD_COUNT = 66;
 
     // Known tool sub-packages - add new sub-packages here when creating new tool categories
     private static final List<String> TOOL_SUBPACKAGES = List.of(
         "diagnostic", "draincleaner", "kafka", "kafkabridge", "kafkaconnect",
         "kafkamirrormaker2", "kafkanodepool", "kafkarebalance", "kafkatopic",
-        "kafkauser", "metrics", "operator"
+        "kafkauser", "metrics", "operator", "strimzipodset"
     );
 
     private static final Set<Class<?>> REQUIRED_OUTPUT_GUARDRAILS = Set.of(
