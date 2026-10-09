@@ -487,6 +487,65 @@ class KafkaClusterToolsST extends AbstractST {
     }
 
     @Test
+    @Story("get_strimzi_pod_sets returns one StrimziPodSet per node pool in steady state")
+    void testGetStrimziPodSets() {
+        Map<String, Object> args = Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME);
+        mcpClient.when()
+            .toolsCall("get_strimzi_pod_sets", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+
+                String text = response.content().getFirst().asText().text();
+                LOGGER.info("get_strimzi_pod_sets response (length={})", text.length());
+                LOGGER.debug("get_strimzi_pod_sets response:\n{}", text);
+
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray(), "items should be an array");
+                assertEquals(3, root.path("count").asInt(),
+                    "count should be 3 (one StrimziPodSet per node pool)");
+                assertEquals(3, items.size(),
+                    "Should have 3 StrimziPodSets (controller-np, broker-np1, broker-np2)");
+
+                java.util.Set<String> podSetNames = new java.util.HashSet<>();
+                for (JsonNode item : items) {
+                    String name = item.path("name").asText();
+                    podSetNames.add(name);
+                    assertEquals(Constants.KAFKA_CLUSTER_NAME, item.path("cluster").asText(),
+                        "cluster should match for pod set " + name);
+                    assertEquals(Environment.KAFKA_NAMESPACE, item.path("namespace").asText(),
+                        "namespace should match for pod set " + name);
+                    assertEquals(3, item.path("pods_count").asInt(),
+                        "pod set " + name + " should manage 3 pods");
+                    assertEquals(3, item.path("ready_pods").asInt(),
+                        "pod set " + name + " should have 3 ready pods");
+                    assertEquals(3, item.path("current_pods").asInt(),
+                        "pod set " + name + " should have 3 pods on the current revision in steady state");
+                    assertTrue(item.path("pod_revisions").isMissingNode(),
+                        "pod_revisions must be absent in steady state (no rolling update) for " + name);
+                }
+                assertTrue(podSetNames.contains(Constants.KAFKA_CLUSTER_NAME + "-controller-np"),
+                    "Should contain the controller-np StrimziPodSet");
+                assertTrue(podSetNames.contains(Constants.KAFKA_CLUSTER_NAME + "-broker-np1"),
+                    "Should contain the broker-np1 StrimziPodSet");
+                assertTrue(podSetNames.contains(Constants.KAFKA_CLUSTER_NAME + "-broker-np2"),
+                    "Should contain the broker-np2 StrimziPodSet");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @Story("get_strimzi_pod_sets returns error for non-existent cluster")
+    void testGetStrimziPodSetsNotFound() {
+        Map<String, Object> args = Map.of("clusterName", "nonexistent-cluster-xyz");
+        mcpClient.when()
+            .toolsCall("get_strimzi_pod_sets")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "nonexistent-cluster-xyz"))
+            .send()
+            .thenAssertResults();
+    }
+
+    @Test
     @Story("get_kafka_cluster_certificates for specific listener")
     void testGetKafkaClusterCertificatesForListener() {
         Map<String, Object> args = Map.of(

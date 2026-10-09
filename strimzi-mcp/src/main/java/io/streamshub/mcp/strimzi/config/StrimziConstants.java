@@ -4,6 +4,8 @@
  */
 package io.streamshub.mcp.strimzi.config;
 
+import io.strimzi.api.ResourceAnnotations;
+
 /**
  * Strimzi-specific constants.
  * Uses Strimzi API constants where available to avoid magic values.
@@ -23,6 +25,21 @@ public final class StrimziConstants {
         public static final String POOL_NAME = "strimzi.io/pool-name";
 
         private Labels() {
+        }
+    }
+
+    /**
+     * Strimzi annotation keys not exposed as named constants in the Strimzi API ResourceAnnotations class.
+     */
+    public static final class Annotations {
+        /**
+         * Strimzi annotation key ({@code strimzi.io/revision}) on pods recording the pod's revision.
+         * The operator rolls a pod when its live revision differs from the desired revision in
+         * {@code spec.pods}. Built from {@link ResourceAnnotations#STRIMZI_DOMAIN}.
+         */
+        public static final String REVISION = ResourceAnnotations.STRIMZI_DOMAIN + "revision";
+
+        private Annotations() {
         }
     }
 

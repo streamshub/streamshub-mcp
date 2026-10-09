@@ -163,6 +163,7 @@ io.streamshub.mcp.strimzi.
 │   ├── kafkamirrormaker2/ → KafkaMirrorMaker2Tools
 │   ├── draincleaner/  → DrainCleanerTools
 │   ├── operator/      → StrimziOperatorTools, StrimziEventsTools
+│   ├── strimzipodset/ → StrimziPodSetTools
 │   ├── diagnostic/    → DiagnosticTools (composite diagnostic tools)
 │   └── metrics/       → MetricsTools
 ├── service/           → Business logic, organized by domain sub-packages
@@ -186,11 +187,13 @@ io.streamshub.mcp.strimzi.
 │   ├── metrics/       → KafkaMetricsService, KafkaExporterMetricsService,
 │   │                    KafkaBridgeMetricsService, KafkaConnectMetricsService,
 │   │                    StrimziOperatorMetricsService, CruiseControlMetricsService
+│   ├── strimzipodset/ → StrimziPodSetService
 │   └── (root)         → CompletionService
 ├── dto/               → Strimzi response records and diagnostic reports
 │   ├── kafkabridge/   → KafkaBridgeResponse, etc.
 │   ├── kafkaconnect/  → KafkaConnectResponse, KafkaConnectorResponse, etc.
 │   ├── kafkamirrormaker2/ → KafkaMirrorMaker2Response, KafkaMirrorMaker2DiagnosticReport, etc.
+│   ├── strimzipodset/ → StrimziPodSetResponse, StrimziPodSetListResponse
 │   └── metrics/       → KafkaMetricsResponse, KafkaExporterMetricsResponse,
 │                        KafkaBridgeMetricsResponse, KafkaConnectMetricsResponse,
 │                        StrimziOperatorMetricsResponse, CruiseControlMetricsResponse
@@ -340,7 +343,7 @@ Three metadata fields are defined:
 - **`type`** — the tool action type: `list`, `get`, `overview`, `logs`, `events`, `metrics`, `diagnose`, `compare`, `assess`, `check`
 - **`resource`** — the Strimzi/Kubernetes resource: `kafka`, `kafkatopic`, `kafkauser`, `kafkanodepool`,
   `kafkarebalance`, `strimzi-operator`, `strimzi-event`, `drain-cleaner`, `kafkaconnect`, `kafkaconnector`,
-  `kafkabridge`, `kafkamirrormaker2`
+  `kafkabridge`, `kafkamirrormaker2`, `strimzi-pod-set`
 - **`composite`** (boolean, only when `true`) — tool aggregates multiple internal API calls
 
 Type constants are in `io.streamshub.mcp.common.config.ToolMetaFields` (common module).

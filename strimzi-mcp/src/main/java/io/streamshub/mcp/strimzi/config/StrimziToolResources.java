@@ -75,6 +75,11 @@ public final class StrimziToolResources {
      */
     public static final String CRUISE_CONTROL = "cruise-control";
 
+    /**
+     * StrimziPodSet resource.
+     */
+    public static final String STRIMZI_POD_SET = "strimzi-pod-set";
+
     private StrimziToolResources() {
     }
 }
