@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.service.strimzipodset;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
@@ -36,6 +37,9 @@ public class StrimziPodSetService {
 
     @Inject
     KafkaService kafkaService;
+
+    @Inject
+    ObjectMapper objectMapper;
 
     StrimziPodSetService() {
     }
@@ -91,39 +95,76 @@ public class StrimziPodSetService {
         int readyPods = status != null ? status.getReadyPods() : 0;
         int currentPods = status != null ? status.getCurrentPods() : 0;
 
-        Map<String, String> revisions = collectRevisions(name, clusterPods);
-        Map<String, String> podRevisions = isRollingUpdate(revisions) ? revisions : null;
+        Map<String, String> stale = collectStalePodRevisions(podSet, name, clusterPods);
+        Map<String, String> podRevisions = stale.isEmpty() ? null : stale;
 
         return StrimziPodSetResponse.of(name, namespace, cluster, pods, readyPods, currentPods, podRevisions);
     }
 
     /**
-     * Collect the {@code strimzi.io/revision} annotation of every pod owned by the given StrimziPodSet.
+     * Identify pods of the given StrimziPodSet that are not yet on the desired revision, mapping each
+     * stale pod name to its current (outdated) {@code strimzi.io/revision}.
+     *
+     * <p>The {@code strimzi.io/revision} annotation is a hash of the whole pod definition, so every pod
+     * carries a distinct value even in steady state; distinct values across pods therefore do not indicate
+     * a rolling update. Following the operator's own logic, a pod is stale only when its live revision
+     * differs from the desired revision the operator records in {@code spec.pods[].metadata.annotations}.
      */
-    private Map<String, String> collectRevisions(final String podSetName, final List<Pod> clusterPods) {
-        Map<String, String> revisions = new LinkedHashMap<>();
+    private Map<String, String> collectStalePodRevisions(
+        final StrimziPodSet podSet, final String podSetName, final List<Pod> clusterPods) {
+
+        Map<String, String> stale = new LinkedHashMap<>();
         if (podSetName == null) {
-            return revisions;
+            return stale;
         }
+
+        Map<String, String> desiredByPod = desiredRevisions(podSet);
+
         for (Pod pod : clusterPods) {
             if (pod.getMetadata() == null || !isOwnedBy(pod, podSetName)) {
                 continue;
             }
             String podName = pod.getMetadata().getName();
-            Map<String, String> annotations = pod.getMetadata().getAnnotations();
-            String revision = annotations != null ? annotations.get(StrimziConstants.Annotations.REVISION) : null;
-            if (podName != null && revision != null) {
-                revisions.put(podName, revision);
+            if (podName == null) {
+                continue;
+            }
+            String desired = desiredByPod.get(podName);
+            String current = revisionAnnotation(pod);
+            // Stale only when the operator has a desired revision for this pod that differs from the live one.
+            if (desired != null && !desired.equals(current)) {
+                stale.put(podName, current);
             }
         }
-        return revisions;
+        return stale;
     }
 
     /**
-     * A rolling update is in progress when the pod set's pods carry more than one distinct revision.
+     * Extract the desired revision per pod from {@code spec.pods[].metadata.annotations}.
      */
-    private boolean isRollingUpdate(final Map<String, String> revisions) {
-        return revisions.values().stream().distinct().count() > 1;
+    private Map<String, String> desiredRevisions(final StrimziPodSet podSet) {
+        Map<String, String> desired = new LinkedHashMap<>();
+        if (podSet.getSpec() == null || podSet.getSpec().getPods() == null) {
+            return desired;
+        }
+        for (Map<String, Object> podMap : podSet.getSpec().getPods()) {
+            Pod desiredPod = objectMapper.convertValue(podMap, Pod.class);
+            if (desiredPod.getMetadata() == null) {
+                continue;
+            }
+            String podName = desiredPod.getMetadata().getName();
+            String revision = revisionAnnotation(desiredPod);
+            if (podName != null && revision != null) {
+                desired.put(podName, revision);
+            }
+        }
+        return desired;
+    }
+
+    private String revisionAnnotation(final Pod pod) {
+        if (pod.getMetadata() == null || pod.getMetadata().getAnnotations() == null) {
+            return null;
+        }
+        return pod.getMetadata().getAnnotations().get(StrimziConstants.Annotations.REVISION);
     }
 
     private boolean isOwnedBy(final Pod pod, final String podSetName) {

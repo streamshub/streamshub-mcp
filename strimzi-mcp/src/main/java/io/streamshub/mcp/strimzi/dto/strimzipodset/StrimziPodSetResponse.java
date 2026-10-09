@@ -18,8 +18,10 @@ import java.util.Map;
  * @param pods         number of pods managed by this StrimziPodSet
  * @param readyPods    number of managed pods that are ready
  * @param currentPods  number of managed pods on the current revision
- * @param podRevisions per-pod revision map (pod name to {@code strimzi.io/revision}), present only
- *                     when a rolling update is in progress (pods on more than one revision)
+ * @param podRevisions stale pods mapped to their current (outdated) {@code strimzi.io/revision} — the pods
+ *                     not yet on the desired revision. Present only during a rolling update (when the live
+ *                     revision of at least one pod differs from the desired revision in {@code spec.pods});
+ *                     omitted once every pod is on the desired revision
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record StrimziPodSetResponse(
@@ -40,7 +42,8 @@ public record StrimziPodSetResponse(
      * @param pods         number of managed pods
      * @param readyPods    number of ready pods
      * @param currentPods  number of pods on the current revision
-     * @param podRevisions per-pod revision map, or null when all pods share one revision
+     * @param podRevisions stale pods mapped to their current (outdated) revision, or null when every pod
+     *                     is on the desired revision
      * @return new response instance
      */
     public static StrimziPodSetResponse of(
