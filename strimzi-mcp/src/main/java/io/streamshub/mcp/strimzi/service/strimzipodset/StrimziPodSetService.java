@@ -51,7 +51,7 @@ public class StrimziPodSetService {
      * @param clusterName the Kafka cluster name
      * @return list of StrimziPodSet responses
      */
-    public List<StrimziPodSetResponse> listPodSets(final String namespace, final String clusterName) {
+    public List<StrimziPodSetResponse> listStrimziPodSets(final String namespace, final String clusterName) {
         String ns = InputUtils.normalizeInput(namespace);
         String normalizedName = InputUtils.normalizeInput(clusterName);
 

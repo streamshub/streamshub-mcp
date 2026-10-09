@@ -189,7 +189,7 @@ Lists the StrimziPodSets owned by a Kafka cluster to inspect rolling-update stat
 - `name` -- Name of the StrimziPodSet
 - `namespace` -- Kubernetes namespace
 - `cluster` -- Owning Kafka cluster name (from the `strimzi.io/cluster` label)
-- `pods` -- Number of pods managed by this StrimziPodSet
+- `pods_count` -- Number of pods managed by this StrimziPodSet
 - `ready_pods` -- Number of managed pods that are ready
 - `current_pods` -- Number of managed pods on the current (desired) revision
 - `pod_revisions` -- Map of **stale** pod name to its current (outdated) `strimzi.io/revision` -- the pods not yet on the desired revision. Present **only during a rolling update**; omitted once every pod is on the desired revision. (The `strimzi.io/revision` annotation hashes the whole pod definition, so every pod has a distinct value even in steady state; a pod is stale only when its live revision differs from the desired revision the operator records in `spec.pods`.)

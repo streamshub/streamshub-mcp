@@ -79,14 +79,14 @@ class StrimziPodSetServiceTest {
             buildPod("my-cluster-brokers-2", BROKERS, REV_CURRENT)
         );
 
-        List<StrimziPodSetResponse> result = podSetService.listPodSets(NAMESPACE, CLUSTER_NAME);
+        List<StrimziPodSetResponse> result = podSetService.listStrimziPodSets(NAMESPACE, CLUSTER_NAME);
 
         assertEquals(1, result.size());
         StrimziPodSetResponse brokers = result.getFirst();
         assertEquals(BROKERS, brokers.name());
         assertEquals(NAMESPACE, brokers.namespace());
         assertEquals(CLUSTER_NAME, brokers.cluster());
-        assertEquals(3, brokers.pods());
+        assertEquals(3, brokers.podsCount());
         assertEquals(3, brokers.readyPods());
         assertEquals(3, brokers.currentPods());
         assertNull(brokers.podRevisions(),
@@ -106,7 +106,7 @@ class StrimziPodSetServiceTest {
             buildPod("my-cluster-brokers-2", BROKERS, REV_CURRENT)
         );
 
-        List<StrimziPodSetResponse> result = podSetService.listPodSets(NAMESPACE, CLUSTER_NAME);
+        List<StrimziPodSetResponse> result = podSetService.listStrimziPodSets(NAMESPACE, CLUSTER_NAME);
 
         StrimziPodSetResponse brokers = result.getFirst();
         assertNotNull(brokers.podRevisions(), "Revision map must be present during a rolling update");
@@ -139,7 +139,7 @@ class StrimziPodSetServiceTest {
             buildPod("my-cluster-brokers-2", BROKERS, REV_CURRENT)
         );
 
-        List<StrimziPodSetResponse> result = podSetService.listPodSets(NAMESPACE, CLUSTER_NAME);
+        List<StrimziPodSetResponse> result = podSetService.listStrimziPodSets(NAMESPACE, CLUSTER_NAME);
 
         assertEquals(2, result.size());
         StrimziPodSetResponse controllers = findByName(result, CONTROLLERS);
@@ -164,7 +164,7 @@ class StrimziPodSetServiceTest {
             buildPod("my-cluster-brokers-2", BROKERS, "rev-2")
         );
 
-        List<StrimziPodSetResponse> result = podSetService.listPodSets(NAMESPACE, CLUSTER_NAME);
+        List<StrimziPodSetResponse> result = podSetService.listStrimziPodSets(NAMESPACE, CLUSTER_NAME);
 
         assertNull(result.getFirst().podRevisions(),
             "Per-pod distinct revisions are normal; only a mismatch with the desired revision is a rollout");
@@ -175,7 +175,7 @@ class StrimziPodSetServiceTest {
         mockPodSets();
         mockPods();
 
-        List<StrimziPodSetResponse> result = podSetService.listPodSets(NAMESPACE, CLUSTER_NAME);
+        List<StrimziPodSetResponse> result = podSetService.listStrimziPodSets(NAMESPACE, CLUSTER_NAME);
 
         assertTrue(result.isEmpty());
     }
@@ -195,10 +195,10 @@ class StrimziPodSetServiceTest {
         mockPodSets(podSet);
         mockPods(buildPod("my-cluster-brokers-0", BROKERS, REV_CURRENT));
 
-        List<StrimziPodSetResponse> result = podSetService.listPodSets(NAMESPACE, CLUSTER_NAME);
+        List<StrimziPodSetResponse> result = podSetService.listStrimziPodSets(NAMESPACE, CLUSTER_NAME);
 
         StrimziPodSetResponse brokers = result.getFirst();
-        assertEquals(0, brokers.pods());
+        assertEquals(0, brokers.podsCount());
         assertEquals(0, brokers.readyPods());
         assertEquals(0, brokers.currentPods());
         assertNull(brokers.podRevisions());
@@ -206,7 +206,7 @@ class StrimziPodSetServiceTest {
 
     @Test
     void testThrowsWhenClusterNameNull() {
-        assertThrows(McpException.class, () -> podSetService.listPodSets(NAMESPACE, null));
+        assertThrows(McpException.class, () -> podSetService.listStrimziPodSets(NAMESPACE, null));
     }
 
     @Test
@@ -214,7 +214,7 @@ class StrimziPodSetServiceTest {
         when(kafkaService.findKafkaCluster(NAMESPACE, "nonexistent"))
             .thenThrow(new McpException("Kafka cluster 'nonexistent' not found", -32002));
 
-        assertThrows(McpException.class, () -> podSetService.listPodSets(NAMESPACE, "nonexistent"));
+        assertThrows(McpException.class, () -> podSetService.listStrimziPodSets(NAMESPACE, "nonexistent"));
     }
 
     @Test
@@ -229,7 +229,7 @@ class StrimziPodSetServiceTest {
             buildPod("my-cluster-controllers-0", CONTROLLERS, "rev-old")
         );
 
-        List<StrimziPodSetResponse> result = podSetService.listPodSets(NAMESPACE, CLUSTER_NAME);
+        List<StrimziPodSetResponse> result = podSetService.listStrimziPodSets(NAMESPACE, CLUSTER_NAME);
 
         assertNull(result.getFirst().podRevisions(),
             "A foreign pod set's pod must not count toward this pod set's staleness");

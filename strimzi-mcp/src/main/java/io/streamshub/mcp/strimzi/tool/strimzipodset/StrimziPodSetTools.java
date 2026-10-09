@@ -78,7 +78,7 @@ public class StrimziPodSetTools {
             required = false
         ) final String namespace
     ) {
-        List<StrimziPodSetResponse> items = podSetService.listPodSets(namespace, clusterName);
+        List<StrimziPodSetResponse> items = podSetService.listStrimziPodSets(namespace, clusterName);
         return new StrimziPodSetListResponse(items, items.size());
     }
 }

@@ -317,7 +317,7 @@ Parameters: { "clusterName": "mcp-cluster" }
 **Expected:**
 - [ ] `count` is 3 and `items` has 3 StrimziPodSets (one per node pool: `mcp-cluster-controller-np`, `mcp-cluster-broker-np1`, `mcp-cluster-broker-np2`)
 - [ ] Each item has `cluster` equal to "mcp-cluster" and the correct `namespace`
-- [ ] Each item reports `pods`, `ready_pods`, and `current_pods` equal to 3 (cluster is healthy and fully rolled out)
+- [ ] Each item reports `pods_count`, `ready_pods`, and `current_pods` equal to 3 (cluster is healthy and fully rolled out)
 - [ ] `pod_revisions` is absent on every item in steady state (all pods share one revision; the map appears only during a rolling update)
 
 ### T2.8 - Get Cluster Pods

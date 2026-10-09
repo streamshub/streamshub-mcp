@@ -513,7 +513,7 @@ class KafkaClusterToolsST extends AbstractST {
                         "cluster should match for pod set " + name);
                     assertEquals(Environment.KAFKA_NAMESPACE, item.path("namespace").asText(),
                         "namespace should match for pod set " + name);
-                    assertEquals(3, item.path("pods").asInt(),
+                    assertEquals(3, item.path("pods_count").asInt(),
                         "pod set " + name + " should manage 3 pods");
                     assertEquals(3, item.path("ready_pods").asInt(),
                         "pod set " + name + " should have 3 ready pods");
