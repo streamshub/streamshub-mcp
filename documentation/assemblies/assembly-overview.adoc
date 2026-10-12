@@ -1,0 +1,26 @@
+// Assembly: Overview
+
+:context: overview
+
+[id='assembly-overview-{context}']
+= Overview
+
+include::../modules/overview/con-strimzi-mcp-overview.adoc[leveloffset=+1]
+
+include::../modules/overview/con-tool-metadata-discovery.adoc[leveloffset=+1]
+
+include::../modules/overview/con-automatic-namespace-discovery.adoc[leveloffset=+1]
+
+include::../modules/overview/con-composite-diagnostic-tools.adoc[leveloffset=+1]
+
+include::../modules/overview/con-log-collection.adoc[leveloffset=+1]
+
+include::../modules/overview/con-metrics-analysis.adoc[leveloffset=+1]
+
+include::../modules/overview/con-resource-monitoring.adoc[leveloffset=+1]
+
+include::../modules/overview/con-security-guardrails.adoc[leveloffset=+1]
+
+include::../modules/overview/con-observability-integration.adoc[leveloffset=+1]
+
+include::../modules/overview/con-prerequisites.adoc[leveloffset=+1]

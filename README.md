@@ -29,7 +29,8 @@ StreamsHub MCP servers leverage the full MCP specification:
 ## Getting started
 
 Pick a server from the table above and follow its getting started guide.
-For the full documentation, see the [`docs/`](docs/) directory.
+For the full documentation, see the [`documentation/`](documentation/) directory (modular AsciiDoc).
+Build it to HTML locally with `./mvnw -N -Pdocs package` (output in `target/documentation/`).
 
 ## Development
 

@@ -1,0 +1,71 @@
+// Module included in the following assemblies:
+// assembly-usage-examples.adoc
+
+[id='con-topic-management-{context}']
+= Topic management
+
+== Listing topics
+
+*Question:* "What topics exist in mcp-cluster?"
+
+*What happens:*
+
+* AI calls `list_kafka_topics`
+* Returns topic names and basic info
+
+*Example response:*
+
+----
+Found 5 topics in mcp-cluster:
+
+1. user-events
+   - Partitions: 12
+   - Replication factor: 3
+   - Status: Ready
+
+2. order-processing
+   - Partitions: 6
+   - Replication factor: 3
+   - Status: Ready
+
+3. analytics-stream
+   - Partitions: 24
+   - Replication factor: 2
+   - Status: Ready
+
+4. __consumer_offsets (internal)
+   - Partitions: 50
+   - Replication factor: 3
+
+5. __transaction_state (internal)
+   - Partitions: 50
+   - Replication factor: 3
+----
+
+== Topic status
+
+*Question:* "What's the status of the user-events topic?"
+
+*What happens:*
+
+* AI calls `get_kafka_topic`
+* Returns detailed topic configuration and status
+
+*Example response:*
+
+----
+Topic: user-events
+
+Status: Ready
+Partitions: 12
+Replication Factor: 3
+Min In-Sync Replicas: 2
+
+Configuration:
+- Retention: 7 days
+- Compression: snappy
+- Cleanup policy: delete
+- Segment size: 1GB
+
+All partitions are healthy with sufficient replicas.
+----

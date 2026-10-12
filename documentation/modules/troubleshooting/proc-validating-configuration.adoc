@@ -1,0 +1,38 @@
+// Module included in the following assemblies:
+// assembly-troubleshooting.adoc
+
+[id='proc-validating-configuration-{context}']
+= Configuration validation
+
+== Verify applied configuration
+
+*Symptom:* Configuration changes do not seem to take effect.
+
+*Diagnosis:*
+
+[source,bash]
+----
+# Check environment variables on the running pod
+kubectl -n streamshub-mcp exec deployment/streamshub-mcp-strimzi -- env | sort
+
+# Check if the ConfigMap was applied
+kubectl -n streamshub-mcp get configmap strimzi-mcp-config -o yaml
+
+# Check if the deployment references the ConfigMap
+kubectl -n streamshub-mcp get deployment streamshub-mcp-strimzi -o yaml | grep -A 5 envFrom
+----
+
+*Common causes:*
+
+*1. Pod not restarted* -- Environment variable changes in a ConfigMap require a pod restart:
+
+[source,bash]
+----
+kubectl -n streamshub-mcp rollout restart deployment/streamshub-mcp-strimzi
+----
+
+*2. ConfigMap not referenced* -- The deployment must reference the ConfigMap via `envFrom`.
+The prod overlay does this automatically; the base overlay does not.
+
+*3. Typo in variable name* -- Environment variable names use underscores and uppercase (for example, `MCP_LOG_TAIL_LINES`, not `mcp.log.tail-lines`).
+The conversion rule: replace dots and hyphens with underscores, then uppercase everything.

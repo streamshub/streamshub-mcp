@@ -46,3 +46,4 @@ nb-configuration.xml
 
 # Superpowers working artifacts (not shipped)
 docs/superpowers/
+.superpowers/

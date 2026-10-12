@@ -1,0 +1,16 @@
+// Module included in the following assemblies:
+// assembly-overview.adoc
+
+[id='con-observability-integration-{context}']
+= Observability integration
+
+The server works out of the box using Kubernetes API for logs and direct pod scraping for metrics.
+For enhanced capabilities, you can optionally integrate with external observability platforms:
+
+* *Grafana Loki* -- Centralized log collection with historical log queries (without Loki, logs come directly from Kubernetes pod logs)
+* *Elasticsearch / OpenSearch* -- Centralized log collection with full-text search and historical log queries (an alternative to Loki)
+* *Prometheus* -- Centralized metrics with long-term retention and PromQL queries (without Prometheus, metrics are scraped directly from pod metrics endpoints)
+* *OpenShift Logging* -- Configurable label mapping for ClusterLogForwarder
+* *OpenTelemetry/Jaeger* -- Distributed tracing for MCP tool performance
+
+See xref:assembly-configuring-configuring[the configuration guide] for setup instructions.

@@ -1,0 +1,23 @@
+// Module included in the following assemblies:
+// assembly-installing.adoc
+
+[id='ref-deployment-resources-{context}']
+= Deployment resources
+
+The `install/strimzi-mcp/base/` directory contains the following resources:
+
+[cols="1,1,2",options="header"]
+|===
+|File |Resource |Purpose
+
+|`namespace.yaml` |Namespace |Creates the `streamshub-mcp` namespace
+|`serviceaccount.yaml` |ServiceAccount |Provides identity for the MCP server
+|`clusterrole.yaml` |ClusterRole |Grants read-only permissions for non-sensitive resources
+|`clusterrolebinding.yaml` |ClusterRoleBinding |Binds the ClusterRole to the ServiceAccount
+|`deployment.yaml` |Deployment |Deploys the MCP server with health probes
+|`service.yaml` |Service |Exposes the MCP server on port 8080
+|`../optional/role-sensitive.yaml` |Role |Optional per-namespace permissions for sensitive resources
+|`../optional/rolebinding-sensitive.yaml` |RoleBinding |Companion RoleBinding for the sensitive Role
+|===
+
+For the full directory structure and overlay details, see the {GitHubRepo}/tree/main/install/strimzi-mcp[install README].

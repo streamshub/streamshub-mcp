@@ -1,0 +1,12 @@
+// Module included in the following assemblies:
+// assembly-overview.adoc
+
+[id='con-metrics-analysis-{context}']
+= Metrics analysis
+
+The server supports metrics queries with the following capabilities:
+
+* Category-based queries for Kafka cluster, Kafka Exporter, KafkaConnect, KafkaBridge, and Strimzi operator metrics
+* Built-in interpretation guides with thresholds and diagnostic recommendations
+* Multiple metrics providers: pod scraping (default) or Prometheus
+* Flexible time ranges with ISO 8601 or relative formats

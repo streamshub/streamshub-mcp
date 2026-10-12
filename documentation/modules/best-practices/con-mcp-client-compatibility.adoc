@@ -1,0 +1,35 @@
+// Module included in the following assemblies:
+// assembly-ai-agent-best-practices.adoc
+
+[id='con-mcp-client-compatibility-{context}']
+= MCP client compatibility
+
+Any MCP-compatible AI client can use the tools. The experience varies based on which optional MCP features the client supports:
+
+[cols="1,3",options="header"]
+|===
+|Feature |Effect
+
+|*Sampling* |Diagnostic tools use LLM-driven triage for smarter, targeted investigation and automated root cause analysis. Without Sampling, diagnostics still work but gather all data without selective investigation, which may produce larger responses.
+|*Elicitation* |When a tool needs user input (for example, choosing which namespace when multiple match), the server prompts the user directly through the AI client. Without Elicitation, the tool returns an error asking the user to specify the missing parameter.
+|===
+
+Check your AI client's documentation for which MCP features it supports.
+
+== Programmatic access
+
+Direct tool calls via MCP protocol:
+
+[source,json]
+----
+{
+  "method": "tools/call",
+  "params": {
+    "name": "get_kafka_cluster",
+    "arguments": {
+      "clusterName": "mcp-cluster",
+      "namespace": "strimzi-kafka"
+    }
+  }
+}
+----

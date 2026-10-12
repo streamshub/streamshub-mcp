@@ -1,0 +1,40 @@
+// Module included in the following assemblies:
+// assembly-overview.adoc
+
+[id='con-strimzi-mcp-overview-{context}']
+= About the {StrimziMcp}
+
+The {StrimziMcp} provides AI assistants with tools to manage and troubleshoot Apache Kafka clusters deployed with the Strimzi operator on Kubernetes.
+
+The {StrimziMcp} exposes Strimzi-managed Kafka resources through the Model Context Protocol.
+AI assistants use these tools to check Kafka cluster health, collect logs, query metrics, and troubleshoot issues.
+
+See xref:ref-tool-summary-tools[the tools reference] for the complete catalog of {ToolCount} tools, {PromptCount} prompts, and {ResourceCount} resource templates.
+
+The server is version-agnostic -- it reads Strimzi-managed resources regardless of the Kafka version.
+Which Kafka versions you can deploy or upgrade to is determined by your deployed Strimzi operator; use the `get_strimzi_operator_config` tool to see the available versions.
+
+With the {StrimziMcp}, AI assistants can:
+
+* Monitor Kafka cluster health and status
+* Run multi-step diagnostic workflows with intelligent triage
+* Collect and analyze logs with filtering by level, keywords, and time range
+* Query metrics from Kafka brokers and the Strimzi operator
+* Troubleshoot connectivity and performance issues
+* Monitor Strimzi operator health and reconciliation activity
+* Manage and troubleshoot KafkaConnect clusters and KafkaConnectors
+* Manage and troubleshoot KafkaBridge HTTP endpoints
+* Monitor KafkaMirrorMaker2 cross-cluster replication
+* Check Strimzi Drain Cleaner readiness and webhook configuration
+* Track Kubernetes events for Kafka cluster resources
+* Compare configurations across Kafka clusters
+* Assess upgrade readiness with GO/NO-GO verdicts
+
+== Architecture
+
+The {StrimziMcp} is built on:
+
+* *Quarkus* -- Cloud-native Java framework
+* *Fabric8 Kubernetes Client* -- Kubernetes API access
+* *Common module* -- Shared utilities for Kubernetes operations
+* *Pluggable providers* -- Swappable implementations for logs and metrics

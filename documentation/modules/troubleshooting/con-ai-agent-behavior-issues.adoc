@@ -1,0 +1,78 @@
+// Module included in the following assemblies:
+// assembly-troubleshooting.adoc
+
+[id='con-ai-agent-behavior-issues-{context}']
+= AI agent behavior issues
+
+== AI agent writes scripts to parse responses
+
+*Symptom:* The AI assistant writes Python, bash, or other scripts to parse JSON data returned by MCP tools, instead of interpreting the response directly.
+
+*Example:*
+
+----
+AI: "Let me write a Python script to analyze the metrics data..."
+
+import json
+data = json.loads(...)
+for ts in data['time_series']:
+    ...
+----
+
+*Cause:* Some AI models default to scripting when they encounter large or complex JSON payloads, especially metrics responses with many time series.
+
+*Solution:* Remind the AI that MCP responses are structured JSON with pre-computed summary statistics. Use one of these phrases:
+
+* _"Do not write scripts. Interpret the JSON response directly."_
+* _"The response already contains summary statistics -- use the min, max, avg, and latest values."_
+* _"All MCP tool responses are structured data. Read the fields directly without scripting."_
+
+See xref:assembly-ai-agent-best-practices-best-practices[AI agent best practices] for more guidance.
+
+== AI agent re-analyzes diagnostic reports
+
+*Symptom:* The AI manually re-processes raw data sections of a diagnostic report (pods, logs, events, metrics) even though the report already contains a root cause analysis.
+
+*Cause:* The AI does not notice the `analysis` field in the diagnostic report, which contains LLM-generated root cause analysis produced via Sampling.
+
+*Solution:* Point out the analysis field:
+
+* _"Check the 'analysis' field in the diagnostic report -- it already contains the root cause analysis."_
+* _"The diagnostic tool already analyzed the data. Present the analysis from the response."_
+
+If the `analysis` field is null, it means the AI client does not support Sampling, and the AI should analyze the raw data sections itself.
+
+== AI agent does not iterate paginated results
+
+*Symptom:* The AI shows only the first page of topics (typically 100) even though the Kafka cluster has more topics.
+
+*Cause:* The AI does not check the `has_more` flag in the paginated response from `list_kafka_topics`.
+
+*Solution:* Tell the AI to check for more pages:
+
+* _"Check has_more in the response. If true, call list_kafka_topics again with the next offset."_
+
+== Large responses cause AI confusion
+
+*Symptom:* The AI says it cannot process the data, seems overwhelmed by a large response, or produces incomplete analysis.
+
+*Common causes:*
+
+*1. Large metrics time ranges*
+
+Solution: Use shorter time ranges or higher aggregation levels
+
+----
+Instead of: "Show me metrics from the last week"
+Try: "Show me metrics from the last hour at cluster aggregation level"
+----
+
+*2. Response truncation*
+
+When responses exceed 500 KB, the server truncates them with a notice: `[...response truncated to stay within size limit]`. The summary statistics and analysis fields are preserved, but some raw data may be cut. This is normal, not an error.
+
+Solution: Use the summary statistics (`min`, `max`, `avg`, `latest`) instead of raw data points. Use narrower queries or specify `podNames` to reduce response size.
+
+*3. Many pods in log collection*
+
+Solution: Use `podNames` to filter log collection to specific pods rather than collecting from all pods in a large Kafka cluster.

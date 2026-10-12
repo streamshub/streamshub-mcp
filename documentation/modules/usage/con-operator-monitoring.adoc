@@ -1,0 +1,38 @@
+// Module included in the following assemblies:
+// assembly-usage-examples.adoc
+
+[id='con-operator-monitoring-{context}']
+= Operator monitoring
+
+== Operator status
+
+*Question:* "Is the Strimzi operator healthy?"
+
+*What happens:*
+
+* AI calls `get_strimzi_operator`
+* Checks operator deployment and metrics
+
+*Example response:*
+
+----
+Strimzi Operator Status:
+
+Deployment: strimzi-cluster-operator
+Namespace: strimzi
+Status: Ready
+Replicas: 1/1 ready
+Version: 1.0.0
+Uptime: 5 days, 3 hours
+
+Recent Activity:
+- Reconciliations: 1,247 in the last hour
+- Average reconciliation time: 2.3 seconds
+- Failed reconciliations: 0
+
+Resource Usage:
+- CPU: 0.15 cores (15% of limit)
+- Memory: 512 MB (50% of limit)
+
+The operator is healthy and functioning normally.
+----

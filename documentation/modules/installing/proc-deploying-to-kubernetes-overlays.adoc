@@ -1,0 +1,105 @@
+// Module included in the following assemblies:
+// assembly-installing.adoc
+
+[id='proc-deploying-to-kubernetes-overlays-{context}']
+= Deploying the MCP server to Kubernetes
+
+The deployment manifests use https://kustomize.io/[Kustomize] with a base and environment-specific overlays.
+
+== Choosing an overlay
+
+[cols="1,2,2",options="header"]
+|===
+|Overlay |Command |Use case
+
+|`base`
+|`kubectl apply -k install/strimzi-mcp/base/`
+|Minimal deployment with defaults
+
+|`overlays/dev`
+|`kubectl apply -k install/strimzi-mcp/overlays/dev/`
+|Local development with Kind, minikube, or Docker Desktop. Uses `imagePullPolicy: Always`.
+
+|`overlays/dev-openshift`
+|`kubectl apply -k install/strimzi-mcp/overlays/dev-openshift/`
+|Local development on OpenShift (CRC, Red Hat OpenShift Local). Adds a TLS Route for external access.
+
+|`overlays/prod`
+|`kubectl apply -k install/strimzi-mcp/overlays/prod/`
+|Production Kubernetes. Adds 2 replicas, higher resource limits, ConfigMap/Secret references.
+
+|`overlays/prod-openshift`
+|`kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/`
+|Production OpenShift. Extends prod with an edge-terminated TLS Route.
+|===
+
+How to choose:
+
+* Use *dev* or *dev-openshift* if you are testing locally or developing features.
+* Use *prod* or *prod-openshift* for any shared or production environment.
+* Use the *-openshift* variants if you are running on OpenShift (they add a Route for external access).
+* Use *base* only if you want a minimal starting point to customize yourself.
+
+The *prod* overlay adds:
+
+* 2 replicas for high availability
+* Higher resource requests and limits
+* Optional ConfigMap and Secret references for configuration via `envFrom`
+
+The *prod-openshift* overlay extends prod with an edge-terminated TLS Route for external access.
+
+The *dev-openshift* overlay extends dev with the same Route configuration, for local development on OpenShift (CRC, Red Hat OpenShift Local). It is deployed automatically by `dev-deploy.sh --ocp`.
+
+== Deploying a released version
+
+Install directly from a release tag without cloning the repository.
+Replace `<version>` with a tag from the {GitHubRepo}/releases[releases page] (for example, `v0.1.0`):
+
+[source,bash]
+----
+# Production Kubernetes
+kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/overlays/prod?ref=<version>"
+
+# Production OpenShift
+kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/overlays/prod-openshift?ref=<version>"
+
+# Base (minimal deployment)
+kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/base?ref=<version>"
+----
+
+== Deploying from a local clone
+
+Deploy using the overlay that matches your environment:
+
+[source,bash]
+----
+# Production Kubernetes
+kubectl apply -k install/strimzi-mcp/overlays/prod/
+
+# Production OpenShift
+kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/
+----
+
+*Verify the deployment is healthy:*
+
+[source,bash]
+----
+# Wait for the rollout to complete
+kubectl -n streamshub-mcp rollout status deployment/streamshub-mcp-strimzi --timeout=120s
+
+# Check pods are running
+kubectl -n streamshub-mcp get pods
+
+# Check health endpoint (requires port-forward if not exposed)
+kubectl -n streamshub-mcp port-forward svc/streamshub-mcp-strimzi 8080:8080 &
+curl http://localhost:8080/q/health
+----
+
+To override the image tag or registry:
+
+[source,bash]
+----
+cd install/strimzi-mcp/base
+kustomize edit set image quay.io/streamshub/strimzi-mcp=my-registry.io/my-org/strimzi-mcp:1.0.0
+kubectl apply -k ../overlays/prod/
+----

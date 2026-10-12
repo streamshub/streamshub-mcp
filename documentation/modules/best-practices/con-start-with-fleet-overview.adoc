@@ -1,0 +1,13 @@
+// Module included in the following assemblies:
+// assembly-ai-agent-best-practices.adoc
+
+[id='con-start-with-fleet-overview-{context}']
+= Start with fleet overview
+
+When investigating an environment with multiple Kafka clusters, start with `get_kafka_fleet_overview` for a quick health summary across all Kafka clusters:
+
+----
+User: "What's the state of my Kafka infrastructure?"
+----
+
+The fleet overview returns aggregated health including status distribution, total broker count, per-cluster summaries with relationship counts (topics, users, connectors), and warnings for Kafka clusters that need attention. Use this to identify which Kafka clusters to investigate further.

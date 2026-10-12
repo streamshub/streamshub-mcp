@@ -1,0 +1,90 @@
+// Module included in the following assemblies:
+// assembly-troubleshooting.adoc
+
+[id='proc-getting-help-{context}']
+= Getting help
+
+== Enable debug logging
+
+[source,bash]
+----
+# For local development
+export QUARKUS_LOG_LEVEL=DEBUG
+export QUARKUS_LOG_CATEGORY__IO_STREAMSHUB_MCP__LEVEL=TRACE
+./mvnw quarkus:dev
+
+# For Kubernetes deployment
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  QUARKUS_LOG_LEVEL=DEBUG \
+  QUARKUS_LOG_CATEGORY__IO_STREAMSHUB_MCP__LEVEL=TRACE
+----
+
+*Where debug logs go:* In local development, logs appear in the terminal.
+In Kubernetes, view them with `kubectl logs`.
+Debug and trace logging significantly increases log volume and may impact performance -- disable it after troubleshooting.
+
+*Useful log categories:*
+
+[cols="2,3",options="header"]
+|===
+|Category |What it shows
+
+|`io.streamshub.mcp` |All MCP server activity (tools, diagnostics, resources)
+|`io.quarkus.mcp` |MCP protocol-level messages (initialize, tool calls)
+|`io.fabric8.kubernetes` |Kubernetes API client requests and responses
+|===
+
+*Filter debug output* for specific tools:
+
+[source,bash]
+----
+kubectl -n streamshub-mcp logs deployment/streamshub-mcp-strimzi | grep "diagnose"
+----
+
+== Collect diagnostic information
+
+[source,bash]
+----
+# Server logs
+kubectl -n streamshub-mcp logs <pod-name> --tail=100
+
+# Server status
+kubectl -n streamshub-mcp describe pod <pod-name>
+
+# RBAC permissions
+kubectl auth can-i --list --as=system:serviceaccount:streamshub-mcp:streamshub-mcp-strimzi
+
+# Configuration
+kubectl -n streamshub-mcp get deployment streamshub-mcp-strimzi -o yaml
+----
+
+== Report issues
+
+When reporting issues, include:
+
+*1. Environment details*
+
+* Kubernetes version
+* Strimzi version
+* MCP server version
+* AI client name and version
+
+*2. Error messages*
+
+* Complete error text
+* Server logs
+* AI assistant error messages
+
+*3. Steps to reproduce*
+
+* What question you asked
+* What tools were called
+* Expected vs actual behavior
+
+*4. Configuration*
+
+* Relevant environment variables
+* RBAC configuration
+* Network policies
+
+*GitHub Issues:* {GitHubRepo}/issues

@@ -1,0 +1,65 @@
+// Module included in the following assemblies:
+// assembly-usage-examples.adoc
+
+[id='con-log-analysis-{context}']
+= Log analysis
+
+== Finding errors
+
+*Question:* "Show me errors from mcp-cluster in the last hour"
+
+*What happens:*
+
+* AI calls `get_kafka_cluster_logs` with time filter
+* Filters for ERROR level messages
+* Summarizes findings
+
+*Example response:*
+
+----
+Found 23 ERROR messages in the last hour from mcp-cluster:
+
+Most common errors:
+
+1. "Connection to node -1 could not be established" (15 occurrences)
+   - Pods: mcp-cluster-kafka-0, mcp-cluster-kafka-1
+   - Likely cause: Network connectivity issue or broker restart
+
+2. "Not enough replicas available" (5 occurrences)
+   - Pod: mcp-cluster-kafka-2
+   - Topic: user-events
+   - Likely cause: Replication lag or broker unavailability
+
+3. "Request timed out" (3 occurrences)
+   - Pod: mcp-cluster-kafka-1
+   - Likely cause: High load or slow disk I/O
+
+Recent error from mcp-cluster-kafka-2:
+[2024-01-15 14:23:45] ERROR Not enough replicas available for topic
+user-events partition 5. Current ISR: [0,1], required: 3
+----
+
+== Operator logs
+
+*Question:* "What's the Strimzi operator doing?"
+
+*What happens:*
+
+* AI calls `get_strimzi_operator_logs`
+* Shows recent operator activity
+
+*Example response:*
+
+----
+Recent Strimzi operator activity:
+
+[2024-01-15 14:30:12] INFO Reconciling Kafka cluster mcp-cluster
+[2024-01-15 14:30:15] INFO Kafka cluster mcp-cluster is Ready
+[2024-01-15 14:30:20] INFO Reconciling KafkaTopic user-events
+[2024-01-15 14:30:22] INFO KafkaTopic user-events is Ready
+[2024-01-15 14:30:25] INFO Reconciling KafkaNodePool broker
+[2024-01-15 14:30:27] INFO KafkaNodePool broker is Ready
+
+The operator is functioning normally, completing reconciliation cycles
+every 2-3 seconds. No errors or warnings in the last hour.
+----

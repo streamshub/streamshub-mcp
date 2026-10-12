@@ -1,0 +1,89 @@
+// Module included in the following assemblies:
+// assembly-troubleshooting.adoc
+
+[id='ref-ai-assistant-issues-{context}']
+= AI assistant issues
+
+== AI client not showing tools
+
+*Symptom:* MCP server connected but tools do not appear in the AI client
+
+*Solutions:*
+
+*1. Restart the AI client*
+
+* Completely quit and restart the application
+* Check that the MCP server configuration was saved correctly
+
+*2. Verify the MCP server URL is correct*
+
+* The endpoint is `http://localhost:8080/mcp` (not just `/` or `/api`)
+* The transport type should be HTTP (or "Streamable HTTP")
+
+*3. Check server accessibility*
+
+[source,bash]
+----
+# Test from your machine
+curl http://localhost:8080/q/health
+----
+
+*4. Check client-specific configuration*
+
+* Refer to your AI client's documentation for MCP server setup
+* A list of MCP-compatible clients is available at https://modelcontextprotocol.io/clients[modelcontextprotocol.io]
+
+== Tools timeout
+
+*Symptom:* AI reports tool execution timeouts
+
+*Typical operation durations:*
+
+[cols="2,1,1",options="header"]
+|===
+|Operation |Typical duration |Timeout risk
+
+|List clusters/topics |< 1s |Low
+|Get cluster/topic status |< 1s |Low
+|Collect logs (1 pod, last hour) |1-3s |Low
+|Collect logs (10+ pods, 24h) |10-30s |Medium
+|Metrics query (1h range) |1-5s |Low
+|Metrics query (7-day range) |5-30s |Medium
+|Full cluster diagnostic |10-60s |Medium
+|Fleet overview (10+ clusters) |5-30s |Medium
+|===
+
+*Common causes:*
+
+*1. Long-running operations*
+
+* Log collection from many pods
+* Large time ranges
+* Complex metrics queries
+
+Solution: Use smaller time ranges or fewer pods
+
+----
+Instead of: "Show me logs from the last 24 hours"
+Try: "Show me logs from the last hour"
+----
+
+*2. Slow Kubernetes API*
+
+* Large Kubernetes cluster with many resources
+* Network latency
+
+Solution: Use namespace filters
+
+----
+Instead of: "List all Kafka clusters"
+Try: "List Kafka clusters in namespace kafka-ns"
+----
+
+*3. External service timeout* (Loki/Prometheus)
+
+[source,bash]
+----
+# Check service connectivity
+kubectl exec -it <mcp-pod> -- curl http://loki.monitoring:3100/ready
+----

@@ -195,7 +195,7 @@ Usually unnecessary since tools are thin wrappers, but add if there is parameter
 
 ## Step 7 — Update Documentation
 
-1. **`docs/strimzi-mcp/tools/`** — add tool to the appropriate docs page
+1. **`documentation/modules/tools/ref-*-tools.adoc`** — add the tool (name, description, parameters, returns, example) to the appropriate `ref-*-tools.adoc` module, and bump `{ToolCount}` (plus `{DiagnosticToolCount}` if applicable) in `documentation/shared/attributes.adoc`. Validate with `./mvnw -N -Pdocs package`
 2. **`CHANGELOG.md`** — add entry under `## [Unreleased]` > `### Added`
 3. **`AGENTS.md`** — update if new patterns or module structure changes
 4. **`dev/test-plans/strimzi-mcp-tool-test-plan.md`** — add test case for the new tool

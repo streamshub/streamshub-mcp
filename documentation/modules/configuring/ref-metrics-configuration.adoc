@@ -1,0 +1,66 @@
+// Module included in the following assemblies:
+// assembly-configuring.adoc
+
+[id='ref-metrics-configuration-{context}']
+= Metrics configuration
+
+== Metrics provider selection
+
+Choose how the server collects metrics from your Kafka cluster.
+
+[cols="2,2,3",options="header"]
+|===
+|Property |Default |Description
+
+|`mcp.metrics.provider` |`streamshub-pod-scraping` |Metrics provider: `streamshub-pod-scraping` or `streamshub-prometheus`
+|`mcp.metrics.default-step-seconds` |`60` |Default query resolution in seconds
+|`mcp.metrics.max-samples` |`10000` |Maximum number of metric samples returned per query. Queries exceeding this limit are truncated.
+|`mcp.metrics.max-range-minutes` |`10080` |Maximum time range for metrics queries in minutes. Default is 7 days. Queries exceeding this range are rejected with an error.
+|===
+
+== Pod scraping provider (default)
+
+The default provider scrapes metrics directly from Kafka pods.
+This requires the `pods/proxy` RBAC permission.
+
+For centralized metrics with long-term retention, see xref:proc-configuring-prometheus-integration-{context}[Configuring Prometheus integration].
+
+== Compatible metrics backends: Thanos and VictoriaMetrics
+
+The Prometheus metrics provider works with any Prometheus-compatible HTTP API.
+Both Thanos and VictoriaMetrics expose the same `/api/v1/query` and `/api/v1/query_range` endpoints and support standard PromQL.
+
+No code changes are needed -- just set `quarkus.rest-client.prometheus.url` to the Thanos Querier or VictoriaMetrics endpoint:
+
+*Thanos example:*
+
+[source,bash]
+----
+QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://thanos-querier.monitoring.svc:9090
+MCP_METRICS_PROVIDER=streamshub-prometheus
+----
+
+*VictoriaMetrics example:*
+
+[source,bash]
+----
+QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://victoria-metrics.monitoring.svc:8428
+MCP_METRICS_PROVIDER=streamshub-prometheus
+----
+
+*VictoriaMetrics MetricsQL compatibility:*
+
+VictoriaMetrics extends PromQL with MetricsQL, a superset that adds additional functions.
+The MCP server uses only standard PromQL queries, so it works with both.
+
+Note that VictoriaMetrics has a minor difference in `rate()` behavior -- it can extrapolate the first and last data points in a time range, which may produce slightly different results compared to Prometheus.
+This does not affect correctness for typical Kafka metrics queries.
+
+*Authentication:*
+
+The same authentication configuration applies. Use `sa-token` for Kubernetes service account authentication:
+
+[source,bash]
+----
+MCP_METRICS_PROMETHEUS_AUTH_MODE=sa-token
+----

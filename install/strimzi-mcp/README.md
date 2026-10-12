@@ -88,7 +88,7 @@ kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/
 ## Configuration
 
 The prod overlay references an optional ConfigMap and Secret for environment-based configuration.
-See the [configuration guide](../../docs/strimzi-mcp/configuration.md) for all available settings.
+See the [configuration guide](../../documentation/assemblies/assembly-configuring.adoc) for all available settings.
 
 Example ConfigMap:
 
@@ -154,7 +154,7 @@ QUARKUS_TLS_TRUST_ALL: "true"
 
 The same provider works with OpenSearch -- just point the URL at your OpenSearch endpoint.
 
-See the [configuration guide](../../docs/strimzi-mcp/configuration.md) for field mapping and all available settings.
+See the [configuration guide](../../documentation/assemblies/assembly-configuring.adoc) for field mapping and all available settings.
 
 ## Loki RBAC (OpenShift Logging)
 

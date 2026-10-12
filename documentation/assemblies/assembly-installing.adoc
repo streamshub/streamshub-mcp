@@ -1,0 +1,29 @@
+// Assembly: Installing
+
+:context: installing
+
+[id='assembly-installing-{context}']
+= Installing
+
+This guide describes how to deploy the {StrimziMcp} to a Kubernetes cluster.
+For a local setup or quick evaluation (no build required), see xref:assembly-getting-started-getting-started[the getting started guide].
+
+Before you begin, review the xref:con-prerequisites-overview[prerequisites].
+
+include::../modules/installing/proc-deploying-strimzi.adoc[leveloffset=+1]
+
+include::../modules/installing/proc-building-the-container-image.adoc[leveloffset=+1]
+
+include::../modules/installing/proc-deploying-to-kubernetes-overlays.adoc[leveloffset=+1]
+
+include::../modules/installing/ref-deployment-resources.adoc[leveloffset=+1]
+
+include::../modules/installing/proc-configuring-rbac.adoc[leveloffset=+1]
+
+include::../modules/installing/con-security-model.adoc[leveloffset=+1]
+
+include::../modules/installing/proc-accessing-the-server.adoc[leveloffset=+1]
+
+include::../modules/installing/proc-verifying-the-installation.adoc[leveloffset=+1]
+
+include::../modules/installing/proc-troubleshooting-the-installation.adoc[leveloffset=+1]

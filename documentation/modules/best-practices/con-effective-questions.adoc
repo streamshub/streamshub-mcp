@@ -1,0 +1,21 @@
+// Module included in the following assemblies:
+// assembly-ai-agent-best-practices.adoc
+
+[id='con-effective-questions-{context}']
+= Effective questions
+
+Mentioning the Kafka cluster name in the question helps the AI choose the right tool parameters immediately, avoiding an extra list call:
+
+*Good:* "What's the status of Kafka mcp-cluster and are there any issues?"
+
+* Specific Kafka cluster name
+* Clear intent
+* Allows AI to choose appropriate tools
+
+*Better:* "Diagnose issues with Kafka mcp-cluster in namespace kafka-prod, focusing on recent errors"
+
+* Specific Kafka cluster, namespace, and scope
+* Guides the diagnostic approach
+* More efficient tool usage
+
+*Less efficient:* "Check my Kafka cluster for issues" (AI must first call `list_kafka_clusters` to find the name)

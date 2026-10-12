@@ -1,0 +1,22 @@
+// Assembly: Getting started
+
+:context: getting-started
+
+[id='assembly-getting-started-{context}']
+= Getting started
+
+Get the {StrimziMcp} running and connected to an AI assistant.
+
+By the end of this guide you will have a running MCP server connected to a https://strimzi.io/[Strimzi]-managed Kafka cluster and an AI assistant that can query cluster status, run diagnostics, and collect logs.
+
+include::../modules/getting-started/con-choosing-a-setup-path.adoc[leveloffset=+1]
+
+include::../modules/getting-started/proc-deploying-to-kubernetes.adoc[leveloffset=+1]
+
+include::../modules/getting-started/proc-running-as-a-container.adoc[leveloffset=+1]
+
+include::../modules/getting-started/proc-building-from-source.adoc[leveloffset=+1]
+
+include::../modules/getting-started/proc-connecting-an-ai-assistant.adoc[leveloffset=+1]
+
+include::../modules/getting-started/proc-verifying-the-setup.adoc[leveloffset=+1]

@@ -1,0 +1,70 @@
+// Module included in the following assemblies:
+// assembly-troubleshooting.adoc
+
+[id='ref-performance-issues-{context}']
+= Performance issues
+
+== Slow response times
+
+*Symptom:* Tools take a long time to execute
+
+*Solutions:*
+
+*1. Use namespace filters*
+
+----
+Instead of: "List all Kafka clusters"
+Try: "List Kafka clusters in namespace kafka-ns"
+----
+
+*2. Reduce time ranges*
+
+----
+Instead of: "Show logs from the last 24 hours"
+Try: "Show logs from the last hour"
+----
+
+*3. Use Loki/Prometheus instead of direct queries*
+
+* Configure external services for better performance
+* Leverage pre-aggregated metrics
+
+*4. Increase resource limits*
+
+[source,bash]
+----
+kubectl -n streamshub-mcp set resources deployment/streamshub-mcp-strimzi \
+  --limits=cpu=1000m,memory=1Gi \
+  --requests=cpu=500m,memory=512Mi
+----
+
+== High memory usage
+
+*Symptom:* MCP server pod using excessive memory
+
+*Diagnosis:*
+
+[source,bash]
+----
+# Check memory usage
+kubectl -n streamshub-mcp top pod
+
+# Check for memory limits
+kubectl -n streamshub-mcp get pod <pod-name> -o yaml | grep -A 5 resources
+----
+
+*Solutions:*
+
+*1. Reduce response sizes*
+
+* Use smaller time ranges
+* Limit number of pods queried
+* Use pagination where available
+
+*2. Increase memory limits*
+
+[source,bash]
+----
+kubectl -n streamshub-mcp set resources deployment/streamshub-mcp-strimzi \
+  --limits=memory=2Gi
+----

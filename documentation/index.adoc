@@ -1,0 +1,28 @@
+include::shared/attributes.adoc[]
+
+[id='streamshub-mcp-documentation']
+= {ProductName} documentation
+
+{ProductName} provides https://modelcontextprotocol.io/[Model Context Protocol] (MCP) servers for managing Kubernetes-based streaming infrastructure through AI assistants.
+Each MCP server targets a specific operator or platform and can be deployed and configured independently.
+
+== Available MCP servers
+
+[cols="1,2,1",options="header"]
+|===
+|Server |Description |Getting started
+
+|xref:strimzi-mcp/strimzi-mcp.adoc[{StrimziMcp}]
+|Tools for managing and troubleshooting Apache Kafka clusters deployed with the https://strimzi.io/[Strimzi] operator
+|xref:strimzi-mcp/strimzi-mcp.adoc#assembly-getting-started-getting-started[Getting started]
+|===
+
+== What is MCP?
+
+The https://modelcontextprotocol.io/[Model Context Protocol] (MCP) is an open protocol that enables AI assistants to interact with external systems.
+{ProductName} implements this protocol to provide AI assistants with access to Kubernetes-based streaming infrastructure.
+
+== Getting help
+
+* {GitHubRepo}/issues[GitHub Issues] -- Report bugs or request features
+* {GitHubRepo}/discussions[GitHub Discussions] -- Ask questions and share ideas

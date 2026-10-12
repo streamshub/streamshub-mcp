@@ -1,0 +1,88 @@
+// Module included in the following assemblies:
+// assembly-usage-examples.adoc
+
+[id='con-basic-cluster-operations-{context}']
+= Basic Kafka cluster operations
+
+== Listing Kafka clusters
+
+*Question:* "What Kafka clusters are running?"
+
+*What happens:*
+
+* AI calls `list_kafka_clusters` tool
+* Returns all Kafka clusters across namespaces
+* Shows Kafka cluster names, namespaces, and ready status
+
+*Example response:*
+
+----
+I found 2 Kafka clusters:
+
+1. mcp-cluster (namespace: strimzi-kafka)
+   - Status: Ready
+   - Version: 4.2.0
+   - Nodes: 3 brokers
+
+2. dev-cluster (namespace: kafka-dev)
+   - Status: Ready
+   - Version: 4.2.0
+   - Nodes: 1 broker
+----
+
+== Checking Kafka cluster status
+
+*Question:* "What's the status of mcp-cluster?"
+
+*What happens:*
+
+* AI calls `get_kafka_cluster` with Kafka cluster name
+* Returns detailed status including conditions, version, listeners
+
+*Example response:*
+
+----
+The mcp-cluster is Ready and healthy:
+
+Status: Ready
+Kafka Version: 4.2.0
+
+Conditions:
+✓ Ready: True - Kafka cluster is ready
+✓ NotReady: False
+
+Listeners:
+- plain (port 9092): Internal plaintext
+- tls (port 9093): Internal TLS
+- external (port 9094): LoadBalancer
+
+Node Pools:
+- broker: 3/3 replicas ready (broker role)
+----
+
+== Viewing Kafka cluster topology
+
+*Question:* "Show me the topology of mcp-cluster"
+
+*What happens:*
+
+* AI calls `get_strimzi_kafka_cluster_overview`
+* Returns node pool configuration and roles
+
+*Example response:*
+
+----
+Cluster Topology for mcp-cluster:
+
+Node Pool: broker
+- Role: broker
+- Replicas: 3 (all ready)
+- Storage: 100Gi persistent volume per replica
+- Resources: 2 CPU, 4Gi memory per pod
+
+Node Pool: controller
+- Role: controller
+- Replicas: 3 (all ready)
+- Storage: 10Gi persistent volume per replica
+- Resources: 1 CPU, 2Gi memory per pod
+----

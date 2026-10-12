@@ -1,0 +1,40 @@
+// Assembly: Tools reference
+
+:context: tools
+
+[id='assembly-tools-reference-{context}']
+= Tools reference
+
+Complete reference for all tools, prompts, and resources provided by the {StrimziMcp}.
+
+include::../modules/tools/ref-tool-summary.adoc[leveloffset=+1]
+
+include::../modules/tools/con-smart-discovery.adoc[leveloffset=+1]
+
+include::../modules/tools/ref-kafka-cluster-tools.adoc[leveloffset=+1]
+
+include::../modules/tools/ref-kafka-topic-and-node-pool-tools.adoc[leveloffset=+1]
+
+include::../modules/tools/ref-kafka-user-tools.adoc[leveloffset=+1]
+
+include::../modules/tools/ref-kafka-rebalance-tools.adoc[leveloffset=+1]
+
+include::../modules/tools/ref-strimzi-operator-tools.adoc[leveloffset=+1]
+
+include::../modules/tools/ref-kafka-connect-tools.adoc[leveloffset=+1]
+
+include::../modules/tools/ref-kafka-bridge-tools.adoc[leveloffset=+1]
+
+include::../modules/tools/ref-kafka-mirrormaker2-tools.adoc[leveloffset=+1]
+
+include::../modules/tools/ref-drain-cleaner-tools.adoc[leveloffset=+1]
+
+include::../modules/tools/ref-diagnostic-tools.adoc[leveloffset=+1]
+
+include::../modules/tools/ref-metrics-tools.adoc[leveloffset=+1]
+
+include::../modules/tools/ref-prompt-templates.adoc[leveloffset=+1]
+
+include::../modules/tools/ref-resource-templates.adoc[leveloffset=+1]
+
+include::../modules/tools/con-resource-subscriptions.adoc[leveloffset=+1]

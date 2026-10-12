@@ -1,0 +1,10 @@
+// Module included in the following assemblies:
+// assembly-overview.adoc
+
+[id='con-automatic-namespace-discovery-{context}']
+= Automatic namespace discovery
+
+All tools support automatic namespace discovery.
+The namespace parameter is optional on every tool.
+When no namespace is specified, tools search across the entire Kubernetes cluster to find matching resources.
+Note that access to listing namespaces may be limited by RBAC configuration.

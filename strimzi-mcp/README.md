@@ -25,12 +25,10 @@ The AI assistant uses MCP tools to interact with your Kubernetes cluster and pro
 
 ## Documentation
 
-- **[Getting started](../docs/strimzi-mcp/getting-started.md)** -- Quick start guide
-- **[Installation](../docs/strimzi-mcp/installation.md)** -- Kubernetes deployment, RBAC, and access configuration
-- **[Configuration](../docs/strimzi-mcp/configuration.md)** -- Environment variables, Loki, Prometheus, and security settings
-- **[Tools reference](../docs/strimzi-mcp/tools/)** -- Complete tool catalog with parameters
-- **[Usage examples](../docs/strimzi-mcp/usage-examples.md)** -- Practical workflows
-- **[Troubleshooting](../docs/strimzi-mcp/troubleshooting.md)** -- Common issues and solutions
+Full documentation lives in the [`documentation/`](../documentation/) directory as modular AsciiDoc.
+Build it to HTML with `./mvnw -N -Pdocs package` (output in `target/documentation/`), or read the
+[MCP Server for Strimzi guide](../documentation/strimzi-mcp/strimzi-mcp.adoc) source, which covers
+getting started, installation, configuration, the tools reference, usage examples, and troubleshooting.
 
 ## License
 

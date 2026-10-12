@@ -1,0 +1,32 @@
+// Assembly: AI agent best practices
+
+:context: best-practices
+
+[id='assembly-ai-agent-best-practices-{context}']
+= AI agent best practices
+
+Tips, tricks, and corner cases for getting the best results when using the {StrimziMcp} with AI assistants.
+
+include::../modules/best-practices/con-why-structured-responses.adoc[leveloffset=+1]
+
+include::../modules/best-practices/con-choosing-an-investigation-approach.adoc[leveloffset=+1]
+
+include::../modules/best-practices/con-start-with-fleet-overview.adoc[leveloffset=+1]
+
+include::../modules/best-practices/con-understanding-response-structure.adoc[leveloffset=+1]
+
+include::../modules/best-practices/con-reducing-response-size.adoc[leveloffset=+1]
+
+include::../modules/best-practices/con-handling-pagination.adoc[leveloffset=+1]
+
+include::../modules/best-practices/con-effective-questions.adoc[leveloffset=+1]
+
+include::../modules/best-practices/con-iterative-investigation.adoc[leveloffset=+1]
+
+include::../modules/best-practices/con-attaching-resources.adoc[leveloffset=+1]
+
+include::../modules/best-practices/con-sampling-and-elicitation.adoc[leveloffset=+1]
+
+include::../modules/best-practices/con-mcp-client-compatibility.adoc[leveloffset=+1]
+
+include::../modules/best-practices/con-progressive-complexity.adoc[leveloffset=+1]
