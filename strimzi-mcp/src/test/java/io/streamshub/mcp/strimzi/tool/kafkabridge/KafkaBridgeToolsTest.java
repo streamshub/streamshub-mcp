@@ -8,6 +8,7 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeLogsResponse;
@@ -18,14 +19,17 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 /**
  * MCP integration tests for KafkaBridge tools.
@@ -147,5 +151,27 @@ class KafkaBridgeToolsTest {
                     assertTrue(json.contains("Bridge started"));
                 })
             .thenAssertResults();
+    }
+
+    /**
+     * Verify get_kafka_bridge_logs threads the container arg into collection options.
+     */
+    @Test
+    void testGetKafkaBridgeLogsThreadsContainer() {
+        when(bridgeService.getBridgeLogs(any(), any(), any())).thenReturn(
+            KafkaBridgeLogsResponse.of("my-bridge", "kafka",
+                List.of("my-bridge-bridge-0"), false, 0, 0, 50, false,
+                "2025-01-01 INFO Bridge started", List.of())
+        );
+
+        client.when()
+            .toolsCall("get_kafka_bridge_logs",
+                Map.of("bridgeName", "my-bridge", "container", "kafka-bridge"), response ->
+                    assertFalse(response.isError()))
+            .thenAssertResults();
+
+        ArgumentCaptor<LogCollectionParams> captor = ArgumentCaptor.forClass(LogCollectionParams.class);
+        verify(bridgeService).getBridgeLogs(any(), any(), captor.capture());
+        assertEquals("kafka-bridge", captor.getValue().container());
     }
 }

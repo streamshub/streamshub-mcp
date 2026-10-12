@@ -179,11 +179,11 @@ public class KafkaMirrorMaker2Tools {
      * @param endTime         optional absolute end time
      * @param tailLines       optional line count
      * @param previous        optional previous container flag
+     * @param container       optional container name to narrow log collection
      * @param progress        MCP progress tracking
      * @param cancellation    MCP cancellation checking
      * @return the logs response
      */
-    @SuppressWarnings("checkstyle:ParameterNumber")
     @RunOnVirtualThread
     @WithSpan("tool.get_kafka_mirror_maker_logs")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LOGS)
@@ -213,6 +213,7 @@ public class KafkaMirrorMaker2Tools {
         @ToolArg(description = StrimziToolsPrompts.END_TIME_DESC, required = false) final String endTime,
         @Min(1) @ToolArg(description = StrimziToolsPrompts.TAIL_LINES_DESC, required = false) final Integer tailLines,
         @ToolArg(description = StrimziToolsPrompts.PREVIOUS_DESC, required = false) final Boolean previous,
+        @ToolArg(description = StrimziToolsPrompts.CONTAINER_DESC, required = false) final String container,
         final Progress progress,
         final Cancellation cancellation
     ) {
@@ -224,6 +225,7 @@ public class KafkaMirrorMaker2Tools {
             .startTime(startTime)
             .endTime(endTime)
             .previous(Boolean.TRUE.equals(previous))
+            .container(container)
             .cancelCheck(cancellation::skipProcessingIfCancelled)
             .progressCallback(progress.token().isPresent()
                 ? (podName, completed, total) -> progress.notificationBuilder()

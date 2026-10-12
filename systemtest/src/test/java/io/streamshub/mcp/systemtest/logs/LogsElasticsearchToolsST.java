@@ -161,6 +161,37 @@ class LogsElasticsearchToolsST extends AbstractST {
     }
 
     @Test
+    @Story("get_kafka_cluster_logs narrows to a single container via Elasticsearch")
+    void testGetKafkaClusterLogsContainerViaElasticsearch() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "container", "kafka",
+            "tailLines", 20);
+
+        Wait.until("Elasticsearch to return log data for Kafka cluster with container selector",
+            Constants.KAFKA_READY_POLL_MS, Constants.KAFKA_READY_TIMEOUT_MS, () -> {
+                try {
+                    mcpClient.when()
+                        .toolsCall("get_kafka_cluster_logs", args, response -> {
+                            JsonNode root = assertToolSuccess(response);
+                            String text = response.content().getFirst().asText().text();
+                            LOGGER.info("get_kafka_cluster_logs container selector via Elasticsearch response (length={})", text.length());
+                            assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
+                            assertTrue(root.path("log_lines").asInt() > 0, "Should have log lines from the 'kafka' container");
+                            assertFalse(root.path("logs").asText("").isEmpty(), "logs content should not be empty");
+                            assertTrue(root.path("logs").asText("").contains("=== Pod:"), "logs should contain pod log sections");
+                        })
+                        .thenAssertResults();
+                    return true;
+                } catch (Exception | AssertionError ignored) {
+                    LOGGER.info("Elasticsearch doesn't have logs yet, retrying...");
+                    return false;
+                }
+            }
+        );
+    }
+
+    @Test
     @Story("get_kafka_cluster_logs with errors filter via Elasticsearch")
     void testGetKafkaClusterLogsErrorFilterViaElasticsearch() {
         Map<String, Object> args = Map.of(

@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.tool.operator;
 import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorLogsResponse;
@@ -16,14 +17,17 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 /**
  * MCP integration tests for Strimzi operator tools.
@@ -129,5 +133,26 @@ class StrimziOperatorToolsTest {
                     assertTrue(json.contains("Running"));
                 })
             .thenAssertResults();
+    }
+
+    /**
+     * Verify get_strimzi_operator_logs threads the container arg into collection options.
+     */
+    @Test
+    void testGetStrimziOperatorLogsThreadsContainer() {
+        when(operatorService.getOperatorLogs(any(), any(), any()))
+            .thenReturn(StrimziOperatorLogsResponse.of("kafka-system",
+                "INFO: Operator running normally", List.of("strimzi-operator-abc123"),
+                false, 0, 0, 1, false, List.of()));
+
+        client.when()
+            .toolsCall("get_strimzi_operator_logs",
+                Map.of("container", "strimzi-cluster-operator"), response ->
+                    assertFalse(response.isError()))
+            .thenAssertResults();
+
+        ArgumentCaptor<LogCollectionParams> captor = ArgumentCaptor.forClass(LogCollectionParams.class);
+        verify(operatorService).getOperatorLogs(any(), any(), captor.capture());
+        assertEquals("strimzi-cluster-operator", captor.getValue().container());
     }
 }

@@ -31,7 +31,7 @@ class LokiLogProviderTest {
     @Test
     void testBuildLogQueryDefaultLabels() {
         String query = lokiLogCollectorProvider.buildLogQuery(
-            "kafka-prod", "my-cluster-kafka-0", null, null);
+            "kafka-prod", "my-cluster-kafka-0", null, null, null);
 
         assertEquals("{namespace=\"kafka-prod\", pod=\"my-cluster-kafka-0\"}", query);
     }
@@ -113,7 +113,7 @@ class LokiLogProviderTest {
     @Test
     void testBuildLogQueryEscapesSpecialCharacters() {
         String query = lokiLogCollectorProvider.buildLogQuery(
-            "ns\"} | logfmt", "pod-0", null, null);
+            "ns\"} | logfmt", "pod-0", null, null, null);
 
         assertEquals("{namespace=\"ns\\\"} | logfmt\", pod=\"pod-0\"}", query);
     }
@@ -121,7 +121,7 @@ class LokiLogProviderTest {
     @Test
     void testBuildLogQueryWithErrorsFilter() {
         String query = lokiLogCollectorProvider.buildLogQuery(
-            "kafka", "pod-0", "errors", null);
+            "kafka", "pod-0", "errors", null, null);
 
         assertEquals(
             "{namespace=\"kafka\", pod=\"pod-0\"} |~ \"(?i)(ERROR|EXCEPTION)\"",
@@ -131,7 +131,7 @@ class LokiLogProviderTest {
     @Test
     void testBuildLogQueryWithWarningsFilter() {
         String query = lokiLogCollectorProvider.buildLogQuery(
-            "kafka", "pod-0", "warnings", null);
+            "kafka", "pod-0", "warnings", null, null);
 
         assertEquals(
             "{namespace=\"kafka\", pod=\"pod-0\"} |~ \"(?i)(ERROR|EXCEPTION|WARN)\"",
@@ -141,7 +141,7 @@ class LokiLogProviderTest {
     @Test
     void testBuildLogQueryWithCustomRegex() {
         String query = lokiLogCollectorProvider.buildLogQuery(
-            "kafka", "pod-0", "OOM|timeout", null);
+            "kafka", "pod-0", "OOM|timeout", null, null);
 
         assertEquals(
             "{namespace=\"kafka\", pod=\"pod-0\"} |~ \"OOM|timeout\"",
@@ -151,7 +151,7 @@ class LokiLogProviderTest {
     @Test
     void testBuildLogQueryWithKeywords() {
         String query = lokiLogCollectorProvider.buildLogQuery(
-            "kafka", "pod-0", null, List.of("OOM", "timeout"));
+            "kafka", "pod-0", null, List.of("OOM", "timeout"), null);
 
         assertEquals(
             "{namespace=\"kafka\", pod=\"pod-0\"} |~ \"(?i)(OOM|timeout)\"",
@@ -161,7 +161,7 @@ class LokiLogProviderTest {
     @Test
     void testBuildLogQueryWithFilterAndKeywords() {
         String query = lokiLogCollectorProvider.buildLogQuery(
-            "kafka", "pod-0", "errors", List.of("OOM"));
+            "kafka", "pod-0", "errors", List.of("OOM"), null);
 
         assertEquals(
             "{namespace=\"kafka\", pod=\"pod-0\"} |~ \"(?i)(ERROR|EXCEPTION)\" |~ \"(?i)(OOM)\"",
@@ -184,5 +184,21 @@ class LokiLogProviderTest {
         String result = lokiLogCollectorProvider.extractLogLines(response);
 
         assertEquals("valid line\n", result);
+    }
+
+    @Test
+    void testBuildLogQueryWithContainer() {
+        String query = lokiLogCollectorProvider.buildLogQuery(
+            "kafka-prod", "my-cluster-kafka-0", null, null, "kafka");
+
+        assertEquals("{namespace=\"kafka-prod\", pod=\"my-cluster-kafka-0\", container=\"kafka\"}", query);
+    }
+
+    @Test
+    void testBuildLogQueryBlankContainerOmitsLabel() {
+        String query = lokiLogCollectorProvider.buildLogQuery(
+            "kafka-prod", "my-cluster-kafka-0", null, null, "  ");
+
+        assertEquals("{namespace=\"kafka-prod\", pod=\"my-cluster-kafka-0\"}", query);
     }
 }

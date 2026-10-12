@@ -214,6 +214,7 @@ Get logs from Kafka cluster pods with error analysis and advanced filtering.
 - `tailLines` (optional) -- Number of lines to tail from each pod
 - `previous` (optional) -- Get logs from previous container instance
 - `podNames` (optional) -- List of specific pod names to collect logs from. Omit to collect from all pods in the cluster.
+- `container` (optional) -- Container name to narrow log collection to a single container (e.g., 'kafka'). Omit to collect from all containers in each pod.
 
 **Returns**: Aggregated logs from the specified (or all) Kafka pods with error analysis and statistics
 

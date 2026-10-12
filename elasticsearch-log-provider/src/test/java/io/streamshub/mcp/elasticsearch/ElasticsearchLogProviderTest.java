@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -28,7 +29,7 @@ class ElasticsearchLogProviderTest {
     @Test
     void testBuildSearchQueryBasic() {
         String query = provider.buildSearchQuery(
-            "kafka-prod", "my-cluster-kafka-0", 200, null, null, null, null, null);
+            "kafka-prod", "my-cluster-kafka-0", 200, null, null, null, null, null, null);
         assertTrue(query.contains("\"kubernetes.namespace_name.keyword\""));
         assertTrue(query.contains("\"kafka-prod\""));
         assertTrue(query.contains("\"kubernetes.pod_name.keyword\""));
@@ -39,7 +40,7 @@ class ElasticsearchLogProviderTest {
     @Test
     void testBuildSearchQueryWithErrorsFilter() {
         String query = provider.buildSearchQuery(
-            "kafka", "pod-0", 200, null, "errors", null, null, null);
+            "kafka", "pod-0", 200, null, "errors", null, null, null, null);
         assertTrue(query.contains("regexp"));
         assertTrue(query.contains("(ERROR|EXCEPTION)"));
         assertTrue(query.contains("case_insensitive"));
@@ -48,7 +49,7 @@ class ElasticsearchLogProviderTest {
     @Test
     void testBuildSearchQueryWithWarningsFilter() {
         String query = provider.buildSearchQuery(
-            "kafka", "pod-0", 200, null, "warnings", null, null, null);
+            "kafka", "pod-0", 200, null, "warnings", null, null, null, null);
         assertTrue(query.contains("regexp"));
         assertTrue(query.contains("(ERROR|EXCEPTION|WARN)"));
         assertTrue(query.contains("case_insensitive"));
@@ -57,7 +58,7 @@ class ElasticsearchLogProviderTest {
     @Test
     void testBuildSearchQueryWithCustomRegex() {
         String query = provider.buildSearchQuery(
-            "kafka", "pod-0", 200, null, "OOM|timeout", null, null, null);
+            "kafka", "pod-0", 200, null, "OOM|timeout", null, null, null, null);
         assertTrue(query.contains("regexp"));
         assertTrue(query.contains("OOM|timeout"));
     }
@@ -65,7 +66,7 @@ class ElasticsearchLogProviderTest {
     @Test
     void testBuildSearchQueryWithKeywords() {
         String query = provider.buildSearchQuery(
-            "kafka", "pod-0", 200, null, null, List.of("OOM", "timeout"), null, null);
+            "kafka", "pod-0", 200, null, null, List.of("OOM", "timeout"), null, null, null);
         assertTrue(query.contains("should"));
         assertTrue(query.contains("OOM"));
         assertTrue(query.contains("timeout"));
@@ -75,7 +76,7 @@ class ElasticsearchLogProviderTest {
     @Test
     void testBuildSearchQueryWithSinceSeconds() {
         String query = provider.buildSearchQuery(
-            "kafka", "pod-0", 200, 3600, null, null, null, null);
+            "kafka", "pod-0", 200, 3600, null, null, null, null, null);
         assertTrue(query.contains("range"));
         assertTrue(query.contains("gte"));
         assertTrue(query.contains("@timestamp"));
@@ -85,7 +86,7 @@ class ElasticsearchLogProviderTest {
     void testBuildSearchQueryWithAbsoluteTimeRange() {
         String query = provider.buildSearchQuery(
             "kafka", "pod-0", 200, null, null, null,
-            "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z");
+            "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z", null);
         assertTrue(query.contains("range"));
         assertTrue(query.contains("2026-01-01T00:00:00Z"));
         assertTrue(query.contains("2026-01-02T00:00:00Z"));
@@ -94,7 +95,7 @@ class ElasticsearchLogProviderTest {
     @Test
     void testBuildSearchQueryEscapesSpecialCharacters() {
         String query = provider.buildSearchQuery(
-            "ns\"}]}}", "pod-0", 200, null, null, null, null, null);
+            "ns\"}]}}", "pod-0", 200, null, null, null, null, null, null);
         assertTrue(query.contains("ns\\\"}]}}"));
     }
 
@@ -102,7 +103,7 @@ class ElasticsearchLogProviderTest {
     void testBuildSearchQueryWithPartialTimeRangeFallsBackToDefault() {
         String query = provider.buildSearchQuery(
             "kafka", "pod-0", 200, null, null, null,
-            "2026-01-01T00:00:00Z", null);
+            "2026-01-01T00:00:00Z", null, null);
         assertTrue(query.contains("range"));
         assertTrue(query.contains("gte"));
         assertTrue(query.contains("@timestamp"));
@@ -170,5 +171,20 @@ class ElasticsearchLogProviderTest {
 
         String result = provider.extractLogLines(response);
         assertEquals("valid line\n", result);
+    }
+
+    @Test
+    void testBuildSearchQueryWithContainer() {
+        String query = provider.buildSearchQuery(
+            "kafka-prod", "my-cluster-kafka-0", 200, null, null, null, null, null, "kafka");
+        assertTrue(query.contains("\"kubernetes.container_name.keyword\""));
+        assertTrue(query.contains("\"kafka\""));
+    }
+
+    @Test
+    void testBuildSearchQueryBlankContainerOmitsTerm() {
+        String query = provider.buildSearchQuery(
+            "kafka-prod", "my-cluster-kafka-0", 200, null, null, null, null, null, "  ");
+        assertFalse(query.contains("container_name"));
     }
 }

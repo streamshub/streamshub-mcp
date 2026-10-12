@@ -87,5 +87,13 @@ public interface LokiConfig extends AuthConfig {
          */
         @WithDefault("pod")
         String pod();
+
+        /**
+         * Loki label name for Kubernetes container name.
+         *
+         * @return the container label name
+         */
+        @WithDefault("container")
+        String container();
     }
 }

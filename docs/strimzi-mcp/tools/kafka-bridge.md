@@ -65,6 +65,7 @@ Get logs from KafkaBridge pods with error analysis. Returns logs from all pods b
 - `endTime` (optional) -- End time (ISO 8601 format)
 - `tailLines` (optional) -- Number of lines to tail from each pod
 - `previous` (optional) -- Get logs from previous container instance
+- `container` (optional) -- Container name to narrow log collection to a single container (e.g., 'kafka'). Omit to collect from all containers in each pod.
 
 **Returns**: Aggregated bridge logs with error analysis and statistics
 

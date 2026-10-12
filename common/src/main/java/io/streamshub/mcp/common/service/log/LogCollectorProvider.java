@@ -4,7 +4,7 @@
  */
 package io.streamshub.mcp.common.service.log;
 
-import java.util.List;
+import io.streamshub.mcp.common.dto.LogFetchRequest;
 
 /**
  * Provider interface for fetching log output from a pod or log source.
@@ -33,23 +33,14 @@ public interface LogCollectorProvider {
     /**
      * Fetch log output from a single pod or log source.
      *
-     * @param namespace    the Kubernetes namespace of the pod
-     * @param podName      the name of the pod
-     * @param tailLines    the number of lines to tail (implementations should request
-     *                     one extra line for has-more detection)
-     * @param sinceSeconds optional relative time range in seconds; null for no time restriction.
-     *                     Mutually exclusive with startTime/endTime.
-     * @param previous     if true, retrieve logs from the previous container instance
-     * @param filter       optional filter: "errors", "warnings", or a regex pattern;
-     *                     providers that support server-side filtering should apply this
-     * @param keywords     optional list of keywords for line matching;
-     *                     providers that support server-side filtering should apply this
-     * @param startTime    optional absolute start time in ISO 8601 format (use with endTime)
-     * @param endTime      optional absolute end time in ISO 8601 format (use with startTime)
+     * <p>All inputs are supplied via {@link io.streamshub.mcp.common.dto.LogFetchRequest}.
+     * Implementations should request one extra line beyond {@code tailLines} for has-more
+     * detection. The {@code filter}/{@code keywords} fields are filtering hints (see class
+     * Javadoc). The {@code container} field, when non-null and non-blank, narrows collection
+     * to that single container; providers that cannot narrow should ignore it gracefully.</p>
+     *
+     * @param request the per-pod fetch request
      * @return the log string (possibly pre-filtered), or null if no logs are available
      */
-    String fetchLogs(String namespace, String podName,
-                     int tailLines, Integer sinceSeconds, Boolean previous,
-                     String filter, List<String> keywords,
-                     String startTime, String endTime);
+    String fetchLogs(LogFetchRequest request);
 }

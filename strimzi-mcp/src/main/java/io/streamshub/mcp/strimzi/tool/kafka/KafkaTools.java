@@ -428,6 +428,7 @@ public class KafkaTools {
      * @param endTime      optional absolute end time (ISO 8601)
      * @param tailLines    optional number of lines to tail
      * @param previous     optional flag for previous container logs
+     * @param container    optional container name to narrow log collection
      * @param podNames     optional list of specific pod names to collect logs from
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
@@ -491,6 +492,10 @@ public class KafkaTools {
             required = false
         ) final Boolean previous,
         @ToolArg(
+            description = StrimziToolsPrompts.CONTAINER_DESC,
+            required = false
+        ) final String container,
+        @ToolArg(
             description = StrimziToolsPrompts.POD_NAMES_DESC,
             required = false
         ) final List<String> podNames,
@@ -506,6 +511,7 @@ public class KafkaTools {
             .startTime(startTime)
             .endTime(endTime)
             .previous(previous)
+            .container(container)
             .cancelCheck(cancellation::skipProcessingIfCancelled)
             // Only send progress if the client provided a progress token
             .progressCallback(progress.token().isPresent()
