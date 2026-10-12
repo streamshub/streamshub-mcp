@@ -43,7 +43,7 @@ jobs:
         restore-keys: ${{ runner.os }}-m2
 
     - name: Create kind cluster with registry
-      uses: strimzi/github-actions/.github/actions/dependencies/setup-kind@v2
+      uses: strimzi/github-actions/.github/actions/dependencies/setup-kind@v3
       with:
         controlNodes: "1"
         workerNodes: "1"
@@ -95,14 +95,14 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload Allure report
-      uses: actions/upload-artifact@v7.0.1
+      uses: actions/upload-artifact@v7.0.2
       if: always()
       with:
         name: allure-report
         path: allure-report/
 
     - name: Upload test logs
-      uses: actions/upload-artifact@v7.0.1
+      uses: actions/upload-artifact@v7.0.2
       if: failure()
       with:
         name: test-logs
