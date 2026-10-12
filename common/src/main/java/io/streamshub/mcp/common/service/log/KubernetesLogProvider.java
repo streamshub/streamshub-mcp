@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.quarkus.arc.lookup.LookupIfProperty;
+import io.streamshub.mcp.common.dto.LogFetchRequest;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -37,14 +38,27 @@ public class KubernetesLogProvider implements LogCollectorProvider {
     }
 
     @Override
-    public String fetchLogs(final String namespace, final String podName,
-                            final int tailLines, final Integer sinceSeconds,
-                            final Boolean previous, final String filter,
-                            final List<String> keywords,
-                            final String startTime, final String endTime) {
+    public String fetchLogs(final LogFetchRequest request) {
+        final String namespace = request.namespace();
+        final String podName = request.podName();
+        final int tailLines = request.tailLines();
+        final Integer sinceSeconds = request.sinceSeconds();
+        final Boolean previous = request.previous();
+        final String filter = request.filter();
+        final List<String> keywords = request.keywords();
+        final String startTime = request.startTime();
+        final String container = request.container();
+
         PodResource podResource = kubernetesClient.pods()
             .inNamespace(namespace)
             .withName(podName);
+
+        if (container != null && !container.isBlank()) {
+            final String trimmedContainer = container.trim();
+            String rawLogs = fetchContainerLogs(podResource, trimmedContainer,
+                tailLines, sinceSeconds, previous, startTime);
+            return LogFilterUtils.applyFilters(rawLogs, filter, keywords);
+        }
 
         List<String> containerNames = getContainerNames(podResource);
 
@@ -57,12 +71,12 @@ public class KubernetesLogProvider implements LogCollectorProvider {
         // Multi-container pod: fetch logs from each container
         int perContainerLines = Math.max(1, tailLines / containerNames.size());
         StringBuilder combined = new StringBuilder();
-        for (String container : containerNames) {
-            String containerLogs = fetchContainerLogs(podResource, container,
+        for (String containerName : containerNames) {
+            String containerLogs = fetchContainerLogs(podResource, containerName,
                 perContainerLines, sinceSeconds, previous, startTime);
             String filtered = LogFilterUtils.applyFilters(containerLogs, filter, keywords);
             if (filtered != null && !filtered.isEmpty()) {
-                combined.append("--- container: ").append(container).append(" ---\n");
+                combined.append("--- container: ").append(containerName).append(" ---\n");
                 combined.append(filtered).append("\n");
             }
         }

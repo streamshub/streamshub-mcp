@@ -8,6 +8,7 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2LogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2Response;
@@ -17,15 +18,18 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 /**
  * MCP integration tests for KafkaMirrorMaker2 tools.
@@ -145,5 +149,27 @@ class KafkaMirrorMaker2ToolsTest {
                     assertTrue(json.contains("MirrorMaker2 started"));
                 })
             .thenAssertResults();
+    }
+
+    /**
+     * Verify get_kafka_mirror_maker_logs threads the container arg into collection options.
+     */
+    @Test
+    void testGetKafkaMirrorMakerLogsThreadsContainer() {
+        when(mirrorMakerService.getMirrorMakerLogs(any(), any(), any())).thenReturn(
+            KafkaMirrorMaker2LogsResponse.of("my-mm2", "kafka",
+                List.of("my-mm2-mirrormaker2-0"), false, 0, 0, 1, false,
+                "2025-01-01 INFO MirrorMaker2 started", List.of())
+        );
+
+        client.when()
+            .toolsCall("get_kafka_mirror_maker_logs",
+                Map.of("mirrorMakerName", "my-mm2", "container", "mirrormaker2"), response ->
+                    assertFalse(response.isError()))
+            .thenAssertResults();
+
+        ArgumentCaptor<LogCollectionParams> captor = ArgumentCaptor.forClass(LogCollectionParams.class);
+        verify(mirrorMakerService).getMirrorMakerLogs(any(), any(), captor.capture());
+        assertEquals("mirrormaker2", captor.getValue().container());
     }
 }

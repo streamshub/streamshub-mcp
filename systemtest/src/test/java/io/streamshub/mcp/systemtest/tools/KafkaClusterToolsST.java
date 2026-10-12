@@ -649,6 +649,28 @@ class KafkaClusterToolsST extends AbstractST {
     }
 
     @Test
+    @Story("get_kafka_cluster_logs narrows to a single container")
+    @Tag(LOGS)
+    void testGetKafkaClusterLogsContainerSelector() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "container", "kafka",
+            "tailLines", 20);
+
+        mcpClient.when()
+            .toolsCall("get_kafka_cluster_logs", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("get_kafka_cluster_logs container selector response (length={})",
+                    response.content().getFirst().asText().text().length());
+                assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
+                assertTrue(root.path("log_lines").asInt() > 0, "Should have log lines from the 'kafka' container");
+                assertFalse(root.path("logs").asText("").isEmpty(), "logs content should not be empty");
+                assertTrue(root.path("logs").asText("").contains("=== Pod:"), "logs should contain pod log sections");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
     @Story("get_kafka_cluster_logs with ERROR filter")
     @Tag(LOGS)
     void testGetKafkaClusterLogsErrorFilter() {

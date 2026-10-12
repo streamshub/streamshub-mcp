@@ -5,6 +5,7 @@
 package io.streamshub.mcp.loki;
 
 import io.quarkus.arc.lookup.LookupIfProperty;
+import io.streamshub.mcp.common.dto.LogFetchRequest;
 import io.streamshub.mcp.common.service.log.LogCollectorProvider;
 import io.streamshub.mcp.common.service.log.LogQueryException;
 import io.streamshub.mcp.common.util.ExceptionUtils;
@@ -54,17 +55,23 @@ public class LokiLogProvider implements LogCollectorProvider {
     }
 
     @Override
-    public String fetchLogs(final String namespace, final String podName,
-                            final int tailLines, final Integer sinceSeconds,
-                            final Boolean previous, final String filter,
-                            final List<String> keywords,
-                            final String startTime, final String endTime) {
+    public String fetchLogs(final LogFetchRequest request) {
+        final String namespace = request.namespace();
+        final String podName = request.podName();
+        final int tailLines = request.tailLines();
+        final Integer sinceSeconds = request.sinceSeconds();
+        final Boolean previous = request.previous();
+        final String filter = request.filter();
+        final List<String> keywords = request.keywords();
+        final String startTime = request.startTime();
+        final String endTime = request.endTime();
+
         if (Boolean.TRUE.equals(previous)) {
             LOG.debugf("Loki does not distinguish previous container logs; "
                 + "using time range to capture pre-restart logs for pod %s", podName);
         }
 
-        String query = buildLogQuery(namespace, podName, filter, keywords);
+        String query = buildLogQuery(namespace, podName, filter, keywords, request.container());
 
         Instant start;
         Instant end;
@@ -102,16 +109,25 @@ public class LokiLogProvider implements LogCollectorProvider {
      * @param podName   the pod name
      * @param filter    optional filter: "errors", "warnings", or a regex pattern
      * @param keywords  optional list of keywords for line matching
+     * @param container optional container name to filter logs
      * @return the LogQL query string
      */
     String buildLogQuery(final String namespace, final String podName,
-                         final String filter, final List<String> keywords) {
+                         final String filter, final List<String> keywords,
+                         final String container) {
         StringBuilder query = new StringBuilder();
-        query.append(String.format("{%s=\"%s\", %s=\"%s\"}",
+        query.append(String.format("{%s=\"%s\", %s=\"%s\"",
             LogQLSanitizer.sanitizeLabelName(config.label().namespace()),
             LogQLSanitizer.sanitizeLabelValue(namespace),
             LogQLSanitizer.sanitizeLabelName(config.label().pod()),
             LogQLSanitizer.sanitizeLabelValue(podName)));
+
+        if (container != null && !container.isBlank()) {
+            query.append(String.format(", %s=\"%s\"",
+                LogQLSanitizer.sanitizeLabelName(config.label().container()),
+                LogQLSanitizer.sanitizeLabelValue(container.trim())));
+        }
+        query.append("}");
 
         String filterRegex = resolveFilterRegex(filter);
         if (filterRegex != null) {

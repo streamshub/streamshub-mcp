@@ -6,6 +6,7 @@ package io.streamshub.mcp.common.service.log;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
+import io.streamshub.mcp.common.dto.LogFetchRequest;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -94,9 +95,8 @@ public class LogCollectionService {
             String podName = pod.getMetadata().getName();
             podIndex++;
             try {
-                String podLog = logProvider.get().fetchLogs(namespace, podName, options.tailLines(),
-                    options.sinceSeconds(), options.previous(), options.filter(), options.keywords(),
-                    options.startTime(), options.endTime());
+                String podLog = logProvider.get().fetchLogs(
+                    LogFetchRequest.from(namespace, podName, options));
 
                 if (podLog != null && !podLog.isEmpty()) {
                     String trimmedLog = tailLines(podLog, options.tailLines());

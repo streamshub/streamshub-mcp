@@ -68,6 +68,7 @@ Get logs from KafkaMirrorMaker2 pods with error analysis. Supports filtering, ti
 - `endTime` (optional) -- Absolute end time (ISO 8601)
 - `tailLines` (optional) -- Number of lines per pod
 - `previous` (optional) -- Get logs from previous container instance
+- `container` (optional) -- Container name to narrow log collection to a single container (e.g., 'kafka'). Omit to collect from all containers in each pod.
 
 **Returns**: Aggregated logs with error analysis and statistics
 

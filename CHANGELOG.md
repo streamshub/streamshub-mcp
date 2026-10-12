@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Per-partition metric category and replication error metrics** — Added `partitions` category with `PARTITION` granularity (`kafka_cluster_partition_underminisr`, `atminisr`, `replicascount`) and added `uncleanleaderelections_total` and `activecontrollercount` to `replication`.
 - **Throughput error and connection metrics** — Added `failedproducerequests_total`, `failedfetchrequests_total`, and `connection_count` to `KafkaMetricCategories.THROUGHPUT`. Added `process_open_fds` to `KafkaMetricCategories.RESOURCES` and `KafkaConnectMetricCategories.RESOURCES`.
 - **Cruise Control metrics tool** — Added `get_cruise_control_metrics` MCP tool (`CruiseControlMetricsService`, `CruiseControlMetricCategories`, `CruiseControlMetricsResponse`) supporting `sampling` and `anomaly` categories for Cruise Control partition monitoring and anomaly detection.
+- **Optional `container` parameter on log-collection tools** — `get_kafka_cluster_logs`, `get_kafka_connect_logs`, `get_kafka_bridge_logs`, `get_kafka_mirror_maker_logs`, and `get_strimzi_operator_logs` now accept an optional `container` parameter to narrow log collection to a single named container (e.g., 'kafka'). Omit to collect from all containers in each pod. Honoured by the Kubernetes, Loki, and Elasticsearch log providers. New Loki label mapping `mcp.log.loki.label.container` (default `container`). (#273)
 
 ### Changed
 
@@ -53,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Guardrail execution-model contract** — All guardrail beans now declare `@SupportedExecutionModels({WORKER_THREAD, VIRTUAL_THREAD})`, matching the invariant that every tool runs on a worker or virtual thread (never the event loop). A new `GuardrailExecutionModelTest` enforces this so future guardrails cannot silently default to a different contract.
 - **Virtual-thread offloading for blocking tools** — Log-collection (`get_*_logs`) and composite diagnostic/comparison/assessment (`diagnose_*`, `compare_*`, `assess_*`) tool methods now run on virtual threads (`@RunOnVirtualThread`), preventing worker-thread-pool exhaustion under concurrent MCP client load during long-running Kubernetes calls and LLM sampling round-trips.
 - **Error semantics for structured errors** (#229) — Tool errors in the not-found (`-32002`) and invalid-params (`-32602`) categories are now returned as JSON-RPC protocol errors (carrying `error.data`) rather than failed tool responses (`isError: true`). Rate-limit, cancellation, RBAC/403, and generic infrastructure errors are unchanged and remain failed tool responses. `NamespaceElicitationHelper` now reads the candidate namespaces from the structured error data instead of regex-parsing the error message.
+- **Refactored `LogCollectorProvider.fetchLogs` SPI** — the SPI now takes a single `LogFetchRequest` object (namespace, pod name, filtering fields, and optional `container` selector) instead of individual parameters. (#273)
 
 ### Fixed
 

@@ -84,6 +84,8 @@ Get logs from Strimzi operator pods with error analysis and advanced filtering.
 - `endTime` (optional) -- End time (ISO 8601 format, e.g., `2025-01-15T12:00:00Z`)
 - `tailLines` (optional) -- Number of lines to tail from each pod
 - `previous` (optional) -- Get logs from previous container instance
+- `container` (optional) -- Container name to narrow log collection to a single container (e.g., 'kafka'). Omit to collect from all containers in each pod.
+
 **Returns**: Aggregated operator logs with error analysis and statistics
 
 **Example**:

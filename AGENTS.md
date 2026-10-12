@@ -76,7 +76,7 @@ io.streamshub.mcp.common.
 │                     AuthHelper (reads SA token and builds Authorization headers)
 ├── config/         → KubernetesConstants (labels, conditions, phases, health status),
 │                     ToolMetaFields (type/resource/composite meta field name constants)
-├── dto/            → PodSummaryResponse, PodLogsResult, LogCollectionParams (generic pod DTOs),
+├── dto/            → PodSummaryResponse, PodLogsResult, LogCollectionParams, LogFetchRequest (generic pod DTOs),
 │                     ConditionInfo (serialisable Kubernetes condition record),
 │                     ReplicasInfo (desired/ready/available replica counts),
 │                     ResourceEventsResult (event list with metadata),
@@ -104,7 +104,9 @@ io.streamshub.mcp.common.
 │   │                 KubernetesQueryException (typed exception for Kubernetes API failures)
 │   ├── log/        → LogCollectionService, LogCollectorProvider, KubernetesLogProvider,
 │   │                 LogFilterUtils (shared keyword/regex log line filtering),
-│   │                 LogQueryException (typed exception for log collection failures)
+│   │                 LogQueryException (typed exception for log collection failures).
+│   │                 LogCollectorProvider.fetchLogs takes a single LogFetchRequest (namespace,
+│   │                 pod, filtering fields, and optional container selector).
 │   └── metrics/    → MetricsProvider (interface), PodScrapingMetricsProvider, MetricsQueryService,
 │                     MetricsQueryException (typed exception for metrics query failures)
 └── util/           → InputUtils,

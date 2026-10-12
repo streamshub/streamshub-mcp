@@ -69,6 +69,13 @@ public final class StrimziToolsPrompts {
             + " Omit to collect from all pods in the cluster.";
 
     /**
+     * Container name filter parameter description.
+     */
+    public static final String CONTAINER_DESC =
+        "Optional container name to narrow log collection to a single container"
+            + " (e.g., 'kafka'). Omit to collect from all containers in each pod.";
+
+    /**
      * Sections parameter description.
      */
     public static final String SECTIONS_DESC =

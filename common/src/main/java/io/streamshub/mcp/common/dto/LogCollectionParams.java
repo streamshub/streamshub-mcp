@@ -21,6 +21,7 @@ import java.util.List;
  * @param previous         if true, retrieve logs from the previous container instance
  * @param cancelCheck      optional callback invoked before each pod; should throw to abort
  * @param progressCallback optional callback receiving (podName, completedPods, totalPods) after each pod
+ * @param container        optional container name to narrow collection to a single container; null for all containers
  */
 public record LogCollectionParams(
     String filter,
@@ -31,7 +32,8 @@ public record LogCollectionParams(
     int tailLines,
     Boolean previous,
     Runnable cancelCheck,
-    LogProgressCallback progressCallback
+    LogProgressCallback progressCallback,
+    String container
 ) {
 
     /**
@@ -61,7 +63,7 @@ public record LogCollectionParams(
     public static LogCollectionParams of(final String filter, final Integer sinceSeconds,
                                          final int tailLines, final Boolean previous) {
         return new LogCollectionParams(filter, null, sinceSeconds, null, null,
-            tailLines, previous, null, null);
+            tailLines, previous, null, null, null);
     }
 
     /**
@@ -88,6 +90,7 @@ public record LogCollectionParams(
         private Boolean previous;
         private Runnable cancelCheck;
         private LogProgressCallback progressCallback;
+        private String container;
 
         private Builder(final int tailLines) {
             this.tailLines = tailLines;
@@ -182,13 +185,24 @@ public record LogCollectionParams(
         }
 
         /**
+         * Set the container name to narrow collection to a single container.
+         *
+         * @param container the container name, or null for all containers
+         * @return this builder
+         */
+        public Builder container(final String container) {
+            this.container = container;
+            return this;
+        }
+
+        /**
          * Build the log collection options.
          *
          * @return the constructed options
          */
         public LogCollectionParams build() {
             return new LogCollectionParams(filter, keywords, sinceSeconds, startTime, endTime,
-                tailLines, previous, cancelCheck, progressCallback);
+                tailLines, previous, cancelCheck, progressCallback, container);
         }
     }
 }

@@ -179,6 +179,7 @@ public class KafkaBridgeTools {
      * @param endTime      optional absolute end time (ISO 8601)
      * @param tailLines    optional number of lines to tail
      * @param previous     optional flag for previous container logs
+     * @param container    optional container name to narrow log collection
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return the bridge logs response with error analysis
@@ -238,6 +239,10 @@ public class KafkaBridgeTools {
             description = StrimziToolsPrompts.PREVIOUS_DESC,
             required = false
         ) final Boolean previous,
+        @ToolArg(
+            description = StrimziToolsPrompts.CONTAINER_DESC,
+            required = false
+        ) final String container,
         final Progress progress,
         final Cancellation cancellation
     ) {
@@ -250,6 +255,7 @@ public class KafkaBridgeTools {
             .startTime(startTime)
             .endTime(endTime)
             .previous(previous)
+            .container(container)
             .cancelCheck(cancellation::skipProcessingIfCancelled)
             .progressCallback(progress.token().isPresent()
                 ? (podName, completed, total) -> progress.notificationBuilder()

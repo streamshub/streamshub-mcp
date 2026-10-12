@@ -5,6 +5,7 @@
 package io.streamshub.mcp.elasticsearch;
 
 import io.quarkus.arc.lookup.LookupIfProperty;
+import io.streamshub.mcp.common.dto.LogFetchRequest;
 import io.streamshub.mcp.common.service.log.LogCollectorProvider;
 import io.streamshub.mcp.common.service.log.LogQueryException;
 import io.streamshub.mcp.common.util.ExceptionUtils;
@@ -49,18 +50,24 @@ public class ElasticsearchLogProvider implements LogCollectorProvider {
     }
 
     @Override
-    public String fetchLogs(final String namespace, final String podName,
-                            final int tailLines, final Integer sinceSeconds,
-                            final Boolean previous, final String filter,
-                            final List<String> keywords,
-                            final String startTime, final String endTime) {
+    public String fetchLogs(final LogFetchRequest request) {
+        final String namespace = request.namespace();
+        final String podName = request.podName();
+        final int tailLines = request.tailLines();
+        final Integer sinceSeconds = request.sinceSeconds();
+        final Boolean previous = request.previous();
+        final String filter = request.filter();
+        final List<String> keywords = request.keywords();
+        final String startTime = request.startTime();
+        final String endTime = request.endTime();
+
         if (Boolean.TRUE.equals(previous)) {
             LOG.debugf("Elasticsearch does not distinguish previous container logs; "
                 + "using time range to capture pre-restart logs for pod %s", podName);
         }
 
         String query = buildSearchQuery(namespace, podName, tailLines,
-            sinceSeconds, filter, keywords, startTime, endTime);
+            sinceSeconds, filter, keywords, startTime, endTime, request.container());
 
         LOG.debugf("Querying Elasticsearch: index=%s, query=%s", config.indexPattern(), query);
 
@@ -80,7 +87,7 @@ public class ElasticsearchLogProvider implements LogCollectorProvider {
     String buildSearchQuery(String namespace, String podName,
                             int tailLines, Integer sinceSeconds,
                             String filter, List<String> keywords,
-                            String startTime, String endTime) {
+                            String startTime, String endTime, String container) {
         String nsField = ElasticsearchQuerySanitizer.sanitizeFieldName(config.field().namespace());
         String podField = ElasticsearchQuerySanitizer.sanitizeFieldName(config.field().pod());
         String msgField = ElasticsearchQuerySanitizer.sanitizeFieldName(config.field().message());
@@ -92,6 +99,12 @@ public class ElasticsearchLogProvider implements LogCollectorProvider {
             nsField, ElasticsearchQuerySanitizer.sanitizeValue(namespace)));
         filterClauses.add(String.format("{\"term\":{\"%s.keyword\":\"%s\"}}",
             podField, ElasticsearchQuerySanitizer.sanitizeValue(podName)));
+
+        if (container != null && !container.isBlank()) {
+            String containerField = ElasticsearchQuerySanitizer.sanitizeFieldName(config.field().container());
+            filterClauses.add(String.format("{\"term\":{\"%s.keyword\":\"%s\"}}",
+                containerField, ElasticsearchQuerySanitizer.sanitizeValue(container.trim())));
+        }
 
         String timeRangeClause = buildTimeRangeClause(tsField, sinceSeconds, startTime, endTime);
         if (timeRangeClause != null) {

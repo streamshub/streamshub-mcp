@@ -10,6 +10,7 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaBootstrapResponse;
@@ -27,6 +28,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.net.URI;
 import java.time.Instant;
@@ -39,6 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 /**
  * MCP integration tests for Kafka cluster tools.
@@ -336,5 +339,28 @@ class KafkaToolsTest {
                     assertTrue(json.contains("Kafka started"));
                 })
             .thenAssertResults();
+    }
+
+    /**
+     * Verify get_kafka_cluster_logs threads the container arg into collection options.
+     */
+    @Test
+    void testGetKafkaClusterLogsThreadsContainer() {
+        when(kafkaService.getClusterLogs(any(), any(), any(), any())).thenReturn(
+            KafkaClusterLogsResponse.of("my-cluster", "kafka",
+                List.of("my-cluster-kafka-0"), false, 0, 0, 1, false,
+                "log", List.of())
+        );
+
+        client.when()
+            .toolsCall("get_kafka_cluster_logs",
+                Map.of("clusterName", "my-cluster", "container", "kafka"), response -> {
+                    assertFalse(response.isError());
+                })
+            .thenAssertResults();
+
+        ArgumentCaptor<LogCollectionParams> captor = ArgumentCaptor.forClass(LogCollectionParams.class);
+        verify(kafkaService).getClusterLogs(any(), any(), captor.capture(), any());
+        assertEquals("kafka", captor.getValue().container());
     }
 }

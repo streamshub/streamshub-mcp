@@ -168,6 +168,37 @@ class LogsLokiToolsST extends AbstractST {
     }
 
     @Test
+    @Story("get_kafka_cluster_logs narrows to a single container via Loki")
+    void testGetKafkaClusterLogsContainerViaLoki() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "container", "kafka",
+            "tailLines", 20);
+
+        Wait.until("Loki to return log data for Kafka cluster with container selector",
+            Constants.KAFKA_READY_POLL_MS, Constants.KAFKA_READY_TIMEOUT_MS, () -> {
+                try {
+                    mcpClient.when()
+                        .toolsCall("get_kafka_cluster_logs", args, response -> {
+                            JsonNode root = assertToolSuccess(response);
+                            String text = response.content().getFirst().asText().text();
+                            LOGGER.info("get_kafka_cluster_logs container selector via Loki response (length={})", text.length());
+                            assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
+                            assertTrue(root.path("log_lines").asInt() > 0, "Should have log lines from the 'kafka' container");
+                            assertFalse(root.path("logs").asText("").isEmpty(), "logs content should not be empty");
+                            assertTrue(root.path("logs").asText("").contains("=== Pod:"), "logs should contain pod log sections");
+                        })
+                        .thenAssertResults();
+                    return true;
+                } catch (Exception | AssertionError ignored) {
+                    LOGGER.info("Loki doesn't have logs yet, retrying...");
+                    return false;
+                }
+            }
+        );
+    }
+
+    @Test
     @Story("get_kafka_cluster_logs with errors filter via Loki")
     void testGetKafkaClusterLogsErrorFilterViaLoki() {
         Map<String, Object> args = Map.of(

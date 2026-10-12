@@ -153,6 +153,7 @@ The defaults work with Promtail and Grafana Alloy.
 |----------|---------|-------------|
 | `mcp.log.loki.label.namespace` | `namespace` | Loki label for Kubernetes namespace |
 | `mcp.log.loki.label.pod` | `pod` | Loki label for pod name |
+| `mcp.log.loki.label.container` | `container` | Loki label for container name (used to narrow log collection to a single container) |
 
 **For OpenShift Logging (ClusterLogForwarder):**
 
@@ -240,11 +241,13 @@ MCP_LOG_ELASTICSEARCH_AUTH_MODE=sa-token
 The default field names match the standard Kubernetes log format used by Fluent Bit and Fluentd.
 Override these if your log aggregation pipeline uses custom field names.
 
+The `container` field is used to narrow log collection to a single container when the `container` parameter is specified in log-collection tools.
+
 | Property | Default | Description |
 |----------|---------|-------------|
 | `mcp.log.elasticsearch.field.namespace` | `kubernetes.namespace_name` | Kubernetes namespace field |
 | `mcp.log.elasticsearch.field.pod` | `kubernetes.pod_name` | Pod name field |
-| `mcp.log.elasticsearch.field.container` | `kubernetes.container_name` | Container name field |
+| `mcp.log.elasticsearch.field.container` | `kubernetes.container_name` | Container name field (used to narrow log collection to a single container) |
 | `mcp.log.elasticsearch.field.message` | `message` | Log message field |
 | `mcp.log.elasticsearch.field.timestamp` | `@timestamp` | Timestamp field |
 

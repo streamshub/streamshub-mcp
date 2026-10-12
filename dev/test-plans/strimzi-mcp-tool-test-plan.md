@@ -434,6 +434,28 @@ Parameters: {
 - [ ] Returns empty log output
 - [ ] No error thrown
 
+### T2.15 - Get Cluster Logs (single container)
+
+```
+Tool: get_kafka_cluster_logs
+Parameters: {
+  "clusterName": "mcp-cluster",
+  "container": "kafka",
+  "tailLines": 20
+}
+```
+
+**Expected:**
+- [ ] Returns log lines only from the 'kafka' container
+- [ ] No logs from other containers (e.g., init containers)
+- [ ] Logs are grouped by pod name
+- [ ] At most 20 lines per pod
+
+**System test coverage:**
+- Kubernetes provider: `KafkaClusterToolsST.testGetKafkaClusterLogsContainerSelector()`
+- Loki provider: `LogsLokiToolsST.testGetKafkaClusterLogsContainerViaLoki()`
+- Elasticsearch provider: `LogsElasticsearchToolsST.testGetKafkaClusterLogsContainerViaElasticsearch()`
+
 ---
 
 ## Phase 3: KafkaTopic Tools
@@ -776,6 +798,17 @@ Parameters: { "filter": "ERROR", "tailLines": 100 }
 **Expected:**
 - [ ] Only ERROR-level log lines returned (or empty if operator healthy)
 
+### T6.5a - Get Operator Logs (single container)
+
+```
+Tool: get_strimzi_operator_logs
+Parameters: { "container": "strimzi-cluster-operator", "tailLines": 50 }
+```
+
+**Expected:**
+- [ ] Returns log lines only from the 'strimzi-cluster-operator' container
+- [ ] At most 50 lines returned
+
 ### T6.6 - Get Operator Pod
 
 > Note: get actual pod name from T6.2 results (e.g., `strimzi-cluster-operator-<suffix>`)
@@ -1042,6 +1075,17 @@ Parameters: { "connectName": "mcp-connect", "tailLines": 50 }
 - [ ] Returns Connect worker logs
 - [ ] Should show connector activity (timer source emitting messages)
 
+### T10.4a - Get Connect Logs (single container)
+
+```
+Tool: get_kafka_connect_logs
+Parameters: { "connectName": "mcp-connect", "container": "kafka-connect", "tailLines": 50 }
+```
+
+**Expected:**
+- [ ] Returns log lines only from the 'kafka-connect' container
+- [ ] At most 50 lines returned
+
 ### T10.5 - Get Events for KafkaConnect
 
 ```
@@ -1173,6 +1217,17 @@ Parameters: { "bridgeName": "mcp-bridge", "tailLines": 50 }
 **Expected:**
 - [ ] Returns bridge pod logs
 
+### T12.4a - Get Bridge Logs (single container)
+
+```
+Tool: get_kafka_bridge_logs
+Parameters: { "bridgeName": "mcp-bridge", "container": "kafka-bridge", "tailLines": 50 }
+```
+
+**Expected:**
+- [ ] Returns log lines only from the 'kafka-bridge' container
+- [ ] At most 50 lines returned
+
 ### T12.5 - Get Events for KafkaBridge
 
 ```
@@ -1262,6 +1317,17 @@ Parameters: { "mirrorMakerName": "mcp-mirror-maker", "tailLines": 50 }
 **Expected:**
 - [ ] Returns MM2 worker logs
 - [ ] Should show replication activity for mirrored topics
+
+### T13.4a - Get MirrorMaker Logs (single container)
+
+```
+Tool: get_kafka_mirror_maker_logs
+Parameters: { "mirrorMakerName": "mcp-mirror-maker", "container": "kafka-mirrormaker", "tailLines": 50 }
+```
+
+**Expected:**
+- [ ] Returns log lines only from the 'kafka-mirrormaker' container
+- [ ] At most 50 lines returned
 
 ### T13.5 - Get Events for MirrorMaker2
 

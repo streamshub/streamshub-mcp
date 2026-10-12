@@ -186,6 +186,7 @@ public class StrimziOperatorTools {
      * @param endTime      optional absolute end time (ISO 8601)
      * @param tailLines    optional number of lines to tail
      * @param previous     optional flag for previous container logs
+     * @param container    optional container name to narrow log collection
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return the operator logs response
@@ -242,6 +243,10 @@ public class StrimziOperatorTools {
             description = StrimziToolsPrompts.PREVIOUS_DESC,
             required = false
         ) final Boolean previous,
+        @ToolArg(
+            description = StrimziToolsPrompts.CONTAINER_DESC,
+            required = false
+        ) final String container,
         final Progress progress,
         final Cancellation cancellation
     ) {
@@ -254,6 +259,7 @@ public class StrimziOperatorTools {
             .startTime(startTime)
             .endTime(endTime)
             .previous(previous)
+            .container(container)
             .cancelCheck(cancellation::skipProcessingIfCancelled)
             // Only send progress if the client provided a progress token
             .progressCallback(progress.token().isPresent()

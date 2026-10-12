@@ -8,6 +8,7 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectLogsResponse;
@@ -18,14 +19,17 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 /**
  * MCP integration tests for KafkaConnect tools.
@@ -149,5 +153,27 @@ class KafkaConnectToolsTest {
                     assertTrue(json.contains("Connect started"));
                 })
             .thenAssertResults();
+    }
+
+    /**
+     * Verify get_kafka_connect_logs threads the container arg into collection options.
+     */
+    @Test
+    void testGetKafkaConnectLogsThreadsContainer() {
+        when(connectService.getConnectLogs(any(), any(), any())).thenReturn(
+            KafkaConnectLogsResponse.of("my-connect", "kafka",
+                List.of("my-connect-connect-0"), false, 0, 0, 50, false,
+                "2025-01-01 INFO Connect started", List.of())
+        );
+
+        client.when()
+            .toolsCall("get_kafka_connect_logs",
+                Map.of("connectName", "my-connect", "container", "kafka-connect"), response ->
+                    assertFalse(response.isError()))
+            .thenAssertResults();
+
+        ArgumentCaptor<LogCollectionParams> captor = ArgumentCaptor.forClass(LogCollectionParams.class);
+        verify(connectService).getConnectLogs(any(), any(), captor.capture());
+        assertEquals("kafka-connect", captor.getValue().container());
     }
 }
