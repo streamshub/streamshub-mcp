@@ -1,0 +1,219 @@
+// Module included in the following assemblies:
+// assembly-configuring.adoc
+
+[id='proc-configuring-opensearch-integration-{context}']
+= Configuring OpenSearch integration
+
+Use OpenSearch for centralized log collection and historical log queries.
+When configured, the MCP server uses OpenSearch for centralized log collection instead of querying pod logs directly from Kubernetes.
+The provider is wire-compatible with Elasticsearch, so the same configuration works against an Elasticsearch backend (the dev and CI environments use an ECK Elasticsearch deployment as the backend).
+
+Benefits:
+
+* Historical log queries beyond pod retention
+* Full-text search across all logs
+* Advanced filtering with the OpenSearch Query DSL
+* Better performance for large-scale deployments
+
+.Prerequisites
+* OpenSearch (or wire-compatible Elasticsearch) deployed in your cluster
+* A log shipper (Fluent Bit, Fluentd, or Filebeat) configured to ship Kubernetes logs to the backend
+
+== OpenSearch configuration properties
+
+[cols="2,2,3",options="header"]
+|===
+|Property |Default |Description
+
+|`quarkus.rest-client.opensearch.url` |`http://localhost:9200` |OpenSearch endpoint URL
+|`quarkus.rest-client.opensearch.connect-timeout` |`5000` |Connection timeout in milliseconds
+|`quarkus.rest-client.opensearch.read-timeout` |`30000` |Read timeout in milliseconds
+|`mcp.log.opensearch.auth-mode` |`none` |Authentication mode: `none`, `basic`, `bearer-token`, or `sa-token`
+|`mcp.log.opensearch.sa-token-path` |`/var/run/secrets/kubernetes.io/serviceaccount/token` |Path to ServiceAccount token
+|`mcp.log.opensearch.index-pattern` |`kubernetes-*` |Index pattern for log queries
+|`mcp.log.opensearch.field.namespace` |`kubernetes.namespace_name` |Field name for Kubernetes namespace
+|`mcp.log.opensearch.field.pod` |`kubernetes.pod_name` |Field name for pod name
+|`mcp.log.opensearch.field.container` |`kubernetes.container_name` |Field name for container name (used to narrow log collection to a single container)
+|`mcp.log.opensearch.field.message` |`message` |Field name for log message
+|`mcp.log.opensearch.field.timestamp` |`@timestamp` |Field name for timestamp
+|===
+
+== Setup the backend
+
+The dev and CI environments deploy an ECK Elasticsearch backend, which is wire-compatible with the OpenSearch provider.
+
+*For Kind clusters:*
+
+Use the provided manifests and scripts:
+
+[source,bash]
+----
+# Deploy the backend and Fluent Bit
+./dev/scripts/setup-elasticsearch-kind.sh deploy
+
+# Verify the backend is running
+kubectl -n elasticsearch get pods
+----
+
+*For OpenShift clusters:*
+
+Use the ECK (Elastic Cloud on Kubernetes) Operator:
+
+[source,bash]
+----
+# Deploy ECK Operator, the backend, and log forwarding
+./dev/scripts/setup-elasticsearch.sh deploy
+
+# The script automatically:
+# - Deploys the ECK Operator and the backend
+# - Creates an API key for log collection
+# - Configures ClusterLogForwarder to ship logs to the backend
+# - Creates an OpenShift Route for external access
+
+# Verify the backend is running
+oc -n elasticsearch-logging get elasticsearch
+----
+
+== Configure the MCP server
+
+To enable OpenSearch:
+
+[source,bash]
+----
+QUARKUS_REST_CLIENT_OPENSEARCH_URL=http://opensearch.monitoring:9200
+MCP_LOG_PROVIDER=streamshub-opensearch
+----
+
+*For OpenShift deployments* (ECK with log forwarding already configured), the setup script displays the configuration after deployment. For local development:
+
+[source,bash]
+----
+# Configure MCP server with API key authentication (recommended)
+MCP_LOG_PROVIDER=streamshub-opensearch
+QUARKUS_REST_CLIENT_OPENSEARCH_URL=https://elasticsearch-es-http.elasticsearch-logging.svc:9200
+MCP_LOG_OPENSEARCH_AUTH_MODE=bearer-token
+MCP_LOG_OPENSEARCH_BEARER_TOKEN=$(oc get secret elasticsearch-mcp-read-token -n elasticsearch-logging -o jsonpath='{.data.token}' | base64 -d)
+MCP_LOG_OPENSEARCH_INDEX_PATTERN=kubernetes
+QUARKUS_TLS_TRUST_ALL=true
+----
+
+[NOTE]
+====
+* The setup script creates two API keys: `elasticsearch-logforwarder-token` (write-only for log collection) and `elasticsearch-mcp-read-token` (read-only for MCP server queries).
+* ClusterLogForwarder writes logs to the `kubernetes` index (no date suffix). For Kind clusters using Fluent Bit, which creates date-suffixed indices like `kubernetes-2026-08-17`, use the default `kubernetes-*` pattern instead.
+====
+
+*For Kind deployments* (no authentication):
+
+[source,bash]
+----
+# Get the backend service URL
+ES_URL=$(kubectl -n elasticsearch get svc elasticsearch -o jsonpath='{.spec.clusterIP}')
+
+# Configure MCP server
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  QUARKUS_REST_CLIENT_OPENSEARCH_URL=http://${ES_URL}:9200 \
+  MCP_LOG_PROVIDER=streamshub-opensearch
+----
+
+[id='opensearch-authentication-{context}']
+== Authentication
+
+*API key (recommended for OpenShift/ECK):*
+
+Use API keys for fine-grained access control. When using the ECK Operator on OpenShift, the `setup-elasticsearch.sh` script automatically creates two API keys with minimal permissions:
+
+* `elasticsearch-logforwarder-token` -- write-only (for ClusterLogForwarder log collection)
+* `elasticsearch-mcp-read-token` -- read-only (for MCP server queries)
+
+For MCP server configuration:
+
+[source,bash]
+----
+MCP_LOG_OPENSEARCH_AUTH_MODE=bearer-token
+MCP_LOG_OPENSEARCH_BEARER_TOKEN=$(oc get secret elasticsearch-mcp-read-token -n elasticsearch-logging -o jsonpath='{.data.token}' | base64 -d)
+----
+
+*Basic authentication:*
+
+[source,bash]
+----
+MCP_LOG_OPENSEARCH_AUTH_MODE=basic
+QUARKUS_REST_CLIENT_OPENSEARCH_USERNAME=your-username
+QUARKUS_REST_CLIENT_OPENSEARCH_PASSWORD=your-password
+----
+
+If you need to use the `elastic` superuser credentials from an existing Secret instead:
+
+[source,bash]
+----
+# Update Deployment to use credentials from a Secret
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  MCP_LOG_OPENSEARCH_AUTH_MODE=basic \
+  --from=secret/elasticsearch-auth
+----
+
+*ServiceAccount token (Kubernetes):*
+
+[source,bash]
+----
+MCP_LOG_OPENSEARCH_AUTH_MODE=sa-token
+# The token is automatically read from the mounted ServiceAccount
+----
+
+== Field mapping
+
+The `container` field is used to narrow log collection to a single container when the `container` parameter is specified in log-collection tools.
+
+The default field names match the standard Kubernetes log format used by Fluent Bit and Fluentd.
+Override these if your log aggregation pipeline uses custom field names:
+
+[source,bash]
+----
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  MCP_LOG_OPENSEARCH_FIELD_NAMESPACE=k8s_namespace \
+  MCP_LOG_OPENSEARCH_FIELD_POD=k8s_pod \
+  MCP_LOG_OPENSEARCH_FIELD_CONTAINER=k8s_container
+----
+
+== Elasticsearch compatibility
+
+The same provider works with Elasticsearch -- both expose the same `_search` API.
+Just point the URL to your Elasticsearch endpoint:
+
+[source,bash]
+----
+QUARKUS_REST_CLIENT_OPENSEARCH_URL=http://elasticsearch.monitoring:9200
+MCP_LOG_PROVIDER=streamshub-opensearch
+----
+
+[id='opensearch-tls-configuration-{context}']
+== OpenSearch TLS configuration
+
+*Server certificate verification:*
+
+[source,bash]
+----
+QUARKUS_REST_CLIENT_OPENSEARCH_TRUST_STORE=/etc/opensearch-tls/ca.crt
+QUARKUS_REST_CLIENT_OPENSEARCH_TRUST_STORE_TYPE=PEM
+----
+
+*Mutual TLS with client certificate:*
+
+[source,bash]
+----
+QUARKUS_REST_CLIENT_OPENSEARCH_KEY_STORE=/etc/opensearch-tls/client.p12
+QUARKUS_REST_CLIENT_OPENSEARCH_KEY_STORE_PASSWORD=changeit
+QUARKUS_REST_CLIENT_OPENSEARCH_KEY_STORE_TYPE=PKCS12
+----
+
+== Verify integration
+
+[source,bash]
+----
+# Check MCP server logs
+kubectl -n streamshub-mcp logs -l app=streamshub-mcp-strimzi
+
+# Test log collection through your AI assistant
+# Ask: "Collect logs from mcp-cluster"
+----

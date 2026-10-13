@@ -68,7 +68,7 @@ public final class TestTags {
     public static final String LOKI = "loki";
 
     /**
-     * Tag for logs tests with Elasticsearch provider
+     * Tag for logs tests with OpenSearch provider
      */
-    public static final String ELASTICSEARCH = "elasticsearch";
+    public static final String OPENSEARCH = "opensearch";
 }

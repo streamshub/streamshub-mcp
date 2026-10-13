@@ -229,20 +229,20 @@ deploy() {
     fi
     echo ""
     echo "MCP server configuration:"
-    echo "  MCP_LOG_PROVIDER=streamshub-elasticsearch"
-    echo "  QUARKUS_REST_CLIENT_ELASTICSEARCH_URL=https://elasticsearch-es-http.$ES_NS.svc:9200"
-    echo "  MCP_LOG_ELASTICSEARCH_AUTH_MODE=bearer-token"
-    echo "  MCP_LOG_ELASTICSEARCH_BEARER_TOKEN=\$(oc get secret elasticsearch-mcp-read-token -n $ES_NS -o jsonpath='{.data.token}' | base64 -d)"
-    echo "  MCP_LOG_ELASTICSEARCH_INDEX_PATTERN=kubernetes"
+    echo "  MCP_LOG_PROVIDER=streamshub-opensearch"
+    echo "  QUARKUS_REST_CLIENT_OPENSEARCH_URL=https://elasticsearch-es-http.$ES_NS.svc:9200"
+    echo "  MCP_LOG_OPENSEARCH_AUTH_MODE=bearer-token"
+    echo "  MCP_LOG_OPENSEARCH_BEARER_TOKEN=\$(oc get secret elasticsearch-mcp-read-token -n $ES_NS -o jsonpath='{.data.token}' | base64 -d)"
+    echo "  MCP_LOG_OPENSEARCH_INDEX_PATTERN=kubernetes"
     echo "  QUARKUS_TLS_TRUST_ALL=true"
     echo ""
     echo "Note: ClusterLogForwarder writes to 'kubernetes' index (no date suffix)."
     echo "For Kind clusters with Fluent Bit, use 'kubernetes-*' pattern instead."
     echo ""
     echo "Or use basic auth with elastic superuser (not recommended for production):"
-    echo "  MCP_LOG_ELASTICSEARCH_AUTH_MODE=basic"
-    echo "  QUARKUS_REST_CLIENT_ELASTICSEARCH_USERNAME=elastic"
-    echo "  QUARKUS_REST_CLIENT_ELASTICSEARCH_PASSWORD=\$(oc get secret elasticsearch-es-elastic-user -n $ES_NS -o jsonpath='{.data.elastic}' | base64 -d)"
+    echo "  MCP_LOG_OPENSEARCH_AUTH_MODE=basic"
+    echo "  QUARKUS_REST_CLIENT_OPENSEARCH_USERNAME=elastic"
+    echo "  QUARKUS_REST_CLIENT_OPENSEARCH_PASSWORD=\$(oc get secret elasticsearch-es-elastic-user -n $ES_NS -o jsonpath='{.data.elastic}' | base64 -d)"
 }
 
 teardown() {

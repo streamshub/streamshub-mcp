@@ -57,7 +57,7 @@ Documentation updates are mandatory and must be completed before the task is con
 - **`common`** (`streamshub-mcp-common`) - Generic Kubernetes helpers, DTOs, MCP framework utilities shared across modules
 - **`metrics-prometheus`** (`streamshub-metrics-prometheus`) - Prometheus/Thanos metrics provider (pluggable, replaceable JAR)
 - **`loki-log-provider`** (`streamshub-loki-log-provider`) - Loki log provider (pluggable, replaceable JAR)
-- **`elasticsearch-log-provider`** (`streamshub-elasticsearch-log-provider`) - Elasticsearch/OpenSearch log provider (pluggable, replaceable JAR)
+- **`opensearch-log-provider`** (`streamshub-opensearch-log-provider`) - OpenSearch log provider (pluggable, replaceable JAR)
 - **`strimzi-mcp`** (`strimzi-mcp`) - MCP Server for Strimzi: Kafka management tools and services
 
 ## Build & Test
@@ -145,15 +145,15 @@ io.streamshub.mcp.loki.
 └── LokiLogProvider (implements LogCollectorProvider)
 ```
 
-### Elasticsearch log provider module (`elasticsearch-log-provider/`)
+### OpenSearch log provider module (`opensearch-log-provider/`)
 
 ```
-io.streamshub.mcp.elasticsearch.
-├── config/    → ElasticsearchConfig (field mapping, auth mode, index pattern)
-├── service/   → ElasticsearchClient, ElasticsearchAuthFilter
-├── util/      → ElasticsearchQuerySanitizer
-├── ElasticsearchResponse (response record with nested Hit record)
-└── ElasticsearchLogProvider (implements LogCollectorProvider)
+io.streamshub.mcp.opensearch.
+├── config/    → OpenSearchConfig (field mapping, auth mode, index pattern)
+├── service/   → OpenSearchClient, OpenSearchAuthFilter
+├── util/      → OpenSearchQuerySanitizer
+├── OpenSearchResponse (response record with nested Hit record)
+└── OpenSearchLogProvider (implements LogCollectorProvider)
 ```
 
 ### MCP Server for Strimzi module (`strimzi-mcp/`)

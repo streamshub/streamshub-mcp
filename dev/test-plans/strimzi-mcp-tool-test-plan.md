@@ -454,7 +454,7 @@ Parameters: {
 **System test coverage:**
 - Kubernetes provider: `KafkaClusterToolsST.testGetKafkaClusterLogsContainerSelector()`
 - Loki provider: `LogsLokiToolsST.testGetKafkaClusterLogsContainerViaLoki()`
-- Elasticsearch provider: `LogsElasticsearchToolsST.testGetKafkaClusterLogsContainerViaElasticsearch()`
+- OpenSearch provider: `LogsOpenSearchToolsST.testGetKafkaClusterLogsContainerViaOpenSearch()`
 
 ---
 

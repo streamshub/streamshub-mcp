@@ -61,14 +61,14 @@ public final class Environment {
     public static final String LOKI_AUTH_MODE = ENV_VARIABLES.getOrDefault("LOKI_AUTH_MODE", null);
 
     /**
-     * Override URL for Elasticsearch service discovery.
+     * Override URL for OpenSearch service discovery.
      */
-    public static final String ELASTICSEARCH_URL = ENV_VARIABLES.getOrDefault("ELASTICSEARCH_URL", null);
+    public static final String OPENSEARCH_URL = ENV_VARIABLES.getOrDefault("OPENSEARCH_URL", null);
 
     /**
-     * Override auth mode for Elasticsearch.
+     * Override auth mode for OpenSearch.
      */
-    public static final String ELASTICSEARCH_AUTH_MODE = ENV_VARIABLES.getOrDefault("ELASTICSEARCH_AUTH_MODE", null);
+    public static final String OPENSEARCH_AUTH_MODE = ENV_VARIABLES.getOrDefault("OPENSEARCH_AUTH_MODE", null);
 
     private Environment() {
     }

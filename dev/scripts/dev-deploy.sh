@@ -47,8 +47,8 @@ usage() {
     echo "  QUARKUS_REST_CLIENT_LOKI_URL=https://custom:3100 \\"
     echo "    $0 <image> --ocp --loki"
     echo ""
-    echo "  QUARKUS_REST_CLIENT_ELASTICSEARCH_URL=http://elasticsearch:9200 \\"
-    echo "    MCP_LOG_ELASTICSEARCH_INDEX_PATTERN=app-logs-* \\"
+    echo "  QUARKUS_REST_CLIENT_OPENSEARCH_URL=http://elasticsearch:9200 \\"
+    echo "    MCP_LOG_OPENSEARCH_INDEX_PATTERN=app-logs-* \\"
     echo "    $0 <image> --kind --elasticsearch"
     echo ""
     echo "  QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://prometheus:9090 \\"
@@ -164,29 +164,29 @@ if [ "$ELASTICSEARCH" = true ]; then
         ES_TOKEN=$(kubectl get secret elasticsearch-mcp-read-token -n elasticsearch-logging -o jsonpath='{.data.token}' 2>/dev/null | base64 -d || echo "")
         if [ -z "$ES_TOKEN" ]; then
             echo "Warning: elasticsearch-mcp-read-token secret not found. Run dev/scripts/setup-elasticsearch.sh first."
-            echo "Falling back to basic auth mode (requires QUARKUS_REST_CLIENT_ELASTICSEARCH_USERNAME and PASSWORD env vars)."
+            echo "Falling back to basic auth mode (requires QUARKUS_REST_CLIENT_OPENSEARCH_USERNAME and PASSWORD env vars)."
             kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
-                MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-elasticsearch}" \
-                MCP_LOG_ELASTICSEARCH_AUTH_MODE="${MCP_LOG_ELASTICSEARCH_AUTH_MODE:-basic}" \
-                QUARKUS_REST_CLIENT_ELASTICSEARCH_URL="${QUARKUS_REST_CLIENT_ELASTICSEARCH_URL:-https://elasticsearch-es-http.elasticsearch-logging.svc:9200}" \
-                MCP_LOG_ELASTICSEARCH_INDEX_PATTERN="${MCP_LOG_ELASTICSEARCH_INDEX_PATTERN:-kubernetes}" \
+                MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-opensearch}" \
+                MCP_LOG_OPENSEARCH_AUTH_MODE="${MCP_LOG_OPENSEARCH_AUTH_MODE:-basic}" \
+                QUARKUS_REST_CLIENT_OPENSEARCH_URL="${QUARKUS_REST_CLIENT_OPENSEARCH_URL:-https://elasticsearch-es-http.elasticsearch-logging.svc:9200}" \
+                MCP_LOG_OPENSEARCH_INDEX_PATTERN="${MCP_LOG_OPENSEARCH_INDEX_PATTERN:-kubernetes}" \
                 QUARKUS_TLS_TRUST_ALL="${QUARKUS_TLS_TRUST_ALL:-true}"
         else
             kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
-                MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-elasticsearch}" \
-                MCP_LOG_ELASTICSEARCH_AUTH_MODE="${MCP_LOG_ELASTICSEARCH_AUTH_MODE:-bearer-token}" \
-                MCP_LOG_ELASTICSEARCH_BEARER_TOKEN="$ES_TOKEN" \
-                QUARKUS_REST_CLIENT_ELASTICSEARCH_URL="${QUARKUS_REST_CLIENT_ELASTICSEARCH_URL:-https://elasticsearch-es-http.elasticsearch-logging.svc:9200}" \
-                MCP_LOG_ELASTICSEARCH_INDEX_PATTERN="${MCP_LOG_ELASTICSEARCH_INDEX_PATTERN:-kubernetes}" \
+                MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-opensearch}" \
+                MCP_LOG_OPENSEARCH_AUTH_MODE="${MCP_LOG_OPENSEARCH_AUTH_MODE:-bearer-token}" \
+                MCP_LOG_OPENSEARCH_BEARER_TOKEN="$ES_TOKEN" \
+                QUARKUS_REST_CLIENT_OPENSEARCH_URL="${QUARKUS_REST_CLIENT_OPENSEARCH_URL:-https://elasticsearch-es-http.elasticsearch-logging.svc:9200}" \
+                MCP_LOG_OPENSEARCH_INDEX_PATTERN="${MCP_LOG_OPENSEARCH_INDEX_PATTERN:-kubernetes}" \
                 QUARKUS_TLS_TRUST_ALL="${QUARKUS_TLS_TRUST_ALL:-true}"
         fi
     else
         # Kind: no auth, Fluent Bit creates date-suffixed indices
         kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
-            MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-elasticsearch}" \
-            MCP_LOG_ELASTICSEARCH_AUTH_MODE="${MCP_LOG_ELASTICSEARCH_AUTH_MODE:-none}" \
-            QUARKUS_REST_CLIENT_ELASTICSEARCH_URL="${QUARKUS_REST_CLIENT_ELASTICSEARCH_URL:-http://elasticsearch.elasticsearch.svc.cluster.local:9200}" \
-            MCP_LOG_ELASTICSEARCH_INDEX_PATTERN="${MCP_LOG_ELASTICSEARCH_INDEX_PATTERN:-kubernetes-*}"
+            MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-opensearch}" \
+            MCP_LOG_OPENSEARCH_AUTH_MODE="${MCP_LOG_OPENSEARCH_AUTH_MODE:-none}" \
+            QUARKUS_REST_CLIENT_OPENSEARCH_URL="${QUARKUS_REST_CLIENT_OPENSEARCH_URL:-http://elasticsearch.elasticsearch.svc.cluster.local:9200}" \
+            MCP_LOG_OPENSEARCH_INDEX_PATTERN="${MCP_LOG_OPENSEARCH_INDEX_PATTERN:-kubernetes-*}"
     fi
 fi
 

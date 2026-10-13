@@ -10,7 +10,7 @@
         <module>common</module>
         <module>metrics-prometheus</module>
         <module>loki-log-provider</module>
-        <module>elasticsearch-log-provider</module>
+        <module>opensearch-log-provider</module>
         <module>strimzi-mcp</module>
         <module>systemtest</module>
     </modules>
@@ -59,7 +59,7 @@
             </dependency>
             <dependency>
                 <groupId>io.streamshub</groupId>
-                <artifactId>streamshub-elasticsearch-log-provider</artifactId>
+                <artifactId>streamshub-opensearch-log-provider</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

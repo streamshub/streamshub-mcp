@@ -15,7 +15,7 @@ include::../modules/configuring/ref-log-configuration.adoc[leveloffset=+1]
 
 include::../modules/configuring/proc-configuring-loki-integration.adoc[leveloffset=+1]
 
-include::../modules/configuring/proc-configuring-elasticsearch-integration.adoc[leveloffset=+1]
+include::../modules/configuring/proc-configuring-opensearch-integration.adoc[leveloffset=+1]
 
 include::../modules/configuring/ref-metrics-configuration.adoc[leveloffset=+1]
 

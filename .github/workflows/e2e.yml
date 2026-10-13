@@ -10,7 +10,7 @@ on:
       - 'strimzi-mcp/**'
       - 'systemtest/**'
       - 'loki-log-provider/**'
-      - 'elasticsearch-log-provider/**'
+      - 'opensearch-log-provider/**'
       - 'metrics-prometheus/**'
       - 'dev/**'
       - '!**/*.md'
@@ -59,7 +59,7 @@ jobs:
 
     - name: Build MCP image and load into kind
       run: |
-        ./mvnw package -pl common,metrics-prometheus,loki-log-provider,elasticsearch-log-provider,strimzi-mcp \
+        ./mvnw package -pl common,metrics-prometheus,loki-log-provider,opensearch-log-provider,strimzi-mcp \
           -DskipTests \
           -Dquarkus.container-image.build=true \
           -Dquarkus.container-image.tag=test
