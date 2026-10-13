@@ -1,0 +1,13 @@
+// Module included in the following assemblies:
+// assembly-usage-examples.adoc
+
+[id='con-about-sampling-{context}']
+= A note on Sampling
+
+Several diagnostic tools (like `diagnose_kafka_cluster` and `diagnose_kafka_connectivity`) use a feature called *Sampling*. Sampling lets the MCP server ask the AI assistant to analyze intermediate data during a multi-step workflow -- for example, deciding which areas to investigate deeper based on initial findings.
+
+*If your MCP client supports Sampling*, you get the full diagnostic experience with intelligent triage and focused analysis. Check your AI client's documentation to see if it supports MCP Sampling.
+
+*If your MCP client does not support Sampling*, the diagnostic tools still work but return all collected data without intermediate analysis. The results may be larger, and the AI assistant performs the analysis after receiving all the data rather than during the diagnostic workflow.
+
+For more details, see xref:con-sampling-and-elicitation-best-practices[Understanding Sampling and Elicitation].

@@ -1,0 +1,12 @@
+// Module included in the following assemblies:
+// assembly-ai-agent-best-practices.adoc
+
+[id='con-iterative-investigation-{context}']
+= Iterative investigation
+
+Start broad, then narrow down:
+
+. "What's the fleet overview?" -> Multi-cluster health check
+. "What's the status of mcp-cluster?" -> Specific Kafka cluster
+. "Diagnose issues with mcp-cluster" -> Automated multi-step investigation
+. "Show me errors from mcp-cluster in the last hour" -> Targeted log analysis

@@ -1,0 +1,115 @@
+// Module included in the following assemblies:
+// assembly-configuring.adoc
+
+[id='ref-security-configuration-{context}']
+= Security configuration
+
+== Input sanitization
+
+Every tool argument is passed through the always-on `ArgumentSanitizationGuardrail`, which strips control characters (below U+0020) from all string arguments -- including strings nested in objects and arrays -- while preserving newlines (`\n`), tabs (`\t`), and carriage returns (`\r`). This guards against malformed or malicious input (null bytes, escape sequences) from misbehaving MCP clients. There is no configuration property; the guardrail cannot be disabled.
+
+[id='log-redaction-{context}']
+== Log redaction
+
+The server automatically redacts sensitive information from tool responses.
+This prevents accidental exposure of credentials, tokens, and other secrets.
+
+[cols="2,1,3",options="header"]
+|===
+|Property |Default |Description
+
+|`mcp.guardrail.log-redaction.enabled` |`true` |Enable log redaction
+|`mcp.guardrail.log-redaction.custom-patterns[N]` |- |Custom regex patterns for redaction (indexed)
+|===
+
+*Built-in redaction patterns:*
+
+* Bearer tokens (`Bearer <token>`)
+* Passwords in various formats (`password=...`, `pwd:...`)
+* API keys (`apikey=...`, `api_key=...`)
+* Secrets and tokens (`secret=...`, `secret_key=...`, `token=...`)
+* Connection strings with embedded credentials (`scheme://user:pass@host`)
+* PEM private key blocks (`-----BEGIN ... PRIVATE KEY-----` ... `-----END ... PRIVATE KEY-----`)
+* High-entropy base64 tokens (40+ characters)
+
+*To disable (not recommended for production):*
+
+[source,bash]
+----
+MCP_GUARDRAIL_LOG_REDACTION_ENABLED=false
+----
+
+*To add custom patterns:*
+
+[source,bash]
+----
+MCP_GUARDRAIL_LOG_REDACTION_CUSTOM_PATTERNS_0='(?i)ssn\s*[=:]\s*\d{3}-\d{2}-\d{4}'
+MCP_GUARDRAIL_LOG_REDACTION_CUSTOM_PATTERNS_1='(?i)x-custom-header:\s*\S+'
+----
+
+Or in `application.properties`:
+
+[source,properties]
+----
+mcp.guardrail.log-redaction.custom-patterns[0]=(?i)ssn\\s*[=:]\\s*\\d{3}-\\d{2}-\\d{4}
+mcp.guardrail.log-redaction.custom-patterns[1]=(?i)x-custom-header:\\s*\\S+
+----
+
+*Example redaction:*
+
+----
+Original: Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Redacted: Authorization: Bearer [REDACTED]
+----
+
+== Response size limits
+
+Prevent excessive response sizes that could impact client performance.
+
+[cols="2,1,3",options="header"]
+|===
+|Property |Default |Description
+
+|`mcp.guardrail.max-response-bytes` |`500000` |Maximum response size in bytes (500KB)
+|===
+
+When a response exceeds this limit, the largest text fields are truncated to fit.
+
+[source,bash]
+----
+MCP_GUARDRAIL_MAX_RESPONSE_BYTES=1000000  # 1MB
+----
+
+[id='rate-limiting-{context}']
+== Rate limiting
+
+Control request rates per tool category to prevent resource exhaustion.
+
+[cols="2,1,3",options="header"]
+|===
+|Property |Default |Description
+
+|`mcp.guardrail.rate-limit.log-rpm` |`0` |Log collection requests per minute (0 = unlimited)
+|`mcp.guardrail.rate-limit.metrics-rpm` |`0` |Metrics query requests per minute (0 = unlimited)
+|`mcp.guardrail.rate-limit.general-rpm` |`0` |General tool requests per minute (0 = unlimited)
+|===
+
+*Recommended production values:* For a typical deployment with a single AI assistant, start with `log-rpm=30`, `metrics-rpm=60`, `general-rpm=120`.
+Increase if you have multiple concurrent users or automated pipelines calling the MCP server.
+
+Rate limits are enforced per tool category:
+
+* *Log category* -- `get_kafka_cluster_logs`, `get_strimzi_operator_logs`, `get_kafka_connect_logs`, `get_kafka_bridge_logs`, `get_kafka_mirror_maker_logs`, `get_drain_cleaner_logs`
+* *Metrics category* -- `get_kafka_metrics`, `get_kafka_exporter_metrics`, `get_kafka_connect_metrics`, `get_kafka_bridge_metrics`, `get_strimzi_operator_metrics`
+* *General category* -- All other tools
+
+To enable rate limiting:
+
+[source,bash]
+----
+MCP_GUARDRAIL_RATE_LIMIT_LOG_RPM=30
+MCP_GUARDRAIL_RATE_LIMIT_METRICS_RPM=60
+MCP_GUARDRAIL_RATE_LIMIT_GENERAL_RPM=120
+----
+
+When a rate limit is exceeded, the tool returns an error indicating the limit and retry time.

@@ -1,0 +1,83 @@
+// Module included in the following assemblies:
+// assembly-troubleshooting.adoc
+
+[id='ref-metrics-issues-{context}']
+= Metrics issues
+
+== No metrics returned
+
+*Symptom:* Metrics queries return no data
+
+*Diagnosis:*
+
+*1. Check Prometheus configuration*
+
+[source,bash]
+----
+kubectl -n streamshub-mcp exec <mcp-pod> -- env | grep PROMETHEUS
+----
+
+*2. Test Prometheus connectivity*
+
+[source,bash]
+----
+kubectl -n streamshub-mcp exec <mcp-pod> -- \
+  curl http://prometheus.monitoring:9090/-/ready
+----
+
+*3. Verify metrics exist*
+
+[source,bash]
+----
+# Query Prometheus directly
+curl 'http://prometheus.monitoring:9090/api/v1/query?query=up'
+----
+
+*Solutions:*
+
+* *Prometheus not configured*: Set `QUARKUS_REST_CLIENT_PROMETHEUS_URL`
+* *Metrics not scraped*: Check Prometheus targets
++
+[source,bash]
+----
+curl http://prometheus.monitoring:9090/api/v1/targets
+----
+* *Wrong metric name*: Use Prometheus UI to find correct names
+
+== 403 Forbidden querying OpenShift Thanos
+
+*Symptom:* Prometheus metrics queries return errors on OpenShift when using the Thanos querier
+
+*Cause:* The MCP server's service account needs the `cluster-monitoring-view` ClusterRole to query the OpenShift Thanos querier at `thanos-querier.openshift-monitoring.svc:9091`.
+
+*Solution:* Apply the optional RBAC manifest:
+
+[source,bash]
+----
+kubectl apply -f install/strimzi-mcp/optional/clusterrolebinding-cluster-monitoring-view.yaml
+----
+
+== Pod metrics scraping fails
+
+*Symptom:* Direct pod metrics scraping returns errors
+
+*Common causes:*
+
+*1. Missing RBAC permissions*
+
+----
+Error: User cannot get pods/proxy
+----
+
+Solution:
+
+[source,bash]
+----
+kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n kafka-ns
+kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n kafka-ns
+----
+
+*2. Metrics endpoint not exposed*
+
+* Verify pod has metrics port configured
+* Check pod annotations for metrics path

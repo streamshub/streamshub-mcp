@@ -1,0 +1,108 @@
+// Module included in the following assemblies:
+// assembly-configuring.adoc
+
+[id='proc-applying-configuration-on-kubernetes-{context}']
+= Applying configuration on Kubernetes
+
+== Using ConfigMaps
+
+Create a ConfigMap for non-sensitive configuration:
+
+[source,yaml]
+----
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: strimzi-mcp-config
+  namespace: streamshub-mcp
+data:
+  MCP_LOG_TAIL_LINES: "500"
+  QUARKUS_REST_CLIENT_LOKI_URL: "http://loki.monitoring:3100"
+  MCP_LOG_LOKI_AUTH_MODE: "none"
+  QUARKUS_REST_CLIENT_PROMETHEUS_URL: "http://prometheus.monitoring:9090"
+  MCP_METRICS_PROMETHEUS_AUTH_MODE: "none"
+----
+
+Apply the ConfigMap:
+
+[source,bash]
+----
+kubectl apply -f strimzi-mcp-config.yaml
+----
+
+== Using Secrets
+
+Create a Secret for sensitive data:
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: strimzi-mcp-secrets
+  namespace: streamshub-mcp
+type: Opaque
+stringData:
+  QUARKUS_REST_CLIENT_LOKI_USERNAME: "your-username"
+  QUARKUS_REST_CLIENT_LOKI_PASSWORD: "your-password"
+  QUARKUS_REST_CLIENT_PROMETHEUS_USERNAME: "your-username"
+  QUARKUS_REST_CLIENT_PROMETHEUS_PASSWORD: "your-password"
+----
+
+Apply the Secret:
+
+[source,bash]
+----
+kubectl apply -f strimzi-mcp-secrets.yaml
+----
+
+== Update deployment
+
+Reference ConfigMap and Secret in the Deployment:
+
+[source,yaml]
+----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamshub-mcp-strimzi
+  namespace: streamshub-mcp
+spec:
+  template:
+    spec:
+      containers:
+      - name: strimzi-mcp
+        image: quay.io/streamshub/strimzi-mcp:latest
+        # Load all ConfigMap values as environment variables
+        envFrom:
+        - configMapRef:
+            name: strimzi-mcp-config
+        - secretRef:
+            name: strimzi-mcp-secrets
+----
+
+Apply the updated Deployment:
+
+[source,bash]
+----
+kubectl apply -k install/strimzi-mcp/base/
+----
+
+== Quick configuration update
+
+Update environment variables without editing manifests:
+
+[source,bash]
+----
+# Set Loki URL
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  QUARKUS_REST_CLIENT_LOKI_URL=http://loki.monitoring:3100
+
+# Set Prometheus URL
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://prometheus.monitoring:9090
+
+# Set log tail lines
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  MCP_LOG_TAIL_LINES=500
+----

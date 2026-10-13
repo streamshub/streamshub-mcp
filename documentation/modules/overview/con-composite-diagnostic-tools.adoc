@@ -1,0 +1,32 @@
+// Module included in the following assemblies:
+// assembly-overview.adoc
+
+[id='con-composite-diagnostic-tools-{context}']
+= Composite diagnostic tools
+
+Composite diagnostic tools run multi-step workflows in a single tool call.
+These tools use LLM-guided triage to focus investigation on problem areas:
+
+* *Sampling* -- Sends intermediate results to the LLM to decide which areas need deeper investigation
+* *Elicitation* -- Prompts the user for disambiguation when multiple namespaces contain matching resources
+* *Graceful degradation* -- Gathers all data without triage when Sampling or Elicitation is not supported
+* *Step failure resilience* -- Individual step failures are recorded but do not abort the workflow
+
+The {StrimziMcp} provides {DiagnosticToolCount} composite diagnostic tools:
+
+* `diagnose_kafka_cluster` -- Cluster health check
+* `diagnose_kafka_storage` -- Storage and persistent volume claim diagnosis
+* `diagnose_kafka_connectivity` -- Connectivity troubleshooting
+* `diagnose_kafka_metrics` -- Metrics analysis and anomaly detection
+* `diagnose_operator_metrics` -- Operator performance analysis
+* `diagnose_kafka_connect` -- KafkaConnect cluster diagnosis
+* `diagnose_kafka_connector` -- Connector troubleshooting
+* `diagnose_kafka_topic` -- Topic diagnosis with scope detection
+* `assess_upgrade_readiness` -- Pre-upgrade readiness check
+* `diagnose_kafka_mirror_maker` -- MirrorMaker2 replication diagnosis
+* `diagnose_kafka_bridge` -- KafkaBridge HTTP gateway diagnosis
+* `diagnose_kafka_node_pool` -- KafkaNodePool scaling, storage, and scheduling diagnosis
+* `diagnose_kafka_rebalance` -- KafkaRebalance and Cruise Control rebalance diagnosis
+* `compare_kafka_clusters` -- Cross-cluster configuration comparison
+
+See xref:ref-diagnostic-tools-tools[the diagnostic tools reference] for details.

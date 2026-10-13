@@ -1,0 +1,45 @@
+// Module included in the following assemblies:
+// assembly-installing.adoc
+
+[id='proc-configuring-rbac-{context}']
+= Configuring RBAC
+
+The MCP server uses a two-tier RBAC model for security.
+
+*ClusterRole (default, non-sensitive resources):*
+
+The ClusterRole grants read-only access to:
+
+* Strimzi custom resources -- `get`, `list`, `watch`
+* Deployments -- `get`, `list`, `watch`
+* Pods and logs -- `get`, `list`
+* Services and ConfigMaps -- `get`, `list`
+* PersistentVolumeClaims -- `get`, `list`
+* Routes, Ingresses, and NetworkPolicies -- `get`, `list`
+* PodDisruptionBudgets -- `get`, `list`
+* Leases -- `get`, `list`
+* ValidatingWebhookConfigurations -- `get`, `list`
+
+*Role (opt-in per namespace, sensitive resources):*
+
+The optional Role grants access to:
+
+* Secrets -- `get` (for certificate metadata only, not secret data)
+* Pods/proxy -- `get` (for direct metrics scraping from pods)
+
+Deploy the sensitive Role and its RoleBinding only in namespaces where you need these features:
+
+[source,bash]
+----
+kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n kafka-namespace
+kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n kafka-namespace
+----
+
+*What happens without the sensitive Role:*
+
+If you do not apply the optional sensitive Role, the following features are unavailable:
+
+* *Certificate details* -- `get_kafka_cluster_certificates` cannot read TLS certificate metadata from Secrets
+* *Direct metrics scraping* -- The default `streamshub-pod-scraping` metrics provider cannot access pod metrics endpoints via `pods/proxy`. You must use the `streamshub-prometheus` provider instead (see xref:ref-metrics-configuration-configuring[the Prometheus provider configuration]).
+
+All other tools work normally without the sensitive Role.

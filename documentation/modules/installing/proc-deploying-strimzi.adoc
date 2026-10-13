@@ -1,0 +1,101 @@
+// Module included in the following assemblies:
+// assembly-installing.adoc
+
+[id='proc-deploying-strimzi-{context}']
+= Deploying Strimzi
+
+If you do not have Strimzi deployed, follow these steps.
+
+== Using the setup script (recommended)
+
+The setup script automates the entire deployment process.
+Run this from the repository root:
+
+[source,bash]
+----
+./dev/scripts/setup-strimzi.sh deploy
+----
+
+This script performs the following steps:
+
+. Deploys the Strimzi operator to the `strimzi` namespace
+. Waits for the operator to be ready
+. Creates the `strimzi-kafka` namespace
+. Deploys a sample Kafka cluster named `mcp-cluster`
+. Waits for the Kafka cluster to be ready
+
+You can pass additional flags to deploy observability infrastructure alongside Strimzi:
+
+[source,bash]
+----
+# Deploy Strimzi with Prometheus for metrics collection
+./dev/scripts/setup-strimzi.sh deploy --prometheus
+
+# Deploy Strimzi with Loki for log collection (OpenShift only)
+./dev/scripts/setup-strimzi.sh deploy --loki
+
+# Deploy Strimzi with both
+./dev/scripts/setup-strimzi.sh deploy --prometheus --loki
+
+# Deploy Strimzi with KafkaConnect and a sample connector
+./dev/scripts/setup-strimzi.sh deploy --connect
+
+# Deploy Strimzi with Jaeger for tracing
+./dev/scripts/setup-strimzi.sh deploy --jaeger
+
+# Deploy Strimzi with Drain Cleaner for graceful node drains
+./dev/scripts/setup-strimzi.sh deploy --drain-cleaner
+
+# Deploy Strimzi with a secondary Kafka cluster and MirrorMaker2 for cross-cluster replication
+./dev/scripts/setup-strimzi.sh deploy --mirror-maker
+----
+
+On OpenShift, add the `--ocp` flag to use Route listeners instead of NodePort:
+
+[source,bash]
+----
+./dev/scripts/setup-strimzi.sh deploy --ocp
+----
+
+== Manual deployment
+
+If you prefer to deploy manually:
+
+[source,bash]
+----
+# Deploy the Strimzi operator
+kubectl apply -k dev/manifests/strimzi/strimzi-operator/
+
+# Wait for the operator to be ready
+kubectl wait --for=condition=Available \
+  deployment/strimzi-cluster-operator \
+  -n strimzi \
+  --timeout=120s
+
+# Deploy a Kafka cluster
+kubectl apply -k dev/manifests/strimzi/kafka/
+
+# Wait for the cluster to be ready
+kubectl wait kafka/mcp-cluster \
+  --for=condition=Ready \
+  -n strimzi-kafka \
+  --timeout=300s
+----
+
+== Verify Strimzi installation
+
+Check that Strimzi is running correctly:
+
+[source,bash]
+----
+# Check the operator
+kubectl get deployment -n strimzi
+
+# Check the Kafka cluster
+kubectl get kafka -n strimzi-kafka
+
+# Check the pods
+kubectl get pods -n strimzi-kafka
+----
+
+You should see the operator running and the Kafka cluster in a Ready state.

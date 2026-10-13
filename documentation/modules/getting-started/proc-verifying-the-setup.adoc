@@ -1,0 +1,39 @@
+// Module included in the following assemblies:
+// assembly-getting-started.adoc
+
+[id='proc-verifying-the-setup-{context}']
+= Verifying the setup
+
+Ask your AI assistant one of these questions:
+
+* _"List all Kafka clusters"_
+* _"What is the status of mcp-cluster?"_
+* _"Diagnose issues with mcp-cluster"_
+
+*What a successful response looks like:*
+
+The AI assistant should return information about your `mcp-cluster`, including its status (`Ready`), the number of brokers, and listeners.
+If it says it cannot find any clusters or cannot connect, check that the MCP server is running and the connection is configured correctly.
+
+[id='production-deployment-{context}']
+== Production deployment
+
+For production use, deploy the MCP server inside your Kubernetes cluster using the prod overlay:
+
+[source,bash]
+----
+# Standard Kubernetes
+kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/overlays/prod?ref=<version>"
+
+# OpenShift (includes TLS Route)
+kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/overlays/prod-openshift?ref=<version>"
+----
+
+See xref:assembly-installing-installing[the installation guide] for detailed instructions on Kubernetes deployment, RBAC configuration, and external access.
+
+== Exploring further
+
+Now that you have the MCP server running, try these prompts to explore:
+
+* _"Show me the topology of mcp-cluster"_ or _"List all topics"_ to explore your cluster
+* _"Diagnose connectivity issues with mcp-cluster"_ to see multi-step diagnostic workflows

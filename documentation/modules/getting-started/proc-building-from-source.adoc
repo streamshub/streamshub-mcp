@@ -1,0 +1,91 @@
+// Module included in the following assemblies:
+// assembly-getting-started.adoc
+
+[id='proc-building-from-source-{context}']
+= Option C: Build from source
+
+Use this option for development, or if you want to run the server with local code changes.
+
+.Prerequisites
+[cols="1,1,2",options="header"]
+|===
+|Tool |Minimum version |Install link
+
+|`kubectl` |1.25+ |https://kubernetes.io/docs/tasks/tools/[Install kubectl]
+|`git` |Any |https://git-scm.com/downloads[Install git]
+|Java (JDK) |{JavaVersion}+ |https://adoptium.net/[Install Java]
+|Maven |{MavenVersion}+ |Included in repo as `mvnw`
+|An MCP client |&#8212; |https://modelcontextprotocol.io/clients[MCP-compatible clients]
+|===
+
+*Verify your setup* before continuing:
+
+[source,bash]
+----
+kubectl version --client
+java -version
+----
+
+Both commands should succeed.
+
+== Step 1: Clone the repository
+
+[source,bash]
+----
+git clone https://github.com/streamshub/streamshub-mcp.git
+cd streamshub-mcp
+----
+
+== Step 2: Deploy Strimzi and a Kafka cluster
+
+[source,bash]
+----
+./dev/scripts/setup-strimzi.sh deploy
+----
+
+*Wait for the cluster to be ready* (this may take 2-5 minutes):
+
+[source,bash]
+----
+kubectl wait kafka/mcp-cluster --for=condition=Ready --timeout=300s -n strimzi-kafka
+----
+
+*Expected output:*
+
+----
+kafka.kafka.strimzi.io/mcp-cluster condition met
+----
+
+[NOTE]
+====
+If the wait times out, check pod status with `kubectl get pods -n strimzi-kafka`.
+See xref:ref-kubernetes-deployment-issues-troubleshooting[the troubleshooting section] for common issues.
+====
+
+== Step 3: Start the MCP server
+
+From the repository root, start the server in Quarkus dev mode:
+
+[source,bash]
+----
+./mvnw quarkus:dev -pl strimzi-mcp
+----
+
+*Verify the server is running* by opening a new terminal and running:
+
+[source,bash]
+----
+curl -s http://localhost:8080/q/health/ready
+----
+
+*Expected output:* `{"status":"UP", ...}`
+
+The MCP endpoint is available at `http://localhost:8080/mcp`.
+
+[NOTE]
+====
+If the server fails to start, check that port 8080 is not in use (`lsof -i :8080`) and that Java {JavaVersion}+ is installed (`java -version`).
+See xref:ref-server-issues-troubleshooting[the troubleshooting section] for more details.
+====
+
+Now proceed to xref:proc-connecting-an-ai-assistant-{context}[Connect your AI assistant].

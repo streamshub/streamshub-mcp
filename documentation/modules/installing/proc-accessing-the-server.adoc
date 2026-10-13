@@ -1,0 +1,77 @@
+// Module included in the following assemblies:
+// assembly-installing.adoc
+
+[id='proc-accessing-the-server-{context}']
+= Accessing the server
+
+== Port-forward for development
+
+Use port-forwarding to access the server from your local machine:
+
+[source,bash]
+----
+kubectl -n streamshub-mcp port-forward svc/streamshub-mcp-strimzi 8080:8080
+----
+
+Configure your MCP client to use `http://localhost:8080/mcp`.
+
+== OpenShift route
+
+The `prod-openshift` and `dev-openshift` overlays include an edge-terminated Route automatically:
+
+[source,bash]
+----
+kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/
+
+# Get the Route hostname
+ROUTE_HOST=$(oc -n streamshub-mcp get route streamshub-mcp-strimzi -o jsonpath='{.spec.host}')
+echo "MCP Server URL: https://${ROUTE_HOST}/mcp"
+----
+
+Alternatively, create a Route manually:
+
+[source,bash]
+----
+oc -n streamshub-mcp create route edge streamshub-mcp-strimzi \
+  --service=streamshub-mcp-strimzi \
+  --port=http
+----
+
+Configure your MCP client with the HTTPS URL: `https://<route-hostname>/mcp`.
+
+== Kubernetes ingress
+
+*Prerequisites:* This example requires an https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/[ingress controller] (for example, nginx-ingress) and https://cert-manager.io/[cert-manager] for automatic TLS certificate provisioning.
+Adjust the annotations if you use a different setup.
+
+Create an Ingress resource for external access on standard Kubernetes:
+
+[source,yaml]
+----
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: streamshub-mcp-strimzi
+  namespace: streamshub-mcp
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - mcp.example.com
+    secretName: strimzi-mcp-tls
+  rules:
+  - host: mcp.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: streamshub-mcp-strimzi
+            port:
+              number: 8080
+----
+
+Apply the Ingress and configure your MCP client with: `https://mcp.example.com/mcp`.

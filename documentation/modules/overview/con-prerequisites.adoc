@@ -1,0 +1,20 @@
+// Module included in the following assemblies:
+// assembly-overview.adoc
+// (Referenced by xref from assembly-installing.adoc.)
+
+[id='con-prerequisites-{context}']
+= Prerequisites
+
+== Required
+
+* A Kubernetes cluster with `kubectl` access
+* The Strimzi operator deployed to your Kubernetes cluster
+* An AI assistant that supports MCP (see https://modelcontextprotocol.io/clients[MCP clients])
+* Java {JavaVersion} or later and Maven {MavenVersion} or later (for local development only -- not needed when using the published container image)
+
+== Optional
+
+For enhanced functionality:
+
+* *Grafana Loki* or *Elasticsearch/OpenSearch* -- For centralized log collection and historical log queries
+* *Prometheus* -- For centralized metrics and long-term retention

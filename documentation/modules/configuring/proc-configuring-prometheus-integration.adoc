@@ -1,0 +1,151 @@
+// Module included in the following assemblies:
+// assembly-configuring.adoc
+
+[id='proc-configuring-prometheus-integration-{context}']
+= Configuring Prometheus integration
+
+Use Prometheus for centralized metrics with long-term retention.
+When configured, the MCP server uses Prometheus for metrics queries instead of scraping pod metrics directly.
+
+Benefits:
+
+* Historical metrics with long-term retention
+* Pre-aggregated metrics for better performance
+* Advanced queries with PromQL
+* Centralized metrics across the cluster
+
+== Prometheus configuration properties
+
+[cols="2,2,3",options="header"]
+|===
+|Property |Default |Description
+
+|`quarkus.rest-client.prometheus.url` |`http://localhost:9090` |Prometheus endpoint URL
+|`quarkus.rest-client.prometheus.connect-timeout` |`5000` |Connection timeout in milliseconds
+|`quarkus.rest-client.prometheus.read-timeout` |`30000` |Read timeout in milliseconds
+|`mcp.metrics.prometheus.auth-mode` |`none` |Authentication mode: `none`, `basic`, `bearer-token`, or `sa-token`
+|`mcp.metrics.prometheus.sa-token-path` |`/var/run/secrets/kubernetes.io/serviceaccount/token` |Path to ServiceAccount token
+|===
+
+== Setup Prometheus
+
+Deploy Prometheus to your cluster:
+
+[source,bash]
+----
+# Deploy Prometheus operator and instance
+kubectl apply -k dev/manifests/prometheus/
+
+# Verify Prometheus is running
+kubectl get prometheus -A
+----
+
+== Configure the MCP server
+
+To enable Prometheus:
+
+[source,bash]
+----
+QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://prometheus.monitoring:9090
+MCP_METRICS_PROVIDER=streamshub-prometheus
+----
+
+Alternatively, resolve the Prometheus service URL dynamically and set it on the running deployment:
+
+[source,bash]
+----
+# Get Prometheus service URL
+PROM_URL=$(kubectl -n monitoring get svc prometheus-operated -o jsonpath='{.spec.clusterIP}')
+
+# Configure MCP server
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://${PROM_URL}:9090 \
+  MCP_METRICS_PROVIDER=streamshub-prometheus
+----
+
+[id='prometheus-authentication-{context}']
+== Authentication
+
+*Basic authentication:*
+
+[source,bash]
+----
+MCP_METRICS_PROMETHEUS_AUTH_MODE=basic
+QUARKUS_REST_CLIENT_PROMETHEUS_USERNAME=your-username
+QUARKUS_REST_CLIENT_PROMETHEUS_PASSWORD=your-password
+----
+
+*ServiceAccount token (Kubernetes):*
+
+[source,bash]
+----
+MCP_METRICS_PROMETHEUS_AUTH_MODE=sa-token
+----
+
+You can also store credentials in a Secret and reference them on the deployment:
+
+[source,bash]
+----
+# Create Secret with token
+kubectl -n streamshub-mcp create secret generic prometheus-auth \
+  --from-literal=username=your-username \
+  --from-literal=password=your-password
+
+# Update Deployment to use Secret
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  MCP_METRICS_PROMETHEUS_AUTH_MODE=basic \
+  --from=secret/prometheus-auth
+----
+
+*OpenShift Thanos querier:*
+
+On OpenShift, the built-in Thanos querier can be used as the Prometheus endpoint.
+The MCP server's service account needs the `cluster-monitoring-view` ClusterRole to query Thanos.
+Apply the optional RBAC manifest:
+
+[source,bash]
+----
+kubectl apply -f install/strimzi-mcp/optional/clusterrolebinding-cluster-monitoring-view.yaml
+----
+
+Then configure the MCP server to use the Thanos querier:
+
+[source,bash]
+----
+QUARKUS_REST_CLIENT_PROMETHEUS_URL=https://thanos-querier.openshift-monitoring.svc:9091
+MCP_METRICS_PROVIDER=streamshub-prometheus
+MCP_METRICS_PROMETHEUS_AUTH_MODE=sa-token
+QUARKUS_TLS_TRUST_ALL=true
+----
+
+[id='prometheus-tls-configuration-{context}']
+== Prometheus TLS configuration
+
+*Server certificate verification:*
+
+[source,bash]
+----
+QUARKUS_REST_CLIENT_PROMETHEUS_TRUST_STORE=/etc/prometheus-tls/ca.crt
+QUARKUS_REST_CLIENT_PROMETHEUS_TRUST_STORE_TYPE=PEM
+QUARKUS_REST_CLIENT_PROMETHEUS_VERIFY_HOST=true
+----
+
+*Mutual TLS with client certificate:*
+
+[source,bash]
+----
+QUARKUS_REST_CLIENT_PROMETHEUS_KEY_STORE=/etc/prometheus-tls/client.p12
+QUARKUS_REST_CLIENT_PROMETHEUS_KEY_STORE_PASSWORD=changeit
+QUARKUS_REST_CLIENT_PROMETHEUS_KEY_STORE_TYPE=PKCS12
+----
+
+== Verify integration
+
+[source,bash]
+----
+# Check MCP server logs
+kubectl -n streamshub-mcp logs -l app=streamshub-mcp-strimzi
+
+# Test metrics query through your AI assistant
+# Ask: "Query Kafka metrics for mcp-cluster"
+----

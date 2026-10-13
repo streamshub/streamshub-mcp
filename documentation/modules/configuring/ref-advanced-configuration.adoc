@@ -1,0 +1,336 @@
+// Module included in the following assemblies:
+// assembly-configuring.adoc
+
+[id='ref-advanced-configuration-{context}']
+= Advanced configuration
+
+== Diagnostic configuration
+
+Configure diagnostic workflow behavior.
+
+[cols="2,1,4",options="header"]
+|===
+|Property |Default |Description
+
+|`mcp.diagnostic.restart-threshold` |`3` |Pod restart count threshold for smart pod filtering. Pods with restarts above this value are considered problematic and prioritized for log collection during diagnostics.
+|===
+
+== Sampling configuration
+
+Configure LLM-powered diagnostic analysis used by composite diagnostic tools.
+
+[cols="2,1,4",options="header"]
+|===
+|Property |Default |Description
+
+|`mcp.sampling.triage-max-tokens` |`200` |Maximum tokens for triage requests (decides investigation areas and time window)
+|`mcp.sampling.analysis-max-tokens` |`1500` |Maximum tokens for analysis requests (root cause analysis)
+|===
+
+These settings control how much context the LLM receives during diagnostic workflows:
+
+* *Triage* -- Quick decision on which areas need deeper investigation (Phase 2)
+* *Analysis* -- Detailed root cause analysis with more context (Phase 3)
+
+To adjust token limits:
+
+[source,bash]
+----
+MCP_SAMPLING_TRIAGE_MAX_TOKENS=300
+MCP_SAMPLING_ANALYSIS_MAX_TOKENS=2000
+----
+
+See xref:ref-diagnostic-tools-tools[the diagnostic tools reference] for more information.
+
+== Server metrics (Micrometer / Prometheus)
+
+The Prometheus scrape endpoint at `/q/metrics` is provided by the `quarkus-micrometer-registry-prometheus` dependency.
+
+*Application-level metrics* are recorded by the `@MeasuredTool` interceptor (`ToolMetricsInterceptor` / `ToolCallMetricsRecorder`) whenever Micrometer is on the classpath:
+
+[cols="2,1,2,3",options="header"]
+|===
+|Metric |Type |Tags |Description
+
+|`mcp.tool.calls` |counter |`server`, `tool`, `status`, `error_type` |Total tool invocations
+|`mcp.tool.call.duration` |timer |`server`, `tool`, `status`, `error_type` |Tool execution duration
+|===
+
+The `server` tag is the MCP server name from `quarkus.mcp.server.server-info.name` (for example, `strimzi-mcp`), allowing metrics from different MCP servers to be distinguished in a shared Prometheus instance. The `tool` tag is the tool name (for example, `list_kafka_clusters`). The `status` tag is `success` or `error`. The `error_type` tag refines the outcome (aligned with the OpenTelemetry `error.type` convention):
+
+[cols="1,3",options="header"]
+|===
+|`error_type` |Meaning
+
+|`none` |Successful call
+|`protocol_error` |JSON-RPC protocol error (`McpException`): not-found, invalid-params, ambiguous
+|`tool_error` |Tool-execution error (`ToolCallException`, RBAC/403, or wrapped infrastructure failure)
+|`rate_limited` |Rejected by a rate-limit guardrail before the tool ran (counter only; no duration is recorded)
+|===
+
+Every tool invocation is counted exactly once. `input_required` (MRTR elicitation) round-trips are a normal protocol signal, not an outcome, and are not counted.
+
+*Protocol-level metrics* from the upstream quarkus-mcp-server extension are enabled by `quarkus.mcp.server.metrics.enabled=true`:
+
+[cols="2,1,2,3",options="header"]
+|===
+|Metric |Type |Tags |Description
+
+|`mcp.server.connections.active` |gauge |- |Current active MCP connections
+|`mcp.server.requests.<method>` |timer |`mcp.server`, `failure`, method-specific |Per JSON-RPC method request duration and count
+|===
+
+Method-specific tags: `tools/call` adds `tool.name`, `resources/read` adds `resource.uri`, `prompts/get` adds `prompt.name`. The `failure` tag is `none` on success or the exception class name on error.
+
+*Disable the Prometheus endpoint entirely:*
+
+[source,bash]
+----
+QUARKUS_MICROMETER_EXPORT_PROMETHEUS_ENABLED=false
+----
+
+*Disable only protocol-level MCP metrics (keep application and Quarkus/JVM metrics):*
+
+[source,bash]
+----
+QUARKUS_MCP_SERVER_METRICS_ENABLED=false
+----
+
+*Prometheus scrape config example:*
+
+[source,yaml]
+----
+- job_name: strimzi-mcp
+  metrics_path: /q/metrics
+  static_configs:
+    - targets: ['strimzi-mcp.streamshub-mcp.svc:8080']
+----
+
+== OpenTelemetry tracing
+
+Enable distributed tracing to observe MCP tool performance and debug slow responses.
+When enabled, the server exports traces via OTLP to a collector (for example, Jaeger, Grafana Tempo).
+
+[cols="2,2,3",options="header"]
+|===
+|Property |Default |Description
+
+|`quarkus.otel.sdk.disabled` |`true` |Set to `false` to enable tracing. OTEL is included in the image but disabled at runtime by default.
+|`quarkus.otel.exporter.otlp.endpoint` |`http://localhost:4317` |OTLP collector endpoint (gRPC)
+|`quarkus.otel.exporter.otlp.protocol` |`grpc` |OTLP protocol: `grpc` (port 4317) or `http/protobuf` (port 4318)
+|`quarkus.otel.exporter.otlp.headers` |- |Auth headers (for example, `Authorization=Bearer <token>`)
+|`quarkus.otel.service.name` |`strimzi-mcp` |Service name in traces
+|`quarkus.otel.propagators` |`tracecontext,baggage` |Context propagation formats
+|===
+
+=== Trace structure
+
+Every MCP tool call creates a named parent span (for example, `tool.list_kafka_clusters`, `tool.diagnose_kafka_cluster`) with child spans for:
+
+* *Kubernetes API calls* -- auto-instrumented HTTP client spans
+* *REST client calls* -- Prometheus and Loki queries
+* *Diagnostic steps* -- `diagnose.cluster.status`, `diagnose.cluster.pods`, `diagnose.cluster.triage`, `diagnose.cluster.analysis`, and so on
+
+=== Setup Jaeger
+
+Deploy Jaeger all-in-one for dev/test tracing:
+
+[source,bash]
+----
+./dev/scripts/setup-jaeger.sh deploy
+----
+
+The script deploys Jaeger to the `observability` namespace.
+On OpenShift, it also creates Routes for the UI and OTLP collector.
+
+=== Configure MCP server
+
+When deploying with `dev-deploy.sh`, use the `--otel` flag:
+
+[source,bash]
+----
+./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:latest --ocp --otel
+----
+
+This sets `QUARKUS_OTEL_SDK_DISABLED=false` and defaults the endpoint to the Jaeger collector.
+You can override the endpoint via environment variable:
+
+[source,bash]
+----
+QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT=http://custom-collector:4317 \
+  ./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:latest --ocp --otel
+----
+
+*Manual configuration (in-Kubernetes-cluster gRPC):*
+
+[source,bash]
+----
+QUARKUS_OTEL_SDK_DISABLED=false
+QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger-collector.observability.svc.cluster.local:4317
+----
+
+*Local dev mode via OpenShift Route (HTTP):*
+
+[source,bash]
+----
+QUARKUS_OTEL_SDK_DISABLED=false
+QUARKUS_OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT=https://<collector-route-host>
+QUARKUS_OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer $(oc whoami -t)
+QUARKUS_TLS_TRUST_ALL=true
+----
+
+*In Kubernetes via ConfigMap:*
+
+[source,yaml]
+----
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: strimzi-mcp-config
+data:
+  QUARKUS_OTEL_SDK_DISABLED: "false"
+  QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger-collector.observability.svc.cluster.local:4317"
+----
+
+[id='otlp-tls-configuration-{context}']
+=== OTLP TLS configuration
+
+When the collector requires TLS:
+
+[source,bash]
+----
+QUARKUS_OTEL_EXPORTER_OTLP_TLS_CONFIGURATION_NAME=otlp
+QUARKUS_TLS_OTLP_TRUST_STORE_PEM_CERTS=/etc/otel-tls/ca.crt
+----
+
+For mutual TLS (client certificate):
+
+[source,bash]
+----
+QUARKUS_TLS_OTLP_KEY_STORE_PEM_0_CERT=/etc/otel-tls/tls.crt
+QUARKUS_TLS_OTLP_KEY_STORE_PEM_0_KEY=/etc/otel-tls/tls.key
+----
+
+=== Teardown
+
+[source,bash]
+----
+./dev/scripts/setup-jaeger.sh teardown
+----
+
+Tracing is disabled by default (`quarkus.otel.sdk.disabled=true`). Set `QUARKUS_OTEL_SDK_DISABLED=false` to enable it.
+
+[id='resource-watch-configuration-{context}']
+== Resource watch configuration
+
+Control Kubernetes resource watches that send MCP notifications when resources change. Resource subscriptions are *disabled by default* because most AI clients do not yet support MCP resource subscriptions. When disabled, resource templates still work for on-demand queries -- only the automatic push notifications are turned off.
+
+To enable resource subscriptions, set:
+
+[source,bash]
+----
+MCP_RESOURCE_WATCHES_ENABLED=true
+----
+
+[cols="2,1,3",options="header"]
+|===
+|Property |Default |Description
+
+|`mcp.resource-watches.enabled` |`false` |Enable resource subscriptions (automatic push notifications on Kubernetes resource changes)
+|`mcp.watch.reconnect-initial-delay-ms` |`1000` |Initial delay (ms) before first reconnect attempt
+|`mcp.watch.reconnect-max-delay-ms` |`60000` |Maximum delay (ms) between reconnect attempts
+|`mcp.watch.reconnect-max-attempts` |`10` |Maximum reconnect attempts before giving up
+|`mcp.watch.reconcile-interval` |`5m` |Interval for cleaning up orphaned state entries
+|===
+
+When enabled, the server watches:
+
+* Kafka custom resources
+* KafkaNodePool custom resources
+* KafkaTopic custom resources
+* KafkaUser custom resources
+* Strimzi operator Deployments
+
+Changes trigger `notifications/resources/updated` messages to subscribed MCP clients.
+If a watch closes unexpectedly, it reconnects automatically with exponential backoff.
+
+To disable (useful for testing):
+
+[source,bash]
+----
+MCP_RESOURCE_WATCHES_ENABLED=false
+----
+
+== Events configuration
+
+Control Kubernetes events collection behavior.
+
+[cols="2,1,3",options="header"]
+|===
+|Property |Default |Description
+
+|`mcp.events.max-related-resources` |`50` |Maximum related resources (pods, PVCs) to query events for per Kafka cluster
+|===
+
+This limits the number of related resources for which events are collected when using the `get_strimzi_events` tool.
+
+[source,bash]
+----
+MCP_EVENTS_MAX_RELATED_RESOURCES=100
+----
+
+== Completion cache configuration
+
+Control autocomplete caching for prompt and resource template parameters.
+
+[cols="2,1,3",options="header"]
+|===
+|Property |Default |Description
+
+|`mcp.completion.cache-ttl-seconds` |`5` |Cache TTL for completion results in seconds
+|===
+
+Completion results (namespace lists, cluster names, and so on) are cached to improve performance.
+
+[source,bash]
+----
+MCP_COMPLETION_CACHE_TTL_SECONDS=10
+----
+
+== Resource template cache configuration
+
+Control cache freshness hints for resource template responses (cluster status, topology, node pool status, topic status, user status, operator status).
+
+[cols="2,1,3",options="header"]
+|===
+|Property |Default |Description
+
+|`mcp.resource-template.cache-ttl-seconds` |`30` |Cache TTL for resource template responses in seconds
+|===
+
+Resource templates return Kubernetes resource state. A 30-second TTL lets MCP clients cache responses while keeping data reasonably fresh.
+
+[source,bash]
+----
+MCP_RESOURCE_TEMPLATE_CACHE_TTL_SECONDS=60
+----
+
+== Topic pagination configuration
+
+Control default pagination for topic listing.
+
+[cols="2,1,3",options="header"]
+|===
+|Property |Default |Description
+
+|`mcp.topics.default-page-size` |`100` |Default number of topics per page
+|`mcp.topics.max-list-size` |`5000` |Maximum number of topics returned in a single list request. Limits the total result set regardless of pagination.
+|===
+
+Used by the `list_kafka_topics` tool when no explicit limit is provided.
+
+[source,bash]
+----
+MCP_TOPICS_DEFAULT_PAGE_SIZE=50
+----

@@ -1,0 +1,64 @@
+// Module included in the following assemblies:
+// assembly-ai-agent-best-practices.adoc
+
+[id='con-understanding-response-structure-{context}']
+= Understanding response structure
+
+== Metrics responses include summary statistics
+
+Every metrics time series includes a `summary` with pre-computed statistics. The AI should use these directly instead of processing raw data points:
+
+[cols="1,2",options="header"]
+|===
+|Field |Description
+
+|`min` |Minimum value in the series
+|`max` |Maximum value in the series
+|`avg` |Average value across all data points
+|`latest` |Most recent value
+|`delta` |Change from first to last value
+|`original_data_point_count` |Number of data points before compression
+|===
+
+For single-point queries (instant metrics), only `latest` and `original_data_point_count` are populated; other fields are omitted to reduce response size.
+
+Metrics responses also include an `interpretation` field with thresholds and diagnostic guidance that the AI can use directly.
+
+When a time series has a `compressed: true` flag, it means consecutive identical values were collapsed to save tokens. The summary statistics reflect the full original data.
+
+== Diagnostic reports include step tracking
+
+All diagnostic reports include these fields:
+
+* *`steps_completed`* -- list of diagnostic steps that succeeded
+* *`steps_failed`* -- list of steps that failed, with error descriptions
+* *`analysis`* -- LLM-generated root cause analysis (when Sampling is supported), or null
+* *`message`* -- human-readable summary of the diagnostic run
+
+The AI should always check `steps_failed` for incomplete data. When the `analysis` field is present, it contains the root cause analysis, and the AI should present it rather than re-processing the raw data sections.
+
+== Large responses are automatically truncated
+
+Responses exceeding 500 KB are truncated with the notice `[...response truncated to stay within size limit]`. This is normal behavior, not an error. The summary statistics and analysis fields remain intact even when raw data is truncated.
+
+== Errors carry structured data
+
+Tool errors come in two shapes:
+
+* *JSON-RPC protocol errors* -- returned for resource-not-found, invalid parameters, and resource ambiguity. In addition to a human-readable `message`, these carry a machine-readable `data` object the AI can act on directly instead of parsing the message text:
++
+[cols="1,2",options="header"]
+|===
+|Field |Description
+
+|`category` |`RESOURCE_NOT_FOUND`, `INVALID_PARAMS`, or `AMBIGUOUS`
+|`resource_kind` |The kind involved (for example, `Kafka cluster`), when applicable
+|`resource_name` |The resource name involved, when applicable
+|`namespace` |The namespace involved, when applicable
+|`candidates` |For `AMBIGUOUS` errors, the list of namespaces the resource was found in -- re-issue the call with one of these as `namespace`
+|`remediation` |A short hint on how to resolve the error, when available
+|===
++
+The associated JSON-RPC error codes are `-32002` (not found) and `-32602` (invalid params / ambiguous). Prefer reacting to `category`/`candidates` over string-matching the message.
+
+* *Failed tool responses* (`isError: true`) -- returned for rate-limiting, cancelled operations, authorization/RBAC (403) failures, and other infrastructure errors. These are surfaced as normal tool output (with the reason in the text) for the AI to reason about and retry.

@@ -1,0 +1,17 @@
+// Module included in the following assemblies:
+// assembly-ai-agent-best-practices.adoc
+
+[id='con-reducing-response-size-{context}']
+= Using parameters to reduce response size
+
+Use tool parameters strategically to avoid timeouts and reduce response sizes:
+
+* *`podNames`* -- Filter pod logs to specific pods instead of collecting from all pods. Important for large Kafka clusters with many brokers.
+* *`rangeMinutes`* -- Use shorter time ranges for log queries. "Last 30 minutes" instead of "last 24 hours" avoids timeouts and oversized responses.
+* *`namespace`* -- Specify the namespace to avoid scanning all namespaces in the Kubernetes cluster.
+* *`aggregation`* -- For metrics, use higher aggregation levels (`cluster` or `broker` instead of `partition` or `topic`) when per-partition detail is not needed.
+
+----
+Instead of: "Show me logs from the last 24 hours"
+Better:     "Show me logs from the last hour for mcp-cluster in namespace kafka-prod"
+----

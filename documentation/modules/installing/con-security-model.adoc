@@ -1,0 +1,72 @@
+// Module included in the following assemblies:
+// assembly-installing.adoc
+
+[id='con-security-model-{context}']
+= Security model
+
+The {StrimziMcp} is designed for platform engineering and SRE teams that already have Kubernetes access.
+It provides a read-only view of Strimzi-managed resources and relies on Kubernetes RBAC as its sole authorization mechanism.
+
+== Authentication and authorization
+
+The MCP server has *no built-in authentication or authorization*.
+It inherits the Kubernetes identity of its runtime environment:
+
+* *Kubernetes deployment* -- The server uses its ServiceAccount token. The ServiceAccount's RBAC rules determine which resources the server can access.
+* *Local development* (`quarkus:dev`) -- The server uses the current user's kubeconfig. All tools operate with the user's Kubernetes permissions.
+
+The MCP HTTP endpoint (`/mcp`) does not require credentials.
+Any client that can reach the endpoint can invoke all tools.
+
+[WARNING]
+====
+The endpoint is unauthenticated by design and is live as soon as the server starts.
+Apply at least one of the controls below (a NetworkPolicy is the minimum recommended step) before exposing the server in any shared or production environment.
+See also the xref:con-production-deployment-checklist-configuring[production deployment checklist] in the configuration guide.
+====
+
+== Securing the MCP endpoint
+
+In production, restrict access to the MCP endpoint using infrastructure-level controls:
+
+* *Kubernetes NetworkPolicy* -- Limit which pods or namespaces can reach the MCP server
+* *Authenticating reverse proxy* -- Deploy an OAuth2 proxy, mTLS termination, or API gateway in front of the MCP server
+* *Service mesh* -- Use Istio, Linkerd, or similar to enforce mutual TLS and authorization policies
+* *Ingress authentication* -- Configure ingress controller annotations for authentication (for example, `nginx.ingress.kubernetes.io/auth-url`)
+
+CORS is restricted to `localhost` origins by default.
+Configure `quarkus.http.cors.origins` to allow other origins (see xref:cors-configuration-configuring[CORS configuration]).
+
+== Data safety
+
+All tools are read-only (`readOnlyHint=true`, `destructiveHint=false`).
+The server never creates, modifies, or deletes Kubernetes resources.
+
+Sensitive data is protected by multiple layers:
+
+* *Credential secrets* are never exposed. The server reads Secrets only for certificate metadata (issuer, expiry) -- never for secret data such as passwords, keys, or tokens.
+* *Log redaction* automatically strips sensitive patterns (tokens, passwords, API keys) from log output before returning it to the client.
+* *Response size limits* truncate large responses to prevent excessive data transfer.
+* *Rate limiting* throttles requests per category to prevent resource exhaustion.
+
+== Production configuration
+
+The prod overlay references an optional ConfigMap (`strimzi-mcp-config`) and Secret (`strimzi-mcp-secrets`) via `envFrom`.
+Create these before deploying to configure the server:
+
+[source,bash]
+----
+# Create a ConfigMap with your configuration
+kubectl -n streamshub-mcp create configmap strimzi-mcp-config \
+  --from-literal=MCP_LOG_TAIL_LINES=500 \
+  --from-literal=MCP_METRICS_PROVIDER=streamshub-prometheus \
+  --from-literal=QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://prometheus.monitoring:9090
+
+# Create a Secret for sensitive values
+kubectl -n streamshub-mcp create secret generic strimzi-mcp-secrets \
+  --from-literal=QUARKUS_REST_CLIENT_PROMETHEUS_USERNAME=your-username \
+  --from-literal=QUARKUS_REST_CLIENT_PROMETHEUS_PASSWORD=your-password
+----
+
+Both are marked as `optional` so the deployment works without them.
+See xref:assembly-configuring-configuring[the configuration guide] for all available settings.

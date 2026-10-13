@@ -1,0 +1,36 @@
+// Assembly: Configuring
+
+:context: configuring
+
+[id='assembly-configuring-{context}']
+= Configuring
+
+Configure the {StrimziMcp} to customize its behavior and integrate with external systems.
+
+include::../modules/configuring/con-configuration-overview.adoc[leveloffset=+1]
+
+include::../modules/configuring/ref-core-configuration.adoc[leveloffset=+1]
+
+include::../modules/configuring/ref-log-configuration.adoc[leveloffset=+1]
+
+include::../modules/configuring/proc-configuring-loki-integration.adoc[leveloffset=+1]
+
+include::../modules/configuring/proc-configuring-elasticsearch-integration.adoc[leveloffset=+1]
+
+include::../modules/configuring/ref-metrics-configuration.adoc[leveloffset=+1]
+
+include::../modules/configuring/proc-configuring-prometheus-integration.adoc[leveloffset=+1]
+
+include::../modules/configuring/ref-advanced-configuration.adoc[leveloffset=+1]
+
+include::../modules/configuring/ref-security-configuration.adoc[leveloffset=+1]
+
+include::../modules/configuring/proc-applying-configuration-on-kubernetes.adoc[leveloffset=+1]
+
+include::../modules/configuring/con-production-deployment-checklist.adoc[leveloffset=+1]
+
+include::../modules/configuring/ref-configuration-examples.adoc[leveloffset=+1]
+
+include::../modules/configuring/proc-verifying-the-configuration.adoc[leveloffset=+1]
+
+include::../modules/configuring/proc-troubleshooting-the-configuration.adoc[leveloffset=+1]

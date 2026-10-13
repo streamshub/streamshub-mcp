@@ -1,0 +1,12 @@
+// Module included in the following assemblies:
+// assembly-overview.adoc
+
+[id='con-log-collection-{context}']
+= Log collection
+
+The server collects logs from Kafka and Strimzi operator pods with the following capabilities:
+
+* Automatic error detection and categorization
+* Filtering by log level, keywords, and time range
+* Multiple log providers: Kubernetes API (default), Grafana Loki, or Elasticsearch/OpenSearch
+* Real-time progress updates for long-running collections

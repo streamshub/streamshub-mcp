@@ -1,0 +1,96 @@
+// Module included in the following assemblies:
+// assembly-troubleshooting.adoc
+
+[id='ref-log-collection-issues-{context}']
+= Log collection issues
+
+== No logs returned
+
+*Symptom:* Log collection tools return empty results
+
+*Diagnosis:*
+
+*1. Check pods exist*
+
+[source,bash]
+----
+kubectl get pods -n kafka-ns -l strimzi.io/cluster=my-cluster
+----
+
+*2. Check pod logs directly*
+
+[source,bash]
+----
+kubectl logs -n kafka-ns my-cluster-kafka-0 --tail=10
+----
+
+*3. Check time range*
+
+* Logs may be outside the requested time window
+* Try: "Show me logs from the last 5 minutes"
+
+*Solutions:*
+
+* *Pods not found*: Verify Kafka cluster name and namespace
+* *No logs in time range*: Expand time window
+* *Container not specified*: Specify container name for multi-container pods
+
+== Loki integration not working
+
+*Symptom:* Logs always come from Kubernetes, never from Loki
+
+*Diagnosis:*
+
+[source,bash]
+----
+# Check Loki configuration
+kubectl -n streamshub-mcp exec <mcp-pod> -- env | grep LOKI
+
+# Test Loki connectivity
+kubectl -n streamshub-mcp exec <mcp-pod> -- \
+  curl http://loki.monitoring:3100/ready
+----
+
+*Solutions:*
+
+*1. Loki URL not configured*
+
+[source,bash]
+----
+# Set environment variable
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  QUARKUS_REST_CLIENT_LOKI_URL=http://loki.monitoring:3100
+----
+
+*2. Loki not accessible*
+
+[source,bash]
+----
+# Check Loki service
+kubectl -n monitoring get svc loki
+
+# Check network policy
+kubectl -n streamshub-mcp get networkpolicy
+----
+
+*3. Authentication required*
+
+[source,bash]
+----
+# Set auth token
+kubectl -n streamshub-mcp create secret generic loki-auth \
+  --from-literal=token=your-token
+
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  MCP_LOG_LOKI_AUTH_MODE=sa-token
+----
+
+*4. 403 Forbidden on OpenShift Logging v6.x*
+
+OpenShift Logging v6.x does not auto-create the `cluster-logging-application-view` ClusterRole that the LokiStack gateway requires for read access. Apply the optional RBAC manifests:
+
+[source,bash]
+----
+kubectl apply -f install/strimzi-mcp/optional/clusterrole-loki-application-view.yaml
+kubectl apply -f install/strimzi-mcp/optional/clusterrolebinding-loki-application-view.yaml
+----

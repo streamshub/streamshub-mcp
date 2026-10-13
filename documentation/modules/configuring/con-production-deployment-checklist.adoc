@@ -1,0 +1,71 @@
+// Module included in the following assemblies:
+// assembly-configuring.adoc
+
+[id='con-production-deployment-checklist-{context}']
+= Production deployment checklist
+
+Before deploying to production, review these security-relevant settings.
+Most defaults are tuned for development convenience and should be hardened for production use.
+
+== Authentication for external services
+
+Both Loki and Prometheus default to `auth-mode=none`.
+Configure authentication for production:
+
+[source,bash]
+----
+# Loki: use ServiceAccount token (recommended for Kubernetes)
+MCP_LOG_LOKI_AUTH_MODE=sa-token
+
+# Prometheus: use ServiceAccount token
+MCP_METRICS_PROMETHEUS_AUTH_MODE=sa-token
+----
+
+See xref:loki-authentication-{context}[Loki authentication] and xref:prometheus-authentication-{context}[Prometheus authentication] for all options.
+
+== Rate limiting
+
+All rate limits default to `0` (unlimited).
+The server uses three categories: `log` (log collection tools), `metrics` (metrics tools), and `general` (all other tools).
+Set per-category limits to prevent resource exhaustion:
+
+[source,bash]
+----
+MCP_GUARDRAIL_RATE_LIMIT_LOG_RPM=30
+MCP_GUARDRAIL_RATE_LIMIT_METRICS_RPM=60
+MCP_GUARDRAIL_RATE_LIMIT_GENERAL_RPM=120
+----
+
+See xref:rate-limiting-{context}[Rate limiting] for category definitions and default values.
+
+== CORS origins
+
+The default allows `localhost` origins only.
+Override with your actual domain:
+
+[source,bash]
+----
+QUARKUS_HTTP_CORS_ORIGINS=https://your-domain.com
+----
+
+See xref:cors-configuration-{context}[CORS configuration] for details.
+
+== TLS for external services
+
+Configure trust stores when Loki, Prometheus, or the OTEL collector use TLS:
+
+* xref:loki-tls-configuration-{context}[Loki TLS configuration]
+* xref:prometheus-tls-configuration-{context}[Prometheus TLS configuration]
+* xref:otlp-tls-configuration-{context}[OTLP TLS configuration]
+
+== Log redaction
+
+Log redaction is enabled by default and redacts common credential patterns.
+Add custom patterns for organization-specific secrets:
+
+[source,bash]
+----
+MCP_GUARDRAIL_LOG_REDACTION_CUSTOM_PATTERNS_0='(?i)x-internal-token:\s*\S+'
+----
+
+See xref:log-redaction-{context}[Log redaction] for built-in patterns and configuration.

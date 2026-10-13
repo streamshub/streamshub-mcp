@@ -1,0 +1,35 @@
+// Module included in the following assemblies:
+// assembly-installing.adoc
+
+[id='proc-verifying-the-installation-{context}']
+= Verifying the installation
+
+== Health checks
+
+Verify the server is healthy:
+
+[source,bash]
+----
+# Liveness probe
+curl http://localhost:8080/q/health/live
+
+# Readiness probe
+curl http://localhost:8080/q/health/ready
+
+# Full health check
+curl http://localhost:8080/q/health
+----
+
+== Test MCP endpoint
+
+Test the MCP endpoint directly:
+
+[source,bash]
+----
+# List available tools
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+----
+
+You should see a JSON response listing all available MCP tools.

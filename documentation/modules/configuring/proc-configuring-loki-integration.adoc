@@ -1,0 +1,168 @@
+// Module included in the following assemblies:
+// assembly-configuring.adoc
+
+[id='proc-configuring-loki-integration-{context}']
+= Configuring Loki integration
+
+Use Grafana Loki for centralized log collection and historical log queries.
+When configured, the MCP server uses Loki for centralized log collection instead of querying pod logs directly from Kubernetes.
+
+Benefits:
+
+* Historical log queries beyond pod retention
+* Aggregated log search across multiple pods
+* Advanced filtering with LogQL
+* Better performance for large-scale deployments
+
+== Loki configuration properties
+
+[cols="2,2,3",options="header"]
+|===
+|Property |Default |Description
+
+|`quarkus.rest-client.loki.url` |`http://localhost:3100` |Loki endpoint URL
+|`quarkus.rest-client.loki.connect-timeout` |`5000` |Connection timeout in milliseconds
+|`quarkus.rest-client.loki.read-timeout` |`30000` |Read timeout in milliseconds
+|`mcp.log.loki.auth-mode` |`none` |Authentication mode: `none`, `basic`, `bearer-token`, or `sa-token`
+|`mcp.log.loki.sa-token-path` |`/var/run/secrets/kubernetes.io/serviceaccount/token` |Path to ServiceAccount token
+|`mcp.log.loki.tenant-id` |- |Tenant ID for multi-tenant Loki deployments. When set, the server sends this value as the `X-Scope-OrgID` header with every Loki request. Required when Loki runs in multi-tenant mode.
+|===
+
+== Setup Loki
+
+Deploy Loki to your cluster using the Loki Operator.
+The provided manifests use the Loki Operator from the Red Hat catalog.
+
+[source,bash]
+----
+# Deploy Loki operator and instance
+kubectl apply -k dev/manifests/loki/
+
+# Verify Loki is running
+kubectl -n loki get pods
+----
+
+== Configure the MCP server
+
+To enable Loki:
+
+[source,bash]
+----
+QUARKUS_REST_CLIENT_LOKI_URL=http://loki.monitoring:3100
+MCP_LOG_PROVIDER=streamshub-loki
+----
+
+Alternatively, resolve the Loki service URL dynamically and set it on the running deployment:
+
+[source,bash]
+----
+# Get Loki service URL
+LOKI_URL=$(kubectl -n loki get svc loki -o jsonpath='{.spec.clusterIP}')
+
+# Configure MCP server
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  QUARKUS_REST_CLIENT_LOKI_URL=http://${LOKI_URL}:3100 \
+  MCP_LOG_PROVIDER=streamshub-loki
+----
+
+[id='loki-authentication-{context}']
+== Authentication
+
+*Basic authentication:*
+
+[source,bash]
+----
+MCP_LOG_LOKI_AUTH_MODE=basic
+QUARKUS_REST_CLIENT_LOKI_USERNAME=your-username
+QUARKUS_REST_CLIENT_LOKI_PASSWORD=your-password
+----
+
+*ServiceAccount token (Kubernetes):*
+
+[source,bash]
+----
+MCP_LOG_LOKI_AUTH_MODE=sa-token
+# The token is automatically read from the mounted ServiceAccount
+----
+
+You can also store credentials in a Secret and reference them on the deployment:
+
+[source,bash]
+----
+# Create Secret with token
+kubectl -n streamshub-mcp create secret generic loki-auth \
+  --from-literal=username=your-username \
+  --from-literal=password=your-password
+
+# Update Deployment to use Secret
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  MCP_LOG_LOKI_AUTH_MODE=basic \
+  --from=secret/loki-auth
+----
+
+== Loki label mapping
+
+Configure how Loki labels map to Kubernetes concepts.
+The defaults work with Promtail and Grafana Alloy.
+
+[cols="2,2,3",options="header"]
+|===
+|Property |Default |Description
+
+|`mcp.log.loki.label.namespace` |`namespace` |Loki label for Kubernetes namespace
+|`mcp.log.loki.label.pod` |`pod` |Loki label for pod name
+|`mcp.log.loki.label.container` |`container` |Loki label for container name (used to narrow log collection to a single container)
+|===
+
+For OpenShift Logging (ClusterLogForwarder):
+
+[source,properties]
+----
+mcp.log.loki.label.namespace=kubernetes_namespace_name
+mcp.log.loki.label.pod=kubernetes_pod_name
+----
+
+[id='loki-tls-configuration-{context}']
+== Loki TLS configuration
+
+*Server certificate verification:*
+
+[source,bash]
+----
+QUARKUS_REST_CLIENT_LOKI_TRUST_STORE=/etc/loki-tls/ca.crt
+QUARKUS_REST_CLIENT_LOKI_TRUST_STORE_TYPE=PEM
+----
+
+*Mutual TLS with client certificate:*
+
+[source,bash]
+----
+QUARKUS_REST_CLIENT_LOKI_KEY_STORE=/etc/loki-tls/client.p12
+QUARKUS_REST_CLIENT_LOKI_KEY_STORE_PASSWORD=changeit
+QUARKUS_REST_CLIENT_LOKI_KEY_STORE_TYPE=PKCS12
+----
+
+== RBAC for OpenShift Logging
+
+When using OpenShift Logging with a LokiStack gateway, the MCP server's service account needs the `cluster-logging-application-view` ClusterRole to read application logs.
+OpenShift Logging v6.x does not auto-create this ClusterRole (v5.x did), so apply the optional manifests:
+
+[source,bash]
+----
+kubectl apply -f install/strimzi-mcp/optional/clusterrole-loki-application-view.yaml
+kubectl apply -f install/strimzi-mcp/optional/clusterrolebinding-loki-application-view.yaml
+----
+
+Without this, Loki queries will return `403 Forbidden`.
+The `dev-deploy.sh --loki` script creates this ClusterRole automatically if it is missing.
+
+== Verify integration
+
+[source,bash]
+----
+# Check MCP server logs
+kubectl -n streamshub-mcp logs -l app=streamshub-mcp-strimzi
+
+# Test log collection through your AI assistant
+# Ask: "Collect logs from mcp-cluster"
+----
