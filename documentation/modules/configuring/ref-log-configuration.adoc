@@ -12,7 +12,7 @@ Choose how the server collects logs from your Kafka pods.
 |===
 |Property |Default |Description
 
-|`mcp.log.provider` |`streamshub-kubernetes` |Log provider: `streamshub-kubernetes`, `streamshub-loki`, or `streamshub-elasticsearch`
+|`mcp.log.provider` |`streamshub-kubernetes` |Log provider: `streamshub-kubernetes`, `streamshub-loki`, or `streamshub-opensearch`
 |`mcp.log.tail-lines` |`200` |Default number of log lines to retrieve per pod
 |===
 
@@ -31,4 +31,4 @@ MCP_LOG_TAIL_LINES=500
 For centralized log collection and historical queries, configure one of the external log providers:
 
 * xref:proc-configuring-loki-integration-{context}[Grafana Loki]
-* xref:proc-configuring-elasticsearch-integration-{context}[Elasticsearch or OpenSearch]
+* xref:proc-configuring-opensearch-integration-{context}[OpenSearch]

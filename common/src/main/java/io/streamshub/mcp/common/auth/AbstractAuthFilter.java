@@ -46,7 +46,7 @@ public abstract class AbstractAuthFilter implements ClientRequestFilter {
 
     /**
      * Returns the authorization scheme for bearer tokens (e.g. "Bearer" for standard tokens,
-     * "ApiKey" for Elasticsearch API keys).
+     * "ApiKey" for OpenSearch API keys).
      * Default is "Bearer".
      *
      * @return the authorization scheme

@@ -8,5 +8,5 @@ The server collects logs from Kafka and Strimzi operator pods with the following
 
 * Automatic error detection and categorization
 * Filtering by log level, keywords, and time range
-* Multiple log providers: Kubernetes API (default), Grafana Loki, or Elasticsearch/OpenSearch
+* Multiple log providers: Kubernetes API (default), Grafana Loki, or OpenSearch
 * Real-time progress updates for long-running collections

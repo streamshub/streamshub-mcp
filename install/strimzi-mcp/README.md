@@ -102,10 +102,10 @@ data:
   MCP_LOG_TAIL_LINES: "500"
   MCP_METRICS_PROVIDER: "streamshub-prometheus"
   QUARKUS_REST_CLIENT_PROMETHEUS_URL: "http://prometheus.monitoring:9090"
-  # Elasticsearch log provider (uncomment to use instead of default Kubernetes logs)
-  # MCP_LOG_PROVIDER: "streamshub-elasticsearch"
-  # QUARKUS_REST_CLIENT_ELASTICSEARCH_URL: "http://elasticsearch.elasticsearch:9200"
-  # MCP_LOG_ELASTICSEARCH_AUTH_MODE: "none"
+  # OpenSearch log provider (uncomment to use instead of default Kubernetes logs)
+  # MCP_LOG_PROVIDER: "streamshub-opensearch"
+  # QUARKUS_REST_CLIENT_OPENSEARCH_URL: "http://opensearch.opensearch:9200"
+  # MCP_LOG_OPENSEARCH_AUTH_MODE: "none"
 ```
 
 ## Customization
@@ -130,25 +130,25 @@ kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n <kafka-name
 kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n <kafka-namespace>
 ```
 
-## Elasticsearch / OpenSearch
+## OpenSearch
 
-When using the Elasticsearch log provider (`MCP_LOG_PROVIDER=streamshub-elasticsearch`), no special Kubernetes RBAC is required.
-The MCP server connects to Elasticsearch over HTTP/HTTPS and authenticates using the configured auth mode (`none`, `basic`, `bearer-token`, or `sa-token`).
+When using the OpenSearch log provider (`MCP_LOG_PROVIDER=streamshub-opensearch`), no special Kubernetes RBAC is required.
+The MCP server connects to OpenSearch over HTTP/HTTPS and authenticates using the configured auth mode (`none`, `basic`, `bearer-token`, or `sa-token`).
 
 Configure via environment variables or the ConfigMap:
 
 ```yaml
-MCP_LOG_PROVIDER: "streamshub-elasticsearch"
-QUARKUS_REST_CLIENT_ELASTICSEARCH_URL: "http://elasticsearch.elasticsearch:9200"
-MCP_LOG_ELASTICSEARCH_AUTH_MODE: "none"
+MCP_LOG_PROVIDER: "streamshub-opensearch"
+QUARKUS_REST_CLIENT_OPENSEARCH_URL: "http://opensearch.opensearch:9200"
+MCP_LOG_OPENSEARCH_AUTH_MODE: "none"
 ```
 
 For OpenShift with ECK Operator (basic auth + TLS):
 
 ```yaml
-MCP_LOG_PROVIDER: "streamshub-elasticsearch"
-QUARKUS_REST_CLIENT_ELASTICSEARCH_URL: "https://elasticsearch-es-http.elasticsearch-logging.svc:9200"
-MCP_LOG_ELASTICSEARCH_AUTH_MODE: "basic"
+MCP_LOG_PROVIDER: "streamshub-opensearch"
+QUARKUS_REST_CLIENT_OPENSEARCH_URL: "https://elasticsearch-es-http.elasticsearch-logging.svc:9200"
+MCP_LOG_OPENSEARCH_AUTH_MODE: "basic"
 QUARKUS_TLS_TRUST_ALL: "true"
 ```
 

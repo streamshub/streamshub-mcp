@@ -12,7 +12,7 @@ import io.streamshub.mcp.common.dto.LogFetchRequest;
  * <p>The default implementation ({@code streamshub-kubernetes}) reads logs
  * directly from Kubernetes pod logs via the Fabric8 client. Custom
  * implementations can query external log aggregation systems (e.g., Loki,
- * Elasticsearch) by providing an alternative CDI bean.</p>
+ * OpenSearch) by providing an alternative CDI bean.</p>
  *
  * <p>To create a custom provider:</p>
  * <ol>

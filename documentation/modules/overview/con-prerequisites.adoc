@@ -16,5 +16,5 @@
 
 For enhanced functionality:
 
-* *Grafana Loki* or *Elasticsearch/OpenSearch* -- For centralized log collection and historical log queries
+* *Grafana Loki* or *OpenSearch* -- For centralized log collection and historical log queries
 * *Prometheus* -- For centralized metrics and long-term retention
