@@ -659,6 +659,27 @@ class McpDiscoveryTest {
     }
 
     /**
+     * Verify troubleshoot-kafka-storage prompt generates correct instructions.
+     */
+    @Test
+    void testPromptGetTroubleshootKafkaStorage() {
+        client.when()
+            .promptsGet("troubleshoot-kafka-storage")
+            .withArguments(Map.of("cluster_name", "my-cluster", "namespace", "kafka-prod"))
+            .withAssert(response -> {
+                assertFalse(response.messages().isEmpty());
+                String content = response.messages().get(1).content().asText().text();
+                assertTrue(content.contains("my-cluster"));
+                assertTrue(content.contains("kafka-prod"));
+                assertTrue(content.contains("get_kafka_pvcs"));
+                assertTrue(content.contains("get_kafka_metrics"));
+                assertTrue(content.contains("get_kafka_cluster_logs"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
      * Verify analyze-strimzi-operator-metrics prompt generates correct instructions.
      */
     @Test

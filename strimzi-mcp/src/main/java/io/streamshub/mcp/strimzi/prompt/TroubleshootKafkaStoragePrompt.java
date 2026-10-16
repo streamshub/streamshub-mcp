@@ -35,7 +35,6 @@ public class TroubleshootKafkaStoragePrompt {
      * @param symptom     optional observed symptom
      * @return prompt response with troubleshooting instructions
      */
-    @SuppressWarnings("checkstyle:MethodLength")
     @Prompt(
         name = "troubleshoot-kafka-storage",
         description = "Step-by-step troubleshooting of Kafka storage issues."
@@ -110,7 +109,8 @@ public class TroubleshootKafkaStoragePrompt {
             Key indicators:
             - **`kafka_log_log_size`** -- total bytes used by Kafka logs per broker; \
             compare against PVC capacity to estimate free space
-            - **`disk_read_bytes_total` / `disk_write_bytes_total`** -- I/O throughput; \
+            - **`kafka_server_kafkaserver_linux_disk_read_bytes` / \
+            `kafka_server_kafkaserver_linux_disk_write_bytes`** -- I/O throughput; \
             unusually high write rates may indicate runaway producers or missing \
             retention settings
             - **Trends** -- a steadily growing `kafka_log_log_size` with no \
@@ -128,14 +128,14 @@ public class TroubleshootKafkaStoragePrompt {
               2. Re-provision with a new StorageClass that supports expansion (requires migration)
               3. Add brokers in a new node pool with larger storage and rebalance partitions
 
-            ## Step 5: Check node storage pressure
+            ## Step 5: Check pod health for storage-related failures
             Use `get_kafka_cluster_pods(cluster_name='%s'%s)` to identify pods with:
-            - **DiskPressure** node condition -- Kubernetes is about to evict pods \
-            due to low disk on the node (separate from PVC usage)
             - **OOMKilled** or **CrashLoopBackOff** -- broker may be failing due to \
             `java.io.IOException: No space left on device`
             - **Restart count** -- repeated restarts on a single broker indicate \
             a persistent storage failure rather than a transient issue
+            - **Not-ready pods** -- a broker that cannot start often cannot open \
+            its log directories because the underlying volume is full or unbound
 
             ## Step 6: Inspect JBOD layout from node pool specs
             Use `list_kafka_node_pools(cluster_name='%s'%s)` and then \
@@ -151,7 +151,7 @@ public class TroubleshootKafkaStoragePrompt {
             across pools, or document intentional differences
 
             ## Step 7: Check Kubernetes events for storage errors
-            Use `get_strimzi_events(cluster_name='%s'%s, resource_kind='Kafka')` \
+            Use `get_strimzi_events(resourceName='%s'%s, resource_kind='Kafka')` \
             to look for warning events related to PVC binding, provisioning, or capacity.
             Look for: `FailedMount`, `ProvisioningFailed`, `VolumeResizeFailed`, \
             `FailedBinding`, `Evicted`, or `EvictionThresholdMet`.

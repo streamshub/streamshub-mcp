@@ -208,6 +208,7 @@ io.streamshub.mcp.strimzi.
 ├── prompt/            → MCP prompt templates (DiagnoseClusterIssuePrompt, TroubleshootConnectivityPrompt,
 │                        TroubleshootTopicPrompt, TroubleshootConnectPrompt, TroubleshootConnectorPrompt,
 │                        TroubleshootBridgePrompt, TroubleshootMirrorMakerPrompt,
+│                        TroubleshootKafkaStoragePrompt,
 │                        AnalyzeKafkaMetricsPrompt, AnalyzeStrimziOperatorMetricsPrompt,
 │                        AnalyzeCapacityPrompt, CompareClusterConfigsPrompt, AuditSecurityPrompt,
 │                        AssessUpgradeReadinessPrompt, PromptCompletions)
