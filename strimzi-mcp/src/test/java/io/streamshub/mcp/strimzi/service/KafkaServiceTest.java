@@ -385,4 +385,40 @@ class KafkaServiceTest {
         assertEquals(NAMESPACE, response.namespace());
         assertNotNull(response.pvcs());
     }
+
+    @Test
+    void testGetAuthorizationTypeReturnsSimpleWhenConfigured() {
+        Kafka kafka = new KafkaBuilder()
+            .withNewMetadata()
+                .withName(CLUSTER_NAME)
+                .withNamespace(NAMESPACE)
+            .endMetadata()
+            .withNewSpec()
+                .withNewKafka()
+                    .withNewKafkaAuthorizationSimple()
+                    .endKafkaAuthorizationSimple()
+                .endKafka()
+            .endSpec()
+            .build();
+        mockKafkaResource(kafka);
+
+        assertEquals("simple", kafkaService.getAuthorizationType(NAMESPACE, CLUSTER_NAME));
+    }
+
+    @Test
+    void testGetAuthorizationTypeReturnsNullWhenAbsent() {
+        Kafka kafka = new KafkaBuilder()
+            .withNewMetadata()
+                .withName(CLUSTER_NAME)
+                .withNamespace(NAMESPACE)
+            .endMetadata()
+            .withNewSpec()
+                .withNewKafka()
+                .endKafka()
+            .endSpec()
+            .build();
+        mockKafkaResource(kafka);
+
+        assertNull(kafkaService.getAuthorizationType(NAMESPACE, CLUSTER_NAME));
+    }
 }

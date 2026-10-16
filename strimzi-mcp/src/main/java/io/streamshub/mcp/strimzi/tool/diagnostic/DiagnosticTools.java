@@ -30,6 +30,7 @@ import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaConfigComparisonReport;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaConnectivityDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaMetricsDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaSecurityAuditReport;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaStorageDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafka.UpgradeReadinessReport;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeDiagnosticReport;
@@ -44,6 +45,7 @@ import io.streamshub.mcp.strimzi.service.kafka.KafkaClusterDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaConfigComparisonService;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaConnectivityDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaMetricsDiagnosticService;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaSecurityAuditDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaStorageDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafka.UpgradeReadinessDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkabridge.KafkaBridgeDiagnosticService;
@@ -100,6 +102,9 @@ public class DiagnosticTools {
 
     @Inject
     UpgradeReadinessDiagnosticService upgradeReadinessService;
+
+    @Inject
+    KafkaSecurityAuditDiagnosticService securityAuditService;
 
     @Inject
     KafkaMirrorMaker2DiagnosticService mirrorMakerDiagnosticService;
@@ -748,6 +753,53 @@ public class DiagnosticTools {
         return upgradeReadinessService.diagnose(
             namespace, clusterName, targetVersion,
             sampling, elicitation, progress, cancellation);
+    }
+
+    /**
+     * Run a server-driven security audit of a Kafka cluster.
+     *
+     * @param clusterName  the Kafka cluster name
+     * @param namespace    optional namespace (elicited if ambiguous)
+     * @param sampling     MCP Sampling for LLM analysis
+     * @param elicitation  MCP Elicitation for namespace disambiguation
+     * @param progress     MCP progress tracking
+     * @param cancellation MCP cancellation checking
+     * @return the security audit report
+     */
+    @RunOnVirtualThread
+    @WithSpan("tool.audit_kafka_security")
+    @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.AUDIT)
+    @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
+    @MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)
+    @Tool(
+        name = "audit_kafka_security",
+        description = "Runs a multi-step security audit of a Kafka cluster."
+            + " Gathers listener authentication/TLS configuration, authorization type,"
+            + " certificate expiry, the KafkaUser inventory, and the ACL matrix with"
+            + " over-broad grants pre-flagged, in a single call."
+            + " Uses Sampling to produce an LLM security analysis and Elicitation to resolve"
+            + " namespace ambiguity. Falls back to gathering all data when Sampling is not supported.",
+        structuredContent = true,
+        annotations = @Tool.Annotations(
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        )
+    )
+    @ToolGuardrails(
+        input  = { GeneralRateLimitGuardrail.class, ArgumentSanitizationGuardrail.class },
+        output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
+    public KafkaSecurityAuditReport auditKafkaSecurity(
+        @NotBlank @ToolArg(description = StrimziToolsPrompts.CLUSTER_DESC) final String clusterName,
+        @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
+        final Sampling sampling,
+        final Elicitation elicitation,
+        final Progress progress,
+        final Cancellation cancellation
+    ) {
+        return securityAuditService.audit(
+            namespace, clusterName, sampling, elicitation, progress, cancellation);
     }
 
     /**

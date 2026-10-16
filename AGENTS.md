@@ -317,7 +317,7 @@ All tool methods use native `@ToolGuardrails` to attach a guardrail palette:
 - **LogRedactionGuardrail** — redacts sensitive patterns from responses (fail-closed: redaction failure returns generic error)
 - **ResponseSizeLimitGuardrail** — truncates oversized responses to fit `mcp.guardrail.max-response-bytes`
 
-The guardrails run in the declared order. All 56 `@Tool` methods use this palette; only the rate-limit guardrail class varies per category.
+The guardrails run in the declared order. All 67 `@Tool` methods use this palette; only the rate-limit guardrail class varies per category.
 
 **Tool-call metrics are NOT a guardrail.** They are recorded by the `@MeasuredTool` class-level CDI
 interceptor (`ToolMetricsInterceptor` → `ToolCallMetricsRecorder`), which wraps the whole invocation like
@@ -390,7 +390,7 @@ framework comparator is not configurable, so a build-independent alphabetical or
 available without an upstream change (tracked in #265).
 
 The production tool page size is set to `quarkus.mcp.server.tools.page-size=100` so the full
-tool list (56 tools) ships in a single `tools/list` page rather than the framework default
+tool list (67 tools) ships in a single `tools/list` page rather than the framework default
 of 50 (which would paginate into two pages).
 
 ### Tools with progress and cancellation
@@ -570,6 +570,7 @@ Compose existing DTOs into a single report. Follow the naming pattern `Kafka*Dia
 - `KafkaMetricsDiagnosticReport` — cluster, pods, replication/performance/resource/throughput metrics
 - `OperatorMetricsDiagnosticReport` — operator, reconciliation/resource/JVM metrics, logs
 - `KafkaConnectorDiagnosticReport` — connector, parent Connect cluster, pods, logs
+- `KafkaSecurityAuditReport` — cluster security config, authorization type, certificates, KafkaUser inventory, ACL matrices (broad grants flagged)
 
 ### Adding a new composite diagnostic tool
 

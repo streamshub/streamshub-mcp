@@ -800,6 +800,24 @@ public class KafkaService {
     }
 
     /**
+     * Resolve the authorization type configured on a Kafka cluster.
+     *
+     * @param namespace   the namespace, or null for auto-discovery
+     * @param clusterName the Kafka cluster name
+     * @return the authorization type (for example {@code simple}, {@code opa}, {@code keycloak},
+     *         or {@code custom}), or {@code null} if authorization is not configured on the cluster
+     */
+    public String getAuthorizationType(final String namespace, final String clusterName) {
+        Kafka kafka = findKafkaCluster(
+            InputUtils.normalizeInput(namespace), InputUtils.normalizeInput(clusterName));
+        if (kafka.getSpec() != null && kafka.getSpec().getKafka() != null
+                && kafka.getSpec().getKafka().getAuthorization() != null) {
+            return kafka.getSpec().getKafka().getAuthorization().getType();
+        }
+        return null;
+    }
+
+    /**
      * Find a Kafka cluster by name, with optional namespace.
      * If namespace is null, auto-discovers across all namespaces.
      * Throws if the cluster is not found or if multiple clusters with the same name exist.

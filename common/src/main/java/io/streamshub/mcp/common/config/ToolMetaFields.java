@@ -90,6 +90,11 @@ public final class ToolMetaFields {
          */
         public static final String CHECK = "check";
 
+        /**
+         * Security or compliance audits.
+         */
+        public static final String AUDIT = "audit";
+
         private Types() {
         }
     }

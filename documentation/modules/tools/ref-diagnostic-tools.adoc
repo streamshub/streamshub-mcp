@@ -227,6 +227,31 @@ Call xref:ref-strimzi-operator-tools-{context}[`get_strimzi_operator_config`] fi
 Check if my-cluster is ready for upgrade to Kafka 4.2.0
 ----
 
+== audit_kafka_security
+
+Server-driven companion to the xref:ref-prompt-templates-{context}[`audit-security` prompt template].
+Runs a multi-step security audit of a Kafka cluster.
+Gathers listener authentication/TLS configuration, authorization type, certificate expiry, the KafkaUser inventory, and the ACL matrix (with over-broad grants pre-flagged), in a single call.
+
+*3-phase workflow:*
+
+. *Phase 1 -- Initial data gathering*: Cluster security configuration (listeners, authentication, authorization type), CA and certificate expiry, and the KafkaUser inventory. If namespace is ambiguous and Elicitation is supported, asks the user to choose.
+. *Phase 2 -- ACL breadth audit*: If Sampling is supported, the LLM decides whether a deep ACL audit is warranted; the audit then builds the ACL matrix per resource type (topic, group, transactionalId, cluster) and flags over-broad grants (wildcard resource `*`, `All` operations, cluster-level access). Skipped when there are no users. Without Sampling, the ACL audit always runs.
+. *Phase 3 -- Analysis*: If Sampling is supported, the LLM produces a structured security report (HIGH/MEDIUM/INFORMATIONAL findings and prioritized recommendations). If not supported, returns the gathered data without analysis.
+
+*Parameters:*
+
+* `clusterName` (required) -- Name of the Kafka cluster
+* `namespace` (optional) -- Kubernetes namespace
+
+Uses Sampling:: Yes -- Triage and security analysis
+Uses Elicitation:: Yes -- Namespace disambiguation
+
+.Example
+----
+Audit the security posture of mcp-cluster
+----
+
 == diagnose_kafka_mirror_maker
 
 Runs a multi-step diagnostic workflow for a KafkaMirrorMaker2 instance.

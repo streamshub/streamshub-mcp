@@ -1706,6 +1706,23 @@ Parameters: { "clusterName": "mcp-cluster" }
 - [ ] If `--drain-cleaner`: Drain Cleaner status included
 - [ ] GO / NO-GO verdict present
 
+### T15.12b - Audit Kafka Security
+
+```
+Tool: audit_kafka_security
+Parameters: { "clusterName": "mcp-cluster" }
+```
+
+**Expected:**
+- [ ] Returns security audit report
+- [ ] Report includes: `cluster` (listeners, authentication), `authorization_type`, `certificates` (CA and client cert expiry), `users` (KafkaUser inventory)
+- [ ] Report includes: `acl_matrices` (topic, group, transactionalId, cluster) with `broad_grants` flagged (wildcard resource, `All` operation, cluster-level access)
+- [ ] `steps_completed` includes: `cluster_security`, `certificates`, `users`, `acls`
+- [ ] If Sampling supported: `analysis` contains structured findings (HIGH/MEDIUM/INFORMATIONAL) and recommendations
+- [ ] If Sampling not supported: `analysis` is `null`, raw data returned
+- [ ] If no KafkaUsers: ACL audit skipped, report still completes with `users: []`
+- [ ] `message` and `timestamp` present
+
 ### T15.13 - Diagnose Cluster (nonexistent)
 
 ```
@@ -2233,6 +2250,7 @@ This phase tests all three server-side error handling patterns under RBAC restri
 | 15    | T15.10  | diagnose_kafka_mirror_maker | --mirror-maker | | |
 | 15    | T15.11  | compare_kafka_clusters | --mirror-maker | | |
 | 15    | T15.12  | assess_upgrade_readiness | core | | |
+| 15    | T15.12b | audit_kafka_security | core | | |
 | 15    | T15.13  | diagnose_kafka_cluster (nonexistent) | core | | |
 | 16    | T16.1   | error: wrong namespace | core | | |
 | 16    | T16.2   | error: empty namespace | core | | |
