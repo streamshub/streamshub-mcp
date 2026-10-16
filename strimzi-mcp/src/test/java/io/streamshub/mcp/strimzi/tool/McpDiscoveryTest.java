@@ -370,6 +370,8 @@ class McpDiscoveryTest {
                     "Prompt 'troubleshoot-mirror-maker' should be registered");
                 assertNotNull(page.findByName("troubleshoot-connect"),
                     "Prompt 'troubleshoot-connect' should be registered");
+                assertNotNull(page.findByName("troubleshoot-kafka-storage"),
+                    "Prompt 'troubleshoot-kafka-storage' should be registered");
             })
             .send()
             .thenAssertResults();

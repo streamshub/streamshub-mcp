@@ -4,7 +4,7 @@
 :ProductName: StreamsHub MCP
 :StrimziMcp: MCP Server for Strimzi
 :ToolCount: 66
-:PromptCount: 13
+:PromptCount: 14
 :ResourceCount: 6
 :DiagnosticToolCount: 14
 :JavaVersion: 21
