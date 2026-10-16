@@ -129,6 +129,9 @@ class KafkaUserToolsST extends AbstractST {
         }
 
         McpServerSetup.deploy(mcpNamespace.getMetadata().getName());
+        McpServerSetup.deploySensitiveRbac(
+            mcpNamespace.getMetadata().getName(),
+            kafkaNamespace.getMetadata().getName());
 
         String mcpUrl = ConnectivitySetup.expose(mcpNamespace.getMetadata().getName());
         mcpClient = McpClientFactory.create(mcpUrl);
@@ -382,6 +385,51 @@ class KafkaUserToolsST extends AbstractST {
                 // CRITICAL: verify no secret data is exposed
                 assertFalse(json.contains("password"), "Must NOT contain password data");
                 assertFalse(json.contains("sasl.jaas.config"), "Must NOT contain JAAS config");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @Story("audit_kafka_security returns a security audit report with ACL findings")
+    void testAuditKafkaSecurity() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "namespace", Environment.KAFKA_NAMESPACE);
+
+        mcpClient.when()
+            .toolsCall("audit_kafka_security", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+                LOGGER.info("audit_kafka_security response (length={})",
+                    response.content().getFirst().asText().text().length());
+
+                assertDiagnosticReport(root);
+
+                assertFalse(root.path("cluster").isMissingNode(), "Should have cluster section");
+                assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster").path("name").asText(),
+                    "Cluster name should match");
+                assertEquals("simple", root.path("authorization_type").asText(),
+                    "Cluster uses the simple authorizer");
+
+                JsonNode users = root.path("users");
+                assertTrue(users.isArray() && users.size() >= 3,
+                    "Should enumerate the three deployed KafkaUsers");
+
+                JsonNode matrices = root.path("acl_matrices");
+                assertTrue(matrices.isArray() && !matrices.isEmpty(),
+                    "Should include ACL matrices for users with ACLs");
+                boolean anyBroadGrant = false;
+                for (JsonNode matrix : matrices) {
+                    JsonNode broad = matrix.path("broad_grants");
+                    if (broad.isArray() && !broad.isEmpty()) {
+                        anyBroadGrant = true;
+                        break;
+                    }
+                }
+                assertTrue(anyBroadGrant,
+                    "Admin/TLS users have wildcard and cluster ACLs; broad_grants must be flagged");
+
+                assertFalse(root.path("certificates").isMissingNode(),
+                    "Should have certificates section (sensitive RBAC granted)");
             })
             .thenAssertResults();
     }

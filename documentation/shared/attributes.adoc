@@ -3,10 +3,10 @@
 
 :ProductName: StreamsHub MCP
 :StrimziMcp: MCP Server for Strimzi
-:ToolCount: 66
+:ToolCount: 67
 :PromptCount: 13
 :ResourceCount: 6
-:DiagnosticToolCount: 14
+:DiagnosticToolCount: 15
 :JavaVersion: 21
 :MavenVersion: 3.8
 // Example Kafka version for doc examples only; the server is version-agnostic and the

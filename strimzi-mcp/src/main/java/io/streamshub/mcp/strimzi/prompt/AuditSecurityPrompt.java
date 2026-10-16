@@ -48,14 +48,41 @@ public class AuditSecurityPrompt {
             required = false
         ) final String namespace
     ) {
+        return PromptResponse.withMessages(List.of(
+            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("Kafka security auditing")),
+            PromptMessage.withUserRole(buildAuditInstructions(clusterName, namespace))
+        ));
+    }
+
+    /**
+     * Build the step-by-step security audit instructions.
+     *
+     * @param clusterName the Kafka cluster to audit
+     * @param namespace   optional Kubernetes namespace
+     * @return the user-role instruction text
+     */
+    String buildAuditInstructions(final String clusterName, final String namespace) {
         String nsClause = namespace != null && !namespace.isBlank()
             ? " in namespace `" + namespace + "`"
             : "";
+        String nsAndClause = nsClause.isEmpty() ? "" : " and namespace";
 
-        String taskSteps = """
+        return """
             Perform a security audit of Kafka cluster `%s`%s.
 
-            ## Step 1: Gather cluster authentication configuration
+            ## Primary step: run the composite audit tool
+            Call `audit_kafka_security` with cluster name `%s`%s. This single server-side tool \
+            gathers the cluster authentication/authorization configuration, certificate expiry, \
+            the full KafkaUser inventory, and the ACL matrix (over-broad grants pre-flagged in \
+            `broad_grants`), and -- when the client supports Sampling -- returns a structured LLM \
+            security `analysis`.
+
+            If `audit_kafka_security` succeeds, base your report on its `analysis`, `acl_matrices`, \
+            `certificates`, `users`, and `authorization_type` sections, then skip to \
+            "Assess overall security posture". If the tool is unavailable or you need granular \
+            control, use the fallback steps below.
+
+            ## Fallback Step 1: Gather cluster authentication configuration
             Use `get_kafka_cluster` to retrieve the cluster's listener configuration.
             For each listener, note:
             - Whether authentication is configured (type: tls, scram-sha-512, oauth, custom, or none)
@@ -65,7 +92,7 @@ public class AuditSecurityPrompt {
             Then use `get_kafka_cluster_certificates` to check certificate expiry dates.
             Flag any certificates expiring within 30 days.
 
-            ## Step 2: Enumerate all users
+            ## Fallback Step 2: Enumerate all users
             Use `list_kafka_users` with cluster name `%s`%s to get all KafkaUsers.
             Create a summary table:
             - Total user count
@@ -73,7 +100,7 @@ public class AuditSecurityPrompt {
             - Users with vs without authorization (ACLs)
             - Users with vs without quotas
 
-            ## Step 3: Audit each user's access
+            ## Fallback Step 3: Audit each user's access
             For each user from Step 2, use `get_kafka_user` to retrieve full details.
             For each user, check for these security concerns:
 
@@ -95,7 +122,7 @@ public class AuditSecurityPrompt {
             - `tls-external` authentication (certificates managed outside Strimzi)
             - Multiple authentication types in use (adds operational complexity)
 
-            ## Step 4: Assess overall security posture
+            ## Assess overall security posture
             Produce a structured security report with:
 
             **Summary:**
@@ -112,7 +139,7 @@ public class AuditSecurityPrompt {
             **Informational findings** (for awareness):
             - List each finding
 
-            ## Step 5: Recommendations
+            ## Recommendations
             Provide prioritized remediation steps:
             1. Address any open listeners (no authentication)
             2. Replace wildcard and `All` operation ACLs with specific permissions
@@ -120,12 +147,6 @@ public class AuditSecurityPrompt {
             4. Renew expiring certificates
             5. Apply principle of least privilege to overly broad ACLs
             6. Consider adding host restrictions to high-privilege rules\
-            """.formatted(clusterName, nsClause,
-                clusterName, nsClause.isEmpty() ? "" : " and namespace");
-
-        return PromptResponse.withMessages(List.of(
-            PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("Kafka security auditing")),
-            PromptMessage.withUserRole(taskSteps)
-        ));
+            """.formatted(clusterName, nsClause, clusterName, nsClause, clusterName, nsAndClause);
     }
 }

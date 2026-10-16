@@ -111,6 +111,7 @@ Structured workflow for comparing two Kafka cluster configurations.
 == audit-security
 
 Security audit of Kafka cluster users, ACLs, authentication, quotas, and certificates.
+The server-driven companion is the xref:ref-diagnostic-tools-{context}[`audit_kafka_security` tool], which the prompt now uses as its primary data-gathering step (with the per-tool steps retained as a fallback).
 
 *Parameters:*
 

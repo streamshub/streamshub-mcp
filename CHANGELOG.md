@@ -43,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Throughput error and connection metrics** — Added `failedproducerequests_total`, `failedfetchrequests_total`, and `connection_count` to `KafkaMetricCategories.THROUGHPUT`. Added `process_open_fds` to `KafkaMetricCategories.RESOURCES` and `KafkaConnectMetricCategories.RESOURCES`.
 - **Cruise Control metrics tool** — Added `get_cruise_control_metrics` MCP tool (`CruiseControlMetricsService`, `CruiseControlMetricCategories`, `CruiseControlMetricsResponse`) supporting `sampling` and `anomaly` categories for Cruise Control partition monitoring and anomaly detection.
 - **Optional `container` parameter on log-collection tools** — `get_kafka_cluster_logs`, `get_kafka_connect_logs`, `get_kafka_bridge_logs`, `get_kafka_mirror_maker_logs`, and `get_strimzi_operator_logs` now accept an optional `container` parameter to narrow log collection to a single named container (e.g., 'kafka'). Omit to collect from all containers in each pod. Honoured by the Kubernetes, Loki, and OpenSearch log providers. New Loki label mapping `mcp.log.loki.label.container` (default `container`). (#273)
+- `audit_kafka_security` composite tool: server-driven security audit of a Kafka cluster (listener authentication/TLS, authorization type, certificate expiry, KafkaUser inventory, and ACL breadth with over-broad grants flagged), with LLM analysis via Sampling and stateless MRTR support (#270).
+- `audit-security` prompt now leads with the `audit_kafka_security` tool, retaining the granular per-tool steps as a fallback (#270).
 
 ### Changed
 
