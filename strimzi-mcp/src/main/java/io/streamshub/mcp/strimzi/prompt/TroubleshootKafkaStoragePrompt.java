@@ -186,7 +186,6 @@ public class TroubleshootKafkaStoragePrompt {
                 clusterName, nsArg,
                 clusterName, nsArg,
                 clusterName, nsArg,
-                clusterName, nsArg,
                 clusterName, nsArg);
     }
 }
