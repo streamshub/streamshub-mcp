@@ -22,7 +22,8 @@ import java.util.List;
  * @param certificates      the CA and certificate expiry details (null if not gathered)
  * @param users             the KafkaUser inventory (authentication types, ACL counts, quotas)
  * @param aclMatrices       the ACL matrices per resource type with over-broad grants flagged
- *                          (null if the ACL deep-dive was skipped or failed)
+ *                          (empty if the deep-dive ran but no principals have ACLs; null if it
+ *                          was skipped or failed)
  * @param analysis          LLM-generated security analysis (null if Sampling not supported)
  * @param stepsCompleted    the list of successfully completed audit steps
  * @param stepsFailed       the list of failed audit steps with error messages (null if none)

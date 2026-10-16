@@ -14,16 +14,26 @@ import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaSecurityAuditReport;
+import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserAclMatrixResponse;
 import io.streamshub.mcp.strimzi.service.KubernetesMockHelper;
+import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import io.strimzi.api.kafka.model.user.KafkaUser;
+import io.strimzi.api.kafka.model.user.KafkaUserBuilder;
+import io.strimzi.api.kafka.model.user.acl.AclResourcePatternType;
+import io.strimzi.api.kafka.model.user.acl.AclRuleType;
+import io.strimzi.api.kafka.model.user.acl.StrimziAclOperation;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -141,8 +151,31 @@ class KafkaSecurityAuditDiagnosticServiceTest {
 
         // No KafkaUsers mocked -> users empty -> ACL step skipped
         assertTrue(report.users().isEmpty());
-        assertTrue(!report.stepsCompleted().contains("acls"));
+        assertFalse(report.stepsCompleted().contains("acls"));
         assertNull(report.aclMatrices());
+    }
+
+    @Test
+    void testAclMatricesPopulatedWithBroadGrant() {
+        wireCluster(clusterWithSimpleAuthz());
+        KafkaUser wildcardUser = topicAclUser("alice", "kafka", "my-cluster",
+            "*", AclResourcePatternType.LITERAL, AclRuleType.ALLOW, StrimziAclOperation.READ);
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaUser.class, List.of(wildcardUser));
+
+        KafkaSecurityAuditReport report = auditService.audit(
+            "kafka", "my-cluster", null, null, null, null);
+
+        assertFalse(report.users().isEmpty());
+        assertTrue(report.stepsCompleted().contains("acls"));
+        assertNotNull(report.aclMatrices());
+        assertFalse(report.aclMatrices().isEmpty(), "ACL matrices should be populated");
+
+        boolean hasWildcardBroadGrant = report.aclMatrices().stream()
+            .map(KafkaUserAclMatrixResponse::broadGrants)
+            .filter(grants -> grants != null)
+            .flatMap(List::stream)
+            .anyMatch(g -> "alice".equals(g.principal()) && "wildcard resource".equals(g.reason()));
+        assertTrue(hasWildcardBroadGrant, "wildcard resource grant should be flagged in broad_grants");
     }
 
     @Test
@@ -160,5 +193,32 @@ class KafkaSecurityAuditDiagnosticServiceTest {
         assertNotNull(report.stepsFailed(), "Certificate failure should be recorded");
         assertTrue(report.stepsFailed().stream().anyMatch(s -> s.startsWith("certificates")),
             "steps_failed should contain the certificates step");
+    }
+
+    private static KafkaUser topicAclUser(final String name, final String namespace, final String cluster,
+                                          final String topicName, final AclResourcePatternType patternType,
+                                          final AclRuleType ruleType, final StrimziAclOperation operation) {
+        return new KafkaUserBuilder()
+            .withNewMetadata()
+                .withName(name)
+                .withNamespace(namespace)
+                .withLabels(Map.of(ResourceLabels.STRIMZI_CLUSTER_LABEL, cluster))
+            .endMetadata()
+            .withNewSpec()
+                .withNewKafkaUserAuthorizationSimple()
+                    .addNewAcl()
+                        .withType(ruleType)
+                        .withNewAclRuleTopicResource()
+                            .withName(topicName)
+                            .withPatternType(patternType)
+                        .endAclRuleTopicResource()
+                        .withOperations(operation)
+                    .endAcl()
+                .endKafkaUserAuthorizationSimple()
+            .endSpec()
+            .withNewStatus()
+                .withUsername(name)
+            .endStatus()
+            .build();
     }
 }

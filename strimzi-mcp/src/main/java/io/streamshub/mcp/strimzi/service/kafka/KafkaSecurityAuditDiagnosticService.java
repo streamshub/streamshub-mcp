@@ -224,7 +224,9 @@ public class KafkaSecurityAuditDiagnosticService extends BaseDiagnosticService {
                 }
             }
             completed.add(STEP_ACLS);
-            return matrices.isEmpty() ? null : matrices;
+            // Empty (not null) when the deep-dive ran but no principals have ACLs; null is
+            // reserved for the skipped/failed cases so the three outcomes stay distinguishable.
+            return matrices;
         } catch (Exception e) {
             LOG.warnf("Failed to audit KafkaUser ACL breadth: %s", e.getMessage());
             failed.add(STEP_ACLS + ": " + e.getMessage());

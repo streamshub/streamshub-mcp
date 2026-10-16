@@ -28,5 +28,6 @@ The {StrimziMcp} provides {DiagnosticToolCount} composite diagnostic tools:
 * `diagnose_kafka_node_pool` -- KafkaNodePool scaling, storage, and scheduling diagnosis
 * `diagnose_kafka_rebalance` -- KafkaRebalance and Cruise Control rebalance diagnosis
 * `compare_kafka_clusters` -- Cross-cluster configuration comparison
+* `audit_kafka_security` -- Security audit of authentication, authorization, certificate expiry, and ACL breadth
 
 See xref:ref-diagnostic-tools-tools[the diagnostic tools reference] for details.

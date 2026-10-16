@@ -45,6 +45,7 @@ Diagnostic tools run the entire multi-step workflow server-side in a single tool
 Available diagnostic tools:
 
 * `diagnose_kafka_cluster`
+* `diagnose_kafka_storage`
 * `diagnose_kafka_connectivity`
 * `diagnose_kafka_metrics`
 * `diagnose_operator_metrics`
@@ -57,6 +58,7 @@ Available diagnostic tools:
 * `diagnose_kafka_rebalance`
 * `assess_upgrade_readiness`
 * `compare_kafka_clusters`
+* `audit_kafka_security`
 
 *When to use:* When you want a quick, complete answer without step-by-step interaction. When the AI client supports Sampling, diagnostic tools use it for intelligent triage and automated root cause analysis.
 

@@ -39,7 +39,7 @@ kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n kafk
 
 If you do not apply the optional sensitive Role, the following features are unavailable:
 
-* *Certificate details* -- `get_kafka_cluster_certificates` cannot read TLS certificate metadata from Secrets
+* *Certificate details* -- `get_kafka_cluster_certificates` cannot read TLS certificate metadata from Secrets. The certificate step of `audit_kafka_security` is likewise recorded as a failed step, while the rest of the audit still completes.
 * *Direct metrics scraping* -- The default `streamshub-pod-scraping` metrics provider cannot access pod metrics endpoints via `pods/proxy`. You must use the `streamshub-prometheus` provider instead (see xref:ref-metrics-configuration-configuring[the Prometheus provider configuration]).
 
 All other tools work normally without the sensitive Role.

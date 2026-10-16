@@ -2250,6 +2250,7 @@ This phase tests all three server-side error handling patterns under RBAC restri
 | 15    | T15.10  | diagnose_kafka_mirror_maker | --mirror-maker | | |
 | 15    | T15.11  | compare_kafka_clusters | --mirror-maker | | |
 | 15    | T15.12  | assess_upgrade_readiness | core | | |
+| 15    | T15.12b | audit_kafka_security | core | | |
 | 15    | T15.13  | diagnose_kafka_cluster (nonexistent) | core | | |
 | 16    | T16.1   | error: wrong namespace | core | | |
 | 16    | T16.2   | error: empty namespace | core | | |
