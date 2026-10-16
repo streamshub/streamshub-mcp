@@ -233,4 +233,19 @@ public class PromptCompletions {
     public List<String> completeAssessUpgradeArgs(final String partial, final CompleteContext context) {
         return completionService.completeByArgumentName(partial, context);
     }
+
+    /**
+     * Complete arguments for the troubleshoot-kafka-storage prompt.
+     *
+     * <p>Supports completions for {@code namespace} and {@code cluster_name} arguments.
+     * The argument being completed is identified via the MCP completion request context.</p>
+     *
+     * @param partial the partial input value
+     * @param context the completion context with argument metadata
+     * @return matching values for the requested argument
+     */
+    @CompletePrompt("troubleshoot-kafka-storage")
+    public List<String> completeTroubleshootKafkaStorageArgs(final String partial, final CompleteContext context) {
+        return completionService.completeByArgumentName(partial, context);
+    }
 }
