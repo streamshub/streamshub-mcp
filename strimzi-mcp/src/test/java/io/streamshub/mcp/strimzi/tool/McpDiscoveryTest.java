@@ -373,6 +373,8 @@ class McpDiscoveryTest {
                     "Prompt 'troubleshoot-mirror-maker' should be registered");
                 assertNotNull(page.findByName("troubleshoot-connect"),
                     "Prompt 'troubleshoot-connect' should be registered");
+                assertNotNull(page.findByName("troubleshoot-kafka-storage"),
+                    "Prompt 'troubleshoot-kafka-storage' should be registered");
             })
             .send()
             .thenAssertResults();
@@ -654,6 +656,27 @@ class McpDiscoveryTest {
                 assertTrue(content.contains("get_kafka_mirror_maker"));
                 assertTrue(content.contains("get_kafka_mirror_maker_pods"));
                 assertTrue(content.contains("get_kafka_mirror_maker_logs"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify troubleshoot-kafka-storage prompt generates correct instructions.
+     */
+    @Test
+    void testPromptGetTroubleshootKafkaStorage() {
+        client.when()
+            .promptsGet("troubleshoot-kafka-storage")
+            .withArguments(Map.of("cluster_name", "my-cluster", "namespace", "kafka-prod"))
+            .withAssert(response -> {
+                assertFalse(response.messages().isEmpty());
+                String content = response.messages().get(1).content().asText().text();
+                assertTrue(content.contains("my-cluster"));
+                assertTrue(content.contains("kafka-prod"));
+                assertTrue(content.contains("get_kafka_pvcs"));
+                assertTrue(content.contains("get_kafka_metrics"));
+                assertTrue(content.contains("get_kafka_cluster_logs"));
             })
             .send()
             .thenAssertResults();

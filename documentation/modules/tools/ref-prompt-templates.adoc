@@ -245,6 +245,28 @@ Capacity analysis of a Kafka cluster.
 . Check Kafka Exporter consumer lag and partition metrics
 . Produce capacity report with utilization, bottlenecks, and scaling recommendations
 
+== troubleshoot-kafka-storage
+
+Step-by-step troubleshooting of Kafka storage issues. Covers full disks, PVC binding failures, volume expansion, and JBOD layout problems. Also available as the server-driven xref:ref-diagnostic-tools-{context}[`diagnose_kafka_storage`] composite tool.
+
+*Parameters:*
+
+* `cluster_name` (required) -- Name of the Kafka cluster
+* `namespace` (optional) -- Kubernetes namespace
+* `symptom` (optional) -- Observed symptom (for example, "disk full", "PVC Pending", "broker pod CrashLoopBackOff")
+
+*Workflow:*
+
+. Check cluster status
+. Inspect PVC status, capacity, and StorageClass expansion capability
+. Check storage capacity and disk metrics (capacity, I/O)
+. Assess volume expansion options based on StorageClass `allowVolumeExpansion`
+. Check node storage pressure via pod health
+. Inspect JBOD layout from KafkaNodePool specs
+. Check Kubernetes events for storage errors (FailedMount, ProvisioningFailed, VolumeResizeFailed)
+. Check broker logs for I/O errors (IOException, No space left on device)
+. Produce a structured PVC status table, issue list, and prioritized remediation plan
+
 == assess-upgrade-readiness
 
 Pre-upgrade readiness check for a Kafka cluster. Also available as the server-driven xref:ref-diagnostic-tools-{context}[`assess_upgrade_readiness`] composite tool.

@@ -300,6 +300,28 @@ class PromptTemplateValidationTest {
         assertTrue(content.contains("my-mm2"));
     }
 
+    @Test
+    void testTroubleshootKafkaStorageWithAllArgs() {
+        TroubleshootKafkaStoragePrompt prompt = new TroubleshootKafkaStoragePrompt();
+        PromptResponse response = prompt.troubleshootKafkaStorage("my-cluster", "kafka-prod", "disk full");
+        String content = extractContent(response);
+        assertValidPromptOutput(content, "troubleshoot-kafka-storage");
+        assertSystemMessage(response, "troubleshoot-kafka-storage");
+        assertTrue(content.contains("my-cluster"));
+        assertTrue(content.contains("kafka-prod"));
+        assertTrue(content.contains("disk full"));
+    }
+
+    @Test
+    void testTroubleshootKafkaStorageWithRequiredOnly() {
+        TroubleshootKafkaStoragePrompt prompt = new TroubleshootKafkaStoragePrompt();
+        PromptResponse response = prompt.troubleshootKafkaStorage("my-cluster", null, null);
+        String content = extractContent(response);
+        assertValidPromptOutput(content, "troubleshoot-kafka-storage");
+        assertSystemMessage(response, "troubleshoot-kafka-storage");
+        assertTrue(content.contains("my-cluster"));
+    }
+
     private static String extractContent(PromptResponse response) {
         assertEquals(2, response.messages().size(),
             "Prompt response should contain assistant and user messages");
