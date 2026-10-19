@@ -484,6 +484,123 @@ class KafkaTopicToolsST extends AbstractST {
             .thenAssertResults();
     }
 
+    /**
+     * Verify list_kafka_topics narrows results by a name prefix filter.
+     */
+    @Test
+    @Story("list_kafka_topics narrows by name filter")
+    void testListKafkaTopicsNameFilterPrefix() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "namespace", kafkaNamespace.getMetadata().getName(),
+            "nameFilter", "mcp-topic-a");
+
+        mcpClient.when()
+            .toolsCall("list_kafka_topics", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray() && !items.isEmpty(),
+                    "Filtered result should contain at least mcp-topic-alpha");
+                Set<String> names = new HashSet<>();
+                for (JsonNode topic : items) {
+                    String name = topic.path("name").asText();
+                    assertTrue(name.startsWith("mcp-topic-a"),
+                        "Every returned topic should start with the prefix but got " + name);
+                    names.add(name);
+                }
+                assertTrue(names.contains("mcp-topic-alpha"),
+                    "Prefix filter should match mcp-topic-alpha");
+                assertFalse(names.contains("mcp-topic-single"),
+                    "Prefix filter should exclude mcp-topic-single");
+            })
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify list_kafka_topics narrows results by a Ready status filter.
+     */
+    @Test
+    @Story("list_kafka_topics narrows by status filter")
+    void testListKafkaTopicsStatusFilterReady() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "namespace", kafkaNamespace.getMetadata().getName(),
+            "statusFilter", "READY");
+
+        mcpClient.when()
+            .toolsCall("list_kafka_topics", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray() && !items.isEmpty(),
+                    "Should return at least one Ready topic");
+                for (JsonNode topic : items) {
+                    assertEquals("Ready", topic.path("status").asText(),
+                        "statusFilter=READY should return only Ready topics");
+                }
+            })
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify list_kafka_topics returns unmanaged topics for statusFilter=UNMANAGED.
+     */
+    @Test
+    @Story("list_kafka_topics returns unmanaged topics")
+    void testListKafkaTopicsUnmanaged() {
+        String kafkaNs = kafkaNamespace.getMetadata().getName();
+        String unmanagedName = "mcp-topic-unmanaged";
+
+        krm.createOrUpdateResourceWithoutWait(
+            KafkaTopicTemplates.topic(kafkaNs, unmanagedName, Constants.KAFKA_CLUSTER_NAME, 1, 1)
+                .editMetadata()
+                    .addToAnnotations("strimzi.io/managed", "false")
+                .endMetadata()
+                .build());
+
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "namespace", kafkaNs,
+            "statusFilter", "UNMANAGED");
+
+        AtomicBoolean found = new AtomicBoolean(false);
+        Wait.until("list_kafka_topics to report the unmanaged topic",
+            Constants.KAFKA_READY_POLL_MS, Constants.KAFKA_TOPIC_READY_TIMEOUT_MS, () -> {
+                found.set(false);
+                try {
+                    mcpClient.when()
+                        .toolsCall("list_kafka_topics", args, response -> {
+                            JsonNode root = assertToolSuccess(response);
+                            for (JsonNode topic : root.path("items")) {
+                                if (unmanagedName.equals(topic.path("name").asText())) {
+                                    found.set(true);
+                                }
+                            }
+                        })
+                        .thenAssertResults();
+                } catch (Exception | AssertionError ignored) {
+                    return false;
+                }
+                return found.get();
+            });
+
+        mcpClient.when()
+            .toolsCall("list_kafka_topics", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+                JsonNode items = root.path("items");
+                assertTrue(items.isArray() && !items.isEmpty(),
+                    "statusFilter=UNMANAGED should return the unmanaged topic");
+                Set<String> names = new HashSet<>();
+                for (JsonNode topic : items) {
+                    assertFalse(topic.path("managed").asBoolean(true),
+                        "Every returned topic should be unmanaged (managed=false)");
+                    names.add(topic.path("name").asText());
+                }
+                assertTrue(names.contains(unmanagedName),
+                    "Result should include the unmanaged topic");
+            })
+            .thenAssertResults();
+    }
+
     private static boolean hasCondition(final JsonNode conditions, final String type) {
         if (!conditions.isArray()) {
             return false;

@@ -9,6 +9,7 @@ import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
+import io.streamshub.mcp.strimzi.dto.kafkatopic.TopicStatusFilter;
 import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
@@ -54,10 +55,10 @@ class KafkaTopicToolsTest {
 
     @Test
     void testListKafkaTopics() {
-        when(topicService.listTopics(null, "my-cluster", null, null)).thenReturn(
+        when(topicService.listTopics(null, "my-cluster", null, null, null, null)).thenReturn(
             PaginatedResponse.of(
                 List.of(KafkaTopicResponse.of("user-events", "kafka", "my-cluster",
-                    12, 3, "Ready", null, null, null, null, null, null)),
+                    12, 3, "Ready", null, null, null, null, null, null, Boolean.TRUE)),
                 1, 0, 100, false)
         );
 
@@ -74,11 +75,27 @@ class KafkaTopicToolsTest {
     }
 
     @Test
+    void testListKafkaTopicsThreadsFilters() {
+        when(topicService.listTopics(null, "my-cluster", null, null, "mcp-*", TopicStatusFilter.NOT_READY))
+            .thenReturn(PaginatedResponse.of(List.<KafkaTopicResponse>of(), 0, 0, 100, false));
+
+        client.when()
+            .toolsCall("list_kafka_topics",
+                Map.of("clusterName", "my-cluster", "nameFilter", "mcp-*", "statusFilter", "NOT_READY"),
+                response -> {
+                    assertFalse(response.isError());
+                    String json = response.content().getFirst().asText().text();
+                    assertTrue(json.contains("\"total\":0"));
+                })
+            .thenAssertResults();
+    }
+
+    @Test
     void testGetKafkaTopic() {
         when(topicService.getTopic(null, "my-cluster", "user-events")).thenReturn(
             KafkaTopicResponse.of("user-events", "kafka", "my-cluster", 12, 3, "Ready",
                 null, null, null, null,
-                Map.of("retention.ms", "604800000", "cleanup.policy", "delete"), null)
+                Map.of("retention.ms", "604800000", "cleanup.policy", "delete"), null, Boolean.TRUE)
         );
 
         client.when()

@@ -22,6 +22,7 @@ import io.streamshub.mcp.common.observability.MeasuredTool;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
+import io.streamshub.mcp.strimzi.dto.kafkatopic.TopicStatusFilter;
 import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -44,10 +45,12 @@ public class KafkaTopicTools {
     /**
      * List Kafka topics for a cluster with pagination.
      *
-     * @param clusterName the cluster name
-     * @param namespace   optional namespace
-     * @param limit       optional max topics per page
-     * @param offset      optional zero-based offset
+     * @param clusterName  the cluster name
+     * @param namespace    optional namespace
+     * @param limit        optional max topics per page
+     * @param offset       optional zero-based offset
+     * @param nameFilter   optional prefix/glob name filter
+     * @param statusFilter optional status filter
      * @return paginated topic list response
      */
     @WithSpan("tool.list_kafka_topics")
@@ -83,9 +86,20 @@ public class KafkaTopicTools {
         @Min(0) @ToolArg(
             description = "Zero-based offset for pagination (default: 0).",
             required = false
-        ) final Integer offset
+        ) final Integer offset,
+        @ToolArg(
+            description = "Optional name filter. A value with no wildcard matches topics whose name"
+                + " starts with it; '*' matches any sequence and '?' any single character"
+                + " (e.g. 'orders-*'). Case-sensitive.",
+            required = false
+        ) final String nameFilter,
+        @ToolArg(
+            description = "Optional status filter. One of READY, NOT_READY, ERROR, UNKNOWN"
+                + " (exact readiness state) or UNMANAGED (strimzi.io/managed=false).",
+            required = false
+        ) final TopicStatusFilter statusFilter
     ) {
-        return topicService.listTopics(namespace, clusterName, offset, limit);
+        return topicService.listTopics(namespace, clusterName, offset, limit, nameFilter, statusFilter);
     }
 
     /**

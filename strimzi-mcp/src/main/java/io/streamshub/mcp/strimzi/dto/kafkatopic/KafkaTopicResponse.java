@@ -27,6 +27,8 @@ import java.util.Map;
  * @param conditions     the status conditions
  * @param configuration  the topic configuration
  * @param reconciliation reconciliation status tracking (generation vs observedGeneration)
+ * @param managed        whether the topic is Strimzi-managed ({@code false} when annotated
+ *                       {@code strimzi.io/managed=false}); null when unknown
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record KafkaTopicResponse(
@@ -41,7 +43,8 @@ public record KafkaTopicResponse(
     @JsonProperty("replicas_change") ReplicasChangeInfo replicasChange,
     @JsonProperty("conditions") List<ConditionInfo> conditions,
     @JsonProperty("configuration") Map<String, Object> configuration,
-    @JsonProperty("reconciliation") ReconciliationInfo reconciliation
+    @JsonProperty("reconciliation") ReconciliationInfo reconciliation,
+    @JsonProperty("managed") Boolean managed
 ) {
 
     /**
@@ -76,6 +79,7 @@ public record KafkaTopicResponse(
      * @param conditions     the status conditions
      * @param configuration  the topic configuration
      * @param reconciliation reconciliation status tracking
+     * @param managed        whether the topic is Strimzi-managed
      * @return a new topic response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -85,8 +89,9 @@ public record KafkaTopicResponse(
                                          ReplicasChangeInfo replicasChange,
                                          List<ConditionInfo> conditions,
                                          Map<String, Object> configuration,
-                                         ReconciliationInfo reconciliation) {
+                                         ReconciliationInfo reconciliation,
+                                         Boolean managed) {
         return new KafkaTopicResponse(name, namespace, cluster, partitions, replicas,
-            status, topicId, topicName, replicasChange, conditions, configuration, reconciliation);
+            status, topicId, topicName, replicasChange, conditions, configuration, reconciliation, managed);
     }
 }

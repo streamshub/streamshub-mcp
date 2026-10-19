@@ -39,6 +39,13 @@ public final class StrimziConstants {
          */
         public static final String REVISION = ResourceAnnotations.STRIMZI_DOMAIN + "revision";
 
+        /**
+         * Strimzi annotation key ({@code strimzi.io/managed}) on a KafkaTopic. A value of
+         * {@code "false"} marks the topic as unmanaged (the Topic Operator ignores it);
+         * absent or any other value means managed. Built from {@link ResourceAnnotations#STRIMZI_DOMAIN}.
+         */
+        public static final String MANAGED = ResourceAnnotations.STRIMZI_DOMAIN + "managed";
+
         private Annotations() {
         }
     }

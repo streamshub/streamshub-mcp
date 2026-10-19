@@ -19,6 +19,7 @@ import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
+import io.streamshub.mcp.strimzi.dto.kafkatopic.TopicStatusFilter;
 import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicService;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import io.strimzi.api.kafka.model.topic.KafkaTopicBuilder;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -67,7 +69,7 @@ class KafkaTopicServiceTest {
 
     @Test
     void testListTopicsReturnsEmptyWhenNoneExist() {
-        PaginatedResponse<?> result = topicService.listTopics("kafka", "my-cluster", null, null);
+        PaginatedResponse<?> result = topicService.listTopics("kafka", "my-cluster", null, null, null, null);
 
         assertNotNull(result);
         assertTrue(result.items().isEmpty());
@@ -77,7 +79,7 @@ class KafkaTopicServiceTest {
 
     @Test
     void testListTopicsDefaultPagination() {
-        PaginatedResponse<?> result = topicService.listTopics("kafka", "my-cluster", null, null);
+        PaginatedResponse<?> result = topicService.listTopics("kafka", "my-cluster", null, null, null, null);
 
         assertEquals(0, result.offset());
         assertEquals(100, result.limit());
@@ -85,7 +87,7 @@ class KafkaTopicServiceTest {
 
     @Test
     void testListTopicsCustomPagination() {
-        PaginatedResponse<?> result = topicService.listTopics("kafka", "my-cluster", 5, 10);
+        PaginatedResponse<?> result = topicService.listTopics("kafka", "my-cluster", 5, 10, null, null);
 
         assertEquals(5, result.offset());
         assertEquals(10, result.limit());
@@ -93,7 +95,7 @@ class KafkaTopicServiceTest {
 
     @Test
     void testListTopicsNegativeOffsetNormalized() {
-        PaginatedResponse<?> result = topicService.listTopics("kafka", "my-cluster", -1, null);
+        PaginatedResponse<?> result = topicService.listTopics("kafka", "my-cluster", -1, null, null, null);
 
         assertEquals(0, result.offset());
     }
@@ -198,6 +200,128 @@ class KafkaTopicServiceTest {
         assertEquals(3L, response.reconciliation().generation());
         assertEquals(2L, response.reconciliation().observedGeneration());
         assertFalse(response.reconciliation().upToDate());
+    }
+
+    @Test
+    void testGetTopicManagedTrueWhenAnnotationAbsent() {
+        setupKafkaTopic(new KafkaTopicBuilder()
+            .withNewMetadata().withName("my-topic").withNamespace("kafka")
+                .withLabels(Map.of("strimzi.io/cluster", "my-cluster"))
+            .endMetadata()
+            .withNewSpec().withPartitions(3).withReplicas(3).endSpec()
+            .build());
+
+        KafkaTopicResponse response = topicService.getTopic("kafka", "my-cluster", "my-topic");
+
+        assertEquals(Boolean.TRUE, response.managed());
+    }
+
+    @Test
+    void testGetTopicManagedFalseWhenAnnotationFalse() {
+        setupKafkaTopic(new KafkaTopicBuilder()
+            .withNewMetadata().withName("my-topic").withNamespace("kafka")
+                .withLabels(Map.of("strimzi.io/cluster", "my-cluster"))
+                .withAnnotations(Map.of("strimzi.io/managed", "false"))
+            .endMetadata()
+            .withNewSpec().withPartitions(3).withReplicas(3).endSpec()
+            .build());
+
+        KafkaTopicResponse response = topicService.getTopic("kafka", "my-cluster", "my-topic");
+
+        assertEquals(Boolean.FALSE, response.managed());
+    }
+
+    @Test
+    void testListTopicsNameFilterPrefix() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topic("mcp-topic-alpha", true, null),
+            topic("mcp-topic-beta", true, null),
+            topic("other-topic", true, null)));
+
+        PaginatedResponse<?> result = topicService.listTopics(
+            "kafka", "my-cluster", null, null, "mcp-topic-a", null);
+
+        assertEquals(1, result.total());
+        assertEquals(1, result.items().size());
+    }
+
+    @Test
+    void testListTopicsNameFilterGlob() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topic("mcp-topic-alpha", true, null),
+            topic("mcp-topic-beta", true, null),
+            topic("other-topic", true, null)));
+
+        PaginatedResponse<?> result = topicService.listTopics(
+            "kafka", "my-cluster", null, null, "mcp-*", null);
+
+        assertEquals(2, result.total());
+    }
+
+    @Test
+    void testListTopicsStatusFilterNotReadyExcludesError() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topic("ready-topic", true, null),
+            topic("error-topic", false, null),
+            notReadyTopic("stalled-topic")));
+
+        PaginatedResponse<?> result = topicService.listTopics(
+            "kafka", "my-cluster", null, null, null, TopicStatusFilter.NOT_READY);
+
+        assertEquals(1, result.total());
+        assertEquals("stalled-topic", ((KafkaTopicResponse) result.items().get(0)).name());
+    }
+
+    @Test
+    void testListTopicsStatusFilterUnmanaged() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topic("managed-ready", true, null),
+            topic("unmanaged-ready", true, "false")));
+
+        PaginatedResponse<?> result = topicService.listTopics(
+            "kafka", "my-cluster", null, null, null, TopicStatusFilter.UNMANAGED);
+
+        assertEquals(1, result.total());
+        assertEquals("unmanaged-ready", ((KafkaTopicResponse) result.items().get(0)).name());
+    }
+
+    @Test
+    void testListTopicsNoFilterReturnsAll() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topic("a", true, null), topic("b", true, null)));
+
+        PaginatedResponse<?> result = topicService.listTopics(
+            "kafka", "my-cluster", null, null, "   ", null);
+
+        assertEquals(2, result.total());
+    }
+
+    private KafkaTopic topic(final String name, final boolean ready, final String managedAnnotation) {
+        KafkaTopic t = new KafkaTopicBuilder()
+            .withNewMetadata().withName(name).withNamespace("kafka")
+                .withLabels(Map.of("strimzi.io/cluster", "my-cluster"))
+            .endMetadata()
+            .withNewSpec().withPartitions(3).withReplicas(3).endSpec()
+            .withNewStatus()
+                .addNewCondition().withType("Ready").withStatus(ready ? "True" : "False").endCondition()
+            .endStatus()
+            .build();
+        if (managedAnnotation != null) {
+            t.getMetadata().setAnnotations(Map.of("strimzi.io/managed", managedAnnotation));
+        }
+        return t;
+    }
+
+    private KafkaTopic notReadyTopic(final String name) {
+        return new KafkaTopicBuilder()
+            .withNewMetadata().withName(name).withNamespace("kafka")
+                .withLabels(Map.of("strimzi.io/cluster", "my-cluster"))
+            .endMetadata()
+            .withNewSpec().withPartitions(3).withReplicas(3).endSpec()
+            .withNewStatus()
+                .addNewCondition().withType("Warning").withStatus("True").endCondition()
+            .endStatus()
+            .build();
     }
 
     @SuppressWarnings("unchecked")

@@ -19,12 +19,16 @@ Returns paginated results.
 * `namespace` (optional) -- Kubernetes namespace
 * `limit` (optional) -- Maximum number of topics to return per page (default: 100)
 * `offset` (optional) -- Zero-based offset for pagination (default: 0)
+* `nameFilter` (optional) -- Prefix or glob match on topic name. A value with no wildcard matches names that start with it; `*` matches any sequence and `?` any single character (for example, `orders-*`). Case-sensitive.
+* `statusFilter` (optional) -- One of `READY`, `NOT_READY`, `ERROR`, `UNKNOWN` (exact readiness state), or `UNMANAGED` (topics annotated `strimzi.io/managed=false`). Each readiness value matches exactly one status.
 
-*Returns:* Paginated list of topics with name, configuration, partitions, replicas, status, and pagination metadata
+Filters are applied across all matching topics before pagination, so `total` and `has_more` reflect the filtered set.
+
+*Returns:* Paginated list of topics with name, configuration, partitions, replicas, status, a `managed` flag (`false` when annotated `strimzi.io/managed=false`), and pagination metadata
 
 .Example
 ----
-List all topics in mcp-cluster
+List not-ready topics named orders-* in mcp-cluster
 ----
 
 === get_kafka_topic

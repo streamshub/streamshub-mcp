@@ -42,6 +42,17 @@ Found 5 topics in mcp-cluster:
    - Replication factor: 3
 ----
 
+== Filtering topics on large clusters
+
+*Question:* "Which not-ready topics start with `orders-` in mcp-cluster?"
+
+*What happens:*
+
+* AI calls `list_kafka_topics` with `nameFilter="orders-*"` and `statusFilter="NOT_READY"`
+* The server filters across all matching topics before paginating, so you get only the topics you asked for instead of paging through thousands
+
+`nameFilter` accepts a prefix or a glob (`*`, `?`, case-sensitive). `statusFilter` is one of `READY`, `NOT_READY`, `ERROR`, `UNKNOWN`, or `UNMANAGED` -- the last matches orphaned topics annotated `strimzi.io/managed=false`, which each result also reports via a `managed` flag.
+
 == Topic status
 
 *Question:* "What's the status of the user-events topic?"

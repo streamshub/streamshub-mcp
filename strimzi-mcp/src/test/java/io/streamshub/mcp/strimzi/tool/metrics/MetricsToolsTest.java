@@ -222,10 +222,10 @@ class MetricsToolsTest {
 
     @Test
     void testListKafkaTopics() {
-        when(topicService.listTopics(null, "my-cluster", null, null)).thenReturn(
+        when(topicService.listTopics(null, "my-cluster", null, null, null, null)).thenReturn(
             PaginatedResponse.of(
                 List.of(KafkaTopicResponse.of("user-events", "kafka", "my-cluster", 12, 3, "Ready",
-                    null, null, null, null, null, null)),
+                    null, null, null, null, null, null, Boolean.TRUE)),
                 1, 0, 100, false)
         );
 
@@ -243,7 +243,7 @@ class MetricsToolsTest {
     void testGetKafkaTopic() {
         when(topicService.getTopic(null, "my-cluster", "user-events")).thenReturn(
             KafkaTopicResponse.of("user-events", "kafka", "my-cluster", 12, 3, "Ready",
-                null, null, null, null, null, null)
+                null, null, null, null, null, null, Boolean.TRUE)
         );
 
         client.when()
