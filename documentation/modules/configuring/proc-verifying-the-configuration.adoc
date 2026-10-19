@@ -1,0 +1,36 @@
+// Module included in the following assemblies:
+// assembly-configuring.adoc
+
+[id='proc-verifying-the-configuration-{context}']
+= Verifying the configuration
+
+== Check configuration
+
+View the current configuration:
+
+[source,bash]
+----
+# View environment variables in the deployment
+kubectl -n streamshub-mcp get deployment streamshub-mcp-strimzi -o yaml | grep -A 20 env:
+
+# Check ConfigMap
+kubectl -n streamshub-mcp get configmap strimzi-mcp-config -o yaml
+
+# Check Secret (values are base64 encoded)
+kubectl -n streamshub-mcp get secret strimzi-mcp-secrets -o yaml
+----
+
+== Test connectivity
+
+Test connectivity to external services:
+
+[source,bash]
+----
+# Test Loki connectivity from MCP pod
+kubectl -n streamshub-mcp exec -it deployment/streamshub-mcp-strimzi -- \
+  curl http://loki.monitoring:3100/ready
+
+# Test Prometheus connectivity from MCP pod
+kubectl -n streamshub-mcp exec -it deployment/streamshub-mcp-strimzi -- \
+  curl http://prometheus.monitoring:9090/-/ready
+----

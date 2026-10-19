@@ -1,0 +1,28 @@
+// Assembly: Troubleshooting
+
+:context: troubleshooting
+
+[id='assembly-troubleshooting-{context}']
+= Troubleshooting
+
+Resolve common issues when using the {StrimziMcp}.
+
+include::../modules/troubleshooting/ref-server-issues.adoc[leveloffset=+1]
+
+include::../modules/troubleshooting/ref-kubernetes-deployment-issues.adoc[leveloffset=+1]
+
+include::../modules/troubleshooting/ref-ai-assistant-issues.adoc[leveloffset=+1]
+
+include::../modules/troubleshooting/con-ai-agent-behavior-issues.adoc[leveloffset=+1]
+
+include::../modules/troubleshooting/ref-log-collection-issues.adoc[leveloffset=+1]
+
+include::../modules/troubleshooting/ref-external-service-connectivity.adoc[leveloffset=+1]
+
+include::../modules/troubleshooting/proc-validating-configuration.adoc[leveloffset=+1]
+
+include::../modules/troubleshooting/ref-metrics-issues.adoc[leveloffset=+1]
+
+include::../modules/troubleshooting/ref-performance-issues.adoc[leveloffset=+1]
+
+include::../modules/troubleshooting/proc-getting-help.adoc[leveloffset=+1]

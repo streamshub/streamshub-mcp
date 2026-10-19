@@ -1,0 +1,28 @@
+// Assembly: Usage examples
+
+:context: usage
+
+[id='assembly-usage-examples-{context}']
+= Usage examples
+
+Practical examples of using the {StrimziMcp} with AI assistants to manage and troubleshoot Kafka infrastructure.
+
+include::../modules/usage/con-basic-cluster-operations.adoc[leveloffset=+1]
+
+include::../modules/usage/con-diagnostic-workflows.adoc[leveloffset=+1]
+
+include::../modules/usage/con-log-analysis.adoc[leveloffset=+1]
+
+include::../modules/usage/con-topic-management.adoc[leveloffset=+1]
+
+include::../modules/usage/con-metrics-queries.adoc[leveloffset=+1]
+
+include::../modules/usage/con-operator-monitoring.adoc[leveloffset=+1]
+
+include::../modules/usage/con-using-prompt-templates.adoc[leveloffset=+1]
+
+include::../modules/usage/con-working-with-large-result-sets.adoc[leveloffset=+1]
+
+include::../modules/usage/con-when-things-go-wrong.adoc[leveloffset=+1]
+
+include::../modules/usage/con-about-sampling.adoc[leveloffset=+1]

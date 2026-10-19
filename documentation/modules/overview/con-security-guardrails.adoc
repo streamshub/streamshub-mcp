@@ -1,0 +1,12 @@
+// Module included in the following assemblies:
+// assembly-overview.adoc
+
+[id='con-security-guardrails-{context}']
+= Security guardrails
+
+The server includes built-in security features:
+
+* *Log redaction* -- Automatic removal of sensitive patterns such as tokens, passwords, and keys
+* *Response size limits* -- Truncation of responses that exceed a configurable size threshold
+* *Rate limiting* -- Per-category request throttling to prevent resource exhaustion
+* *Custom patterns* -- Support for organization-specific redaction rules

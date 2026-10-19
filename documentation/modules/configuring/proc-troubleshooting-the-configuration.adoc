@@ -1,0 +1,56 @@
+// Module included in the following assemblies:
+// assembly-configuring.adoc
+
+[id='proc-troubleshooting-the-configuration-{context}']
+= Troubleshooting the configuration
+
+== Loki connection issues
+
+If you cannot connect to Loki:
+
+[source,bash]
+----
+# Check Loki service exists
+kubectl -n monitoring get svc loki
+
+# Check Loki logs for errors
+kubectl -n monitoring logs -l app=loki
+
+# Verify network connectivity from MCP pod
+kubectl -n streamshub-mcp exec -it deployment/streamshub-mcp-strimzi -- \
+  curl -v http://loki.monitoring:3100/ready
+----
+
+== Prometheus connection issues
+
+If you cannot connect to Prometheus:
+
+[source,bash]
+----
+# Check Prometheus service exists
+kubectl -n monitoring get svc prometheus-operated
+
+# Check Prometheus logs for errors
+kubectl -n monitoring logs -l app.kubernetes.io/name=prometheus
+
+# Verify network connectivity from MCP pod
+kubectl -n streamshub-mcp exec -it deployment/streamshub-mcp-strimzi -- \
+  curl -v http://prometheus.monitoring:9090/-/ready
+----
+
+== Authentication issues
+
+If you see authentication errors:
+
+[source,bash]
+----
+# Verify Secret exists
+kubectl -n streamshub-mcp get secret strimzi-mcp-secrets
+
+# Check if environment variables are set correctly
+kubectl -n streamshub-mcp exec -it deployment/streamshub-mcp-strimzi -- \
+  env | grep -E '(LOKI|PROMETHEUS)'
+
+# Check MCP server logs for authentication errors
+kubectl -n streamshub-mcp logs -l app=streamshub-mcp-strimzi | grep -i auth
+----

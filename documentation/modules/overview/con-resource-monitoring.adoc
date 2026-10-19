@@ -1,0 +1,15 @@
+// Module included in the following assemblies:
+// assembly-overview.adoc
+
+[id='con-resource-monitoring-{context}']
+= Resource monitoring
+
+The server can watch Kafka, KafkaNodePool, KafkaTopic, and KafkaUser custom resources and Strimzi operator Deployments.
+When resource state changes, it sends `notifications/resources/updated` to subscribed MCP clients.
+
+[NOTE]
+====
+Resource watches are disabled by default because most AI clients do not yet support MCP resource subscriptions.
+Resource templates still work for on-demand queries regardless of this setting.
+To enable, set `mcp.resource-watches.enabled=true` (see xref:resource-watch-configuration-configuring[resource watch configuration]).
+====

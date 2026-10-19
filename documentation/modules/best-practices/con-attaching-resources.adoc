@@ -1,0 +1,11 @@
+// Module included in the following assemblies:
+// assembly-ai-agent-best-practices.adoc
+
+[id='con-attaching-resources-{context}']
+= Attaching resources for faster responses
+
+MCP resource templates expose live Kubernetes state as structured JSON. Attach a Kafka cluster status resource to the conversation context so the AI can analyze it without making additional tool calls:
+
+. Attach the `kafka-cluster-status` resource for a specific Kafka cluster
+. Ask: "Based on this status, what should I check?"
+. The AI can analyze immediately without additional tool calls

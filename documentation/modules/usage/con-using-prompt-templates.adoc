@@ -1,0 +1,46 @@
+// Module included in the following assemblies:
+// assembly-usage-examples.adoc
+
+[id='con-using-prompt-templates-{context}']
+= Using prompt templates
+
+Prompt templates are pre-built investigation workflows that guide the AI assistant through a structured approach to common tasks.
+They are an alternative to typing out a detailed question.
+
+== Diagnosing a cluster issue
+
+*Using the prompt:* `diagnose-cluster-issue` with `cluster_name=mcp-cluster`, `symptom=consumers are lagging`
+
+*What happens:*
+
+* The prompt provides the AI with a structured investigation plan
+* The AI follows the plan, calling the relevant tools step by step
+* Results are more thorough than ad-hoc questions because the prompt covers all relevant areas
+
+*Example interaction:*
+
+----
+Using the diagnose-cluster-issue prompt for mcp-cluster
+with symptom "consumers are lagging"...
+
+I'll investigate this systematically:
+
+1. Cluster health: mcp-cluster is Ready, 3/3 brokers healthy
+2. Topic status: All 5 topics are Ready
+3. Consumer group lag: Detected significant lag in group "order-processor"
+   - Partition 3: 15,234 messages behind
+   - Partition 7: 12,890 messages behind
+4. Broker metrics: Request queue time elevated on broker-1 (120ms avg)
+5. Network metrics: Bytes-in rate increased 3x in the last hour
+
+Root cause: A sudden spike in producer throughput is overwhelming broker-1,
+which hosts the leader replicas for the affected partitions. The consumers
+cannot keep up with the increased message rate.
+
+Recommended actions:
+1. Scale the consumer group to add more instances
+2. Rebalance partition leadership across brokers
+3. Consider increasing num.io.threads on broker-1
+----
+
+See xref:ref-prompt-templates-tools[the prompt templates reference] for the full list of available prompt templates.

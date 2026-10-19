@@ -5,7 +5,7 @@ streaming platforms. Java 21, Quarkus 3.x, Strimzi API 1.0.x, Fabric8 Kubernetes
 
 ## Documentation Structure
 
-- **User docs**: `docs/` -- Installation, configuration, usage, and troubleshooting for end users. Each MCP server has its own subdirectory (e.g., `docs/strimzi-mcp/`).
+- **User docs**: `documentation/` -- Installation, configuration, usage, and troubleshooting for end users, written as modular AsciiDoc following the Strimzi convention: single-purpose `con-`/`proc-`/`ref-` module files under `documentation/modules/<topic>/`, stitched together by `documentation/assemblies/assembly-*.adoc`, with shared values (product names, counts, versions) in `documentation/shared/attributes.adoc`. Each MCP server has its own master book (e.g., `documentation/strimzi-mcp/strimzi-mcp.adoc`) that includes the assemblies; `documentation/index.adoc` is the top-level StreamsHub landing. Build to HTML with `./mvnw -N -Pdocs package` (the build fails on broken `include::`/`xref:` references).
 - **Developer docs**: This file (`AGENTS.md`) -- Architecture, patterns, and conventions for developers
 - **Coding agent skills**: `.agents/skills/` -- Reusable skill files for coding agents (code review, test coverage, tool creation guides, system test guide). Referenced by Claude Code, Bob, Cursor, GitHub Copilot, and Windsurf.
 
@@ -13,8 +13,10 @@ streaming platforms. Java 21, Quarkus 3.x, Strimzi API 1.0.x, Fabric8 Kubernetes
 
 **CRITICAL**: When implementing new features or modifying existing functionality, you MUST update the relevant documentation:
 
-1. **User documentation** (`docs/`) -- Update when:
-   - Adding new MCP tools, prompts, or resource templates
+1. **User documentation** (`documentation/`) -- Update when:
+   - Adding new MCP tools, prompts, or resource templates (update the appropriate
+     `documentation/modules/tools/ref-*-tools.adoc` module and bump the corresponding
+     count in `documentation/shared/attributes.adoc`)
    - Changing tool parameters or behavior
    - Modifying configuration options
    - Adding new features visible to end users

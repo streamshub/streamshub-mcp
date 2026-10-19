@@ -1,0 +1,76 @@
+// Module included in the following assemblies:
+// assembly-tools-reference.adoc
+
+[id='ref-resource-templates-{context}']
+= Resource templates
+
+Resource templates expose Strimzi data as structured JSON that clients can attach to conversations.
+
+== Kafka cluster status
+
+*URI:* `strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkas/{name}/status`
+
+*Content:*
+
+* Cluster readiness and conditions
+* Kafka version
+* Listener configuration
+* Node pool status
+* Replica counts
+
+*Usage:* Attach this resource to provide cluster context to your AI assistant.
+
+== Kafka cluster topology
+
+*URI:* `strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkas/{name}/topology`
+
+*Content:*
+
+* Node pools with roles
+* Replica counts per pool
+* Storage configuration
+* Resource allocation
+
+== KafkaNodePool status
+
+*URI:* `strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkanodepools/{name}/status`
+
+*Content:*
+
+* Ready replicas
+* Node roles (broker, controller, or both)
+* Storage configuration
+
+== KafkaTopic status
+
+*URI:* `strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkatopics/{name}/status`
+
+*Content:*
+
+* Topic readiness
+* Partition count
+* Replication factor
+* Configuration
+
+== KafkaUser status
+
+*URI:* `strimzi://kafka.strimzi.io/namespaces/{namespace}/kafkausers/{name}/status`
+
+*Content:*
+
+* Authentication type
+* ACL rules and quotas
+* Kafka principal name
+* Readiness and conditions
+* Credential secret name (never the secret data)
+
+== Strimzi operator status
+
+*URI:* `strimzi://operator.strimzi.io/namespaces/{namespace}/clusteroperator/{name}/status`
+
+*Content:*
+
+* Deployment status
+* Operator version
+* Readiness
+* Uptime

@@ -1,0 +1,16 @@
+// Module included in the following assemblies:
+// assembly-configuring.adoc
+
+[id='con-configuration-overview-{context}']
+= Configuration overview
+
+You can configure the {StrimziMcp} through:
+
+* *Environment variables* -- Recommended for Kubernetes deployments. Set them via ConfigMaps, Secrets, or `kubectl set env`.
+* *application.properties file* -- Convenient for local development with `quarkus:dev`. Changes take effect immediately with hot-reload.
+* *ConfigMaps and Secrets* -- Standard Kubernetes configuration management. The prod overlay references these automatically via `envFrom`.
+
+[TIP]
+====
+Deploying to production? See xref:con-production-deployment-checklist-{context}[the production deployment checklist] for security-relevant settings that should be changed from their defaults.
+====

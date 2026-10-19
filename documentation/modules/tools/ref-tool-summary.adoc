@@ -1,0 +1,31 @@
+// Module included in the following assemblies:
+// assembly-tools-reference.adoc
+
+[id='ref-tool-summary-{context}']
+= Tool summary
+
+The {StrimziMcp} provides {ToolCount} tools, {PromptCount} prompts, and {ResourceCount} resource templates.
+
+If you are new, read xref:ref-kafka-cluster-tools-{context}[Kafka cluster tools] first to understand the basic tools, then xref:ref-diagnostic-tools-{context}[diagnostic tools] to see how automated workflows build on them.
+
+[cols="2,1,1,3",options="header"]
+|===
+|Category |Tools |Type |Description
+
+|xref:ref-kafka-cluster-tools-{context}[Kafka clusters] |9 |Read-only |Cluster status, pods, bootstrap servers, certificates, logs, config
+|xref:ref-kafka-topic-and-node-pool-tools-{context}[Topics & node pools] |5 |Read-only |Topic listing/details, node pool status and pods
+|xref:ref-kafka-user-tools-{context}[Users] |2 |Read-only |KafkaUser resources, ACLs, quotas
+|xref:ref-kafka-rebalance-tools-{context}[Rebalances] |2 |Read-only |KafkaRebalance status and Cruise Control sessions
+|xref:ref-strimzi-operator-tools-{context}[Operators] |5 |Read-only |Operator status, pods, logs, Kubernetes events
+|xref:ref-kafka-connect-tools-{context}[KafkaConnect] |6 |Read-only |Connect clusters, connectors, pods, logs
+|xref:ref-kafka-bridge-tools-{context}[KafkaBridge] |4 |Read-only |Bridge instances, pods, logs
+|xref:ref-kafka-mirrormaker2-tools-{context}[MirrorMaker2] |4 |Read-only |MM2 instances, pods, logs
+|xref:ref-drain-cleaner-tools-{context}[Drain Cleaner] |4 |Read-only |Drain Cleaner deployment, webhook, readiness
+|xref:ref-diagnostic-tools-{context}[Diagnostics] |10 |Composite |Multi-step workflows with LLM-guided triage
+|xref:ref-metrics-tools-{context}[Metrics] |5 |Read-only |Prometheus metrics from all Kafka components
+|xref:ref-prompt-templates-{context}[Prompts & resources] |{PromptCount} prompts, {ResourceCount} resources |- |Prompt templates and resource templates
+|===
+
+*All tools are read-only* -- the MCP server never creates, modifies, or deletes Kubernetes resources.
+
+*Diagnostic tools are composite* -- they make multiple internal API calls in a single tool invocation and may take longer to execute (10-60 seconds).

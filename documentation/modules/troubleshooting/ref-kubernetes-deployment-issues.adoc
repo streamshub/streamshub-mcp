@@ -1,0 +1,125 @@
+// Module included in the following assemblies:
+// assembly-troubleshooting.adoc
+
+[id='ref-kubernetes-deployment-issues-{context}']
+= Kubernetes deployment issues
+
+== Pods not starting
+
+*Symptom:* MCP server pods stuck in Pending or CrashLoopBackOff
+
+*Diagnosis:*
+
+[source,bash]
+----
+# Check pod status
+kubectl -n streamshub-mcp get pods
+
+# View pod events
+kubectl -n streamshub-mcp describe pod <pod-name>
+
+# Check logs
+kubectl -n streamshub-mcp logs <pod-name>
+----
+
+*Common issues:*
+
+*1. Image pull failure*
+
+----
+Failed to pull image: unauthorized
+----
+
+Solution:
+
+[source,bash]
+----
+# Verify image exists
+docker pull quay.io/streamshub/strimzi-mcp:latest
+
+# Create image pull secret if needed
+kubectl create secret docker-registry regcred \
+  --docker-server=quay.io \
+  --docker-username=<username> \
+  --docker-password=<password> \
+  -n streamshub-mcp
+
+# Update deployment to use secret
+kubectl patch deployment streamshub-mcp-strimzi \
+  -n streamshub-mcp \
+  -p '{"spec":{"template":{"spec":{"imagePullSecrets":[{"name":"regcred"}]}}}}'
+----
+
+*2. RBAC issues*
+
+----
+Error: User "system:serviceaccount:streamshub-mcp:streamshub-mcp-strimzi"
+cannot list kafkas
+----
+
+Solution:
+
+[source,bash]
+----
+# Verify ClusterRoleBinding exists
+kubectl get clusterrolebinding streamshub-mcp-strimzi
+
+# Recreate if missing
+kubectl apply -k install/strimzi-mcp/base/
+----
+
+*3. Insufficient resources*
+
+----
+0/3 nodes are available: insufficient memory
+----
+
+Solution:
+
+[source,bash]
+----
+# Reduce resource requests
+kubectl edit deployment streamshub-mcp-strimzi -n streamshub-mcp
+
+# Or scale down other workloads
+----
+
+== Service not accessible
+
+*Symptom:* Cannot connect to MCP server service
+
+*Diagnosis:*
+
+[source,bash]
+----
+# Check service
+kubectl -n streamshub-mcp get svc streamshub-mcp-strimzi
+
+# Check endpoints
+kubectl -n streamshub-mcp get endpoints streamshub-mcp-strimzi
+
+# Test from within the Kubernetes cluster
+kubectl -n streamshub-mcp run test --rm -it --image=curlimages/curl -- \
+  curl http://streamshub-mcp-strimzi:8080/q/health
+----
+
+*Solutions:*
+
+*1. No endpoints: Pod not ready*
+
+[source,bash]
+----
+# Check pod readiness
+kubectl -n streamshub-mcp get pods
+
+# Check readiness probe
+kubectl -n streamshub-mcp describe pod <pod-name>
+----
+
+*2. Port mismatch: Service port does not match container port*
+
+[source,bash]
+----
+# Verify service configuration
+kubectl -n streamshub-mcp get svc streamshub-mcp-strimzi -o yaml
+----

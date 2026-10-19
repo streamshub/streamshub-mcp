@@ -1,0 +1,66 @@
+// Module included in the following assemblies:
+// assembly-usage-examples.adoc
+
+[id='con-when-things-go-wrong-{context}']
+= When things go wrong
+
+Not every request succeeds.
+Here are common error scenarios and what the AI assistant will tell you.
+
+== Cluster not found
+
+*Question:* "Show me the status of my-cluster"
+
+*When the cluster does not exist:*
+
+----
+I searched for a Kafka cluster named "my-cluster" but could not find it
+in any namespace.
+
+Available Kafka clusters:
+- mcp-cluster (namespace: strimzi-kafka)
+- dev-cluster (namespace: kafka-dev)
+
+Did you mean one of these? Or check that the cluster name is spelled
+correctly and that the MCP server has access to the namespace where
+it is deployed.
+----
+
+== Permission denied
+
+*Question:* "Show me the certificates for mcp-cluster"
+
+*When the sensitive RBAC Role is not configured:*
+
+----
+I tried to read the certificate details for mcp-cluster, but the MCP
+server does not have permission to access Secrets in the strimzi-kafka
+namespace.
+
+To enable certificate inspection, apply the optional sensitive Role:
+
+kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n strimzi-kafka
+kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n strimzi-kafka
+
+See the installation guide for details on the RBAC model.
+----
+
+== Metrics unavailable
+
+*Question:* "What are the current metrics for mcp-cluster?"
+
+*When metrics scraping is not configured:*
+
+----
+I attempted to query metrics for mcp-cluster, but no metrics data is
+available. This can happen when:
+
+1. The default pod-scraping provider requires the pods/proxy RBAC
+   permission (see installation guide)
+2. Or you need to configure a Prometheus provider (see configuration
+   guide)
+
+To use Prometheus for metrics, set:
+  MCP_METRICS_PROVIDER=streamshub-prometheus
+  QUARKUS_REST_CLIENT_PROMETHEUS_URL=http://prometheus.monitoring:9090
+----

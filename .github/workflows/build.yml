@@ -33,6 +33,9 @@ jobs:
     - name: Build and test
       run: ./mvnw clean verify -Pcoverage
 
+    - name: Validate documentation (AsciiDoc)
+      run: ./mvnw -N -Pdocs package
+
     - name: Upload JaCoCo coverage reports
       if: always()
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

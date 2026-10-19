@@ -1,0 +1,22 @@
+include::../shared/attributes.adoc[]
+
+[id='strimzi-mcp-guide']
+= {StrimziMcp}
+
+The {StrimziMcp} provides AI assistants with tools to manage and troubleshoot Apache Kafka clusters deployed with the Strimzi operator on Kubernetes.
+
+include::../assemblies/assembly-overview.adoc[leveloffset=+1]
+
+include::../assemblies/assembly-getting-started.adoc[leveloffset=+1]
+
+include::../assemblies/assembly-installing.adoc[leveloffset=+1]
+
+include::../assemblies/assembly-configuring.adoc[leveloffset=+1]
+
+include::../assemblies/assembly-tools-reference.adoc[leveloffset=+1]
+
+include::../assemblies/assembly-usage-examples.adoc[leveloffset=+1]
+
+include::../assemblies/assembly-ai-agent-best-practices.adoc[leveloffset=+1]
+
+include::../assemblies/assembly-troubleshooting.adoc[leveloffset=+1]

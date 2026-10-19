@@ -1,0 +1,16 @@
+// Shared attributes for StreamsHub MCP documentation.
+// Counts are derived from the source tree; update them when tools/prompts/resources change.
+
+:ProductName: StreamsHub MCP
+:StrimziMcp: MCP Server for Strimzi
+:ToolCount: 56
+:PromptCount: 13
+:ResourceCount: 6
+:DiagnosticToolCount: 10
+:JavaVersion: 21
+:MavenVersion: 3.8
+// Example Kafka version for doc examples only; the server is version-agnostic and the
+// supported versions depend on the deployed Strimzi operator.
+:KafkaVersion: 4.2.0
+:StrimziApiVersion: 1.2.0
+:GitHubRepo: https://github.com/streamshub/streamshub-mcp

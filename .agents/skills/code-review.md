@@ -143,7 +143,7 @@ Scan the changed files and classify into categories. This guides which checks ap
 
 ### 2.11 — Documentation (all PRs that add/change user-facing features)
 
-- [ ] New MCP tools documented in `docs/strimzi-mcp/` (tool name, description, parameters).
+- [ ] New MCP tools documented in `documentation/` (the appropriate `ref-*-tools.adoc` module; `{ToolCount}`/`{DiagnosticToolCount}` in `shared/attributes.adoc` bumped; `./mvnw -N -Pdocs package` passes).
 - [ ] New config properties documented.
 - [ ] `CHANGELOG.md` updated under `## [Unreleased]` with appropriate Keep a Changelog category.
 - [ ] `AGENTS.md` updated if architecture, patterns, or module structure changed.

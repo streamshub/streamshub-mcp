@@ -1,0 +1,101 @@
+// Module included in the following assemblies:
+// assembly-tools-reference.adoc
+
+[id='ref-strimzi-operator-tools-{context}']
+= Strimzi operator tools
+
+Tools for managing Strimzi operators and viewing Kubernetes events for Kafka resources.
+
+== Operator management
+
+=== list_strimzi_operators
+
+List Strimzi cluster operators with deployment status and health.
+
+*Parameters:*
+
+* `namespace` (optional) -- Limit search to specific namespace
+
+*Returns:* List of Strimzi operator deployments with name, namespace, status, version, and readiness
+
+.Example
+----
+List all Strimzi operators
+----
+
+=== get_strimzi_operator
+
+Get detailed information about a specific Strimzi operator including status, version, image, and uptime.
+
+*Parameters:*
+
+* `operatorName` (required) -- Name of the operator deployment
+* `namespace` (optional) -- Kubernetes namespace
+
+*Returns:* Detailed operator information including deployment status, version, image, replicas, and uptime
+
+.Example
+----
+Get details for strimzi-cluster-operator
+----
+
+=== get_strimzi_operator_pod
+
+Get detailed description of a Strimzi operator pod including environment, resources, volumes, and conditions.
+Use `list_strimzi_operators` or `get_strimzi_operator` first to discover the pod name.
+
+*Parameters:*
+
+* `namespace` (required) -- Kubernetes namespace where the operator pod is deployed
+* `podName` (required) -- Name of the pod (for example, 'strimzi-cluster-operator-557fd4bbc-666r6')
+* `sections` (optional) -- Detail sections to include
+
+*Returns:* Detailed pod description with environment variables, resource limits, volumes, and conditions
+
+.Example
+----
+Describe the operator pod strimzi-cluster-operator-557fd4bbc-666r6 in namespace strimzi
+----
+
+=== get_strimzi_operator_logs
+
+Get logs from Strimzi operator pods with error analysis and advanced filtering.
+
+*Parameters:*
+
+* `namespace` (optional) -- Operator namespace
+* `filter` (optional) -- Log level filter (for example, "ERROR", "WARN", "INFO")
+* `keywords` (optional) -- List of keywords to search for in logs
+* `sinceMinutes` (optional) -- Time window in minutes
+* `startTime` (optional) -- Start time (ISO 8601 format, for example, `2025-01-15T10:00:00Z`)
+* `endTime` (optional) -- End time (ISO 8601 format, for example, `2025-01-15T12:00:00Z`)
+* `tailLines` (optional) -- Number of lines to tail from each pod
+* `previous` (optional) -- Get logs from previous container instance
+
+*Returns:* Aggregated operator logs with error analysis and statistics
+
+.Example
+----
+Get Strimzi operator logs with ERROR level for the last 30 minutes
+----
+
+== Events
+
+=== get_strimzi_events
+
+Get Kubernetes events for a Strimzi resource and all related pods. For Kafka clusters (default), also includes PVC and node pool events. For KafkaConnect, KafkaMirrorMaker2, or KafkaBridge, pass the `resource_kind` parameter to query events for the correct resource type.
+
+*Parameters:*
+
+* `resourceName` (required) -- Name of the Strimzi resource
+* `namespace` (optional) -- Kubernetes namespace. Auto-discovered for Kafka, StrimziOperator, and DrainCleaner
+* `sinceMinutes` (optional) -- Time window in minutes (omit for all available events)
+* `resourceKind` (required) -- Strimzi resource kind: `Kafka`, `KafkaConnect`, `KafkaMirrorMaker2`, `KafkaBridge`, `StrimziOperator`, or `DrainCleaner`
+
+*Returns:* Events grouped by resource type showing scheduling, restarts, volume issues, and operator reconciliation events
+
+.Examples
+----
+Get events for mcp-cluster in the last hour
+Get events for my-connect KafkaConnect cluster
+----

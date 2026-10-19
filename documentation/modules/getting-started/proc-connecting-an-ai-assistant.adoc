@@ -1,0 +1,63 @@
+// Module included in the following assemblies:
+// assembly-getting-started.adoc
+
+[id='proc-connecting-an-ai-assistant-{context}']
+= Connecting your AI assistant
+
+The MCP server uses *HTTP Streamable transport* on `http://localhost:8080/mcp`.
+Connect any MCP-compatible client by pointing it to this URL.
+
+Most MCP clients require two pieces of information:
+
+* *Transport type:* HTTP (or "Streamable HTTP")
+* *Server URL:* `http://localhost:8080/mcp`
+
+Refer to your AI client's documentation for how to add an MCP server.
+A full list of MCP-compatible clients is available at https://modelcontextprotocol.io/clients[modelcontextprotocol.io].
+
+== Example: Claude Code
+
+[source,bash]
+----
+claude mcp add --transport http strimzi http://localhost:8080/mcp
+----
+
+== Example: Claude Desktop
+
+Add to your configuration file (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS, `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+
+[source,json]
+----
+{
+  "mcpServers": {
+    "strimzi": {
+      "transport": "http",
+      "url": "http://localhost:8080/mcp"
+    }
+  }
+}
+----
+
+Restart the application after saving.
+
+== Example: VS Code (GitHub Copilot)
+
+Add to your `.vscode/mcp.json`:
+
+[source,json]
+----
+{
+  "servers": {
+    "strimzi": {
+      "type": "http",
+      "url": "http://localhost:8080/mcp"
+    }
+  }
+}
+----
+
+[NOTE]
+====
+If your AI client does not detect the tools, verify the MCP server is running (`curl http://localhost:8080/q/health`) and that the URL is correct.
+See xref:ref-ai-assistant-issues-troubleshooting[the troubleshooting section] for more details.
+====
