@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.service.kafka;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.mcp.server.Cancellation;
 import io.quarkiverse.mcp.server.Elicitation;
+import io.quarkiverse.mcp.server.InputRequiredException;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
@@ -184,6 +185,9 @@ public class KafkaSecurityAuditDiagnosticService extends BaseDiagnosticService {
             KafkaCertificateResponse result = certificateService.getCertificates(namespace, clusterName, null);
             completed.add(STEP_CERTIFICATES);
             return result;
+        } catch (InputRequiredException e) {
+            // MRTR control signal, not a step failure: must propagate uncaught to the framework.
+            throw e;
         } catch (Exception e) {
             LOG.warnf("Failed to check Kafka cluster certificates: %s", e.getMessage());
             failed.add(STEP_CERTIFICATES + ": " + e.getMessage());
@@ -200,6 +204,9 @@ public class KafkaSecurityAuditDiagnosticService extends BaseDiagnosticService {
             List<KafkaUserResponse> result = userService.listUsers(namespace, clusterName);
             completed.add(STEP_USERS);
             return result;
+        } catch (InputRequiredException e) {
+            // MRTR control signal, not a step failure: must propagate uncaught to the framework.
+            throw e;
         } catch (Exception e) {
             LOG.warnf("Failed to enumerate KafkaUsers: %s", e.getMessage());
             failed.add(STEP_USERS + ": " + e.getMessage());
@@ -227,6 +234,9 @@ public class KafkaSecurityAuditDiagnosticService extends BaseDiagnosticService {
             // Empty (not null) when the deep-dive ran but no principals have ACLs; null is
             // reserved for the skipped/failed cases so the three outcomes stay distinguishable.
             return matrices;
+        } catch (InputRequiredException e) {
+            // MRTR control signal, not a step failure: must propagate uncaught to the framework.
+            throw e;
         } catch (Exception e) {
             LOG.warnf("Failed to audit KafkaUser ACL breadth: %s", e.getMessage());
             failed.add(STEP_ACLS + ": " + e.getMessage());

@@ -12,6 +12,7 @@ import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkamirrormaker2.KafkaMirrorMaker2Response;
+import io.streamshub.mcp.strimzi.service.kafka.KafkaSecurityAuditDiagnosticService;
 import io.streamshub.mcp.strimzi.service.kafkamirrormaker2.KafkaMirrorMaker2DiagnosticService;
 import io.vertx.core.json.JsonObject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -47,6 +48,9 @@ class DiagnosticToolsStatelessMrtrTest {
 
     @InjectMock
     KafkaMirrorMaker2DiagnosticService mirrorMakerDiagnosticService;
+
+    @InjectMock
+    KafkaSecurityAuditDiagnosticService securityAuditService;
 
     private McpAssured.McpStreamableTestClient client;
 
@@ -120,6 +124,29 @@ class DiagnosticToolsStatelessMrtrTest {
                 String json = response.content().getFirst().asText().text();
                 assertTrue(json.contains("my-mm2"));
                 assertTrue(json.contains("Root cause"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
+     * The composite {@code audit_kafka_security} tool runs through the same {@code DiagnosticTools}
+     * {@code @WrapBusinessError} path, so a stateless client that triggers an
+     * {@link InputRequiredException} must also receive an {@code input_required} result rather than
+     * a wrapped tool error.
+     */
+    @Test
+    void testStatelessAuditInputRequiredPropagatesAsInputRequiredResult() {
+        when(securityAuditService.audit(any(), any(), any(), any(), any(), any()))
+            .thenThrow(InputRequiredException.builder().setRequestState("kafka").build());
+
+        client.when()
+            .toolsCall("audit_kafka_security")
+            .withArguments(Map.of("clusterName", "my-cluster", "namespace", "kafka"))
+            .withRawAssert(raw -> {
+                String json = raw.encode();
+                assertTrue(json.contains("input_required"),
+                    "Stateless client must receive an input_required result, got: " + json);
             })
             .send()
             .thenAssertResults();
