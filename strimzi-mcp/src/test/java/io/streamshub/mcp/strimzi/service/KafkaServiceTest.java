@@ -274,16 +274,16 @@ class KafkaServiceTest {
     /**
      * Verify cluster_security encryption/authentication are extracted from
      * Kafka.status.clusterSecurity when populated, using the CRD's serialized values
-     * (e.g. "strimzi-tls") rather than the Java enum constant name ("STRIMZI_TLS").
+     * (e.g. "strimzi-tls") rather than the Java enum constant name ("TLS").
      */
     @Test
     void testGetClusterEnrichesClusterSecurityFromStatus() {
         ClusterSecurityStatus clusterSecurityStatus = new ClusterSecurityStatusBuilder()
             .withNewEncryption()
-                .withType(ClusterSecurityEncryptionType.STRIMZI_TLS)
+                .withType(ClusterSecurityEncryptionType.TLS)
             .endEncryption()
             .withNewAuthentication()
-                .withType(ClusterSecurityAuthenticationType.STRIMZI_MTLS)
+                .withType(ClusterSecurityAuthenticationType.MTLS)
             .endAuthentication()
             .build();
         Kafka kafka = buildKafkaWithStatus(new KafkaStatusBuilder()
