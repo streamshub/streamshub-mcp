@@ -1,0 +1,48 @@
+// Module included in the following assemblies:
+// assembly-installing.adoc
+
+[id='proc-troubleshooting-the-installation-{context}']
+= Troubleshooting the installation
+
+== Server does not start
+
+If the server fails to start in Kubernetes:
+
+[source,bash]
+----
+# Check Kubernetes connectivity
+kubectl cluster-info
+
+# Verify Strimzi CRDs exist
+kubectl get crd | grep strimzi
+
+# Check server logs
+kubectl -n streamshub-mcp logs deployment/streamshub-mcp-strimzi
+----
+
+== RBAC permission errors
+
+If you see permission errors:
+
+[source,bash]
+----
+# Verify you have the necessary permissions
+kubectl auth can-i list kafkas --all-namespaces
+
+# Check the ServiceAccount exists
+kubectl get serviceaccount -n streamshub-mcp
+
+# Check the ClusterRoleBinding exists
+kubectl get clusterrolebinding | grep streamshub-mcp
+----
+
+== Cannot connect from AI assistant
+
+If your AI assistant cannot connect:
+
+. Verify the server is running: `curl http://localhost:8080/q/health`
+. Check firewall rules allow connections on port 8080
+. Verify your MCP client configuration has the correct URL
+. Check server logs for connection attempts
+
+For more help, see xref:assembly-troubleshooting-troubleshooting[the troubleshooting section].

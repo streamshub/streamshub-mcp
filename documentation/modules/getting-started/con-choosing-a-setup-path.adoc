@@ -1,0 +1,26 @@
+// Module included in the following assemblies:
+// assembly-getting-started.adoc
+
+[id='con-choosing-a-setup-path-{context}']
+= Choosing a setup path
+
+Pick the option that matches your environment:
+
+[cols="1,1,2",options="header"]
+|===
+|Option |Prerequisites |Best for
+
+|xref:proc-deploying-to-kubernetes-{context}[A -- Deploy to Kubernetes]
+|`kubectl`
+|Evaluators with an existing Kubernetes cluster
+
+|xref:proc-running-as-a-container-{context}[B -- Run as a container]
+|Docker or Podman
+|Quick evaluation on any machine with a container runtime
+
+|xref:proc-building-from-source-{context}[C -- Build from source]
+|Java {JavaVersion}, Maven, `git`
+|Development and contributions
+|===
+
+All options end with the same xref:proc-connecting-an-ai-assistant-{context}[connect your AI assistant] step.

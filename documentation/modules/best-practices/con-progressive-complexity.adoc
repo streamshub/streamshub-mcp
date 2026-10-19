@@ -1,0 +1,41 @@
+// Module included in the following assemblies:
+// assembly-ai-agent-best-practices.adoc
+
+[id='con-progressive-complexity-{context}']
+= Getting started: progressive complexity
+
+If you are new to the {StrimziMcp}, follow this path to build familiarity:
+
+*Level 1 -- Basic queries* (individual tools):
+
+----
+"List all Kafka clusters"
+"What's the status of mcp-cluster?"
+"List topics in mcp-cluster"
+----
+
+*Level 2 -- Targeted investigation* (individual tools with parameters):
+
+----
+"Show me logs from mcp-cluster in the last 30 minutes, filtered to errors"
+"What are the replication metrics for prod-cluster?"
+"Show me Kubernetes events for mcp-cluster"
+----
+
+*Level 3 -- Automated diagnostics* (diagnostic tools):
+
+----
+"Diagnose issues with mcp-cluster"
+"Check connectivity for prod-cluster"
+"Compare dev-cluster and prod-cluster configurations"
+----
+
+*Level 4 -- Guided investigation* (prompt templates):
+
+----
+"Use the diagnose-cluster-issue prompt for mcp-cluster with symptom 'consumers lagging'"
+"Use the audit-security prompt to review mcp-cluster"
+"Use the analyze-capacity prompt for prod-cluster"
+----
+
+See xref:ref-prompt-templates-tools[Prompts, resources, and subscriptions] for the full list of prompt templates and their parameters.

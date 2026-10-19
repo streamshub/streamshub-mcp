@@ -1,0 +1,61 @@
+// Module included in the following assemblies:
+// assembly-troubleshooting.adoc
+
+[id='ref-external-service-connectivity-{context}']
+= External service connectivity
+
+== Loki or Prometheus unreachable
+
+*Symptom:* Log or metrics tools return connection errors, or the MCP server logs show `ConnectException` or `SocketTimeoutException` for Loki/Prometheus.
+
+*Diagnosis:*
+
+[source,bash]
+----
+# Check if the external service is reachable from the MCP pod
+kubectl -n streamshub-mcp exec deployment/streamshub-mcp-strimzi -- \
+  curl -s -o /dev/null -w "%{http_code}" http://loki.monitoring:3100/ready
+
+kubectl -n streamshub-mcp exec deployment/streamshub-mcp-strimzi -- \
+  curl -s -o /dev/null -w "%{http_code}" http://prometheus.monitoring:9090/-/ready
+----
+
+*Common causes and solutions:*
+
+*1. Wrong URL configured*
+
+[source,bash]
+----
+# Check current configuration
+kubectl -n streamshub-mcp exec deployment/streamshub-mcp-strimzi -- \
+  env | grep -E 'LOKI|PROMETHEUS'
+----
+
+Verify the URL matches the actual service name, namespace, and port.
+
+*2. NetworkPolicy blocking traffic*
+
+[source,bash]
+----
+# Check for NetworkPolicies in both namespaces
+kubectl -n streamshub-mcp get networkpolicy
+kubectl -n monitoring get networkpolicy
+----
+
+If NetworkPolicies exist, add rules to allow traffic from the `streamshub-mcp` namespace to the monitoring namespace on the relevant ports.
+
+*3. DNS resolution failure*
+
+[source,bash]
+----
+# Test DNS resolution from the MCP pod
+kubectl -n streamshub-mcp exec deployment/streamshub-mcp-strimzi -- \
+  nslookup loki.monitoring.svc.cluster.local
+----
+
+If DNS fails, verify the service exists in the target namespace.
+
+*4. TLS certificate mismatch*
+
+If the external service uses TLS, ensure the trust store is configured correctly.
+See xref:loki-tls-configuration-configuring[Loki TLS configuration] or xref:prometheus-tls-configuration-configuring[Prometheus TLS configuration].

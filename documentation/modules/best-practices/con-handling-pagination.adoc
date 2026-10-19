@@ -1,0 +1,20 @@
+// Module included in the following assemblies:
+// assembly-ai-agent-best-practices.adoc
+
+[id='con-handling-pagination-{context}']
+= Handling pagination for topic lists
+
+The `list_kafka_topics` tool returns paginated results. The response includes:
+
+[cols="1,2",options="header"]
+|===
+|Field |Description
+
+|`items` |Topics in the current page
+|`total` |Total number of topics matching the query
+|`offset` |Zero-based offset of the first item
+|`limit` |Maximum items per page (default 100)
+|`has_more` |Whether more pages exist
+|===
+
+When `has_more` is `true`, call `list_kafka_topics` again with an incremented `offset` to retrieve the next page. For example, if `total` is 250 and `limit` is 100, use `offset=0`, then `offset=100`, then `offset=200`.

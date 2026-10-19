@@ -1,0 +1,35 @@
+// Module included in the following assemblies:
+// assembly-usage-examples.adoc
+
+[id='con-working-with-large-result-sets-{context}']
+= Working with large result sets
+
+== Paginating topics
+
+When a cluster has many topics, the `list_kafka_topics` tool returns results in pages.
+
+*Question:* "List all topics in prod-cluster"
+
+*What happens with 250 topics:*
+
+----
+Found 250 topics in prod-cluster (showing 1-100):
+
+1. analytics-events (12 partitions, RF 3) - Ready
+2. audit-log (6 partitions, RF 3) - Ready
+...
+100. order-processing-dlq (3 partitions, RF 3) - Ready
+
+There are 150 more topics. I'll fetch the next page...
+
+Showing 101-200:
+101. payment-events (12 partitions, RF 3) - Ready
+...
+----
+
+The AI assistant automatically handles pagination by calling `list_kafka_topics` with `offset` and `limit` parameters.
+You can also ask for specific subsets:
+
+* _"List topics matching 'order-*'"_ -- the AI filters results by name
+* _"Show me only NotReady topics"_ -- the AI filters results
+* _"How many topics are in prod-cluster?"_ -- returns just the count

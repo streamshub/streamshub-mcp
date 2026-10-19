@@ -113,7 +113,7 @@ Before submitting:
 - [ ] Checkstyle passes (`./mvnw compile`)
 - [ ] Code is documented (Javadoc on public APIs)
 - [ ] Changes are covered by tests
-- [ ] User documentation updated if applicable (see `docs/`)
+- [ ] User documentation updated if applicable (see `documentation/`)
 - [ ] Commit messages are clear and descriptive
 
 Provide a clear PR description with a summary of changes, testing performed, and any related issues.

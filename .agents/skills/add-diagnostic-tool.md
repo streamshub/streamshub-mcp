@@ -240,7 +240,7 @@ Create `strimzi-mcp/src/test/java/.../service/XxxDiagnosticServiceTest.java`:
 
 ## Step 8 — Update Documentation
 
-1. **`docs/strimzi-mcp/tools/diagnostics.md`** — add a new section for the tool (name, description, parameters)
+1. **`documentation/modules/tools/ref-diagnostic-tools.adoc`** — add a new section for the tool (name, description, 3-phase workflow, parameters), and bump `{ToolCount}` and `{DiagnosticToolCount}` in `documentation/shared/attributes.adoc`. Validate with `./mvnw -N -Pdocs package`
 2. **`CHANGELOG.md`** — entry under `## [Unreleased]` > `### Added`
 3. **`AGENTS.md`** — add to the diagnostic report DTOs list and DiagnosticTools description
 4. **`dev/test-plans/strimzi-mcp-tool-test-plan.md`** — add diagnostic test case

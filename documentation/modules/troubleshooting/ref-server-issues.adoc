@@ -1,0 +1,159 @@
+// Module included in the following assemblies:
+// assembly-troubleshooting.adoc
+
+[id='ref-server-issues-{context}']
+= Server issues
+
+== Server does not start
+
+*Symptom:* MCP server fails to start or crashes immediately
+
+*Common causes:*
+
+*1. Kubernetes connection failure*
+
+----
+Error: Unable to connect to Kubernetes API
+----
+
+Solution:
+
+[source,bash]
+----
+# Verify kubectl works
+kubectl cluster-info
+
+# Check kubeconfig
+echo $KUBECONFIG
+kubectl config view
+
+# Test with a simple command
+kubectl get pods
+----
+
+*2. Port already in use*
+
+----
+Error: Address already in use: bind
+----
+
+Solution:
+
+[source,bash]
+----
+# Find process using port 8080
+lsof -i :8080
+
+# Kill the process or use a different port
+./mvnw quarkus:dev -Dquarkus.http.port=8081
+----
+
+*3. Missing Strimzi CRDs*
+
+----
+Error: CustomResourceDefinition kafka.strimzi.io not found
+----
+
+Solution:
+
+[source,bash]
+----
+# Verify Strimzi CRDs exist
+kubectl get crd | grep strimzi
+
+# Deploy Strimzi operator if missing
+./dev/scripts/setup-strimzi.sh deploy
+----
+
+== Server starts but AI assistant cannot connect
+
+*Symptom:* Server is running but AI assistant cannot discover tools
+
+*Diagnosis:*
+
+[source,bash]
+----
+# Test MCP endpoint
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+      "protocolVersion": "2024-11-05",
+      "capabilities": {},
+      "clientInfo": {"name": "test", "version": "1.0"}
+    }
+  }'
+----
+
+*Expected:* JSON response with server capabilities
+
+*If connection refused:*
+
+* Check server is running: `curl http://localhost:8080/q/health`
+* Verify port forwarding (if using Kubernetes)
+* Check firewall rules
+
+*If 404 error:*
+
+* Verify endpoint path is `/mcp` not `/`
+* Check server logs for startup errors
+
+== Tools return errors
+
+*Symptom:* AI assistant reports tool execution failures
+
+*Common errors:*
+
+*1. "Kafka cluster not found"*
+
+----
+Error: Kafka cluster 'my-cluster' not found
+----
+
+Solution:
+
+[source,bash]
+----
+# List Kafka clusters
+kubectl get kafka --all-namespaces
+
+# Check specific namespace
+kubectl get kafka -n strimzi-kafka
+----
+
+*2. "Permission denied"*
+
+----
+Error: User cannot list kafkas in namespace 'kafka-ns'
+----
+
+Solution:
+
+[source,bash]
+----
+# Check RBAC permissions
+kubectl auth can-i list kafkas --all-namespaces
+
+# For in-Kubernetes-cluster deployment, check ServiceAccount permissions
+kubectl describe clusterrole streamshub-mcp-strimzi
+----
+
+*3. "Namespace not found"*
+
+----
+Error: Namespace 'kafka-ns' not found
+----
+
+Solution:
+
+[source,bash]
+----
+# List available namespaces
+kubectl get namespaces
+
+# Create namespace if needed
+kubectl create namespace kafka-ns
+----

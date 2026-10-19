@@ -1,0 +1,21 @@
+// Module included in the following assemblies:
+// assembly-ai-agent-best-practices.adoc
+
+[id='con-sampling-and-elicitation-{context}']
+= Understanding Sampling and Elicitation
+
+*Sampling* and *Elicitation* are optional MCP features that enhance diagnostic workflows.
+You do not need to call them directly -- the MCP server uses them internally when running diagnostic tools.
+
+*Sampling in plain language:* When you ask the MCP server to diagnose a Kafka cluster, it first collects basic data (status, pods, conditions).
+If your AI client supports Sampling, the server sends this initial data to the AI to ask "What areas should I investigate deeper?"
+The AI responds with a focus area (for example, "the broker with restarts"), and the server collects detailed data only for that area.
+This makes diagnostics faster and more focused.
+Without Sampling, the server collects everything and lets the AI analyze the full dataset afterward -- this still works, but responses may be larger.
+
+*Elicitation in plain language:* When a tool finds multiple matches (for example, two namespaces both contain a cluster named "my-cluster"), the server asks you to choose which one.
+If your AI client supports Elicitation, you see a prompt asking you to pick.
+Without Elicitation, the tool returns an error asking you to specify the namespace in your next message.
+
+Neither feature is required.
+All tools work without them -- they just provide a smoother experience when available.

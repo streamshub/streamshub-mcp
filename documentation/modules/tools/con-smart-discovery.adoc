@@ -1,0 +1,14 @@
+// Module included in the following assemblies:
+// assembly-tools-reference.adoc
+
+[id='con-smart-discovery-{context}']
+= Smart discovery
+
+All tools support *smart discovery* -- the namespace parameter is always optional.
+When omitted, tools automatically search across the entire Kubernetes cluster to find the requested resources.
+
+*How it works*: When you ask about "mcp-cluster" without specifying a namespace, the tool lists all Kafka clusters across all namespaces and finds the one matching the name.
+If exactly one match is found, it is returned directly.
+If multiple namespaces contain a resource with the same name, the tool asks you to specify which namespace (via Elicitation if your AI client supports it, or via an error message if not).
+
+*Performance note*: Specifying the namespace explicitly avoids the cross-cluster search and is faster, especially in large Kubernetes clusters with many namespaces.

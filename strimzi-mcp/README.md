@@ -28,12 +28,14 @@ The AI assistant uses MCP tools to interact with your Kubernetes cluster and pro
 
 ## Documentation
 
-- **[Getting started](../docs/strimzi-mcp/getting-started.md)** -- Quick start guide
-- **[Installation](../docs/strimzi-mcp/installation.md)** -- Kubernetes deployment, RBAC, and access configuration
-- **[Configuration](../docs/strimzi-mcp/configuration.md)** -- Environment variables, Loki, Prometheus, and security settings
-- **[Tools reference](../docs/strimzi-mcp/tools/)** -- Complete tool catalog with parameters
-- **[Usage examples](../docs/strimzi-mcp/usage-examples.md)** -- Practical workflows
-- **[Troubleshooting](../docs/strimzi-mcp/troubleshooting.md)** -- Common issues and solutions
+Full documentation lives in the [`documentation/`](../documentation/) directory as modular AsciiDoc. Build it to HTML with `./mvnw -N -Pdocs package` (output in `target/documentation/`).
+
+- **[Getting started](../documentation/assemblies/assembly-getting-started.adoc)** -- Quick start guide
+- **[Installation](../documentation/assemblies/assembly-installing.adoc)** -- Kubernetes deployment, RBAC, and access configuration
+- **[Configuration](../documentation/assemblies/assembly-configuring.adoc)** -- Environment variables, Loki, Prometheus, and security settings
+- **[Tools reference](../documentation/assemblies/assembly-tools-reference.adoc)** -- Complete tool catalog with parameters
+- **[Usage examples](../documentation/assemblies/assembly-usage-examples.adoc)** -- Practical workflows
+- **[Troubleshooting](../documentation/assemblies/assembly-troubleshooting.adoc)** -- Common issues and solutions
 
 ## License
 

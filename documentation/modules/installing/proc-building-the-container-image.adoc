@@ -1,0 +1,23 @@
+// Module included in the following assemblies:
+// assembly-installing.adoc
+
+[id='proc-building-the-container-image-{context}']
+= Building the container image
+
+Build and push the container image to your registry:
+
+[source,bash]
+----
+cd strimzi-mcp
+
+# Build and push to your registry
+../mvnw clean package -DskipTests \
+  -Dquarkus.container-image.build=true \
+  -Dquarkus.container-image.push=true \
+  -Dquarkus.container-image.registry=quay.io \
+  -Dquarkus.container-image.group=your-org \
+  -Dquarkus.container-image.name=strimzi-mcp \
+  -Dquarkus.container-image.tag=latest
+----
+
+The default image location is `quay.io/streamshub/strimzi-mcp:latest`.

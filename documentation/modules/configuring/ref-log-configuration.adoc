@@ -1,0 +1,33 @@
+// Module included in the following assemblies:
+// assembly-configuring.adoc
+
+[id='ref-log-configuration-{context}']
+= Log configuration
+
+== Log provider selection
+
+Choose how the server collects logs from your Kafka pods.
+
+[cols="2,2,3",options="header"]
+|===
+|Property |Default |Description
+
+|`mcp.log.provider` |`streamshub-kubernetes` |Log provider: `streamshub-kubernetes` or `streamshub-loki`
+|`mcp.log.tail-lines` |`200` |Default number of log lines to retrieve per pod
+|===
+
+== Kubernetes log provider (default)
+
+The default provider reads logs directly from Kubernetes pods through the API.
+No additional configuration is required.
+
+To change the default number of log lines:
+
+[source,bash]
+----
+MCP_LOG_TAIL_LINES=500
+----
+
+For centralized log collection and historical queries, configure one of the external log providers:
+
+* xref:proc-configuring-loki-integration-{context}[Grafana Loki]

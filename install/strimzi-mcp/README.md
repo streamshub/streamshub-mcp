@@ -88,7 +88,7 @@ kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/
 ## Configuration
 
 The prod overlay references an optional ConfigMap and Secret for environment-based configuration.
-See the [configuration guide](../../docs/strimzi-mcp/configuration.md) for all available settings.
+See the [configuration guide](../../documentation/assemblies/assembly-configuring.adoc) for all available settings.
 
 Example ConfigMap:
 

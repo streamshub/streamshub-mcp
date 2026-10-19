@@ -1,0 +1,95 @@
+// Module included in the following assemblies:
+// assembly-configuring.adoc
+
+[id='ref-core-configuration-{context}']
+= Core configuration
+
+== Server information
+
+Configure basic server identity and network settings.
+
+[cols="2,1,2",options="header"]
+|===
+|Property |Default |Description
+
+|`quarkus.mcp.server.server-info.name` |`strimzi-mcp` |MCP server name shown to clients
+|`quarkus.mcp.server.server-info.version` |build version (for example `0.2.0`) |Server version reported to MCP clients. Set automatically from the build -- override only if needed.
+|`quarkus.http.port` |`8080` |HTTP port the server listens on
+|`quarkus.mcp.server.tools.structured-content.compatibility-mode` |`true` |Controls how tool responses are delivered. See xref:structured-content-{context}[Structured content].
+|===
+
+[id='structured-content-{context}']
+== Structured content
+
+All tools return structured content with auto-generated output schemas, enabling MCP clients to programmatically consume tool results.
+
+[cols="2,^1,^1,3",options="header"]
+|===
+|Mode |`content` (text) |`structuredContent` (JSON) |Behavior
+
+|`compatibility-mode=true` (default) |Yes |Yes |Both fields are populated. Some MCP clients (including Claude) may inconsistently choose between them across sessions.
+|`compatibility-mode=false` |No |Yes |Only `structuredContent` is populated. Forces all clients to use structured data. Recommended when your MCP client supports it (Claude, Cursor, and so on).
+|===
+
+*Recommendation:* Set `compatibility-mode=false` if your MCP client supports structured content. This ensures the AI agent always receives typed JSON objects with schema metadata rather than plain text strings.
+
+[source,bash]
+----
+QUARKUS_MCP_SERVER_TOOLS_STRUCTURED_CONTENT_COMPATIBILITY_MODE=false
+----
+
+[id='cors-configuration-{context}']
+== CORS configuration
+
+Control cross-origin resource sharing for web-based MCP clients.
+
+[cols="2,2,2",options="header"]
+|===
+|Property |Default |Description
+
+|`quarkus.http.cors.enabled` |`true` |Enable CORS support
+|`quarkus.http.cors.origins` |`http://localhost:*,https://localhost:*` |Allowed origins
+|`quarkus.http.cors.methods` |`GET,POST,OPTIONS` |Allowed HTTP methods
+|`quarkus.http.cors.headers` |`Accept,Content-Type,Mcp-Session-Id` |Allowed headers
+|===
+
+*Development mode:*
+In dev mode, CORS is permissive (`/.*/`) to simplify testing.
+
+[WARNING]
+====
+The dev-mode permissive CORS setting (`/.*/`) allows any origin to access the MCP endpoint.
+Always override this for production deployments.
+====
+
+Override with a specific domain:
+
+[source,bash]
+----
+QUARKUS_HTTP_CORS_ORIGINS=https://your-domain.com
+----
+
+== Kubernetes API TLS
+
+When running inside a Kubernetes cluster, the MCP server automatically trusts the cluster CA certificate mounted at `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`.
+No additional TLS configuration is needed for standard in-cluster deployments.
+
+[cols="2,1,3",options="header"]
+|===
+|Property |Default |Description
+
+|`quarkus.kubernetes-client.trust-certs` |`false` |Skip Kubernetes API server certificate validation. Only set to `true` for development or clusters with untrusted CAs.
+|===
+
+If your cluster uses a custom CA that is not covered by the mounted service account CA bundle, you can override this setting:
+
+[source,bash]
+----
+QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true
+----
+
+[WARNING]
+====
+Setting `trust-certs=true` disables certificate validation for all Kubernetes API connections, exposing the server to man-in-the-middle attacks.
+Only use this in development or when you understand the security implications.
+====

@@ -1,0 +1,28 @@
+// Module included in the following assemblies:
+// assembly-ai-agent-best-practices.adoc
+
+[id='con-why-structured-responses-{context}']
+= Why structured MCP responses are better than scripts
+
+All MCP tool responses are structured JSON with pre-computed summary statistics, interpretation guides, and (for diagnostics) automated root cause analysis.
+The AI assistant should read these fields directly rather than writing scripts to re-process the raw data.
+
+*What the MCP server already provides:*
+
+* *Summary statistics* on metrics: `min`, `max`, `avg`, `latest`, `delta` -- no need to compute these from raw data points
+* *Interpretation guides* with thresholds: the response tells the AI what values are healthy, warning, or critical
+* *Diagnostic analysis*: the `analysis` field in diagnostic reports contains LLM-generated root cause analysis
+* *Error categorization*: log collection responses group errors by category and frequency
+
+*Example:*
+
+----
+User: "What are the current metrics for mcp-cluster?"
+
+Good AI response: "Based on the metrics response:
+- Under-replicated partitions: 0 (healthy)
+- Messages in: 1,250/sec across all brokers
+- CPU usage: 45% average (within normal range)"
+----
+
+If the AI assistant starts writing Python or bash scripts to parse MCP data, remind it: _"Interpret the JSON response directly -- the response already contains summary statistics and analysis."_

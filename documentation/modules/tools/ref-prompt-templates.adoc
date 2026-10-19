@@ -1,0 +1,263 @@
+// Module included in the following assemblies:
+// assembly-tools-reference.adoc
+
+[id='ref-prompt-templates-{context}']
+= Prompt templates
+
+Prompt templates encode Strimzi domain knowledge and guide LLMs through structured diagnostic workflows.
+
+== diagnose-cluster-issue
+
+Structured workflow for diagnosing Kafka cluster issues.
+
+*Parameters:*
+
+* `cluster_name` (required) -- Name of the Kafka cluster
+* `namespace` (optional) -- Kubernetes namespace
+* `symptom` (optional) -- Observed symptom or issue
+
+*Workflow:*
+
+. Check cluster status and conditions
+. Check Strimzi Drain Cleaner readiness
+. Check node pool statuses
+. Check Strimzi operator and User Operator health
+. Check pod health
+. Check Kubernetes events
+. Read pod logs from unhealthy pods
+. Check cluster metrics
+. Correlate and summarize
+
+*Usage:* Select this prompt in your AI assistant, provide the cluster name, and the AI will follow the structured diagnostic workflow.
+
+== troubleshoot-connectivity
+
+Structured workflow for troubleshooting connectivity issues.
+
+*Parameters:*
+
+* `cluster_name` (required) -- Name of the Kafka cluster
+* `namespace` (optional) -- Kubernetes namespace
+* `listener_name` (optional) -- Specific listener to check
+
+*Workflow:*
+
+. Check listener configuration
+. Verify bootstrap addresses
+. Check listener accessibility by type
+. Verify TLS configuration
+. Check authentication settings
+. Verify pod health
+. Collect connection-related logs
+
+== analyze-kafka-metrics
+
+Structured workflow for analyzing Kafka metrics.
+
+*Parameters:*
+
+* `cluster_name` (required) -- Name of the Kafka cluster
+* `namespace` (optional) -- Kubernetes namespace
+* `concern` (optional) -- Specific concern (for example, "replication", "performance")
+
+*Workflow:*
+
+. Check cluster status and pod health
+. Query replication metrics
+. Query throughput metrics
+. Query performance metrics
+. Query resource metrics
+. Identify anomalies and trends
+
+== analyze-strimzi-operator-metrics
+
+Structured workflow for analyzing Strimzi operator metrics.
+
+*Parameters:*
+
+* `namespace` (optional) -- Operator namespace
+* `concern` (optional) -- Specific concern (for example, "reconciliation", "resources")
+
+*Workflow:*
+
+. Get operator status
+. Query reconciliation metrics
+. Query resource metrics
+. Query JVM metrics
+. Correlate with operator logs
+
+== compare-cluster-configs
+
+Structured workflow for comparing two Kafka cluster configurations.
+
+*Parameters:*
+
+* `cluster_name_1` (required) -- Name of the first cluster
+* `cluster_name_2` (required) -- Name of the second cluster
+* `namespace_1` (optional) -- Namespace for the first cluster
+* `namespace_2` (optional) -- Namespace for the second cluster
+
+*Workflow:*
+
+. Get configuration for cluster 1
+. Get configuration for cluster 2
+. Compare broker configuration
+. Compare resources and JVM options
+. Compare listeners and authorization
+. Compare component settings (Entity Operator, Cruise Control, Kafka Exporter)
+. Compare metrics and logging
+. Summarize differences by impact (CRITICAL/HIGH/MEDIUM/LOW)
+
+== audit-security
+
+Security audit of Kafka cluster users, ACLs, authentication, quotas, and certificates.
+
+*Parameters:*
+
+* `cluster_name` (required) -- Name of the Kafka cluster to audit
+* `namespace` (optional) -- Kubernetes namespace
+
+*Workflow:*
+
+. Check listener authentication configuration and certificate expiry
+. Enumerate all users and summarize authentication types
+. Audit each user's ACL rules for security concerns (wildcard ACLs, cluster-level access, missing auth/authz)
+. Assess overall security posture with high/medium/informational findings
+. Provide prioritized remediation recommendations
+
+== troubleshoot-connect
+
+Step-by-step troubleshooting of a KafkaConnect cluster platform issue. For individual connector issues, use `troubleshoot-connector` instead. Also available as the server-driven xref:ref-diagnostic-tools-{context}[`diagnose_kafka_connect`] composite tool.
+
+*Parameters:*
+
+* `connect_cluster` (required) -- Name of the KafkaConnect cluster to troubleshoot
+* `namespace` (optional) -- Kubernetes namespace
+* `symptom` (optional) -- Observed symptom (for example, "pods crashing", "workers rebalancing")
+
+*Workflow:*
+
+. Check Connect cluster status, replicas, conditions, REST API
+. Check connector inventory -- scope detection (all failing vs isolated)
+. Check Connect pods for crashes, restarts, resource pressure
+. Check Connect logs for WorkerRebalance, OOM, plugin, connectivity errors
+. Check Connect worker metrics and resource metrics (JVM, GC, CPU)
+. Check Kubernetes events for scheduling and eviction issues
+. Correlate and diagnose (deployment/resource/plugin/rebalancing/connectivity)
+
+== troubleshoot-connector
+
+Step-by-step troubleshooting of a KafkaConnector issue.
+
+*Parameters:*
+
+* `connector_name` (required) -- Name of the KafkaConnector to troubleshoot
+* `namespace` (optional) -- Kubernetes namespace
+* `connect_cluster` (optional) -- Parent KafkaConnect cluster name (auto-discovered if omitted)
+* `symptom` (optional) -- Observed symptom (for example, "connector FAILED", "tasks restarting")
+
+*Workflow:*
+
+. Check connector status and conditions
+. Check parent KafkaConnect cluster health
+. Check Connect worker pods
+. Check Connect logs for connector-related errors
+. Check Kubernetes events
+. Correlate and diagnose (connector config vs platform vs external issues)
+
+== troubleshoot-bridge
+
+Step-by-step troubleshooting of a KafkaBridge issue.
+
+*Parameters:*
+
+* `bridge_name` (required) -- Name of the KafkaBridge to troubleshoot
+* `namespace` (optional) -- Kubernetes namespace
+* `symptom` (optional) -- Observed symptom (for example, "bridge not ready", "HTTP 503")
+
+*Workflow:*
+
+. Check KafkaBridge status and configuration
+. Check KafkaBridge pods
+. Check KafkaBridge logs for errors
+. Check Kubernetes events
+. Correlate and diagnose (bridge config, Kafka connectivity, pod/resource, HTTP/CORS, operator issues)
+
+== troubleshoot-topic
+
+Step-by-step troubleshooting of a KafkaTopic issue. Focuses on topic-specific diagnosis and delegates to `diagnose-cluster-issue` or `analyze-kafka-metrics` for cluster-level problems. Also available as the server-driven xref:ref-diagnostic-tools-{context}[`diagnose_kafka_topic`] composite tool.
+
+*Parameters:*
+
+* `topic_name` (required) -- Name of the KafkaTopic to troubleshoot
+* `cluster_name` (optional) -- Kafka cluster name (auto-discovered from topic labels if omitted)
+* `namespace` (optional) -- Kubernetes namespace
+* `symptom` (optional) -- Observed symptom (for example, "NotReady", "config mismatch", "reconciliation stalled")
+
+*Workflow:*
+
+. Check KafkaTopic status, conditions, and configuration
+. Determine scope -- topic-wide or cluster-wide problem
+. Quick cluster health gate (redirects to `diagnose-cluster-issue` if cluster is NotReady)
+. Check Topic Operator reconciliation logs for this specific topic
+. Check Kubernetes events
+. Diagnose and recommend (topic config, operator issues, or redirect to cluster prompts)
+
+== troubleshoot-mirror-maker
+
+Step-by-step troubleshooting of a KafkaMirrorMaker2 issue. Also available as the server-driven xref:ref-diagnostic-tools-{context}[`diagnose_kafka_mirror_maker`] composite tool.
+
+*Parameters:*
+
+* `mirror_maker_name` (required) -- Name of the KafkaMirrorMaker2 to troubleshoot
+* `namespace` (optional) -- Kubernetes namespace
+* `symptom` (optional) -- Observed symptom (for example, "replication lag", "connectors failing")
+
+*Workflow:*
+
+. Check MM2 status, mirror configurations, and connector statuses
+. Analyze MirrorSourceConnector and MirrorCheckpointConnector health
+. Check MM2 pods for crashes and restarts
+. Check MM2 logs for replication, authentication, and connectivity errors
+. Check Kubernetes events
+. Correlate and diagnose (replication issues, topic patterns, consumer groups, resources, operator)
+
+== analyze-capacity
+
+Capacity analysis of a Kafka cluster.
+
+*Parameters:*
+
+* `cluster_name` (required) -- Name of the Kafka cluster
+* `namespace` (optional) -- Kubernetes namespace
+* `concern` (optional) -- Specific concern (for example, "storage running low", "planning for traffic increase")
+
+*Workflow:*
+
+. Inventory cluster topology and resource allocation per node pool
+. Check pod resource utilization and restart counts
+. Assess broker performance metrics (request handler idle, network processor idle)
+. Check JVM and resource metrics (heap usage, GC pressure)
+. Assess throughput volume and broker balance
+. Check replication health and partition distribution
+. Assess topic and partition scale
+. Check Kafka Exporter consumer lag and partition metrics
+. Produce capacity report with utilization, bottlenecks, and scaling recommendations
+
+== assess-upgrade-readiness
+
+Pre-upgrade readiness check for a Kafka cluster. Also available as the server-driven xref:ref-diagnostic-tools-{context}[`assess_upgrade_readiness`] composite tool.
+
+*Parameters:*
+
+* `cluster_name` (required) -- Name of the Kafka cluster
+* `namespace` (optional) -- Kubernetes namespace
+* `target_version` (optional) -- Target Kafka or Strimzi version (for example, "Kafka {KafkaVersion}")
+
+*Workflow:*
+
+. *Pre-flight checks*: Cluster health, operator status, node pools and pods, replication metrics, active rebalance check. Each produces a GO/NO-GO verdict.
+. *Safety checks*: Performance and resource metrics (headroom for rolling restart), Drain Cleaner readiness, certificate expiry, Kubernetes events.
+. *Verdict*: GO/NO-GO/CONDITIONAL with pre-flight checklist and maintenance window estimate.
+
+Active rebalances (New, PendingProposal, ProposalReady, Rebalancing, Stopped) are a *hard blocker* for upgrades -- a rolling restart during data movement can leave partitions in an inconsistent state.

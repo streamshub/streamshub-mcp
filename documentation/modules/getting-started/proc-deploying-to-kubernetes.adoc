@@ -1,0 +1,98 @@
+// Module included in the following assemblies:
+// assembly-getting-started.adoc
+
+[id='proc-deploying-to-kubernetes-{context}']
+= Option A: Deploy to Kubernetes
+
+Deploy the MCP server directly to your Kubernetes cluster using the published container image.
+No build tools required.
+
+.Prerequisites
+[cols="1,1,2",options="header"]
+|===
+|Tool |Minimum version |Install link
+
+|`kubectl` |1.25+ |https://kubernetes.io/docs/tasks/tools/[Install kubectl]
+|An MCP client |&#8212; |https://modelcontextprotocol.io/clients[MCP-compatible clients]
+|===
+
+*Kubernetes cluster:* You need access to a Kubernetes cluster.
+For local evaluation, https://minikube.sigs.k8s.io/docs/start/[minikube], https://kind.sigs.k8s.io/[kind], or https://www.docker.com/products/docker-desktop/[Docker Desktop] all work.
+
+== Step 1: Deploy Strimzi and a Kafka cluster
+
+Get the repository files on disk and run the setup script from the root directory.
+You can clone with git, or download and extract a ZIP from the https://github.com/streamshub/streamshub-mcp[GitHub repository page] (the *Code -> Download ZIP* button):
+
+[source,bash]
+----
+git clone https://github.com/streamshub/streamshub-mcp.git
+cd streamshub-mcp
+./dev/scripts/setup-strimzi.sh deploy
+----
+
+The script installs the Strimzi operator and creates a Kafka cluster named `mcp-cluster`.
+
+*Wait for the cluster to be ready* (this may take 2-5 minutes):
+
+[source,bash]
+----
+kubectl wait kafka/mcp-cluster --for=condition=Ready --timeout=300s -n strimzi-kafka
+----
+
+*Expected output:*
+
+----
+kafka.kafka.strimzi.io/mcp-cluster condition met
+----
+
+[NOTE]
+====
+If the wait times out, check pod status with `kubectl get pods -n strimzi-kafka`.
+If pods are in `Pending` state, your Kubernetes cluster may not have enough resources.
+See xref:ref-kubernetes-deployment-issues-troubleshooting[the troubleshooting section] for common issues.
+====
+
+== Step 2: Deploy the MCP server
+
+Replace `<version>` with a tag from the https://github.com/streamshub/streamshub-mcp/releases[releases page] (for example, `v0.1.0`):
+
+[source,bash]
+----
+kubectl apply -k "https://github.com/streamshub/streamshub-mcp/install/strimzi-mcp/overlays/dev?ref=<version>"
+----
+
+[NOTE]
+====
+The `dev` overlay is sized for local evaluation (1 replica, `imagePullPolicy: Always`).
+For production use, see xref:production-deployment-{context}[Production deployment].
+====
+
+*Wait for the server to be ready:*
+
+[source,bash]
+----
+kubectl -n streamshub-mcp rollout status deployment/streamshub-mcp-strimzi --timeout=120s
+----
+
+== Step 3: Access the server
+
+Use port-forwarding to reach the server from your local machine:
+
+[source,bash]
+----
+kubectl -n streamshub-mcp port-forward svc/streamshub-mcp-strimzi 8080:8080
+----
+
+Leave this running in a terminal. The MCP endpoint is now available at `http://localhost:8080/mcp`.
+
+*Verify it is healthy:*
+
+[source,bash]
+----
+curl -s http://localhost:8080/q/health/ready
+----
+
+*Expected output:* `{"status":"UP", ...}`
+
+Now proceed to xref:proc-connecting-an-ai-assistant-{context}[Connect your AI assistant].

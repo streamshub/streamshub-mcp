@@ -1,0 +1,104 @@
+// Module included in the following assemblies:
+// assembly-getting-started.adoc
+
+[id='proc-running-as-a-container-{context}']
+= Option B: Run as a container
+
+Run the MCP server locally using Docker or Podman, with your existing kubeconfig mounted into the container.
+No Kubernetes deployment or build tools required -- only a container runtime and a valid kubeconfig.
+
+.Prerequisites
+[cols="1,2",options="header"]
+|===
+|Tool |Install link
+
+|Docker or Podman |https://docs.docker.com/get-docker/[Install Docker] / https://podman.io/getting-started/installation[Install Podman]
+|A kubeconfig with cluster access |Usually `~/.kube/config`
+|An MCP client |https://modelcontextprotocol.io/clients[MCP-compatible clients]
+|===
+
+The image is available for both `linux/amd64` and `linux/arm64` (Apple Silicon).
+
+== Step 1: Run the container
+
+*Docker:*
+
+[source,bash]
+----
+docker run -i --rm \
+  -p 8080:8080 \
+  -v "$HOME/.kube:/home/jboss/.kube:ro" \
+  -e QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true `# WARNING: disables TLS verification — dev/evaluation only` \
+  quay.io/streamshub/strimzi-mcp:latest
+----
+
+*Podman:*
+
+[source,bash]
+----
+podman run -i --rm \
+  -p 8080:8080 \
+  -v "$HOME/.kube:/home/jboss/.kube:ro,z" \
+  -e QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true `# WARNING: disables TLS verification — dev/evaluation only` \
+  quay.io/streamshub/strimzi-mcp:latest
+----
+
+The server starts in a few seconds. The MCP endpoint is available at `http://localhost:8080/mcp`.
+
+*Verify it is healthy* in a second terminal:
+
+[source,bash]
+----
+curl -s http://localhost:8080/q/health/ready
+----
+
+*Expected output:* `{"status":"UP", ...}`
+
+== Notes on the container run options
+
+`-v "$HOME/.kube:/home/jboss/.kube:ro"`::
+Mounts your kubeconfig directory into the container read-only.
+The server reads credentials and cluster addresses from it but never writes to it.
+If your kubeconfig is at a non-standard path, set the `KUBECONFIG` environment variable instead:
++
+[source,bash]
+----
+-v "/path/to/kubeconfig:/tmp/kubeconfig:ro" \
+-e KUBECONFIG=/tmp/kubeconfig
+----
+
+`QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true`::
+Required for local clusters (minikube, kind, Docker Desktop) whose self-signed CA certificates are not trusted by the container's system trust store.
+*Do not use this in production* -- it disables TLS certificate validation for all Kubernetes API connections.
+For production use, deploy the server inside the cluster instead (see xref:proc-deploying-to-kubernetes-{context}[Option A] or the xref:assembly-installing-installing[installation guide]).
+
+Kubernetes API on localhost::
+If your cluster's API server address in kubeconfig is `localhost` or `127.0.0.1` (common with Docker Desktop and kind), the container cannot reach it via those addresses.
+Use `host.docker.internal` (Docker) or `host.containers.internal` (Podman) instead, or add `--network host` to the run command:
++
+[source,bash]
+----
+# Docker — use host network (Linux only)
+docker run -i --rm --network host \
+  -v "$HOME/.kube:/home/jboss/.kube:ro" \
+  -e QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS=true \
+  quay.io/streamshub/strimzi-mcp:latest
+----
++
+On macOS, `--network host` is not supported. Update your kubeconfig server URL to use `host.docker.internal`:
++
+[source,bash]
+----
+# Show current server URL
+kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'
+
+# Replace localhost with host.docker.internal if needed
+# e.g. https://127.0.0.1:6443 → https://host.docker.internal:6443
+----
+
+[TIP]
+====
+If you do not have a Strimzi cluster to connect to yet, follow xref:proc-deploying-to-kubernetes-{context}[Option A Step 1] first to deploy one, then return here to run the container.
+====
+
+Now proceed to xref:proc-connecting-an-ai-assistant-{context}[Connect your AI assistant].
