@@ -31,6 +31,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -157,5 +158,43 @@ class KafkaConnectDiagnosticServiceTest {
         assertNotNull(report);
         assertNotNull(report.connectCluster());
         assertTrue(report.stepsCompleted().contains("connect_status"));
+    }
+
+    /**
+     * Verify diagnostic report carries build info when spec.build is present.
+     */
+    @SuppressWarnings("unchecked")
+    @Test
+    void testDiagnosticReportCarriesBuildInfo() {
+        KafkaConnect connect = new KafkaConnectBuilder()
+            .withNewMetadata()
+                .withName("my-connect")
+                .withNamespace("kafka")
+            .endMetadata()
+            .withNewSpec()
+                .withNewBuild()
+                    .withNewDockerOutput()
+                        .withImage("my.registry/connect:latest")
+                    .endDockerOutput()
+                .endBuild()
+            .endSpec()
+            .build();
+
+        MixedOperation connectOp = Mockito.mock(MixedOperation.class);
+        when(kubernetesClient.resources(KafkaConnect.class)).thenReturn(connectOp);
+        NonNamespaceOperation nsConnectOp = Mockito.mock(NonNamespaceOperation.class);
+        when(connectOp.inNamespace("kafka")).thenReturn(nsConnectOp);
+        Resource connectResource = Mockito.mock(Resource.class);
+        when(nsConnectOp.withName("my-connect")).thenReturn(connectResource);
+        when(connectResource.get()).thenReturn(connect);
+
+        KafkaConnectDiagnosticReport report = diagnosticService.diagnose(
+            "kafka", "my-connect", null, null,
+            null, null, null, null);
+
+        assertNotNull(report);
+        assertNotNull(report.connectCluster());
+        assertNotNull(report.connectCluster().build());
+        assertEquals("my.registry/connect:latest", report.connectCluster().build().outputImage());
     }
 }

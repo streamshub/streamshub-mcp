@@ -173,6 +173,45 @@ class KafkaConnectToolsST extends AbstractST {
     }
 
     @Test
+    @Story("get_kafka_connect surfaces spec.build output_image and plugins")
+    void testGetKafkaConnectSurfacesBuildSpec() {
+        String kafkaNs = kafkaNamespace.getMetadata().getName();
+        String buildConnectName = Constants.CONNECT_CLUSTER_NAME + "-build";
+
+        // Deploy a build-configured KafkaConnect WITHOUT waiting (no registry in CI)
+        krm.createOrUpdateResourceWithoutWait(
+            KafkaConnectTemplates.kafkaConnectWithBuild(
+                kafkaNs, buildConnectName, Constants.KAFKA_CLUSTER_NAME, 1).build());
+
+        Map<String, Object> args = Map.of(
+            "connectName", buildConnectName,
+            "namespace", kafkaNs);
+
+        mcpClient.when()
+            .toolsCall("get_kafka_connect", args, response -> {
+                JsonNode connect = assertToolSuccess(response);
+
+                String json = response.content().getFirst().asText().text();
+                LOGGER.info("get_kafka_connect (build spec) response:\n{}", json);
+
+                // Assert spec.build fields are surfaced (deterministic, CR-derived)
+                JsonNode build = connect.path("build");
+                assertFalse(build.isMissingNode(), "Should have build object");
+                assertEquals("localhost:5000/connect-build:latest",
+                    build.path("output_image").asText(),
+                    "Build output_image should match spec");
+
+                JsonNode plugins = build.path("plugins");
+                assertTrue(plugins.isArray() && plugins.size() > 0,
+                    "Should have at least one plugin");
+                assertEquals("jar",
+                    plugins.get(0).path("artifacts").get(0).path("type").asText(),
+                    "First plugin's first artifact type should be jar");
+            })
+            .thenAssertResults();
+    }
+
+    @Test
     @Story("get_kafka_connect_pods returns running pods")
     void testGetKafkaConnectPods() {
         Map<String, Object> args = Map.of(

@@ -8,7 +8,9 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
@@ -17,6 +19,7 @@ import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectResponse;
 import io.streamshub.mcp.strimzi.service.kafkaconnect.KafkaConnectService;
 import io.strimzi.api.kafka.model.connect.KafkaConnect;
+import io.strimzi.api.kafka.model.connect.KafkaConnectBuilder;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,8 +29,10 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 /**
  * Service-level tests for {@link KafkaConnectService} with mocked Kubernetes.
  */
@@ -102,5 +107,84 @@ class KafkaConnectServiceTest {
         assertEquals("kafka", result.namespace());
         assertEquals("my-connect", result.connectName());
         assertTrue(result.message().contains("No KafkaConnect pods found"));
+    }
+
+    /**
+     * Verify getConnect returns build == null for a cluster without spec.build.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void testGetConnectReturnsBuildNullWhenNoBuildSpec() {
+        KafkaConnect connect = new KafkaConnectBuilder()
+            .withNewMetadata()
+                .withName("my-connect")
+                .withNamespace("kafka")
+            .endMetadata()
+            .withNewSpec()
+            .endSpec()
+            .withNewStatus()
+                .addNewCondition()
+                    .withType("Ready")
+                    .withStatus("True")
+                .endCondition()
+            .endStatus()
+            .build();
+
+        MixedOperation connectOp = Mockito.mock(MixedOperation.class);
+        when(kubernetesClient.resources(KafkaConnect.class)).thenReturn(connectOp);
+        NonNamespaceOperation nsConnectOp = Mockito.mock(NonNamespaceOperation.class);
+        when(connectOp.inNamespace("kafka")).thenReturn(nsConnectOp);
+        Resource connectResource = Mockito.mock(Resource.class);
+        when(nsConnectOp.withName("my-connect")).thenReturn(connectResource);
+        when(connectResource.get()).thenReturn(connect);
+
+        KafkaConnectResponse result = connectService.getConnect("kafka", "my-connect");
+
+        assertNotNull(result);
+        assertEquals("my-connect", result.name());
+        assertNull(result.build());
+    }
+
+    /**
+     * Verify getConnect returns build with output image for a cluster with spec.build.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void testGetConnectReturnsBuildWhenBuildSpecPresent() {
+        KafkaConnect connect = new KafkaConnectBuilder()
+            .withNewMetadata()
+                .withName("my-connect")
+                .withNamespace("kafka")
+            .endMetadata()
+            .withNewSpec()
+                .withNewBuild()
+                    .withNewDockerOutput()
+                        .withImage("my.registry/connect:latest")
+                    .endDockerOutput()
+                .endBuild()
+            .endSpec()
+            .withNewStatus()
+                .addNewCondition()
+                    .withType("Ready")
+                    .withStatus("True")
+                .endCondition()
+            .endStatus()
+            .build();
+
+        MixedOperation connectOp = Mockito.mock(MixedOperation.class);
+        when(kubernetesClient.resources(KafkaConnect.class)).thenReturn(connectOp);
+        NonNamespaceOperation nsConnectOp = Mockito.mock(NonNamespaceOperation.class);
+        when(connectOp.inNamespace("kafka")).thenReturn(nsConnectOp);
+        Resource connectResource = Mockito.mock(Resource.class);
+        when(nsConnectOp.withName("my-connect")).thenReturn(connectResource);
+        when(connectResource.get()).thenReturn(connect);
+
+        KafkaConnectResponse result = connectService.getConnect("kafka", "my-connect");
+
+        assertNotNull(result);
+        assertEquals("my-connect", result.name());
+        assertNotNull(result.build());
+        assertEquals("my.registry/connect:latest", result.build().outputImage());
+        assertEquals("docker", result.build().outputType());
     }
 }

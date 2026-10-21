@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.common.service;
 
+import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -289,6 +290,38 @@ public class KubernetesResourceService {
             throw new KubernetesQueryException(
                 String.format("Failed to get %s '%s' in namespace '%s'%s",
                     resourceClass.getSimpleName(), name, namespace, formatStatusSuffix(e)), e);
+        }
+    }
+
+    /**
+     * Query generic (un-typed) resources by label in a namespace. Used for resources that have
+     * no fabric8 model class on the classpath (for example OpenShift {@code build.openshift.io/v1}
+     * Builds, which are read without an {@code openshift-client} dependency).
+     *
+     * @param apiVersion the resource API version (for example {@code build.openshift.io/v1})
+     * @param kind       the resource kind (for example {@code Build})
+     * @param namespace  the namespace
+     * @param labelKey   the label key
+     * @param labelValue the label value
+     * @return list of generic resources found
+     */
+    public List<GenericKubernetesResource> queryGenericResourcesByLabel(final String apiVersion, final String kind,
+                                                                        final String namespace, final String labelKey,
+                                                                        final String labelValue) {
+        try {
+            return kubernetesClient
+                .genericKubernetesResources(apiVersion, kind)
+                .inNamespace(namespace)
+                .withLabel(labelKey, labelValue)
+                .list()
+                .getItems();
+        } catch (Exception e) {
+            LOG.warnf(
+                "Error querying %s/%s by %s=%s in ns %s: %s",
+                apiVersion, kind, labelKey, labelValue, namespace, e.getMessage());
+            throw new KubernetesQueryException(
+                String.format("Failed to query %s/%s by %s=%s in namespace '%s'%s",
+                    apiVersion, kind, labelKey, labelValue, namespace, formatStatusSuffix(e)), e);
         }
     }
 }

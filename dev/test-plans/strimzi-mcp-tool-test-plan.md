@@ -1086,6 +1086,15 @@ Parameters: { "connectName": "mcp-connect" }
 - [ ] TLS + client cert authentication configured
 - [ ] Build plugins include: `camel-timer-source` (v4.18.0)
 - [ ] Status conditions present
+- [ ] `build` object present (dev cluster uses `spec.build`):
+  - [ ] `build.output_image` is present and non-empty
+  - [ ] `build.output_type` is `docker` or `imagestream`
+  - [ ] `build.build_mechanism` is `KubernetesPod` or `OpenShiftBuild`
+  - [ ] `build.plugins` array contains at least one plugin with `name` and `artifacts`
+  - [ ] `build.plugins[0].artifacts` contains at least one artifact with `type` and `source`
+  - [ ] `build.build_logs` is null/absent (dev cluster build is healthy)
+  - [ ] `build.builder` is absent on Kubernetes once the operator deletes the builder pod; on OpenShift it may be present with `phase=Complete` (the Build object persists)
+  - [ ] `build.message` indicates build state (e.g., "Build completed" or "Build configured")
 
 ### T10.3 - Get Connect Pods
 

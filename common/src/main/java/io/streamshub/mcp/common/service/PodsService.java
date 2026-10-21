@@ -76,6 +76,28 @@ public class PodsService {
     }
 
     /**
+     * Extract the reason from a container's current state ({@code waiting} or
+     * {@code terminated}). Returns the bare reason code (for example
+     * {@code "ImagePullBackOff"} or {@code "Error"}), not a formatted label.
+     *
+     * @param state the container state (may be {@code null})
+     * @return the waiting or terminated reason, or {@code null} when the state
+     *     is {@code null}, running, or carries no reason
+     */
+    public static String currentContainerStateReason(final ContainerState state) {
+        if (state == null) {
+            return null;
+        }
+        if (state.getWaiting() != null) {
+            return state.getWaiting().getReason();
+        }
+        if (state.getTerminated() != null) {
+            return state.getTerminated().getReason();
+        }
+        return null;
+    }
+
+    /**
      * Get detailed description of a specific pod.
      * Defaults to summary-only when no sections specified.
      *
@@ -557,12 +579,12 @@ public class PodsService {
         if (state == null) return KubernetesConstants.ContainerStates.UNKNOWN;
         if (state.getRunning() != null) return KubernetesConstants.ContainerStates.RUNNING;
         if (state.getWaiting() != null) {
-            return KubernetesConstants.ContainerStates.WAITING + (state.getWaiting().getReason() != null
-                ? ": " + state.getWaiting().getReason() : "");
+            String reason = currentContainerStateReason(state);
+            return KubernetesConstants.ContainerStates.WAITING + (reason != null ? ": " + reason : "");
         }
         if (state.getTerminated() != null) {
-            return KubernetesConstants.ContainerStates.TERMINATED + (state.getTerminated().getReason() != null
-                ? ": " + state.getTerminated().getReason() : "");
+            String reason = currentContainerStateReason(state);
+            return KubernetesConstants.ContainerStates.TERMINATED + (reason != null ? ": " + reason : "");
         }
         return KubernetesConstants.ContainerStates.UNKNOWN;
     }

@@ -96,7 +96,7 @@ class KafkaConnectToolsTest {
                     KafkaConnectResponse.ConnectorPluginInfo.of(
                         "org.apache.kafka.connect.file.FileStreamSinkConnector", "sink", "4.2.0")),
                 List.of(ConditionInfo.of("Ready", "True", null, null, null)),
-                null, null, null)
+                null, null, null, null)
         );
 
         client.when()

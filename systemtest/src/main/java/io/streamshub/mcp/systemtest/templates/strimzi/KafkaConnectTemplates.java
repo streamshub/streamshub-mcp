@@ -15,6 +15,7 @@ import io.strimzi.api.kafka.model.common.ExternalConfigurationReferenceBuilder;
 import io.strimzi.api.kafka.model.common.metrics.JmxPrometheusExporterMetricsBuilder;
 import io.strimzi.api.kafka.model.connect.KafkaConnectBuilder;
 import io.strimzi.api.kafka.model.connect.KafkaConnectResources;
+import io.strimzi.api.kafka.model.connect.build.JarArtifactBuilder;
 import io.strimzi.api.kafka.model.kafka.KafkaResources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -133,6 +134,35 @@ public final class KafkaConnectTemplates {
     public static KafkaConnectBuilder kafkaConnect(final String namespace, final String name,
                                                     final String kafkaClusterName) {
         return kafkaConnect(namespace, name, kafkaClusterName, DEFAULT_REPLICAS);
+    }
+
+    /**
+     * Create a KafkaConnect builder with a build configuration (docker output + jar plugin).
+     * Does NOT wait for the build to complete — useful for testing spec.build surfacing
+     * without requiring a container registry in CI.
+     *
+     * @param namespace        the namespace
+     * @param name             the KafkaConnect cluster name
+     * @param kafkaClusterName the Kafka cluster name for bootstrap servers
+     * @param replicas         the number of Connect replicas
+     * @return a pre-configured KafkaConnectBuilder with spec.build
+     */
+    public static KafkaConnectBuilder kafkaConnectWithBuild(final String namespace, final String name,
+                                                             final String kafkaClusterName, final int replicas) {
+        return kafkaConnect(namespace, name, kafkaClusterName, replicas)
+            .editSpec()
+                .withNewBuild()
+                    .withNewDockerOutput()
+                        .withImage("localhost:5000/connect-build:latest")
+                    .endDockerOutput()
+                    .addNewPlugin()
+                        .withName("echo-sink")
+                        .withArtifacts(new JarArtifactBuilder()
+                            .withUrl("https://example.com/echo-sink-connector.jar")
+                            .build())
+                    .endPlugin()
+                .endBuild()
+            .endSpec();
     }
 
     /**
