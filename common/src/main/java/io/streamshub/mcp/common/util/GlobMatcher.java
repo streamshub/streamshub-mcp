@@ -47,29 +47,30 @@ public final class GlobMatcher {
     private static boolean globMatches(final String pattern, final String value) {
         int patternLength = pattern.length();
         int valueLength = value.length();
-        int p = 0;
-        int v = 0;
+        int patternIndex = 0;
+        int valueIndex = 0;
         int starIndex = -1;
         int valueAfterStar = 0;
-        while (v < valueLength) {
-            if (p < patternLength && (pattern.charAt(p) == '?' || pattern.charAt(p) == value.charAt(v))) {
-                p++;
-                v++;
-            } else if (p < patternLength && pattern.charAt(p) == '*') {
-                starIndex = p;
-                valueAfterStar = v;
-                p++;
+        while (valueIndex < valueLength) {
+            if (patternIndex < patternLength
+                    && (pattern.charAt(patternIndex) == '?' || pattern.charAt(patternIndex) == value.charAt(valueIndex))) {
+                patternIndex++;
+                valueIndex++;
+            } else if (patternIndex < patternLength && pattern.charAt(patternIndex) == '*') {
+                starIndex = patternIndex;
+                valueAfterStar = valueIndex;
+                patternIndex++;
             } else if (starIndex >= 0) {
-                p = starIndex + 1;
+                patternIndex = starIndex + 1;
                 valueAfterStar++;
-                v = valueAfterStar;
+                valueIndex = valueAfterStar;
             } else {
                 return false;
             }
         }
-        while (p < patternLength && pattern.charAt(p) == '*') {
-            p++;
+        while (patternIndex < patternLength && pattern.charAt(patternIndex) == '*') {
+            patternIndex++;
         }
-        return p == patternLength;
+        return patternIndex == patternLength;
     }
 }
