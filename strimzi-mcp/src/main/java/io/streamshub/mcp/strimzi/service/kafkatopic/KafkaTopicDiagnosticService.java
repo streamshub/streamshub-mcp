@@ -246,7 +246,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
             return null;
         }
         try {
-            PaginatedResponse<KafkaTopicResponse> result = topicService.listTopics(namespace, clusterName, null, null);
+            PaginatedResponse<KafkaTopicResponse> result = topicService.listTopics(namespace, clusterName, null, null, null, null);
             completed.add(STEP_RELATED_TOPICS);
             return result;
         } catch (Exception e) {

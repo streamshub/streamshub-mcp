@@ -120,6 +120,7 @@ io.streamshub.mcp.common.
 │                     TimeRangeValidator (validates rangeMinutes vs absolute startTime/endTime),
 │                     CertificateUtils (parse and inspect X.509 certificate metadata),
 │                     ExceptionUtils (extract root-cause message without Java class names),
+│                     GlobMatcher (prefix/glob name matching: '*'/'?', case-sensitive),
 │                     PaginationUtils (offset/limit helpers for paginated list responses)
     └── metrics/    → PrometheusTextParser, MetricLabelFilter,
                       CommonLabelExtractor (extracts shared labels from a set of metric samples),
@@ -162,7 +163,8 @@ io.streamshub.mcp.opensearch.
 io.streamshub.mcp.strimzi.
 ├── tool/              → MCP tool definitions (thin wrappers, no logic)
 │   ├── kafka/         → KafkaTools, KafkaConfigurationTools
-│   ├── kafkatopic/    → KafkaTopicTools
+│   ├── kafkatopic/    → KafkaTopicTools (list_kafka_topics supports optional nameFilter glob
+│   │                     and statusFilter — a TopicStatusFilter enum arg rendered as a schema enum)
 │   ├── kafkauser/     → KafkaUserTools
 │   ├── kafkanodepool/ → KafkaNodePoolTools
 │   ├── kafkarebalance/ → KafkaRebalanceTools
@@ -696,6 +698,11 @@ public class XxxCompletions {
 
 - Use `CompletionService` (strimzi) for domain-specific completions
 - Use `CompletionHelper` (common) for generic Kubernetes completions (namespaces, etc.)
+- **Tool arguments cannot be completed.** MCP `completion/complete` only supports `ref/prompt`
+  and `ref/resource`; `@CompleteArg` attaches to `@CompletePrompt`/`@CompleteResourceTemplate`,
+  never `@Tool`. To advertise a fixed allowed-value set on a tool argument, declare it as a Java
+  enum parameter — the generated input schema carries a JSON-schema `enum` (e.g. `TopicStatusFilter`
+  on `list_kafka_topics`).
 
 ## Resource Subscription Pattern
 

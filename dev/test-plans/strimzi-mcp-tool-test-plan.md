@@ -474,6 +474,7 @@ Parameters: { "clusterName": "mcp-cluster" }
 - [ ] Internal Kafka topics managed by Connect/MM2 may also appear (e.g., `mcp-connect-offsets`)
 - [ ] Each topic entry includes: `topic_id` (non-null UUID string), `topic_name` (actual Kafka topic name)
 - [ ] Each topic entry includes: `conditions` list and `reconciliation` (generation, observed_generation, up_to_date)
+- [ ] Each topic entry includes: `managed` flag (`false` only when annotated `strimzi.io/managed=false`)
 - [ ] `replicas_change` is null/absent for topics not currently undergoing a replication factor change
 
 ### T3.2 - List Topics (paginated)
@@ -496,6 +497,39 @@ Parameters: { "clusterName": "mcp-cluster", "limit": 2, "offset": 2 }
 
 **Expected:**
 - [ ] Returns the next page of topics (no overlap with T3.2)
+
+### T3.3a - List Topics (name filter)
+
+```
+Tool: list_kafka_topics
+Parameters: { "clusterName": "mcp-cluster", "nameFilter": "mcp-*" }
+```
+
+**Expected:**
+- [ ] Every returned topic's `name` matches the glob (starts with `mcp-`)
+- [ ] `total` reflects the filtered count (filter applied before pagination)
+
+### T3.3b - List Topics (status filter)
+
+```
+Tool: list_kafka_topics
+Parameters: { "clusterName": "mcp-cluster", "statusFilter": "READY" }
+```
+
+**Expected:**
+- [ ] Every returned topic has `status` = `Ready`
+- [ ] An invalid value (e.g. `statusFilter`: `Bogus`) is rejected by the schema `enum` before the tool runs
+
+### T3.3c - List Topics (unmanaged filter)
+
+```
+Tool: list_kafka_topics
+Parameters: { "clusterName": "mcp-cluster", "statusFilter": "UNMANAGED" }
+```
+
+**Expected:**
+- [ ] Returns only topics annotated `strimzi.io/managed=false` (each has `managed`: false)
+- [ ] Empty result when no unmanaged topics exist
 
 ### T3.4 - Get Topic Details (mcp-test-topic)
 
@@ -2167,6 +2201,9 @@ This phase tests all three server-side error handling patterns under RBAC restri
 | 3     | T3.1    | list_kafka_topics | core | | |
 | 3     | T3.2    | list_kafka_topics (paginated) | core | | |
 | 3     | T3.3    | list_kafka_topics (page 2) | core | | |
+| 3     | T3.3a   | list_kafka_topics (name filter) | core | | |
+| 3     | T3.3b   | list_kafka_topics (status filter) | core | | |
+| 3     | T3.3c   | list_kafka_topics (unmanaged filter) | core | | |
 | 3     | T3.4    | get_kafka_topic | --test-clients | | |
 | 3     | T3.5    | get_kafka_topic (nonexistent) | core | | |
 | 4     | T4.1    | list_kafka_node_pools | core | | |

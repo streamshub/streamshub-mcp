@@ -8,10 +8,13 @@ import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
+import io.streamshub.mcp.common.util.GlobMatcher;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.common.util.PaginationUtils;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
+import io.streamshub.mcp.strimzi.dto.kafkatopic.TopicStatusFilter;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
@@ -46,14 +49,18 @@ public class KafkaTopicService {
     /**
      * List Kafka topics for a specific cluster with pagination.
      *
-     * @param namespace   the namespace, or null for all namespaces
-     * @param clusterName the cluster name
-     * @param offset      zero-based offset, or null for 0
-     * @param limit       maximum topics to return, or null for the configured default
-     * @return paginated topic list response
+     * @param namespace    the namespace, or null for all namespaces
+     * @param clusterName  the cluster name
+     * @param offset       zero-based offset, or null for 0
+     * @param limit        maximum topics to return, or null for the configured default
+     * @param nameFilter   optional prefix/glob name filter ({@code *}/{@code ?}); null or blank for no filter
+     * @param statusFilter optional status filter; null for no filter
+     * @return paginated topic list response (filters applied before pagination)
      */
     public PaginatedResponse<KafkaTopicResponse> listTopics(final String namespace, final String clusterName,
-                                                             final Integer offset, final Integer limit) {
+                                                             final Integer offset, final Integer limit,
+                                                             final String nameFilter,
+                                                             final TopicStatusFilter statusFilter) {
         String ns = InputUtils.normalizeInput(namespace);
         String normalizedClusterName = InputUtils.normalizeInput(clusterName);
 
@@ -77,7 +84,16 @@ public class KafkaTopicService {
             .map(this::createTopicResponse)
             .toList();
 
-        return PaginationUtils.paginate(allResponses, offset, limit, defaultPageSize, maxTopicListSize);
+        // nameFilter is intentionally NOT passed through InputUtils.normalizeInput(): that helper
+        // lowercases its input, but the name filter is case-sensitive and matched in-memory against
+        // topic names (never sent to the Kubernetes API). Blank input is treated as "no filter" here.
+        List<KafkaTopicResponse> filtered = allResponses.stream()
+            .filter(t -> nameFilter == null || nameFilter.isBlank()
+                || GlobMatcher.matches(nameFilter.trim(), t.name()))
+            .filter(t -> statusFilter == null || statusFilter.matches(t))
+            .toList();
+
+        return PaginationUtils.paginate(filtered, offset, limit, defaultPageSize, maxTopicListSize);
     }
 
     /**
@@ -195,8 +211,13 @@ public class KafkaTopicService {
             topic.getMetadata().getGeneration(),
             topic.getStatus() != null ? topic.getStatus().getObservedGeneration() : 0L);
 
+        Map<String, String> annotations = topic.getMetadata().getAnnotations();
+        Boolean managed = annotations == null
+            ? Boolean.TRUE
+            : !"false".equalsIgnoreCase(annotations.get(StrimziConstants.Annotations.MANAGED));
+
         return KafkaTopicResponse.of(name, namespace, cluster, partitions, replicas,
-            status, topicId, topicName, replicasChange, conditions, config, reconciliation);
+            status, topicId, topicName, replicasChange, conditions, config, reconciliation, managed);
     }
 
     private String determineResourceStatus(final List<Condition> conditions) {
