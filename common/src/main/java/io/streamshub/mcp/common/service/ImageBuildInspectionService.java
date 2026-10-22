@@ -7,6 +7,8 @@ package io.streamshub.mcp.common.service;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodCondition;
+import io.fabric8.kubernetes.api.model.PodStatus;
 import io.streamshub.mcp.common.dto.ImageBuildInspection;
 import io.streamshub.mcp.common.dto.ImageBuildStatus;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
@@ -45,6 +47,8 @@ public class ImageBuildInspectionService {
     private static final String POD_REASON_COMPLETED = "Completed";
     private static final String POD_REASON_CONTAINER_CREATING = "ContainerCreating";
     private static final String POD_REASON_POD_INITIALIZING = "PodInitializing";
+    private static final String POD_CONDITION_SCHEDULED = "PodScheduled";
+    private static final String CONDITION_STATUS_FALSE = "False";
     /** Container waiting reasons that indicate normal startup, not a build failure. */
     private static final Set<String> BENIGN_WAITING_REASONS =
         Set.of(POD_REASON_CONTAINER_CREATING, POD_REASON_POD_INITIALIZING);
@@ -108,12 +112,13 @@ public class ImageBuildInspectionService {
             return null;
         }
 
-        // Pick the latest build by build.number annotation (highest wins, tie-break on creationTimestamp)
+        // Pick the latest build by build.number annotation (highest wins, tie-break on creationTimestamp).
+        // The list is non-empty (checked above), so max() is always present.
         GenericKubernetesResource latestBuild = builds.stream()
             .max(Comparator.comparingInt(this::extractBuildNumber)
                 .thenComparing(b -> b.getMetadata().getCreationTimestamp(),
                     Comparator.nullsFirst(Comparator.naturalOrder())))
-            .orElse(builds.get(0));
+            .orElseThrow();
 
         ImageBuildStatus status = extractOpenShiftBuildStatus(latestBuild);
         String logs = null;
@@ -147,6 +152,7 @@ public class ImageBuildInspectionService {
         Boolean ready = null;
         String reason = null;
         String builderImage = null;
+        String podLevelMessage = null;
 
         if (pod.getStatus() != null) {
             phase = pod.getStatus().getPhase();
@@ -158,6 +164,21 @@ public class ImageBuildInspectionService {
                 builderImage = containerStatus.getImage();
                 reason = PodsService.currentContainerStateReason(containerStatus.getState());
             }
+
+            // When there is no container-level reason the pod has no running/terminated container yet:
+            // it could not be scheduled, or it was evicted before its container started. The cause is
+            // then carried at pod level - on the PodScheduled=False condition for an unschedulable
+            // Pending pod, or on pod.status.reason/message for an evicted pod - not at container level.
+            if (reason == null) {
+                PodCondition unschedulable = failedScheduledCondition(pod.getStatus());
+                if (unschedulable != null) {
+                    reason = unschedulable.getReason();
+                    podLevelMessage = unschedulable.getMessage();
+                } else if (pod.getStatus().getReason() != null) {
+                    reason = pod.getStatus().getReason();
+                    podLevelMessage = pod.getStatus().getMessage();
+                }
+            }
         }
 
         // Fall back to spec for builder image if not in status
@@ -167,14 +188,34 @@ public class ImageBuildInspectionService {
             builderImage = pod.getSpec().getContainers().get(0).getImage();
         }
 
+        String message = podLevelMessage != null ? podLevelMessage : podBuildMessage(phase, reason);
         return ImageBuildStatus.ofPod(
             podName,
             phase,
             ready,
             reason,
-            podBuildMessage(phase, reason),
+            message,
             builderImage
         );
+    }
+
+    /**
+     * Returns the {@code PodScheduled=False} condition when present. A builder pod that cannot be
+     * scheduled (insufficient CPU/memory, taints) stays {@code Pending} and reports the cause here
+     * ({@code reason=Unschedulable}, with a human-readable message) rather than at container level.
+     *
+     * @param status the pod status
+     * @return the failed PodScheduled condition, or {@code null} when the pod is (or will be) scheduled
+     */
+    private PodCondition failedScheduledCondition(final PodStatus status) {
+        if (status.getConditions() == null) {
+            return null;
+        }
+        return status.getConditions().stream()
+            .filter(c -> POD_CONDITION_SCHEDULED.equals(c.getType())
+                && CONDITION_STATUS_FALSE.equals(c.getStatus()))
+            .findFirst()
+            .orElse(null);
     }
 
     /**
@@ -361,8 +402,12 @@ public class ImageBuildInspectionService {
             PodLogsResult result = logCollectionService.collectLogs(namespace, List.of(pod), params);
             return result.logs();
         } catch (Exception e) {
-            LOG.warnf(e, "Could not collect build logs from pod %s/%s",
-                namespace, pod.getMetadata().getName());
+            // Expected when the builder image itself cannot be pulled: the container never starts, so
+            // there are no logs to fetch. The builder status already carries the reason, so this is a
+            // routine miss - log it at debug without a stack trace to avoid noise on every call while a
+            // build is broken.
+            LOG.debugf("Could not collect build logs from pod %s/%s: %s",
+                namespace, pod.getMetadata().getName(), e.getMessage());
             return null;
         }
     }

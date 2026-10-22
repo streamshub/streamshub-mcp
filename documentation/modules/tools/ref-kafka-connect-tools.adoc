@@ -41,7 +41,7 @@ The `build` object appears only when `spec.build` is configured on the KafkaConn
 * `push_secret` -- the push secret for docker output (if configured)
 * `build_mechanism` -- `KubernetesPod` (Buildah/Kaniko builder pod) or `OpenShiftBuild` (OpenShift Build API)
 * `plugins` -- list of plugins, each with `name` and `artifacts` (each artifact has `type` and `source`)
-* `builder` -- builder status object with `kind` (`Pod` or `Build`), `name`, `phase`, `ready`, `reason`, `message`, and `builder_image`
+* `builder` -- builder status object with `kind` (`Pod` or `Build`), `name`, `phase`, `ready`, `reason` (container-level such as `ImagePullBackOff`, or pod-level such as `Unschedulable` or `Evicted`), `message`, and `builder_image`
 * `build_logs` (failure path only) -- excerpt of build logs when the builder is failing
 * `message` -- human-readable build state message
 

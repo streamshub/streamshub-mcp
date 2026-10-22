@@ -14,6 +14,7 @@ import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
+import io.fabric8.kubernetes.api.model.PodCondition;
 import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -176,6 +177,43 @@ class ImageBuildInspectionServiceTest {
         assertEquals("Builder pod pending", inspection.status().message());
         assertNull(inspection.logs());
         verify(logCollectionService, never()).collectLogs(any(), anyList(), any(LogCollectionParams.class));
+    }
+
+    @Test
+    void testBuilderPodUnschedulableSurfacesSchedulingReason() {
+        // A builder pod that cannot be scheduled (no node with enough CPU/memory, or a taint) stays
+        // Pending with no container statuses, so there is no container-level reason. The cause lives
+        // on the PodScheduled=False condition and must be surfaced instead of a bare
+        // "Builder pod pending".
+        stubBuilderPod("kafka", "c-connect-build",
+            unschedulablePendingPod("Unschedulable",
+                "0/3 nodes are available: 3 Insufficient cpu", "quay.io/strimzi/buildah:1.3.0"));
+        when(logCollectionService.collectLogs(eq("kafka"), anyList(), any(LogCollectionParams.class)))
+            .thenThrow(new LogQueryException("Failed to retrieve logs from all 1 pods", null));
+
+        ImageBuildInspection inspection = buildInspectionService.inspectBuilderPod("kafka", "c-connect-build");
+
+        assertEquals("Pending", inspection.status().phase());
+        assertEquals("Unschedulable", inspection.status().reason());
+        assertTrue(inspection.status().message().contains("Insufficient cpu"));
+    }
+
+    @Test
+    void testBuilderPodEvictedSurfacesPodLevelReason() {
+        // An evicted builder pod reports phase Failed with the cause on pod.status.reason/message and
+        // no container statuses. The pod-level reason must be surfaced instead of a bare
+        // "Builder pod failed".
+        stubBuilderPod("kafka", "c-connect-build",
+            evictedPod("Evicted", "Pod was evicted due to memory pressure",
+                "quay.io/strimzi/buildah:1.3.0"));
+        when(logCollectionService.collectLogs(eq("kafka"), anyList(), any(LogCollectionParams.class)))
+            .thenThrow(new LogQueryException("Failed to retrieve logs from all 1 pods", null));
+
+        ImageBuildInspection inspection = buildInspectionService.inspectBuilderPod("kafka", "c-connect-build");
+
+        assertEquals("Failed", inspection.status().phase());
+        assertEquals("Evicted", inspection.status().reason());
+        assertTrue(inspection.status().message().contains("memory pressure"));
     }
 
     @Test
@@ -369,6 +407,55 @@ class ImageBuildInspectionServiceTest {
         PodStatus status = new PodStatus();
         status.setPhase("Succeeded");
         status.setContainerStatuses(List.of(containerStatus));
+
+        return new PodBuilder()
+            .withNewMetadata()
+                .withName("c-connect-build")
+                .withNamespace("kafka")
+            .endMetadata()
+            .withNewSpec()
+                .addNewContainer()
+                    .withName("builder")
+                    .withImage(builderImage)
+                .endContainer()
+            .endSpec()
+            .withStatus(status)
+            .build();
+    }
+
+    private Pod unschedulablePendingPod(final String reason, final String message, final String builderImage) {
+        PodCondition scheduled = new PodCondition();
+        scheduled.setType("PodScheduled");
+        scheduled.setStatus("False");
+        scheduled.setReason(reason);
+        scheduled.setMessage(message);
+
+        PodStatus status = new PodStatus();
+        status.setPhase("Pending");
+        status.setConditions(List.of(scheduled));
+        // No container statuses: the pod was never scheduled, so no container exists yet.
+
+        return new PodBuilder()
+            .withNewMetadata()
+                .withName("c-connect-build")
+                .withNamespace("kafka")
+            .endMetadata()
+            .withNewSpec()
+                .addNewContainer()
+                    .withName("builder")
+                    .withImage(builderImage)
+                .endContainer()
+            .endSpec()
+            .withStatus(status)
+            .build();
+    }
+
+    private Pod evictedPod(final String reason, final String message, final String builderImage) {
+        PodStatus status = new PodStatus();
+        status.setPhase("Failed");
+        status.setReason(reason);
+        status.setMessage(message);
+        // No container statuses: the pod was evicted before its container reported status.
 
         return new PodBuilder()
             .withNewMetadata()

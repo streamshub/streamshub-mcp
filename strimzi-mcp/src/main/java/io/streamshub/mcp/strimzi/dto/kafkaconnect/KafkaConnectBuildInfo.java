@@ -61,17 +61,6 @@ public record KafkaConnectBuildInfo(
     }
 
     /**
-     * Creates build information for the degraded path where build details could not be
-     * determined; only the explanatory message is populated.
-     *
-     * @param message a message about why the build details are unavailable
-     * @return the build information with only a message
-     */
-    public static KafkaConnectBuildInfo unavailable(final String message) {
-        return new KafkaConnectBuildInfo(null, null, null, null, null, null, null, message);
-    }
-
-    /**
      * Plugin information.
      *
      * @param name the plugin name

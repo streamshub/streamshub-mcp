@@ -62,73 +62,63 @@ public class KafkaConnectBuildService {
             return null;
         }
 
+        Build build = connect.getSpec().getBuild();
+        Output output = build.getOutput();
+
+        String outputImage = output != null ? output.getImage() : null;
+        String outputType = output != null ? output.getType() : null;
+        String pushSecret = output instanceof DockerOutput d ? d.getPushSecret() : null;
+
+        boolean isOpenShift = openShiftDetector.isOpenShift();
+        String buildMechanism = isOpenShift
+            ? KafkaConnectBuildInfo.MECHANISM_OPENSHIFT_BUILD
+            : KafkaConnectBuildInfo.MECHANISM_KUBERNETES_POD;
+        List<PluginInfo> plugins = mapPlugins(build.getPlugins());
+
+        String namespace = connect.getMetadata().getNamespace();
+        String clusterName = connect.getMetadata().getName();
+
+        ImageBuildStatus builder = null;
+        String buildLogs = null;
+        String message;
+
         try {
-            Build build = connect.getSpec().getBuild();
-            Output output = build.getOutput();
+            ImageBuildInspection inspection = isOpenShift
+                ? buildInspectionService.inspectOpenShiftBuild(namespace,
+                    KafkaConnectResources.buildConfigName(clusterName))
+                : buildInspectionService.inspectBuilderPod(namespace,
+                    KafkaConnectResources.buildPodName(clusterName));
 
-            String outputImage = output != null ? output.getImage() : null;
-            String outputType = output != null ? output.getType() : null;
-            String pushSecret = output instanceof DockerOutput d ? d.getPushSecret() : null;
-
-            boolean isOpenShift = openShiftDetector.isOpenShift();
-            String buildMechanism = isOpenShift
-                ? KafkaConnectBuildInfo.MECHANISM_OPENSHIFT_BUILD
-                : KafkaConnectBuildInfo.MECHANISM_KUBERNETES_POD;
-            List<PluginInfo> plugins = mapPlugins(build.getPlugins());
-
-            String namespace = connect.getMetadata().getNamespace();
-            String clusterName = connect.getMetadata().getName();
-
-            ImageBuildStatus builder = null;
-            String buildLogs = null;
-            String message;
-
-            try {
-                ImageBuildInspection inspection = isOpenShift
-                    ? buildInspectionService.inspectOpenShiftBuild(namespace,
-                        KafkaConnectResources.buildConfigName(clusterName))
-                    : buildInspectionService.inspectBuilderPod(namespace,
-                        KafkaConnectResources.buildPodName(clusterName));
-
-                if (inspection == null) {
-                    message = isOpenShift
-                        ? "No OpenShift build found"
-                        : "Build completed or not started (no active builder pod)";
-                } else {
-                    builder = inspection.status();
-                    buildLogs = inspection.logs();
-                    message = builder.message();
-                }
-            } catch (Exception e) {
-                // Deliberate degradation: the builder state is an optional enrichment of
-                // get_kafka_connect, so a failure here (missing RBAC for builds, transient API
-                // error) must not fail the whole call. Keep the spec-derived fields and surface
-                // the problem through the message rather than letting the exception propagate.
-                LOG.warnf(e, "Failed to introspect build for %s/%s", namespace, clusterName);
+            if (inspection == null) {
                 message = isOpenShift
-                    ? "Build configured; OpenShift Build introspection failed: " + ExceptionUtils.rootCauseMessage(e)
-                    : "Build configured; builder introspection failed: " + ExceptionUtils.rootCauseMessage(e);
+                    ? "No OpenShift build found"
+                    : "Build completed or not started (no active builder pod)";
+            } else {
+                builder = inspection.status();
+                buildLogs = inspection.logs();
+                message = builder.message();
             }
-
-            return KafkaConnectBuildInfo.of(
-                outputImage,
-                outputType,
-                pushSecret,
-                buildMechanism,
-                plugins,
-                builder,
-                buildLogs,
-                message
-            );
         } catch (Exception e) {
-            // Deliberate degradation (same rationale as above): build info is supplementary, so
-            // an unexpected failure mapping the spec yields an "unavailable" marker rather than
-            // failing get_kafka_connect.
-            LOG.warnf(e, "Failed to describe build for KafkaConnect %s",
-                connect.getMetadata() != null ? connect.getMetadata().getName() : "<unknown>");
-            return KafkaConnectBuildInfo.unavailable(
-                "Build configured; details unavailable: " + ExceptionUtils.rootCauseMessage(e));
+            // Deliberate degradation: the builder state is an optional enrichment of
+            // get_kafka_connect, so a failure here (missing RBAC for builds, transient API
+            // error) must not fail the whole call. Keep the spec-derived fields and surface
+            // the problem through the message rather than letting the exception propagate.
+            LOG.warnf(e, "Failed to introspect build for %s/%s", namespace, clusterName);
+            message = isOpenShift
+                ? "Build configured; OpenShift Build introspection failed: " + ExceptionUtils.rootCauseMessage(e)
+                : "Build configured; builder introspection failed: " + ExceptionUtils.rootCauseMessage(e);
         }
+
+        return KafkaConnectBuildInfo.of(
+            outputImage,
+            outputType,
+            pushSecret,
+            buildMechanism,
+            plugins,
+            builder,
+            buildLogs,
+            message
+        );
     }
 
     /**
