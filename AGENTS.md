@@ -87,6 +87,8 @@ io.streamshub.mcp.common.
 │                     ReplicasInfo (desired/ready/available replica counts),
 │                     ResourceEventsResult (event list with metadata),
 │                     ResourceInfo (generic name/namespace/status summary),
+│                     ImageBuildStatus + ImageBuildInspection (generic container-image
+│                       build status and inspection result),
 │                     PaginatedResponse (generic paginated list wrapper)
 │   └── metrics/    → MetricSample, PodTarget, MetricsQueryParams, AggregatedTimeSeries,
 │                     AggregationLevel (PARTITION→TOPIC→BROKER→CLUSTER hierarchy),
@@ -107,7 +109,10 @@ io.streamshub.mcp.common.
 │   │                 BaseDiagnosticService (abstract base for all diagnostic services;
 │   │                   injects ObjectMapper + token/log config; provides performSampling/Analysis/Triage),
 │   │                 KubernetesEventsService (query Kubernetes events by resource name and kind),
-│   │                 KubernetesQueryException (typed exception for Kubernetes API failures)
+│   │                 KubernetesQueryException (typed exception for Kubernetes API failures),
+│   │                 OpenShiftDetector (cached build.openshift.io probe),
+│   │                 ImageBuildInspectionService (generic builder-pod / OpenShift Build
+│   │                   introspection; failure-only log excerpts; domain-agnostic)
 │   ├── log/        → LogCollectionService, LogCollectorProvider, KubernetesLogProvider,
 │   │                 LogFilterUtils (shared keyword/regex log line filtering),
 │   │                 LogQueryException (typed exception for log collection failures).
@@ -190,8 +195,13 @@ io.streamshub.mcp.strimzi.
 │   ├── operator/      → StrimziOperatorService, StrimziEventsService,
 │   │                    OperatorMetricsDiagnosticService
 │   ├── kafkabridge/   → KafkaBridgeService, KafkaBridgeDiagnosticService
-│   ├── kafkaconnect/  → KafkaConnectService, KafkaConnectorService,
-│   │                    KafkaConnectDiagnosticService, KafkaConnectorDiagnosticService
+│   ├── kafkaconnect/  → KafkaConnectService, KafkaConnectorService, KafkaConnectBuildService
+│   │                    (Strimzi spec.build adapter; delegates introspection to the common
+│   │                    ImageBuildInspectionService),
+│   │                    KafkaConnectDiagnosticService (treats build failures as a category),
+│   │                    KafkaConnectorDiagnosticService.
+│   │                    `get_kafka_connect` returns optional `build` object when `spec.build`
+│   │                    is configured (K8s Buildah/Kaniko builder pod or OpenShift Build)
 │   ├── kafkamirrormaker2/ → KafkaMirrorMaker2Service,
 │   │                    KafkaMirrorMaker2DiagnosticService
 │   ├── metrics/       → KafkaMetricsService, KafkaExporterMetricsService,
@@ -201,7 +211,7 @@ io.streamshub.mcp.strimzi.
 │   └── (root)         → CompletionService
 ├── dto/               → Strimzi response records and diagnostic reports
 │   ├── kafkabridge/   → KafkaBridgeResponse, etc.
-│   ├── kafkaconnect/  → KafkaConnectResponse, KafkaConnectorResponse, etc.
+│   ├── kafkaconnect/  → KafkaConnectResponse, KafkaConnectorResponse, KafkaConnectBuildInfo, etc.
 │   ├── kafkamirrormaker2/ → KafkaMirrorMaker2Response, KafkaMirrorMaker2DiagnosticReport, etc.
 │   ├── strimzipodset/ → StrimziPodSetResponse, StrimziPodSetListResponse
 │   └── metrics/       → KafkaMetricsResponse, KafkaExporterMetricsResponse,

@@ -107,7 +107,9 @@ public class KafkaConnectTools {
         structuredContent = true,
         description = "Get detailed information about a specific"
             + " KafkaConnect cluster including status, bootstrap"
-            + " servers, REST API URL, and available connector plugins.",
+            + " servers, REST API URL, and available connector plugins."
+            + " Includes spec.build output image, plugins and builder"
+            + " state when configured.",
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,

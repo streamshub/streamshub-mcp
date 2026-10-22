@@ -386,7 +386,7 @@ class KafkaFleetOverviewServiceTest {
     private static KafkaConnectResponse buildConnect(String name, String bootstrapServers) {
         return KafkaConnectResponse.of(
             name, "kafka", "Ready", null, null, bootstrapServers,
-            null, null, null, null, null, null, null);
+            null, null, null, null, null, null, null, null);
     }
 
     private static KafkaBridgeResponse buildBridge(String name, String bootstrapServers) {

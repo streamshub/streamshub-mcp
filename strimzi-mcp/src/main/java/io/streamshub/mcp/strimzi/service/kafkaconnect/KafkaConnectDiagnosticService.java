@@ -340,6 +340,10 @@ public class KafkaConnectDiagnosticService extends BaseDiagnosticService {
         3. Plugin issues (missing connector classes, version incompatibility, classpath conflicts)
         4. Worker rebalancing storms (frequent task reassignment, group coordinator issues)
         5. Kafka connectivity (bootstrap unreachable, authentication/TLS failures)
-        6. Widespread connector failures (cluster-wide vs isolated — check connector inventory)\
+        6. Widespread connector failures (cluster-wide vs isolated — check connector inventory)
+        7. Build failures (spec.build): image build/push failing — plugin artifact download 404, \
+        registry push denied, builder pod ImagePullBackOff/Pending. Check the `build` object \
+        (output image, plugins, builder state, build_logs). On a build failure there are often \
+        no runtime Connect pods yet, so `build` may be the only signal.\
         """;
 }

@@ -48,6 +48,10 @@ rules:
   - apiGroups: ["route.openshift.io"]
     resources: ["routes"]
     verbs: ["get", "list"]
+  # OpenShift Kafka Connect builds (build.openshift.io; read-only, optional on vanilla Kubernetes)
+  - apiGroups: ["build.openshift.io"]
+    resources: ["builds"]
+    verbs: ["get", "list"]
   # Ingresses and NetworkPolicies
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses", "networkpolicies"]

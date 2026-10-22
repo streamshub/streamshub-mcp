@@ -18,6 +18,7 @@ import io.streamshub.mcp.common.service.log.LogCollectionService;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
+import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectBuildInfo;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectLogsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectResponse;
@@ -49,6 +50,9 @@ public class KafkaConnectService {
 
     @Inject
     LogCollectionService logCollectionService;
+
+    @Inject
+    KafkaConnectBuildService kafkaConnectBuildService;
 
     KafkaConnectService() {
     }
@@ -259,6 +263,8 @@ public class KafkaConnectService {
             connect.getMetadata().getGeneration(),
             connect.getStatus() != null ? connect.getStatus().getObservedGeneration() : 0L);
 
+        KafkaConnectBuildInfo build = kafkaConnectBuildService.describeBuild(connect);
+
         return KafkaConnectResponse.of(
             connect.getMetadata().getName(),
             connect.getMetadata().getNamespace(),
@@ -270,7 +276,7 @@ public class KafkaConnectService {
             extractConnectorPluginsCount(connect),
             extractConnectorPlugins(connect),
             extractConditions(connect),
-            creationTime, ageMinutes, reconciliation);
+            creationTime, ageMinutes, reconciliation, build);
     }
 
     private String determineResourceStatus(final KafkaConnect connect) {

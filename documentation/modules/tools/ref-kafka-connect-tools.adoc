@@ -25,18 +25,41 @@ List all KafkaConnect clusters
 
 === get_kafka_connect
 
-Get detailed information about a specific KafkaConnect cluster including status, bootstrap servers, REST API URL, and available connector plugins.
+Get detailed information about a specific KafkaConnect cluster including status, bootstrap servers, REST API URL, available connector plugins, and optional build information.
 
 *Parameters:*
 
 * `connectName` (required) -- Name of the KafkaConnect cluster
 * `namespace` (optional) -- Kubernetes namespace
 
-*Returns:* Detailed KafkaConnect information including readiness, bootstrap servers, REST API URL, replicas, and connector plugins
+*Returns:* Detailed KafkaConnect information including readiness, bootstrap servers, REST API URL, replicas, connector plugins, and an optional `build` object.
+
+The `build` object appears only when `spec.build` is configured on the KafkaConnect cluster and contains:
+
+* `output_image` -- the output image name
+* `output_type` -- `docker` or `imagestream`
+* `push_secret` -- the push secret for docker output (if configured)
+* `build_mechanism` -- `KubernetesPod` (Buildah/Kaniko builder pod) or `OpenShiftBuild` (OpenShift Build API)
+* `plugins` -- list of plugins, each with `name` and `artifacts` (each artifact has `type` and `source`)
+* `builder` -- builder status object with `kind` (`Pod` or `Build`), `name`, `phase`, `ready`, `reason` (container-level such as `ImagePullBackOff`, or pod-level such as `Unschedulable` or `Evicted`), `message`, and `builder_image`
+* `build_logs` (failure path only) -- excerpt of build logs when the builder is failing
+* `message` -- human-readable build state message
+
+The `builder` field is present whenever a builder pod or OpenShift Build object still exists, in any phase (pending, running, succeeded, or failed). The `build_logs` excerpt is included only on the failure path (the builder failed or is stuck pending). Once the operator has cleaned up a completed build's pod or Build object, both fields are omitted.
+
+[NOTE]
+====
+`builder.builder_image` is reported only for the `KubernetesPod` mechanism (read from the builder pod's container). For `OpenShiftBuild` it is omitted, because the OpenShift Build API does not surface a builder image on the Build resource. The image the build produces is always available as the top-level `output_image`.
+====
 
 .Example
 ----
 Get details for my-connect-cluster
+----
+
+.Example (build failure)
+----
+Why is my Connect cluster my-connect failing to start? Check the build.
 ----
 
 === get_kafka_connect_pods

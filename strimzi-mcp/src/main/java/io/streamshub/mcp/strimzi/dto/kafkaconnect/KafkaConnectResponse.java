@@ -29,6 +29,7 @@ import java.util.List;
  * @param creationTime          when the cluster was created (null for list operations)
  * @param ageMinutes            the age of the cluster in minutes (null for list operations)
  * @param reconciliation        reconciliation status tracking (generation vs observedGeneration)
+ * @param build                 build information (null if no spec.build or for list operations)
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record KafkaConnectResponse(
@@ -44,7 +45,8 @@ public record KafkaConnectResponse(
     @JsonProperty("conditions") List<ConditionInfo> conditions,
     @JsonProperty("creation_time") Instant creationTime,
     @JsonProperty("age_minutes") Long ageMinutes,
-    @JsonProperty("reconciliation") ReconciliationInfo reconciliation
+    @JsonProperty("reconciliation") ReconciliationInfo reconciliation,
+    @JsonProperty("build") KafkaConnectBuildInfo build
 ) {
 
     /**
@@ -86,6 +88,7 @@ public record KafkaConnectResponse(
      * @param restApiUrl            the REST API URL
      * @param connectorPluginsCount the number of available connector plugins
      * @param conditions            the status conditions
+     * @param reconciliation        reconciliation status tracking
      * @return a summary response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -96,7 +99,7 @@ public record KafkaConnectResponse(
                                                 List<ConditionInfo> conditions,
                                                 ReconciliationInfo reconciliation) {
         return new KafkaConnectResponse(name, namespace, readiness, replicas, version,
-            bootstrapServers, restApiUrl, connectorPluginsCount, null, conditions, null, null, reconciliation);
+            bootstrapServers, restApiUrl, connectorPluginsCount, null, conditions, null, null, reconciliation, null);
     }
 
     /**
@@ -115,6 +118,7 @@ public record KafkaConnectResponse(
      * @param creationTime          the creation time
      * @param ageMinutes            the age in minutes
      * @param reconciliation        reconciliation status tracking
+     * @param build                 build information
      * @return a detailed response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -125,9 +129,10 @@ public record KafkaConnectResponse(
                                            List<ConnectorPluginInfo> connectorPlugins,
                                            List<ConditionInfo> conditions,
                                            Instant creationTime, Long ageMinutes,
-                                           ReconciliationInfo reconciliation) {
+                                           ReconciliationInfo reconciliation,
+                                           KafkaConnectBuildInfo build) {
         return new KafkaConnectResponse(name, namespace, readiness, replicas, version,
             bootstrapServers, restApiUrl, connectorPluginsCount, connectorPlugins,
-            conditions, creationTime, ageMinutes, reconciliation);
+            conditions, creationTime, ageMinutes, reconciliation, build);
     }
 }

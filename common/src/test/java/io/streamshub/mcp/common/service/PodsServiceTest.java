@@ -5,6 +5,10 @@
 package io.streamshub.mcp.common.service;
 
 import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.ContainerState;
+import io.fabric8.kubernetes.api.model.ContainerStateRunning;
+import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
+import io.fabric8.kubernetes.api.model.ContainerStateWaiting;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -177,6 +181,47 @@ class PodsServiceTest {
         assertNotNull(info.annotations(), "annotations map should be present");
         assertNull(info.annotations().get("strimzi.io/revision"));
         assertNull(info.annotations().get("strimzi.io/server-cert-hash"));
+    }
+
+    @Test
+    void testCurrentContainerStateReasonNullState() {
+        assertNull(PodsService.currentContainerStateReason(null));
+    }
+
+    @Test
+    void testCurrentContainerStateReasonWaiting() {
+        ContainerStateWaiting waiting = new ContainerStateWaiting();
+        waiting.setReason("ImagePullBackOff");
+        ContainerState state = new ContainerState();
+        state.setWaiting(waiting);
+
+        assertEquals("ImagePullBackOff", PodsService.currentContainerStateReason(state));
+    }
+
+    @Test
+    void testCurrentContainerStateReasonWaitingNoReason() {
+        ContainerState state = new ContainerState();
+        state.setWaiting(new ContainerStateWaiting());
+
+        assertNull(PodsService.currentContainerStateReason(state));
+    }
+
+    @Test
+    void testCurrentContainerStateReasonTerminated() {
+        ContainerStateTerminated terminated = new ContainerStateTerminated();
+        terminated.setReason("Error");
+        ContainerState state = new ContainerState();
+        state.setTerminated(terminated);
+
+        assertEquals("Error", PodsService.currentContainerStateReason(state));
+    }
+
+    @Test
+    void testCurrentContainerStateReasonRunningReturnsNull() {
+        ContainerState state = new ContainerState();
+        state.setRunning(new ContainerStateRunning());
+
+        assertNull(PodsService.currentContainerStateReason(state));
     }
 
     private Pod createPod(final String name, final String phase,
