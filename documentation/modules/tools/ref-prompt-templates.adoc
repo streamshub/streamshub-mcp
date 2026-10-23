@@ -267,6 +267,28 @@ Step-by-step troubleshooting of Kafka storage issues. Covers full disks, PVC bin
 . Check broker logs for I/O errors (IOException, No space left on device)
 . Produce a structured PVC status table, issue list, and prioritized remediation plan
 
+== troubleshoot-kafka-rebalance
+
+Step-by-step troubleshooting of a stuck or failed KafkaRebalance (Strimzi Cruise Control rebalancing). Also available as the server-driven xref:ref-diagnostic-tools-{context}[`diagnose_kafka_rebalance`] composite tool.
+
+*Parameters:*
+
+* `rebalance_name` (required) -- Name of the KafkaRebalance to troubleshoot
+* `namespace` (optional) -- Kubernetes namespace
+* `symptom` (optional) -- Observed symptom (for example, "stuck in PendingProposal", "NotReady")
+
+*Workflow:*
+
+. Read the KafkaRebalance state, mode, conditions, optimization result, session ID, auto-approval, and progress ConfigMap name (and the `cluster` field used by later steps)
+. Locate the current state in the state machine (`New` -> `PendingProposal` -> `ProposalReady` -> `Rebalancing` -> `Ready`, with `Stopped`/`NotReady`)
+. Inspect conditions for goal violations and errors (hard goal violations, invalid broker IDs, excluded-topics conflicts, insufficient metrics)
+. Check Cruise Control pod health via `get_kafka_cluster_pods` (the `*-cruise-control-*` pod)
+. Check Cruise Control logs via `get_kafka_cluster_logs`
+. Check Cruise Control metrics via `get_cruise_control_metrics` (`sampling`, `anomaly`)
+. Check Kubernetes events on the KafkaRebalance
+. Remediation for common stuck states (approval annotation `strimzi.io/rebalance=approve`, `refresh`/`stop`, `skipHardGoalCheck`)
+. Summarize with root cause, severity, state-machine status, evidence, and prioritized remediation
+
 == assess-upgrade-readiness
 
 Pre-upgrade readiness check for a Kafka cluster. Also available as the server-driven xref:ref-diagnostic-tools-{context}[`assess_upgrade_readiness`] composite tool.

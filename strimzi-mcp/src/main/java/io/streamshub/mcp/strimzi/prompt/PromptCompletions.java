@@ -248,4 +248,19 @@ public class PromptCompletions {
     public List<String> completeTroubleshootKafkaStorageArgs(final String partial, final CompleteContext context) {
         return completionService.completeByArgumentName(partial, context);
     }
+
+    /**
+     * Complete arguments for the troubleshoot-kafka-rebalance prompt.
+     *
+     * <p>Supports completions for the {@code namespace} argument. The argument being
+     * completed is identified via the MCP completion request context.</p>
+     *
+     * @param partial the partial input value
+     * @param context the completion context with argument metadata
+     * @return matching values for the requested argument
+     */
+    @CompletePrompt("troubleshoot-kafka-rebalance")
+    public List<String> completeTroubleshootKafkaRebalanceArgs(final String partial, final CompleteContext context) {
+        return completionService.completeByArgumentName(partial, context);
+    }
 }

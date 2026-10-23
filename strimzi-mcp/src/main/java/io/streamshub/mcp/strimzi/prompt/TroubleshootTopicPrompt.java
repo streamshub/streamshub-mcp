@@ -8,7 +8,6 @@ import io.quarkiverse.mcp.server.Prompt;
 import io.quarkiverse.mcp.server.PromptArg;
 import io.quarkiverse.mcp.server.PromptMessage;
 import io.quarkiverse.mcp.server.PromptResponse;
-import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import jakarta.inject.Singleton;
 
@@ -64,10 +63,7 @@ public class TroubleshootTopicPrompt {
             required = false
         ) final String symptom
     ) {
-        String instructions = buildInstructions(topicName,
-            InputUtils.normalizeInput(clusterName),
-            InputUtils.normalizeInput(namespace),
-            InputUtils.normalizeInput(symptom));
+        String instructions = buildInstructions(topicName, clusterName, namespace, symptom);
 
         return PromptResponse.withMessages(List.of(
             PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("KafkaTopic troubleshooting")),
@@ -76,15 +72,27 @@ public class TroubleshootTopicPrompt {
     }
 
     private static String buildInstructions(final String topicName,
-                                            final String cluster,
-                                            final String ns,
+                                            final String clusterName,
+                                            final String namespace,
                                             final String symptom) {
-        String nsClause = ns != null ? " in namespace `" + ns + "`" : "";
-        String clusterClause = cluster != null ? " on cluster `" + cluster + "`" : "";
-        String symptomClause = symptom != null ? " The reported symptom is: " + symptom + "." : "";
-        String nsArg = ns != null ? ", namespace='" + ns + "'" : "";
-        String clusterArg = cluster != null ? ", cluster_name='" + cluster + "'" : "";
-        String clusterLead = cluster != null ? "cluster_name='" + cluster + "'" : "";
+        String nsClause = namespace != null && !namespace.isBlank()
+            ? " in namespace `" + namespace + "`"
+            : "";
+        String clusterClause = clusterName != null && !clusterName.isBlank()
+            ? " on cluster `" + clusterName + "`"
+            : "";
+        String symptomClause = symptom != null && !symptom.isBlank()
+            ? " The reported symptom is: " + symptom + "."
+            : "";
+        String nsArg = namespace != null && !namespace.isBlank()
+            ? ", namespace='" + namespace + "'"
+            : "";
+        String clusterArg = clusterName != null && !clusterName.isBlank()
+            ? ", clusterName='" + clusterName + "'"
+            : "";
+        String clusterLead = clusterName != null && !clusterName.isBlank()
+            ? "clusterName='" + clusterName + "'"
+            : "";
 
         return """
             Troubleshoot KafkaTopic `%s`%s%s.%s
@@ -94,7 +102,7 @@ public class TroubleshootTopicPrompt {
             `analyze-kafka-metrics`.
 
             ## Step 1: Check topic status and configuration
-            Use `get_kafka_topic(topic_name='%s'%s%s)` to retrieve the \
+            Use `get_kafka_topic(topicName='%s'%s%s)` to retrieve the \
             topic's current state.
             Check for:
             - **Ready condition**: Is the topic Ready or NotReady?
@@ -141,7 +149,7 @@ public class TroubleshootTopicPrompt {
             - "Conflict" or "already managed" -- multiple operators competing
 
             ## Step 5: Check Kubernetes events
-            Use `get_strimzi_events(%s%s, resource_kind='Kafka')` to look for warning events \
+            Use `get_strimzi_events(%s%s, resourceKind='Kafka')` to look for warning events \
             related to the topic or its parent cluster.
 
             ## Step 6: Diagnose and recommend

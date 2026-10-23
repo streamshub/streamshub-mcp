@@ -8,7 +8,6 @@ import io.quarkiverse.mcp.server.Prompt;
 import io.quarkiverse.mcp.server.PromptArg;
 import io.quarkiverse.mcp.server.PromptMessage;
 import io.quarkiverse.mcp.server.PromptResponse;
-import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import jakarta.inject.Singleton;
 
@@ -58,9 +57,7 @@ public class TroubleshootKafkaStoragePrompt {
             required = false
         ) final String symptom
     ) {
-        String instructions = buildInstructions(clusterName,
-            InputUtils.normalizeInput(namespace),
-            InputUtils.normalizeInput(symptom));
+        String instructions = buildInstructions(clusterName, namespace, symptom);
 
         return PromptResponse.withMessages(List.of(
             PromptMessage.withAssistantRole(StrimziToolsPrompts.systemMessage("Kafka storage troubleshooting")),
@@ -69,11 +66,17 @@ public class TroubleshootKafkaStoragePrompt {
     }
 
     private static String buildInstructions(final String clusterName,
-                                            final String ns,
+                                            final String namespace,
                                             final String symptom) {
-        String nsClause = ns != null ? " in namespace `" + ns + "`" : "";
-        String symptomClause = symptom != null ? " The reported symptom is: " + symptom + "." : "";
-        String nsArg = ns != null ? ", namespace='" + ns + "'" : "";
+        String nsClause = namespace != null && !namespace.isBlank()
+            ? " in namespace `" + namespace + "`"
+            : "";
+        String nsArg = namespace != null && !namespace.isBlank()
+            ? ", namespace='" + namespace + "'"
+            : "";
+        String symptomClause = symptom != null && !symptom.isBlank()
+            ? " The reported symptom is: " + symptom + "."
+            : "";
 
         return """
             Troubleshoot Kafka storage for cluster `%s`%s.%s
@@ -83,12 +86,12 @@ public class TroubleshootKafkaStoragePrompt {
             `diagnose_kafka_storage` composite tool for a single-call investigation.
 
             ## Step 1: Check cluster status
-            Use `get_kafka_cluster(cluster_name='%s'%s)` to verify the cluster exists.
+            Use `get_kafka_cluster(clusterName='%s'%s)` to verify the cluster exists.
             If the cluster is NotReady, storage issues may be a cause or a symptom.
             Continue with storage steps regardless -- both can be true at the same time.
 
             ## Step 2: Inspect PersistentVolumeClaims
-            Use `get_kafka_pvcs(cluster_name='%s'%s)` to retrieve PVC status, \
+            Use `get_kafka_pvcs(clusterName='%s'%s)` to retrieve PVC status, \
             capacity, and StorageClass expansion capability.
             Check for:
             - **PVCs in Pending state** -- broker cannot start until its volume is bound
@@ -104,7 +107,7 @@ public class TroubleshootKafkaStoragePrompt {
             - `WaitForFirstConsumer` binding mode and scheduler cannot satisfy pod constraints
 
             ## Step 3: Check storage capacity and disk metrics
-            Use `get_kafka_metrics(cluster_name='%s'%s, category='storage')` \
+            Use `get_kafka_metrics(clusterName='%s'%s, category='storage')` \
             to retrieve disk utilization metrics.
             Key indicators:
             - **`kafka_log_log_size`** -- total bytes used by Kafka logs per broker; \
@@ -129,7 +132,7 @@ public class TroubleshootKafkaStoragePrompt {
               3. Add brokers in a new node pool with larger storage and rebalance partitions
 
             ## Step 5: Check pod health for storage-related failures
-            Use `get_kafka_cluster_pods(cluster_name='%s'%s)` to identify pods with:
+            Use `get_kafka_cluster_pods(clusterName='%s'%s)` to identify pods with:
             - **OOMKilled** or **CrashLoopBackOff** -- broker may be failing due to \
             `java.io.IOException: No space left on device`
             - **Restart count** -- repeated restarts on a single broker indicate \
@@ -138,7 +141,7 @@ public class TroubleshootKafkaStoragePrompt {
             its log directories because the underlying volume is full or unbound
 
             ## Step 6: Inspect JBOD layout from node pool specs
-            Use `list_kafka_node_pools(cluster_name='%s'%s)` and then \
+            Use `list_kafka_node_pools(clusterName='%s'%s)` and then \
             `get_kafka_node_pool` for each pool to examine the declared storage layout.
             Check for each pool:
             - **Storage type** -- `jbod` (multiple disks) or `persistent-claim` (single disk)
@@ -151,14 +154,14 @@ public class TroubleshootKafkaStoragePrompt {
             across pools, or document intentional differences
 
             ## Step 7: Check Kubernetes events for storage errors
-            Use `get_strimzi_events(resourceName='%s'%s, resource_kind='Kafka')` \
+            Use `get_strimzi_events(resourceName='%s'%s, resourceKind='Kafka')` \
             to look for warning events related to PVC binding, provisioning, or capacity.
             Look for: `FailedMount`, `ProvisioningFailed`, `VolumeResizeFailed`, \
             `FailedBinding`, `Evicted`, or `EvictionThresholdMet`.
 
             ## Step 8: Check broker logs for I/O errors
             If the cluster shows unhealthy pods or metrics indicate disk pressure, \
-            use `get_kafka_cluster_logs(cluster_name='%s'%s)` to check for storage-related errors.
+            use `get_kafka_cluster_logs(clusterName='%s'%s)` to check for storage-related errors.
             Look for: `IOException`, `No space left on device`, \
             `Failed to acquire lock on file`, `KafkaStorageException`, \
             `DiskFailureException`, `LogDirFailedException`.

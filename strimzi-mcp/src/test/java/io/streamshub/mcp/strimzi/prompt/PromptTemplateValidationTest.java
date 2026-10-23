@@ -238,13 +238,15 @@ class PromptTemplateValidationTest {
     @Test
     void testTroubleshootTopicWithAllArgs() {
         TroubleshootTopicPrompt prompt = new TroubleshootTopicPrompt();
-        PromptResponse response = prompt.troubleshootTopic("my-topic", "my-cluster", "kafka-prod", "under-replicated");
+        PromptResponse response = prompt.troubleshootTopic("my-topic", "my-cluster", "kafka-prod", "NotReady after config change");
         String content = extractContent(response);
         assertValidPromptOutput(content, "troubleshoot-topic");
         assertSystemMessage(response, "troubleshoot-topic");
         assertTrue(content.contains("my-topic"));
         assertTrue(content.contains("my-cluster"));
         assertTrue(content.contains("kafka-prod"));
+        // Free-text symptom must be rendered verbatim, preserving case (not lower-cased).
+        assertTrue(content.contains("NotReady after config change"));
     }
 
     @Test
@@ -303,13 +305,14 @@ class PromptTemplateValidationTest {
     @Test
     void testTroubleshootKafkaStorageWithAllArgs() {
         TroubleshootKafkaStoragePrompt prompt = new TroubleshootKafkaStoragePrompt();
-        PromptResponse response = prompt.troubleshootKafkaStorage("my-cluster", "kafka-prod", "disk full");
+        PromptResponse response = prompt.troubleshootKafkaStorage("my-cluster", "kafka-prod", "PVC Pending on broker-0");
         String content = extractContent(response);
         assertValidPromptOutput(content, "troubleshoot-kafka-storage");
         assertSystemMessage(response, "troubleshoot-kafka-storage");
         assertTrue(content.contains("my-cluster"));
         assertTrue(content.contains("kafka-prod"));
-        assertTrue(content.contains("disk full"));
+        // Free-text symptom must be rendered verbatim, preserving case (not lower-cased).
+        assertTrue(content.contains("PVC Pending on broker-0"));
     }
 
     @Test
@@ -320,6 +323,44 @@ class PromptTemplateValidationTest {
         assertValidPromptOutput(content, "troubleshoot-kafka-storage");
         assertSystemMessage(response, "troubleshoot-kafka-storage");
         assertTrue(content.contains("my-cluster"));
+    }
+
+    @Test
+    void testTroubleshootKafkaRebalanceWithAllArgs() {
+        TroubleshootKafkaRebalancePrompt prompt = new TroubleshootKafkaRebalancePrompt();
+        PromptResponse response = prompt.troubleshootKafkaRebalance(
+            "my-rebalance", "kafka-prod", "stuck in PendingProposal for 20 minutes");
+        String content = extractContent(response);
+        assertValidPromptOutput(content, "troubleshoot-kafka-rebalance");
+        assertSystemMessage(response, "troubleshoot-kafka-rebalance");
+        assertTrue(content.contains("my-rebalance"));
+        assertTrue(content.contains("kafka-prod"));
+        // Free-text symptom must be rendered verbatim, preserving case (state names like
+        // PendingProposal must not be lower-cased).
+        assertTrue(content.contains("stuck in PendingProposal for 20 minutes"));
+    }
+
+    @Test
+    void testTroubleshootKafkaRebalanceWithRequiredOnly() {
+        TroubleshootKafkaRebalancePrompt prompt = new TroubleshootKafkaRebalancePrompt();
+        PromptResponse response = prompt.troubleshootKafkaRebalance("my-rebalance", null, null);
+        String content = extractContent(response);
+        assertValidPromptOutput(content, "troubleshoot-kafka-rebalance");
+        assertSystemMessage(response, "troubleshoot-kafka-rebalance");
+        assertTrue(content.contains("my-rebalance"));
+        assertFalse(content.contains("null"), "required-only output must not leak the literal 'null'");
+    }
+
+    @Test
+    void testTroubleshootKafkaRebalanceInstructsNamespaceForEvents() {
+        // Unlike the Kafka events path, get_strimzi_events for a KafkaRebalance does NOT
+        // auto-discover the namespace -- StrimziEventsService throws invalidParams when it is
+        // null. The prompt must tell the client to carry the namespace from Step 1 for events.
+        TroubleshootKafkaRebalancePrompt prompt = new TroubleshootKafkaRebalancePrompt();
+        PromptResponse response = prompt.troubleshootKafkaRebalance("my-rebalance", null, null);
+        String content = extractContent(response);
+        assertTrue(content.contains("KafkaRebalance events require a namespace"),
+            "events step must warn that a namespace is required and carried from Step 1");
     }
 
     private static String extractContent(PromptResponse response) {

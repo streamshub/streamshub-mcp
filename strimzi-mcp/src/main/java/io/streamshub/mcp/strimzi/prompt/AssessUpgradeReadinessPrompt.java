@@ -79,7 +79,7 @@ public class AssessUpgradeReadinessPrompt {
             If any step is NO-GO, the cluster is NOT ready for upgrade.
 
             ## Step 1: Cluster health baseline [GO/NO-GO]
-            Use `get_kafka_cluster(cluster_name='%s'%s)` to check current state.
+            Use `get_kafka_cluster(clusterName='%s'%s)` to check current state.
 
             **GO conditions** (ALL must be true):
             - Cluster status is Ready
@@ -111,9 +111,9 @@ public class AssessUpgradeReadinessPrompt {
             Any recurring reconciliation errors indicate instability.
 
             ## Step 3: Node pool and pod health [GO/NO-GO]
-            Use `list_kafka_node_pools(cluster_name='%s'%s)` and \
+            Use `list_kafka_node_pools(clusterName='%s'%s)` and \
             `get_kafka_node_pool` for each pool.
-            Then use `get_kafka_cluster_pods(cluster_name='%s'%s)`.
+            Then use `get_kafka_cluster_pods(clusterName='%s'%s)`.
 
             **GO conditions**:
             - All node pools Ready with expected replica count
@@ -127,7 +127,7 @@ public class AssessUpgradeReadinessPrompt {
             - Node pool replica count mismatch (scaling in progress)
 
             ## Step 4: Replication health [GO/NO-GO — CRITICAL]
-            Use `get_kafka_metrics(cluster_name='%s'%s, category='replication')`.
+            Use `get_kafka_metrics(clusterName='%s'%s, category='replication')`.
 
             **GO conditions** (ALL must be true):
             - offlinepartitionscount = 0
@@ -146,7 +146,7 @@ public class AssessUpgradeReadinessPrompt {
             unavailability.
 
             ## Step 5: Active rebalance check [GO/NO-GO — HARD BLOCKER]
-            Use `list_kafka_rebalances(cluster_name='%s'%s)`.
+            Use `list_kafka_rebalances(clusterName='%s'%s)`.
 
             **GO conditions**:
             - No KafkaRebalance resources in active states \
@@ -170,8 +170,8 @@ public class AssessUpgradeReadinessPrompt {
             details and report the state, mode, and optimization metrics.
 
             ## Step 6: Resource headroom [GO/NO-GO]
-            Use `get_kafka_metrics(cluster_name='%s'%s, category='resources')` \
-            and `get_kafka_metrics(cluster_name='%s'%s, category='performance')`.
+            Use `get_kafka_metrics(clusterName='%s'%s, category='resources')` \
+            and `get_kafka_metrics(clusterName='%s'%s, category='performance')`.
 
             **GO conditions**:
             - Broker request handler idle > 0.5 (50%% headroom)
@@ -202,7 +202,7 @@ public class AssessUpgradeReadinessPrompt {
             maintenance may be abrupt and cause partition unavailability
 
             ## Step 8: Certificate health [ADVISORY]
-            Use `get_kafka_cluster_certificates(cluster_name='%s'%s)` to check \
+            Use `get_kafka_cluster_certificates(clusterName='%s'%s)` to check \
             certificate validity.
             - Certificates expiring within 7 days: **delay upgrade** and renew first
             - Certificates expiring within 30 days: note but not blocking
@@ -210,7 +210,7 @@ public class AssessUpgradeReadinessPrompt {
             detects approaching expiry
 
             ## Step 9: Kubernetes events [ADVISORY]
-            Use `get_strimzi_events(resourceName='%s'%s, resource_kind='Kafka')` to check for recent \
+            Use `get_strimzi_events(resourceName='%s'%s, resourceKind='Kafka')` to check for recent \
             warning events.
             - Recent FailedScheduling events suggest node resource pressure
             - Recent eviction events suggest node instability
