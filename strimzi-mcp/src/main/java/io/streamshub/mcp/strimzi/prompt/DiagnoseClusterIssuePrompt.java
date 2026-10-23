@@ -176,7 +176,7 @@ public class DiagnoseClusterIssuePrompt {
             the Kafka application level (check metrics in Step 8).**
 
             ## Step 6: Check Kubernetes events [HIGH - recent cluster activity]
-            Use `get_strimzi_events(resourceName='%s'%s, resource_kind='Kafka')` \
+            Use `get_strimzi_events(resourceName='%s'%s, resourceKind='Kafka')` \
             to retrieve events for the cluster and all \
             related resources (pods, PVCs, node pools).
 

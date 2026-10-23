@@ -74,7 +74,7 @@ public class TroubleshootMirrorMakerPrompt {
             and MirrorHeartbeatConnector (connectivity monitoring).
 
             ## Step 1: Check MM2 status and configuration
-            Use `get_kafka_mirror_maker(mirror_maker_name='%s'%s)` to retrieve the MM2 \
+            Use `get_kafka_mirror_maker(mirrorMakerName='%s'%s)` to retrieve the MM2 \
             status, mirror configurations, and connector statuses.
             Check for:
             - Overall readiness (Ready/NotReady/Error)
@@ -93,21 +93,21 @@ public class TroubleshootMirrorMakerPrompt {
             - Note the connector name pattern: `{source}->{target}.MirrorSourceConnector`
 
             ## Step 3: Check MM2 pods
-            Use `get_kafka_mirror_maker_pods(mirror_maker_name='%s'%s)`.
+            Use `get_kafka_mirror_maker_pods(mirrorMakerName='%s'%s)`.
             Look for:
             - Pods not in Running phase
             - High restart counts (may indicate OOM or crashes)
             - Pods that are not ready
 
             ## Step 4: Check MM2 logs
-            Use `get_kafka_mirror_maker_logs(mirror_maker_name='%s'%s, filter='errors')`.
+            Use `get_kafka_mirror_maker_logs(mirrorMakerName='%s'%s, filter='errors')`.
             Look for: `MirrorSourceConnector`, `MirrorCheckpointConnector`, \
             `ReplicationException`, `RetriableException`, `ConnectException`, \
             `TimeoutException`, `AuthenticationException`, `SaslAuthenticationException`, \
             `TopicAuthorizationException`, `GroupAuthorizationException`.
 
             ## Step 5: Check Kubernetes events
-            Use `get_strimzi_events(resourceName='%s'%s, resource_kind='KafkaMirrorMaker2')` \
+            Use `get_strimzi_events(resourceName='%s'%s, resourceKind='KafkaMirrorMaker2')` \
             to look for warning events related to the MM2 resource.
             Look for: reconciliation failures, resource quota issues, scheduling failures.
 

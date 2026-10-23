@@ -74,7 +74,7 @@ public class TroubleshootConnectPrompt {
             use the `troubleshoot-connector` prompt instead.
 
             ## Step 1: Check Connect cluster status
-            Use `get_kafka_connect(connect_cluster='%s'%s)` to retrieve the cluster status.
+            Use `get_kafka_connect(connectName='%s'%s)` to retrieve the cluster status.
             Check for:
             - Overall readiness (Ready/NotReady/Error)
             - Replicas: are all expected replicas ready?
@@ -91,7 +91,7 @@ public class TroubleshootConnectPrompt {
             platform issue. If only some are failing, it may be connector-specific.
 
             ## Step 3: Check Connect pods
-            Use `get_kafka_connect_pods(connect_cluster='%s'%s)`.
+            Use `get_kafka_connect_pods(connectName='%s'%s)`.
             Look for:
             - Pods not in Running phase
             - High restart counts (may indicate OOM kills or crashes)
@@ -99,7 +99,7 @@ public class TroubleshootConnectPrompt {
             - Resource pressure (if pod descriptions show resource limits being hit)
 
             ## Step 4: Check Connect logs
-            Use `get_kafka_connect_logs(connect_cluster='%s'%s, filter='errors')`.
+            Use `get_kafka_connect_logs(connectName='%s'%s, filter='errors')`.
             Look for: `WorkerRebalance`, `ConnectRestException`, \
             `OutOfMemoryError`, `ClassNotFoundException`, \
             `NoClassDefFoundError`, `ConnectException`, \
@@ -107,20 +107,20 @@ public class TroubleshootConnectPrompt {
             `SaslAuthenticationException`.
 
             ## Step 5: Check Connect metrics
-            Use `get_kafka_connect_metrics(connect_cluster='%s'%s, category='worker')`.
+            Use `get_kafka_connect_metrics(connectName='%s'%s, category='worker')`.
             Check for:
             - Connector and task counts — do they match expected deployed connectors?
             - Task startup failures or high startup attempt rates
             - Worker rebalance rate — frequent rebalances indicate instability
 
             If worker metrics show resource pressure, also check:
-            Use `get_kafka_connect_metrics(connect_cluster='%s'%s, category='resources')`.
+            Use `get_kafka_connect_metrics(connectName='%s'%s, category='resources')`.
             - High JVM heap usage (>80%% indicates memory pressure)
             - High GC pause times or frequent collections
             - CPU saturation
 
             ## Step 6: Check Kubernetes events
-            Use `get_strimzi_events(resourceName='%s'%s, resource_kind='KafkaConnect')`.
+            Use `get_strimzi_events(resourceName='%s'%s, resourceKind='KafkaConnect')`.
             Look for: reconciliation failures, scheduling failures, \
             resource quota issues, eviction events, image pull errors.
 

@@ -74,8 +74,8 @@ public class AnalyzeCapacityPrompt {
             its current workload and identify constraints before they cause outages.
 
             ## Step 1: Cluster topology and resource allocation
-            Use `get_kafka_cluster(cluster_name='%s'%s)` to get the cluster overview.
-            Then use `list_kafka_node_pools(cluster_name='%s'%s)` and \
+            Use `get_kafka_cluster(clusterName='%s'%s)` to get the cluster overview.
+            Then use `list_kafka_node_pools(clusterName='%s'%s)` and \
             `get_kafka_node_pool` for each pool to collect:
             - Total broker count and roles (broker, controller, dual-role)
             - CPU and memory requests/limits per node pool
@@ -86,14 +86,14 @@ public class AnalyzeCapacityPrompt {
             | Pool | Replicas | Roles | CPU req/limit | Memory req/limit | Storage |
 
             ## Step 2: Pod resource utilization
-            Use `get_kafka_cluster_pods(cluster_name='%s'%s)` to check actual pod states.
+            Use `get_kafka_cluster_pods(clusterName='%s'%s)` to check actual pod states.
             Look for:
             - Pods with high restart counts (may indicate resource pressure)
             - Resource requests vs limits gaps (risk of throttling or OOM)
             - Uneven pod distribution across nodes
 
             ## Step 3: Broker performance metrics
-            Use `get_kafka_metrics(cluster_name='%s'%s, category='performance')` \
+            Use `get_kafka_metrics(clusterName='%s'%s, category='performance')` \
             to assess broker load.
             Key indicators:
             - **brokerrequesthandleravgidle**: <0.5 means brokers are busy, \
@@ -105,7 +105,7 @@ public class AnalyzeCapacityPrompt {
             Use the `interpretation` field for threshold guidance.
 
             ## Step 4: JVM and resource metrics
-            Use `get_kafka_metrics(cluster_name='%s'%s, category='resources')` \
+            Use `get_kafka_metrics(clusterName='%s'%s, category='resources')` \
             to check JVM health.
             Key indicators:
             - **Heap usage**: >80%% of max is a concern, >90%% is critical
@@ -113,7 +113,7 @@ public class AnalyzeCapacityPrompt {
             - **CPU usage**: Sustained >80%% limits headroom for traffic spikes
 
             ## Step 5: Throughput assessment
-            Use `get_kafka_metrics(cluster_name='%s'%s, category='throughput')` \
+            Use `get_kafka_metrics(clusterName='%s'%s, category='throughput')` \
             to assess data volume.
             Key indicators:
             - Bytes in/out per broker (is load balanced across brokers?)
@@ -121,7 +121,7 @@ public class AnalyzeCapacityPrompt {
             - Imbalanced throughput across brokers (hot partitions or skewed assignment)
 
             ## Step 6: Replication health
-            Use `get_kafka_metrics(cluster_name='%s'%s, category='replication')` \
+            Use `get_kafka_metrics(clusterName='%s'%s, category='replication')` \
             to check replication overhead.
             Key indicators:
             - **Leader count per broker**: Should be roughly equal across brokers
@@ -130,7 +130,7 @@ public class AnalyzeCapacityPrompt {
             - **Max lag**: Growing lag means replication cannot keep up
 
             ## Step 7: Topic and partition scale
-            Use `list_kafka_topics(cluster_name='%s'%s)` to assess topic scale.
+            Use `list_kafka_topics(clusterName='%s'%s)` to assess topic scale.
             Check:
             - Total topic count
             - Total partition count (sum across all topics)
@@ -143,12 +143,12 @@ public class AnalyzeCapacityPrompt {
             - Fewer if brokers have limited memory (<4Gi heap)
 
             ## Step 8: Kafka Exporter metrics (if available)
-            Use `get_kafka_exporter_metrics(cluster_name='%s'%s, \
+            Use `get_kafka_exporter_metrics(clusterName='%s'%s, \
             category='consumer_lag')` to check consumer lag.
             - High consumer lag may indicate consumers cannot keep up, which \
             could mean the cluster needs more partitions or consumers
 
-            Use `get_kafka_exporter_metrics(cluster_name='%s'%s, \
+            Use `get_kafka_exporter_metrics(clusterName='%s'%s, \
             category='partitions')` to check partition health.
             - Partition leader and ISR distribution across brokers
 

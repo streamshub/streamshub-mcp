@@ -375,6 +375,8 @@ class McpDiscoveryTest {
                     "Prompt 'troubleshoot-connect' should be registered");
                 assertNotNull(page.findByName("troubleshoot-kafka-storage"),
                     "Prompt 'troubleshoot-kafka-storage' should be registered");
+                assertNotNull(page.findByName("troubleshoot-kafka-rebalance"),
+                    "Prompt 'troubleshoot-kafka-rebalance' should be registered");
             })
             .send()
             .thenAssertResults();
@@ -677,6 +679,29 @@ class McpDiscoveryTest {
                 assertTrue(content.contains("get_kafka_pvcs"));
                 assertTrue(content.contains("get_kafka_metrics"));
                 assertTrue(content.contains("get_kafka_cluster_logs"));
+            })
+            .send()
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify troubleshoot-kafka-rebalance prompt generates correct instructions.
+     */
+    @Test
+    void testPromptGetTroubleshootKafkaRebalance() {
+        client.when()
+            .promptsGet("troubleshoot-kafka-rebalance")
+            .withArguments(Map.of("rebalance_name", "my-rebalance", "namespace", "kafka-prod"))
+            .withAssert(response -> {
+                assertFalse(response.messages().isEmpty());
+                String content = response.messages().get(1).content().asText().text();
+                assertTrue(content.contains("my-rebalance"));
+                assertTrue(content.contains("kafka-prod"));
+                assertTrue(content.contains("get_kafka_rebalance"));
+                assertTrue(content.contains("get_cruise_control_metrics"));
+                assertTrue(content.contains("get_strimzi_events"));
+                assertTrue(content.contains("get_kafka_cluster_logs"));
+                assertTrue(content.contains("strimzi.io/rebalance=approve"));
             })
             .send()
             .thenAssertResults();

@@ -75,7 +75,7 @@ public class AnalyzeKafkaMetricsPrompt {
             per-metric descriptions, thresholds, and severity — use it to interpret values.
 
             ## Step 1: Replication health [CRITICAL]
-            Call `get_kafka_metrics(cluster_name='%s'%s, category='replication')`.
+            Call `get_kafka_metrics(clusterName='%s'%s, category='replication')`.
 
             **STOP AND ESCALATE IF:**
             - offlinepartitionscount > 0 → partitions unavailable
@@ -85,18 +85,18 @@ public class AnalyzeKafkaMetricsPrompt {
             If replication issues found, immediately check Step 3 to identify root cause.
 
             ## Step 2: Throughput [LOW - informational]
-            Call `get_kafka_metrics(cluster_name='%s'%s, category='throughput')`.
+            Call `get_kafka_metrics(clusterName='%s'%s, category='throughput')`.
             Look for rate drops (producer issues) and cross-broker imbalance (hot partitions). \
             Only concerning if combined with replication or performance issues.
 
             ## Step 3: Request performance [HIGH]
-            Call `get_kafka_metrics(cluster_name='%s'%s, category='performance')`.
+            Call `get_kafka_metrics(clusterName='%s'%s, category='performance')`.
             Use the `interpretation` field for threshold guidance. \
             If broker request handler idle or network processor idle are in concerning ranges, \
             correlate with Step 1 — performance degradation causes replication lag.
 
             ## Step 4: JVM and resource usage [MEDIUM]
-            Call `get_kafka_metrics(cluster_name='%s'%s, category='resources')`.
+            Call `get_kafka_metrics(clusterName='%s'%s, category='resources')`.
             Use the `interpretation` field for JVM guidance. \
             Cross-reference with `get_kafka_cluster_pods` for restart counts \
             before flagging memory concerns.
