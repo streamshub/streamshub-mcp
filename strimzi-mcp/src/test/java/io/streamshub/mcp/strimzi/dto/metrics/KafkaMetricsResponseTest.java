@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.dto.metrics;
 
+import io.streamshub.mcp.common.dto.metrics.AggregatedTimeSeries;
 import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import org.junit.jupiter.api.Test;
@@ -118,7 +119,7 @@ class KafkaMetricsResponseTest {
             MetricSample.of("metric_a", Map.of("pod", "pod-0"), 10.0),
             MetricSample.of("metric_a", Map.of("pod", "pod-1"), 20.0)
         );
-        var series = io.streamshub.mcp.common.dto.metrics.AggregatedTimeSeries
+        List<AggregatedTimeSeries> series = AggregatedTimeSeries
             .fromSamples(samples, AggregationLevel.CLUSTER);
 
         KafkaMetricsResponse response = KafkaMetricsResponse.ofTimeSeries(

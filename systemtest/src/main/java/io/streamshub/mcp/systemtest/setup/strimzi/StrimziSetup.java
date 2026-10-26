@@ -23,6 +23,7 @@ import java.nio.file.Path;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * Installs Strimzi operator from YAML manifests in {@code dev/manifests/strimzi/strimzi-operator/}.
@@ -104,7 +105,7 @@ public final class StrimziSetup {
      */
     private static List<HasMetadata> loadManifests(final Path dir) {
         List<HasMetadata> resources = new LinkedList<>();
-        try (var files = Files.list(dir)) {
+        try (Stream<Path> files = Files.list(dir)) {
             files.sorted()
                 .filter(f -> f.toString().endsWith(".yaml"))
                 .filter(f -> !f.getFileName().toString().equals("kustomization.yaml"))

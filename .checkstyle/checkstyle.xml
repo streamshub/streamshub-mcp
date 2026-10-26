@@ -96,6 +96,16 @@
             <property name="ignoreComments" value="true"/>
         </module>
 
+        <!-- no 'var' - declare explicit types only. AST-based (not a text
+             regex) so it matches 'var' only where it is used as a type:
+             local variables, try-with-resources, for-each and lambda
+             parameters. It never matches 'var' inside string literals or
+             comments, nor identifiers/methods merely named 'var'. -->
+        <module name="MatchXpath">
+            <property name="query" value="//TYPE/IDENT[@text='var']"/>
+            <message key="matchxpath.match" value="Do not use ''var''; declare explicit types."/>
+        </module>
+
         <!-- code quality -->
         <module name="MethodLength"/>
         <module name="ParameterNumber">

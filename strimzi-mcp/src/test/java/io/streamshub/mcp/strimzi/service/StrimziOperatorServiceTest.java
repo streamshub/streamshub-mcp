@@ -162,7 +162,7 @@ class StrimziOperatorServiceTest {
 
         assertEquals(List.of("kafka", "kafka-dev"), result.watchedNamespaces());
         assertFalse(result.watchesAllNamespaces());
-        assertEquals(List.of("3.9.0", "4.0.0"), result.supportedKafkaVersions());
+        assertEquals(List.of("4.2.0", "4.3.0"), result.supportedKafkaVersions());
         assertEquals("+UseKRaft", result.featureGates());
         assertEquals("true", result.leaderElectionEnabled());
     }
@@ -220,8 +220,8 @@ class StrimziOperatorServiceTest {
                                 new EnvVarBuilder().withName("STRIMZI_NAMESPACE")
                                     .withValue("kafka,kafka-dev").build(),
                                 new EnvVarBuilder().withName("STRIMZI_KAFKA_IMAGES")
-                                    .withValue("3.9.0=quay.io/strimzi/kafka:0.48.0-kafka-3.9.0\n"
-                                        + "4.0.0=quay.io/strimzi/kafka:0.48.0-kafka-4.0.0").build(),
+                                    .withValue("4.2.0=quay.io/strimzi/kafka:0.48.0-kafka-4.2.0\n"
+                                        + "4.3.0=quay.io/strimzi/kafka:0.48.0-kafka-4.3.0").build(),
                                 new EnvVarBuilder().withName("STRIMZI_FULL_RECONCILIATION_INTERVAL_MS")
                                     .withValue("120000").build(),
                                 new EnvVarBuilder().withName("STRIMZI_LEADER_ELECTION_ENABLED")

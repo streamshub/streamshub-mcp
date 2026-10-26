@@ -134,14 +134,14 @@ class KafkaServiceTest {
     @Test
     void testGetClusterEnrichesRunningKafkaVersionFromStatus() {
         Kafka kafka = buildKafkaWithStatus(new KafkaStatusBuilder()
-            .withKafkaVersion("3.9.0")
+            .withKafkaVersion("4.2.0")
             .build());
         mockKafkaResource(kafka);
 
         KafkaClusterResponse response = kafkaService.getCluster(NAMESPACE, CLUSTER_NAME);
 
         assertNotNull(response);
-        assertEquals("3.9.0", response.runningKafkaVersion());
+        assertEquals("4.2.0", response.runningKafkaVersion());
     }
 
     /**
@@ -158,19 +158,19 @@ class KafkaServiceTest {
                 .build())
             .withNewSpec()
                 .withNewKafka()
-                    .withVersion("4.0.0")
+                    .withVersion("4.3.0")
                 .endKafka()
             .endSpec()
             .withStatus(new KafkaStatusBuilder()
-                .withKafkaVersion("3.9.0")
+                .withKafkaVersion("4.2.0")
                 .build())
             .build();
         mockKafkaResource(kafka);
 
         KafkaClusterResponse response = kafkaService.getCluster(NAMESPACE, CLUSTER_NAME);
 
-        assertEquals("4.0.0", response.kafkaVersion());
-        assertEquals("3.9.0", response.runningKafkaVersion());
+        assertEquals("4.3.0", response.kafkaVersion());
+        assertEquals("4.2.0", response.runningKafkaVersion());
     }
 
     /**
