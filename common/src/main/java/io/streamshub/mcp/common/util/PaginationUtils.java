@@ -47,7 +47,7 @@ public final class PaginationUtils {
 
         int total = items.size();
         int fromIndex = Math.min(effectiveOffset, total);
-        int toIndex = Math.min(effectiveOffset + effectiveLimit, total);
+        int toIndex = (int) Math.min((long) effectiveOffset + effectiveLimit, total);
         boolean hasMore = toIndex < total;
 
         List<T> page = items.subList(fromIndex, toIndex);

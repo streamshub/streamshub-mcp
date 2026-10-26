@@ -102,4 +102,16 @@ class PaginationUtilsTest {
         assertEquals(0, result.total());
         assertFalse(result.hasMore());
     }
+
+    @Test
+    void offsetPlusLimitOverflowReturnsEmptyPageWithoutThrowing() {
+        List<String> items = List.of("a", "b", "c");
+
+        PaginatedResponse<String> result =
+            PaginationUtils.paginate(items, Integer.MAX_VALUE - 1, Integer.MAX_VALUE, 100, 5000);
+
+        assertTrue(result.items().isEmpty());
+        assertEquals(3, result.total());
+        assertFalse(result.hasMore());
+    }
 }

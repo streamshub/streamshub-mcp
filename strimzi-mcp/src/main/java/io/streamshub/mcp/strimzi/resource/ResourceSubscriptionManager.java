@@ -194,11 +194,7 @@ public class ResourceSubscriptionManager implements Closeable {
             return;
         }
         LOG.info("Starting Strimzi resource watches for MCP subscriptions");
-        startKafkaWatch();
-        startKafkaNodePoolWatch();
-        startKafkaTopicWatch();
-        startKafkaUserWatch();
-        startOperatorWatch();
+        startAllWatches();
     }
 
     /**
@@ -227,6 +223,34 @@ public class ResourceSubscriptionManager implements Closeable {
     }
 
     // ---- Watch starters ----
+
+    /**
+     * Start all Strimzi resource watches. Any watch that fails to start is
+     * recorded as unhealthy and scheduled for reconnection, so a never-started
+     * watch is visible to {@link #areWatchesHealthy()} rather than silently absent.
+     */
+    void startAllWatches() {
+        startWatchWithRetry("Kafka", this::startKafkaWatch);
+        startWatchWithRetry("KafkaNodePool", this::startKafkaNodePoolWatch);
+        startWatchWithRetry("KafkaTopic", this::startKafkaTopicWatch);
+        startWatchWithRetry("KafkaUser", this::startKafkaUserWatch);
+        startWatchWithRetry("Operator", this::startOperatorWatch);
+    }
+
+    /**
+     * Start a single watch and, if it fails to start, record it as unhealthy and
+     * schedule a reconnect. A successful start records its own healthy state inside
+     * the starter.
+     *
+     * @param name    the watch name used as the health-state key
+     * @param starter the watch starter, returning {@code true} on success
+     */
+    void startWatchWithRetry(final String name, final Supplier<Boolean> starter) {
+        if (!starter.get()) {
+            watchHealthState.put(name, false);
+            scheduleReconnect(name, starter, 1);
+        }
+    }
 
     private boolean startKafkaWatch() {
         try {
