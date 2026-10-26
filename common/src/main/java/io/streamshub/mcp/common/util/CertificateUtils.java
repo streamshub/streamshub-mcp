@@ -56,8 +56,13 @@ public final class CertificateUtils {
      * @return days until expiry (negative if expired)
      */
     public static long calculateDaysUntilExpiry(final X509Certificate cert) {
+        Instant now = Instant.now();
         Instant notAfter = cert.getNotAfter().toInstant();
-        return Duration.between(Instant.now(), notAfter).toDays();
+        long days = Duration.between(now, notAfter).toDays();
+        if (days == 0 && now.isAfter(notAfter)) {
+            return -1;
+        }
+        return days;
     }
 
     /**

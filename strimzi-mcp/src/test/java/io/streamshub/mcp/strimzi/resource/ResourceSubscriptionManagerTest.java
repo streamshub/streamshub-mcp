@@ -317,6 +317,58 @@ class ResourceSubscriptionManagerTest {
         assertFalse(manager.areWatchesHealthy());
     }
 
+    // ---- MJ1: start-failure visibility ----
+
+    @Test
+    void testStartWatchWithRetryMarksUnhealthyWhenStartFails() {
+        // shuttingDown suppresses background reconnect scheduling; the synchronous health write still runs.
+        manager.setShuttingDown(true);
+
+        manager.startWatchWithRetry("TestWatch", () -> false);
+
+        assertEquals(false, manager.getWatchHealthState().get("TestWatch"));
+        assertFalse(manager.areWatchesHealthy());
+    }
+
+    @Test
+    void testStartWatchWithRetryDoesNotMarkUnhealthyWhenStartSucceeds() {
+        manager.startWatchWithRetry("TestWatch", () -> true);
+
+        assertFalse(manager.getWatchHealthState().containsKey("TestWatch"));
+        assertTrue(manager.areWatchesHealthy());
+    }
+
+    @Test
+    void testStartAllWatchesMarksEveryWatchUnhealthyWhenAllStartsFail() {
+        // Default mocked kubernetesClient: resources(...)/apps() return null, so every starter throws and returns false.
+        manager.setWatchesEnabled(true);
+        manager.setShuttingDown(true);
+
+        manager.startAllWatches();
+
+        Map<String, Boolean> state = manager.getWatchHealthState();
+        assertEquals(5, state.size());
+        assertTrue(state.values().stream().noneMatch(Boolean::booleanValue));
+        assertFalse(manager.areWatchesHealthy());
+    }
+
+    @Test
+    void testStartWatchWithRetryRecoversAfterTransientStartFailure() throws InterruptedException {
+        // Full composition: a start that fails once is recorded unhealthy synchronously, then the
+        // scheduled reconnect (shuttingDown=false) retries, succeeds, and flips the watch to healthy.
+        AtomicInteger attempts = new AtomicInteger();
+
+        manager.startWatchWithRetry("TestWatch", () -> attempts.incrementAndGet() > 1);
+
+        assertEquals(false, manager.getWatchHealthState().get("TestWatch"));
+
+        Thread.sleep(2000);
+
+        assertEquals(true, manager.getWatchHealthState().get("TestWatch"));
+        assertTrue(manager.areWatchesHealthy());
+        assertTrue(attempts.get() >= 2, "Expected at least 2 start attempts, got " + attempts.get());
+    }
+
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
     void testReconcileChecksOperatorDeployment() {

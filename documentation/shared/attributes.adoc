@@ -12,5 +12,5 @@
 // Example Kafka version for doc examples only; the server is version-agnostic and the
 // supported versions depend on the deployed Strimzi operator (see get_strimzi_operator_config).
 :KafkaVersion: 4.2.0
-:StrimziApiVersion: 1.2.0
+:StrimziApiVersion: 1.3.0
 :GitHubRepo: https://github.com/streamshub/streamshub-mcp

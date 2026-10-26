@@ -32,6 +32,10 @@ rules:
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "list"]
+  # StorageClasses (volume-expansion capability for PVC/storage diagnostics; by-name get only)
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get"]
   # Pod logs (get only, no list)
   - apiGroups: [""]
     resources: ["pods/log"]
