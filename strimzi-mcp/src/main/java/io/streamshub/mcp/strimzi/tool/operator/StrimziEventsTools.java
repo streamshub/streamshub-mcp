@@ -46,7 +46,7 @@ public class StrimziEventsTools {
      * @param resourceName the Strimzi resource name
      * @param namespace    optional namespace
      * @param sinceMinutes optional time window in minutes
-     * @param resourceKind optional Strimzi resource kind for non-Kafka resources
+     * @param resourceKind required Strimzi resource kind (see supported values)
      * @return events grouped by resource
      */
     @WithSpan("tool.get_strimzi_events")
@@ -55,9 +55,7 @@ public class StrimziEventsTools {
     @Tool(
         name = "get_strimzi_events",
         description = "Get Kubernetes events for a Strimzi resource and all related pods."
-            + " For Kafka clusters (default), also includes PVC and node pool events."
-            + " For KafkaConnect, KafkaMirrorMaker2, or KafkaBridge, pass the resource_kind"
-            + " parameter to query events for the correct resource type.",
+            + " resource_kind is required; for Kafka it also includes PVC and node pool events.",
         structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
@@ -71,8 +69,8 @@ public class StrimziEventsTools {
         output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public StrimziEventsResponse getStrimziEvents(
         @NotBlank @ToolArg(
-            description = "Strimzi resource name (Kafka cluster, KafkaConnect,"
-                + " KafkaMirrorMaker2, or KafkaBridge). e.g., 'my-cluster' or 'my-connect'."
+            description = "Name of the Strimzi resource identified by resource_kind,"
+                + " e.g. 'my-cluster' or 'my-connect'."
         ) final String resourceName,
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,
@@ -86,7 +84,6 @@ public class StrimziEventsTools {
             description = StrimziToolsPrompts.RESOURCE_KIND_DESC
         ) final String resourceKind
     ) {
-        String trimmedKind = resourceKind != null && !resourceKind.isBlank() ? resourceKind.trim() : null;
-        return eventsService.getEvents(namespace, resourceName, trimmedKind, sinceMinutes);
+        return eventsService.getEvents(namespace, resourceName, resourceKind, sinceMinutes);
     }
 }

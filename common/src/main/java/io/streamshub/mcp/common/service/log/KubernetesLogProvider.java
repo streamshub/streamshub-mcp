@@ -7,6 +7,7 @@ package io.streamshub.mcp.common.service.log;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.ContainerResource;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.quarkus.arc.lookup.LookupIfProperty;
 import io.streamshub.mcp.common.dto.LogFetchRequest;
@@ -107,7 +108,7 @@ public class KubernetesLogProvider implements LogCollectorProvider {
                                        final Integer sinceSeconds,
                                        final Boolean previous,
                                        final String startTime) {
-        var resource = containerName != null
+        ContainerResource resource = containerName != null
             ? podResource.inContainer(containerName)
             : podResource;
 

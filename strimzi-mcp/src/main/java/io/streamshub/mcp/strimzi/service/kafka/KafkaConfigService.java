@@ -42,6 +42,8 @@ import io.strimzi.api.kafka.model.kafka.Storage;
 import io.strimzi.api.kafka.model.kafka.cruisecontrol.BrokerCapacity;
 import io.strimzi.api.kafka.model.kafka.cruisecontrol.CruiseControlSpec;
 import io.strimzi.api.kafka.model.kafka.entityoperator.EntityOperatorSpec;
+import io.strimzi.api.kafka.model.kafka.entityoperator.EntityTopicOperatorSpec;
+import io.strimzi.api.kafka.model.kafka.entityoperator.EntityUserOperatorSpec;
 import io.strimzi.api.kafka.model.kafka.exporter.KafkaExporterSpec;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.kafka.tieredstorage.RemoteStorageManager;
@@ -342,14 +344,14 @@ public class KafkaConfigService {
         }
         SubOperatorInfo topicOp = null;
         if (entityOp.getTopicOperator() != null) {
-            var to = entityOp.getTopicOperator();
+            EntityTopicOperatorSpec to = entityOp.getTopicOperator();
             topicOp = new SubOperatorInfo(
                 to.getWatchedNamespace(), msToSeconds(to.getReconciliationIntervalMs()),
                 extractResources(to.getResources()), extractJvmOptions(to.getJvmOptions()));
         }
         SubOperatorInfo userOp = null;
         if (entityOp.getUserOperator() != null) {
-            var uo = entityOp.getUserOperator();
+            EntityUserOperatorSpec uo = entityOp.getUserOperator();
             userOp = new SubOperatorInfo(
                 uo.getWatchedNamespace(), msToSeconds(uo.getReconciliationIntervalMs()),
                 extractResources(uo.getResources()), extractJvmOptions(uo.getJvmOptions()));

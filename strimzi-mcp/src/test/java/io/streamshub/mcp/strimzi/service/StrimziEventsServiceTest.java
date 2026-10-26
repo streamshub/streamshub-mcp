@@ -80,8 +80,10 @@ class StrimziEventsServiceTest {
 
     @Test
     void testThrowsWhenResourceKindMissing() {
-        assertThrows(McpException.class, () ->
+        McpException ex = assertThrows(McpException.class, () ->
             eventsService.getEvents("kafka", "my-cluster", null, null));
+        assertTrue(ex.getMessage().contains("Supported values"),
+            "error message should list supported kinds");
     }
 
     @Test
@@ -210,8 +212,10 @@ class StrimziEventsServiceTest {
 
     @Test
     void testGetResourceEventsThrowsWhenKindInvalid() {
-        assertThrows(McpException.class, () ->
+        McpException ex = assertThrows(McpException.class, () ->
             eventsService.getEvents("kafka", "my-cluster", "InvalidKind", null));
+        assertTrue(ex.getMessage().contains("Supported values"),
+            "error message should list supported kinds");
     }
 
     @Test

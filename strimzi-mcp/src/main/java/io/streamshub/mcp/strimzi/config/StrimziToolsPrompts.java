@@ -190,8 +190,8 @@ public final class StrimziToolsPrompts {
      * Resource kind parameter description for events tool.
      */
     public static final String RESOURCE_KIND_DESC =
-        "Strimzi resource kind. Supported values: 'Kafka', 'KafkaConnect',"
-            + " 'KafkaMirrorMaker2', 'KafkaBridge', 'StrimziOperator', 'DrainCleaner'.";
+        "Required. Strimzi resource kind. Supported values: 'Kafka', 'KafkaConnect',"
+            + " 'KafkaMirrorMaker2', 'KafkaBridge', 'StrimziOperator', 'DrainCleaner', 'KafkaRebalance'.";
 
     /**
      * Concern parameter description for metrics diagnostic tools.

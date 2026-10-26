@@ -109,7 +109,7 @@ class KafkaFleetOverviewServiceTest {
         List<KafkaClusterResponse> clusters = List.of(
             buildCluster("prod", "kafka-prod", "Ready", "4.2.0", 3, 3),
             buildCluster("staging", "kafka-staging", "NotReady", "4.2.0", 3, 3),
-            buildCluster("dev", "kafka-dev", "Error", "4.1.0", 3, 3),
+            buildCluster("dev", "kafka-dev", "Error", "4.3.0", 3, 3),
             buildCluster("test", "kafka-test", "Unknown", "4.2.0", 1, 0)
         );
         when(kafkaService.listClusters(null)).thenReturn(clusters);
@@ -129,7 +129,7 @@ class KafkaFleetOverviewServiceTest {
         List<KafkaClusterResponse> clusters = List.of(
             buildCluster("prod", "kafka", "Ready", "4.2.0", 3, 3),
             buildCluster("staging", "kafka", "NotReady", "4.2.0", 3, 3),
-            buildCluster("dev", "kafka", "Error", "4.1.0", 3, 3)
+            buildCluster("dev", "kafka", "Error", "4.3.0", 3, 3)
         );
         when(kafkaService.listClusters(null)).thenReturn(clusters);
 
