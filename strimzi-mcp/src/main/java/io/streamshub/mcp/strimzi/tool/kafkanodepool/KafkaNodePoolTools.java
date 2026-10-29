@@ -78,7 +78,7 @@ public class KafkaNodePoolTools {
         ) final String namespace
     ) {
         List<KafkaNodePoolResponse> items = nodePoolService.listNodePools(namespace, clusterName);
-        return new KafkaNodePoolListResponse(items, items.size());
+        return KafkaNodePoolListResponse.of(items);
     }
 
     /**

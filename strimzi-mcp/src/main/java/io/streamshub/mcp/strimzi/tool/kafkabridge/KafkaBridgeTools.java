@@ -89,7 +89,7 @@ public class KafkaBridgeTools {
         ) final String namespace
     ) {
         List<KafkaBridgeResponse> items = bridgeService.listBridges(namespace);
-        return new KafkaBridgeListResponse(items, items.size());
+        return KafkaBridgeListResponse.of(items);
     }
 
     /**

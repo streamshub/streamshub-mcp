@@ -74,13 +74,18 @@ public final class InputUtils {
      * @param value     the timestamp string to parse
      * @param paramName a human-readable label for error messages (e.g., "startTime")
      * @return the parsed Instant
-     * @throws IllegalArgumentException if the value cannot be parsed
+     * @throws io.quarkiverse.mcp.server.McpException if the value is null or cannot be parsed
      */
     public static Instant parseIso8601(String value, String paramName) {
+        if (value == null) {
+            throw McpErrors.invalidParams(
+                "Invalid " + paramName + " format: null."
+                    + " Expected ISO 8601 format (e.g., 2025-01-15T10:00:00Z).");
+        }
         try {
             return Instant.parse(value);
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException(
+            throw McpErrors.invalidParams(
                 "Invalid " + paramName + " format: '" + value
                     + "'. Expected ISO 8601 format (e.g., 2025-01-15T10:00:00Z).");
         }

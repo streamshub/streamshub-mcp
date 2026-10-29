@@ -79,7 +79,7 @@ public class KafkaConnectorTools {
         ) final String connectCluster
     ) {
         List<KafkaConnectorResponse> items = connectorService.listConnectors(namespace, connectCluster);
-        return new KafkaConnectorListResponse(items, items.size());
+        return KafkaConnectorListResponse.of(items);
     }
 
     /**

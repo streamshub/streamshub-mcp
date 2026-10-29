@@ -20,4 +20,14 @@ public record StrimziPodSetListResponse(
     @JsonProperty("items") List<StrimziPodSetResponse> items,
     @JsonProperty("count") int count
 ) {
+
+    /**
+     * Creates a StrimziPodSetListResponse from its items, computing the count.
+     *
+     * @param items the list items
+     * @return a new list response
+     */
+    public static StrimziPodSetListResponse of(final List<StrimziPodSetResponse> items) {
+        return new StrimziPodSetListResponse(items, items.size());
+    }
 }

@@ -88,7 +88,7 @@ public class DrainCleanerTools {
         ) final String namespace
     ) {
         List<DrainCleanerResponse> items = drainCleanerService.listDrainCleaners(namespace);
-        return new DrainCleanerListResponse(items, items.size());
+        return DrainCleanerListResponse.of(items);
     }
 
     /**
@@ -150,8 +150,8 @@ public class DrainCleanerTools {
     @Tool(
         name = "get_drain_cleaner_logs",
         structuredContent = true,
-        description = "Get logs from Strimzi Drain Cleaner pods."
-            + " Useful for checking behavior during node drains and rolling updates.",
+        description = "Get logs from Strimzi Drain Cleaner pods,"
+            + " filtered by level, keyword, and time range.",
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,

@@ -130,6 +130,19 @@ class KafkaUserToolsTest {
     }
 
     /**
+     * Verify an invalid resourceType enum value is rejected by the framework before the service runs.
+     */
+    @Test
+    void testGetKafkaUserAclsMatrixRejectsInvalidResourceType() {
+        client.when()
+            .toolsCall("get_kafka_user_acls_matrix",
+                Map.of("clusterName", "my-cluster", "resourceType", "bogus"), response -> {
+                    assertTrue(response.isError(), "invalid resourceType enum value must be rejected");
+                })
+            .thenAssertResults();
+    }
+
+    /**
      * Verify get_kafka_user response never contains secret data.
      */
     @Test

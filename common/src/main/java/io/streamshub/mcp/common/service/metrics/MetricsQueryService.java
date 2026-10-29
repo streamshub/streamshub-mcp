@@ -8,6 +8,7 @@ import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.dto.metrics.MetricsQueryParams;
 import io.streamshub.mcp.common.dto.metrics.PodTarget;
 import io.streamshub.mcp.common.util.InputUtils;
+import io.streamshub.mcp.common.util.McpErrors;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -140,12 +141,12 @@ public class MetricsQueryService {
             Instant end = InputUtils.parseIso8601(endTimeStr, "endTime");
 
             if (start.isAfter(end)) {
-                throw new IllegalArgumentException("startTime must be before endTime");
+                throw McpErrors.invalidParams("startTime must be before endTime");
             }
 
             long durationMinutes = java.time.Duration.between(start, end).toMinutes();
             if (durationMinutes > maxRangeMinutes) {
-                throw new IllegalArgumentException(
+                throw McpErrors.invalidParams(
                     "Time range exceeds maximum of " + maxRangeMinutes + " minutes ("
                         + durationMinutes + " minutes requested)");
             }
@@ -157,7 +158,7 @@ public class MetricsQueryService {
         // Relative time range
         if (rangeMinutes != null && rangeMinutes > 0) {
             if (rangeMinutes > maxRangeMinutes) {
-                throw new IllegalArgumentException(
+                throw McpErrors.invalidParams(
                     "rangeMinutes exceeds maximum of " + maxRangeMinutes + " minutes (" + rangeMinutes + " minutes requested)");
             }
             Instant end = Instant.now();

@@ -28,6 +28,10 @@ rules:
   - apiGroups: [""]
     resources: ["pods", "services"]
     verbs: ["get", "list"]
+  # Namespaces (namespace-name completion / auto-discovery)
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["list"]
   # PersistentVolumeClaims (storage binding status for KafkaNodePool diagnostics)
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]

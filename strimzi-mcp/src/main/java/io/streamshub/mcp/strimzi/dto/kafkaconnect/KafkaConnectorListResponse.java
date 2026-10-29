@@ -20,4 +20,14 @@ public record KafkaConnectorListResponse(
     @JsonProperty("items") List<KafkaConnectorResponse> items,
     @JsonProperty("count") int count
 ) {
+
+    /**
+     * Creates a KafkaConnectorListResponse from its items, computing the count.
+     *
+     * @param items the list items
+     * @return a new list response
+     */
+    public static KafkaConnectorListResponse of(final List<KafkaConnectorResponse> items) {
+        return new KafkaConnectorListResponse(items, items.size());
+    }
 }

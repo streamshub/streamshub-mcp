@@ -13,6 +13,7 @@ import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.ToolGuardrails;
 import io.quarkiverse.mcp.server.WrapBusinessError;
 import io.streamshub.mcp.common.config.ToolMetaFields;
+import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.guardrail.ArgumentSanitizationGuardrail;
 import io.streamshub.mcp.common.guardrail.LogRedactionGuardrail;
 import io.streamshub.mcp.common.guardrail.MetricsRateLimitGuardrail;
@@ -135,15 +136,16 @@ public class MetricsTools {
         @ToolArg(
             description = StrimziToolsPrompts.AGGREGATION_DESC,
             required = false
-        ) final String aggregation,
+        ) final AggregationLevel aggregation,
         @ToolArg(
             description = StrimziToolsPrompts.REQUEST_TYPES_DESC,
             required = false
         ) final String requestTypes
     ) {
+        final String aggregationName = aggregation == null ? null : aggregation.name();
         return kafkaMetricsService.getKafkaMetrics(
             namespace, clusterName, category, metricNames, rangeMinutes, startTime, endTime,
-            stepSeconds, aggregation, requestTypes);
+            stepSeconds, aggregationName, requestTypes);
     }
 
     /**
@@ -213,10 +215,12 @@ public class MetricsTools {
         @ToolArg(
             description = StrimziToolsPrompts.AGGREGATION_DESC,
             required = false
-        ) final String aggregation
+        ) final AggregationLevel aggregation
     ) {
+        final String aggregationName = aggregation == null ? null : aggregation.name();
         return kafkaExporterMetricsService.getKafkaExporterMetrics(
-            namespace, clusterName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds, aggregation);
+            namespace, clusterName, category, metricNames, rangeMinutes, startTime, endTime,
+            stepSeconds, aggregationName);
     }
 
     /**
@@ -286,10 +290,12 @@ public class MetricsTools {
         @ToolArg(
             description = StrimziToolsPrompts.AGGREGATION_DESC,
             required = false
-        ) final String aggregation
+        ) final AggregationLevel aggregation
     ) {
+        final String aggregationName = aggregation == null ? null : aggregation.name();
         return kafkaBridgeMetricsService.getKafkaBridgeMetrics(
-            namespace, bridgeName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds, aggregation);
+            namespace, bridgeName, category, metricNames, rangeMinutes, startTime, endTime,
+            stepSeconds, aggregationName);
     }
 
     /**
@@ -359,10 +365,12 @@ public class MetricsTools {
         @ToolArg(
             description = StrimziToolsPrompts.AGGREGATION_DESC,
             required = false
-        ) final String aggregation
+        ) final AggregationLevel aggregation
     ) {
+        final String aggregationName = aggregation == null ? null : aggregation.name();
         return kafkaConnectMetricsService.getKafkaConnectMetrics(
-            namespace, connectName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds, aggregation);
+            namespace, connectName, category, metricNames, rangeMinutes, startTime, endTime,
+            stepSeconds, aggregationName);
     }
 
     /**
@@ -441,10 +449,12 @@ public class MetricsTools {
         @ToolArg(
             description = StrimziToolsPrompts.AGGREGATION_DESC,
             required = false
-        ) final String aggregation
+        ) final AggregationLevel aggregation
     ) {
+        final String aggregationName = aggregation == null ? null : aggregation.name();
         return strimziOperatorMetricsService.getOperatorMetrics(
-            namespace, operatorName, clusterName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds, aggregation);
+            namespace, operatorName, clusterName, category, metricNames, rangeMinutes, startTime, endTime,
+            stepSeconds, aggregationName);
     }
 
     /**
@@ -514,9 +524,11 @@ public class MetricsTools {
         @ToolArg(
             description = StrimziToolsPrompts.CC_AGGREGATION_DESC,
             required = false
-        ) final String aggregation
+        ) final AggregationLevel aggregation
     ) {
+        final String aggregationName = aggregation == null ? null : aggregation.name();
         return cruiseControlMetricsService.getCruiseControlMetrics(
-            namespace, clusterName, category, metricNames, rangeMinutes, startTime, endTime, stepSeconds, aggregation);
+            namespace, clusterName, category, metricNames, rangeMinutes, startTime, endTime,
+            stepSeconds, aggregationName);
     }
 }
