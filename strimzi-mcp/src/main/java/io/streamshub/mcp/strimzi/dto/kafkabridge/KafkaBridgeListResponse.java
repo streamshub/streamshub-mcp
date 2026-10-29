@@ -20,4 +20,14 @@ public record KafkaBridgeListResponse(
     @JsonProperty("items") List<KafkaBridgeResponse> items,
     @JsonProperty("count") int count
 ) {
+
+    /**
+     * Creates a KafkaBridgeListResponse from its items, computing the count.
+     *
+     * @param items the list items
+     * @return a new list response
+     */
+    public static KafkaBridgeListResponse of(final List<KafkaBridgeResponse> items) {
+        return new KafkaBridgeListResponse(items, items.size());
+    }
 }

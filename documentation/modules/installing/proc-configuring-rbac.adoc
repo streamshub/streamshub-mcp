@@ -13,6 +13,7 @@ The ClusterRole grants read-only access to:
 * Strimzi custom resources -- `get`, `list`, `watch`
 * Deployments -- `get`, `list`, `watch`
 * Pods and logs -- `get`, `list`
+* Namespaces -- `list` (for namespace-name completion and auto-discovery)
 * Services and ConfigMaps -- `get`, `list`
 * PersistentVolumeClaims -- `get`, `list`
 * StorageClasses -- `get`

@@ -89,7 +89,7 @@ public class KafkaConnectTools {
         ) final String namespace
     ) {
         List<KafkaConnectResponse> items = connectService.listConnects(namespace);
-        return new KafkaConnectListResponse(items, items.size());
+        return KafkaConnectListResponse.of(items);
     }
 
     /**

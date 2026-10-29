@@ -322,7 +322,7 @@ class MetricsToolsST extends AbstractST {
     void testGetKafkaMetricsBrokerAggregation() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
-            "aggregation", "broker");
+            "aggregation", "BROKER");
         mcpClient.when()
             .toolsCall("get_kafka_metrics", args, response -> {
                 JsonNode root = assertToolSuccess(response);
@@ -345,7 +345,7 @@ class MetricsToolsST extends AbstractST {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "category", "consumer_lag",
-            "aggregation", "topic");
+            "aggregation", "TOPIC");
         mcpClient.when()
             .toolsCall("get_kafka_exporter_metrics", args, response -> {
                 JsonNode root = assertToolSuccess(response);

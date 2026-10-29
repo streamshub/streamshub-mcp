@@ -180,7 +180,8 @@ io.streamshub.mcp.strimzi.
 │   ├── operator/      → StrimziOperatorTools, StrimziEventsTools
 │   ├── strimzipodset/ → StrimziPodSetTools
 │   ├── diagnostic/    → DiagnosticTools (composite diagnostic tools)
-│   └── metrics/       → MetricsTools
+│   └── metrics/       → MetricsTools (the six get_*_metrics tools take an aggregation
+│                        AggregationLevel enum arg rendered as a schema enum)
 ├── service/           → Business logic, organized by domain sub-packages
 │   ├── kafka/         → KafkaService, KafkaCertificateService, KafkaConfigService,
 │   │                    KafkaConfigComparisonService, KafkaClusterOverviewService,
@@ -213,6 +214,8 @@ io.streamshub.mcp.strimzi.
 │   ├── kafkabridge/   → KafkaBridgeResponse, etc.
 │   ├── kafkaconnect/  → KafkaConnectResponse, KafkaConnectorResponse, KafkaConnectBuildInfo, etc.
 │   ├── kafkamirrormaker2/ → KafkaMirrorMaker2Response, KafkaMirrorMaker2DiagnosticReport, etc.
+│   ├── kafkauser/     → KafkaUserResponse, KafkaUserAclMatrixResponse, AclResourceType
+│   │                     (resourceType enum arg on get_kafka_user_acls_matrix, rendered as a schema enum)
 │   ├── strimzipodset/ → StrimziPodSetResponse, StrimziPodSetListResponse
 │   └── metrics/       → KafkaMetricsResponse, KafkaExporterMetricsResponse,
 │                        KafkaBridgeMetricsResponse, KafkaConnectMetricsResponse,
@@ -712,7 +715,10 @@ public class XxxCompletions {
   and `ref/resource`; `@CompleteArg` attaches to `@CompletePrompt`/`@CompleteResourceTemplate`,
   never `@Tool`. To advertise a fixed allowed-value set on a tool argument, declare it as a Java
   enum parameter — the generated input schema carries a JSON-schema `enum` (e.g. `TopicStatusFilter`
-  on `list_kafka_topics`).
+  on `list_kafka_topics`, `AggregationLevel` on the six `get_*_metrics` `aggregation` args, and
+  `AclResourceType` on `get_kafka_user_acls_matrix`). `quarkus.jackson.accept-case-insensitive-enums=true`
+  keeps these arguments case-insensitive on input, so clients may still send lowercase values; values
+  outside the enum are rejected by the framework before the tool runs.
 
 ## Resource Subscription Pattern
 

@@ -4,12 +4,16 @@
  */
 package io.streamshub.mcp.common.service;
 
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for {@link CompletionHelper} prefix filtering logic.
@@ -72,5 +76,17 @@ class CompletionHelperTest {
     void testFilterByPrefixEmptyList() {
         List<String> result = helper.filterByPrefix(List.of(), "any");
         assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testCompleteNamespaceReturnsEmptyWhenClientErrors() {
+        KubernetesClient client = mock(KubernetesClient.class);
+        when(client.namespaces()).thenThrow(new KubernetesClientException("forbidden"));
+        helper.kubernetesClient = client;
+
+        List<String> result = helper.completeNamespace("kafka");
+
+        assertTrue(result.isEmpty(),
+            "Namespace completion must degrade to an empty list on a client error (e.g. RBAC 403), not throw");
     }
 }

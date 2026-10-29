@@ -8,6 +8,8 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.ConditionInfo;
+import io.streamshub.mcp.strimzi.dto.kafkauser.AclResourceType;
+import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserAclMatrixResponse;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserResponse;
 import io.streamshub.mcp.strimzi.service.kafkauser.KafkaUserService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -125,6 +127,44 @@ class KafkaUserToolsTest {
                     assertTrue(json.contains("Read"));
                     assertTrue(json.contains("producer_byte_rate"));
                     assertTrue(json.contains("1048576"));
+                })
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify a lowercase enum value is accepted end-to-end through the real tool-call path
+     * (not rejected at argument coercion) and maps to the correct constant. This guards
+     * {@code quarkus.jackson.accept-case-insensitive-enums=true} against a framework or config
+     * regression that the ObjectMapper-level {@code EnumToolArgCaseInsensitivityTest} would miss,
+     * since the system tests now send only uppercase values. Lowercase {@code "topic"} must
+     * resolve to {@link AclResourceType#TOPIC}, whose {@code value()} is {@code "topic"}.
+     */
+    @Test
+    void testGetKafkaUserAclsMatrixAcceptsLowercaseResourceType() {
+        when(userService.getAclMatrix(null, "my-cluster", "topic")).thenReturn(
+            KafkaUserAclMatrixResponse.of("my-cluster", null, "topic",
+                Map.of(), null, List.of()));
+
+        client.when()
+            .toolsCall("get_kafka_user_acls_matrix",
+                Map.of("clusterName", "my-cluster", "resourceType", "topic"), response -> {
+                    assertFalse(response.isError(),
+                        "lowercase resourceType 'topic' must be accepted (case-insensitive enums)");
+                    String json = response.structuredContent().toString();
+                    assertTrue(json.contains("\"resource_type\":\"topic\""));
+                })
+            .thenAssertResults();
+    }
+
+    /**
+     * Verify an invalid resourceType enum value is rejected by the framework before the service runs.
+     */
+    @Test
+    void testGetKafkaUserAclsMatrixRejectsInvalidResourceType() {
+        client.when()
+            .toolsCall("get_kafka_user_acls_matrix",
+                Map.of("clusterName", "my-cluster", "resourceType", "bogus"), response -> {
+                    assertTrue(response.isError(), "invalid resourceType enum value must be rejected");
                 })
             .thenAssertResults();
     }

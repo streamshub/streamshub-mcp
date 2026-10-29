@@ -20,4 +20,14 @@ public record KafkaUserListResponse(
     @JsonProperty("items") List<KafkaUserResponse> items,
     @JsonProperty("count") int count
 ) {
+
+    /**
+     * Creates a KafkaUserListResponse from its items, computing the count.
+     *
+     * @param items the list items
+     * @return a new list response
+     */
+    public static KafkaUserListResponse of(final List<KafkaUserResponse> items) {
+        return new KafkaUserListResponse(items, items.size());
+    }
 }
