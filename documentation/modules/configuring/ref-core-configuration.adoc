@@ -48,7 +48,7 @@ Control cross-origin resource sharing for web-based MCP clients.
 |Property |Default |Description
 
 |`quarkus.http.cors.enabled` |`true` |Enable CORS support
-|`quarkus.http.cors.origins` |`http://localhost:*,https://localhost:*` |Allowed origins
+|`quarkus.http.cors.origins` |`/https?://(localhost\|127[.]0[.]0[.]1)(:[0-9]+)?/` |Allowed origins. Each entry is either an exact origin or a regular expression wrapped in slashes. Wildcards such as `localhost:*` are not supported and never match.
 |`quarkus.http.cors.methods` |`GET,POST,OPTIONS` |Allowed HTTP methods
 |`quarkus.http.cors.headers` |`Accept,Content-Type,Mcp-Session-Id` |Allowed headers
 |===
@@ -62,11 +62,18 @@ The dev-mode permissive CORS setting (`/.*/`) allows any origin to access the MC
 Always override this for production deployments.
 ====
 
-Override with a specific domain:
+Override with a specific domain (exact match), or several origins separated by commas:
 
 [source,bash]
 ----
 QUARKUS_HTTP_CORS_ORIGINS=https://your-domain.com
+----
+
+To match several origins with one entry, wrap a regular expression in slashes:
+
+[source,bash]
+----
+QUARKUS_HTTP_CORS_ORIGINS=/https://.*[.]example[.]com/
 ----
 
 == Kubernetes API TLS
