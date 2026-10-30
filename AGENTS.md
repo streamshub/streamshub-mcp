@@ -313,12 +313,12 @@ matches the `@Tool(name = ...)` value. This creates a named parent span for each
 
 ### Virtual threads for blocking tool methods
 
-Blocking tool methods — log-collection (`get_*_logs`) and composite diagnostic/assessment
-(`diagnose_*`, `compare_*`, `assess_*`) methods — are annotated with `@RunOnVirtualThread`.
-These methods perform sequential Kubernetes API calls, selective diagnostic logic, and pod log
-streaming, which would otherwise block and exhaust the standard Quarkus worker thread pool under concurrent
-MCP client load. Annotating them with `@RunOnVirtualThread` offloads execution to virtual threads.
-The `@RunOnVirtualThread` annotation sits above `@WithSpan` in the annotation stack.
+Every `@Tool` method is annotated with `@RunOnVirtualThread`. All tools perform blocking I/O —
+sequential Kubernetes API calls, pod log streaming, pod-proxy metrics scraping, Loki/OpenSearch
+queries, and (for composite tools) LLM sampling round-trips — which would otherwise block and
+exhaust the standard Quarkus worker thread pool under concurrent MCP client load. Annotating them
+offloads execution to virtual threads. The `@RunOnVirtualThread` annotation sits above `@WithSpan`
+in the annotation stack. `ToolGuardrailsEnforcementTest` fails the build if a `@Tool` method lacks it.
 
 ### Tool Annotations
 

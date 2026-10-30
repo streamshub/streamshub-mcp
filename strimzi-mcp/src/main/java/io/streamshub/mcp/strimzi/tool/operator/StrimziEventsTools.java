@@ -12,6 +12,7 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.ToolGuardrails;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.ArgumentSanitizationGuardrail;
 import io.streamshub.mcp.common.guardrail.GeneralRateLimitGuardrail;
@@ -49,6 +50,7 @@ public class StrimziEventsTools {
      * @param resourceKind required Strimzi resource kind (see supported values)
      * @return events grouped by resource
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_strimzi_events")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.EVENTS)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_EVENT)

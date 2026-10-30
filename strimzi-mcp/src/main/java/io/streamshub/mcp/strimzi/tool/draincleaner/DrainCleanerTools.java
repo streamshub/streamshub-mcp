@@ -63,6 +63,7 @@ public class DrainCleanerTools {
      * @param namespace optional namespace filter
      * @return list of drain cleaner responses
      */
+    @RunOnVirtualThread
     @WithSpan("tool.list_drain_cleaners")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.DRAIN_CLEANER)
@@ -98,6 +99,7 @@ public class DrainCleanerTools {
      * @param namespace        optional namespace
      * @return the drain cleaner response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_drain_cleaner")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.DRAIN_CLEANER)
@@ -224,6 +226,7 @@ public class DrainCleanerTools {
      * @param namespace optional namespace
      * @return the readiness response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.check_drain_cleaner_readiness")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.CHECK)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.DRAIN_CLEANER)
