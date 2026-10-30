@@ -14,6 +14,9 @@ Every tool argument is passed through the always-on `ArgumentSanitizationGuardra
 The server automatically redacts sensitive information from tool responses.
 This prevents accidental exposure of credentials, tokens, and other secrets.
 
+The same redaction is applied to the data that diagnostic tools send to the client's LLM through MCP Sampling, so gathered configuration and logs are redacted before they leave the server.
+Resource configuration maps that tools return (Kafka, Cruise Control, tiered storage, topic, connector, and bridge `config`) are redacted at the source by key name.
+
 [cols="2,1,3",options="header"]
 |===
 |Property |Default |Description
@@ -24,15 +27,27 @@ This prevents accidental exposure of credentials, tokens, and other secrets.
 
 *Built-in redaction patterns:*
 
-* Bearer tokens (`Bearer <token>`)
+* Bearer tokens (`Bearer <token>`) and basic credentials (`Authorization: Basic <credentials>`)
 * Passwords in various formats (`password=...`, `pwd:...`)
 * API keys (`apikey=...`, `api_key=...`)
 * Secrets and tokens (`secret=...`, `secret_key=...`, `token=...`)
 * Connection strings with embedded credentials (`scheme://user:pass@host`)
 * PEM private key blocks (`-----BEGIN ... PRIVATE KEY-----` ... `-----END ... PRIVATE KEY-----`)
-* High-entropy base64 tokens (40+ characters)
+* High-entropy base64 tokens (40+ characters); container image digests such as `sha256:<hex>` are kept
 
-*To disable (not recommended for production):*
+*Built-in redaction by key name:*
+
+A text value is replaced with `[REDACTED]` when the JSON field or configuration key that holds it names a secret, even if the value has no recognizable shape.
+For example, `{"database.password": "hunter2"}` and `sasl.jaas.config` values are redacted.
+Keys are compared word by word, so `key.converter`, `delegation.token.max.lifetime.ms`, `keystore.location`, and the `secret_name` field that names a Kubernetes Secret are not affected.
+Values that are only a configuration-provider reference such as `${secrets:namespace/name:password}` are kept.
+In configuration maps, any key containing the word `auth` or `pass` is treated as secret, so `basic.auth.user.info` (Schema Registry credentials in Kafka Connect configs) is redacted.
+A bare `Basic <credentials>` value is redacted even when it is not preceded by `Authorization:`.
+
+NOTE: `get_kafka_connector`, `get_kafka_bridge`, `get_kafka_topic`, and `get_kafka_cluster_config` redact secrets in their `config` maps at the source.
+This redaction is always on and is not affected by the setting below.
+
+*To disable the response guardrail and the Sampling redaction (not recommended for production):*
 
 [source,bash]
 ----

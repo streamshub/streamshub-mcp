@@ -12,6 +12,7 @@ import io.streamshub.mcp.common.dto.PodLogsResult;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.dto.ReplicasInfo;
+import io.streamshub.mcp.common.guardrail.SensitiveKeys;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.PodsService;
 import io.streamshub.mcp.common.service.log.LogCollectionService;
@@ -342,7 +343,7 @@ public class KafkaBridgeService {
     private Map<String, Object> extractProducerConfig(final KafkaBridge bridge) {
         if (bridge.getSpec() != null && bridge.getSpec().getProducer() != null
             && bridge.getSpec().getProducer().getConfig() != null) {
-            return (Map<String, Object>) bridge.getSpec().getProducer().getConfig();
+            return SensitiveKeys.redactValues((Map<String, Object>) bridge.getSpec().getProducer().getConfig());
         }
         return null;
     }
@@ -351,7 +352,7 @@ public class KafkaBridgeService {
     private Map<String, Object> extractConsumerConfig(final KafkaBridge bridge) {
         if (bridge.getSpec() != null && bridge.getSpec().getConsumer() != null
             && bridge.getSpec().getConsumer().getConfig() != null) {
-            return (Map<String, Object>) bridge.getSpec().getConsumer().getConfig();
+            return SensitiveKeys.redactValues((Map<String, Object>) bridge.getSpec().getConsumer().getConfig());
         }
         return null;
     }
@@ -360,7 +361,7 @@ public class KafkaBridgeService {
     private Map<String, Object> extractAdminClientConfig(final KafkaBridge bridge) {
         if (bridge.getSpec() != null && bridge.getSpec().getAdminClient() != null
             && bridge.getSpec().getAdminClient().getConfig() != null) {
-            return (Map<String, Object>) bridge.getSpec().getAdminClient().getConfig();
+            return SensitiveKeys.redactValues((Map<String, Object>) bridge.getSpec().getAdminClient().getConfig());
         }
         return null;
     }

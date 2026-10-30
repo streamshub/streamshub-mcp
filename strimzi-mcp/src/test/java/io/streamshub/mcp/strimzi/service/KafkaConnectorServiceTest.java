@@ -158,6 +158,30 @@ class KafkaConnectorServiceTest {
         assertTrue(offsets.message().contains("not valid JSON"));
     }
 
+    /**
+     * Verify get redacts secret values in {@code spec.config} but keeps non-secret keys such as
+     * {@code key.converter} and config-provider references.
+     */
+    @Test
+    void testGetConnectorRedactsSecretConfigValues() {
+        KafkaConnector withSecrets = connector(null);
+        withSecrets.getSpec().setConfig(Map.of(
+            "connection.password", "hunter2",
+            "connection.user", "admin",
+            "key.converter", "org.apache.kafka.connect.json.JsonConverter",
+            "aws.secret.access.key", "abc/def",
+            "other.password", "${secrets:kafka/db:password}"));
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaConnector.class, List.of(withSecrets));
+
+        Map<String, Object> config = connectorService.getConnector("kafka", "my-sink").config();
+
+        assertEquals("[REDACTED]", config.get("connection.password"));
+        assertEquals("[REDACTED]", config.get("aws.secret.access.key"));
+        assertEquals("admin", config.get("connection.user"));
+        assertEquals("org.apache.kafka.connect.json.JsonConverter", config.get("key.converter"));
+        assertEquals("${secrets:kafka/db:password}", config.get("other.password"));
+    }
+
     private static KafkaConnector connector(final String offsetsConfigMapName) {
         KafkaConnectorBuilder builder = new KafkaConnectorBuilder()
             .withNewMetadata()

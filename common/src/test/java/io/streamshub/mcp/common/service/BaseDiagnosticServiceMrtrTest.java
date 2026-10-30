@@ -11,6 +11,7 @@ import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.SamplingRequest;
 import io.quarkiverse.mcp.server.SamplingResponse;
 import io.quarkiverse.mcp.server.TextContent;
+import io.streamshub.mcp.common.guardrail.Redactor;
 import org.jboss.logging.Logger;
 import org.junit.jupiter.api.Test;
 
@@ -18,8 +19,10 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -45,6 +48,7 @@ class BaseDiagnosticServiceMrtrTest {
     void testPerformSamplingRethrowsInputRequiredException() {
         TestService service = new TestService();
         service.objectMapper = new ObjectMapper();
+        service.redactor = new Redactor(true, null);
         Sampling sampling = mock(Sampling.class);
         when(sampling.isSupported()).thenReturn(true);
         when(sampling.requestBuilder()).thenThrow(
@@ -58,6 +62,7 @@ class BaseDiagnosticServiceMrtrTest {
     void testPerformTriageStatelessReturnsNullWithoutServerInitiatedCall() {
         TestService service = new TestService();
         service.objectMapper = new ObjectMapper();
+        service.redactor = new Redactor(true, null);
         service.triageMaxTokens = 200;
 
         Sampling sampling = mock(Sampling.class);
@@ -74,6 +79,7 @@ class BaseDiagnosticServiceMrtrTest {
     void testPerformAnalysisMrtrStatelessThrowsWhenNoResponse() {
         TestService service = new TestService();
         service.objectMapper = new ObjectMapper();
+        service.redactor = new Redactor(true, null);
         service.analysisMaxTokens = 1500;
 
         Sampling sampling = mock(Sampling.class);
@@ -106,6 +112,7 @@ class BaseDiagnosticServiceMrtrTest {
     void testPerformAnalysisMrtrStatelessNullRequestStateThrowsInputRequiredNotNpe() {
         TestService service = new TestService();
         service.objectMapper = new ObjectMapper();
+        service.redactor = new Redactor(true, null);
         service.analysisMaxTokens = 1500;
 
         Sampling sampling = mock(Sampling.class);
@@ -135,6 +142,7 @@ class BaseDiagnosticServiceMrtrTest {
     void testPerformAnalysisMrtrStatelessReturnsTextWhenResponsePresent() {
         TestService service = new TestService();
         service.objectMapper = new ObjectMapper();
+        service.redactor = new Redactor(true, null);
 
         Sampling sampling = mock(Sampling.class);
         when(sampling.isServerInitiatedRequestSupported()).thenReturn(false);
@@ -158,6 +166,7 @@ class BaseDiagnosticServiceMrtrTest {
     void testPerformAnalysisMrtrReturnsNullWhenSamplingIsNull() {
         TestService service = new TestService();
         service.objectMapper = new ObjectMapper();
+        service.redactor = new Redactor(true, null);
 
         String result = service.performAnalysisMrtr(null, "sys", Map.of("k", "v"), "analysis", "ns1", null);
         assertNull(result);
@@ -167,6 +176,7 @@ class BaseDiagnosticServiceMrtrTest {
     void testPerformAnalysisMrtrStatefulDelegatesToPerformAnalysis() {
         TestService service = new TestService();
         service.objectMapper = new ObjectMapper();
+        service.redactor = new Redactor(true, null);
         service.analysisMaxTokens = 1500;
 
         Sampling sampling = mock(Sampling.class);
@@ -193,6 +203,7 @@ class BaseDiagnosticServiceMrtrTest {
     void testPerformAnalysisMrtrStatelessWithoutSamplingCapabilityReturnsNull() {
         TestService service = new TestService();
         service.objectMapper = new ObjectMapper();
+        service.redactor = new Redactor(true, null);
         service.analysisMaxTokens = 1500;
 
         Sampling sampling = mock(Sampling.class);
@@ -210,6 +221,7 @@ class BaseDiagnosticServiceMrtrTest {
     void testPerformAnalysisMrtrStatelessReturnsNullWhenCancelledWithoutRequestingInput() {
         TestService service = new TestService();
         service.objectMapper = new ObjectMapper();
+        service.redactor = new Redactor(true, null);
         service.analysisMaxTokens = 1500;
 
         Sampling sampling = mock(Sampling.class);
@@ -230,6 +242,7 @@ class BaseDiagnosticServiceMrtrTest {
     void testPerformAnalysisMrtrStatefulReturnsNullWhenCancelledBeforeCall() {
         TestService service = new TestService();
         service.objectMapper = new ObjectMapper();
+        service.redactor = new Redactor(true, null);
         service.analysisMaxTokens = 1500;
 
         Sampling sampling = mock(Sampling.class);
@@ -249,6 +262,7 @@ class BaseDiagnosticServiceMrtrTest {
     void testPerformAnalysisMrtrStatefulReturnsNullWhenCancelledDuringCall() {
         TestService service = new TestService();
         service.objectMapper = new ObjectMapper();
+        service.redactor = new Redactor(true, null);
         service.analysisMaxTokens = 1500;
 
         Sampling sampling = mock(Sampling.class);
@@ -273,5 +287,37 @@ class BaseDiagnosticServiceMrtrTest {
         assertNull(result);
         // Result is discarded when cancellation fires during the call.
         verify(samplingResponse, never()).content();
+    }
+
+    @Test
+    void testSamplingDataIsRedactedBeforeLeavingTheServer() {
+        TestService service = new TestService();
+        service.objectMapper = new ObjectMapper();
+        service.redactor = new Redactor(true, null);
+        service.analysisMaxTokens = 1500;
+
+        Sampling sampling = mock(Sampling.class);
+        when(sampling.isServerInitiatedRequestSupported()).thenReturn(true);
+        when(sampling.isSupported()).thenReturn(true);
+        SamplingRequest.Builder requestBuilder =
+            mock(SamplingRequest.Builder.class, org.mockito.Mockito.RETURNS_SELF);
+        SamplingRequest builtRequest = mock(SamplingRequest.class);
+        when(requestBuilder.build()).thenReturn(builtRequest);
+        when(builtRequest.sendAndAwait()).thenReturn(null);
+        when(sampling.requestBuilder()).thenReturn(requestBuilder);
+
+        Map<String, Object> data = Map.of(
+            "connector", Map.of("config", Map.of("database.password", "hunter2", "tasks.max", "1")),
+            "logs", "connecting with token=abc123def");
+
+        service.performAnalysisMrtr(sampling, "sys", data, "analysis", null, null);
+
+        org.mockito.ArgumentCaptor<io.quarkiverse.mcp.server.SamplingMessage> captor =
+            org.mockito.ArgumentCaptor.forClass(io.quarkiverse.mcp.server.SamplingMessage.class);
+        verify(requestBuilder).addMessage(captor.capture());
+        String sent = ((TextContent) captor.getValue().content()).text();
+        assertFalse(sent.contains("hunter2"), sent);
+        assertFalse(sent.contains("abc123def"), sent);
+        assertTrue(sent.contains("tasks.max"), sent);
     }
 }

@@ -19,6 +19,7 @@ import io.quarkiverse.mcp.server.Sampling;
 import io.quarkiverse.mcp.server.SamplingMessage;
 import io.quarkiverse.mcp.server.SamplingResponse;
 import io.quarkiverse.mcp.server.ToolCallException;
+import io.streamshub.mcp.common.guardrail.Redactor;
 import io.streamshub.mcp.common.util.InputUtils;
 import org.jboss.logging.Logger;
 
@@ -274,6 +275,7 @@ public final class DiagnosticHelper {
      *
      * @param sampling     the MCP Sampling interface (may be null)
      * @param mapper       the ObjectMapper for JSON serialization
+     * @param redactor     redacts sensitive values from {@code data} before it leaves the server
      * @param systemPrompt the system prompt for the LLM
      * @param data         the data map to serialize as JSON input
      * @param maxTokens    maximum tokens for the response
@@ -282,7 +284,7 @@ public final class DiagnosticHelper {
      * @return the extracted text, or null when sampling is unavailable, cancelled, or fails
      */
     public static String sendSampling(final Sampling sampling, final ObjectMapper mapper,
-            final String systemPrompt, final Map<String, Object> data, final int maxTokens,
+            final Redactor redactor, final String systemPrompt, final Map<String, Object> data, final int maxTokens,
             final AtomicBoolean cancelled, final Logger logger) {
         if (sampling == null || !sampling.isSupported()) {
             return null;
@@ -291,7 +293,7 @@ public final class DiagnosticHelper {
             return null;
         }
         try {
-            String json = mapper.writeValueAsString(data);
+            String json = redactedJson(mapper, redactor, data);
             SamplingResponse response = sampling.requestBuilder()
                 .setSystemPrompt(systemPrompt)
                 .addMessage(SamplingMessage.withUserRole(json))
@@ -323,6 +325,7 @@ public final class DiagnosticHelper {
      *
      * @param sampling     the MCP Sampling interface (may be null)
      * @param mapper       the ObjectMapper for JSON serialization
+     * @param redactor     redacts sensitive values from {@code data} before it leaves the server
      * @param systemPrompt the system prompt for the LLM
      * @param data         the data map to serialize as JSON input
      * @param maxTokens    maximum tokens for the response
@@ -333,14 +336,14 @@ public final class DiagnosticHelper {
      * @return the analysis text, or null when sampling is unavailable, fails, or is cancelled
      */
     public static String analysisSamplingMrtr(final Sampling sampling, final ObjectMapper mapper,
-            final String systemPrompt, final Map<String, Object> data, final int maxTokens,
+            final Redactor redactor, final String systemPrompt, final Map<String, Object> data, final int maxTokens,
             final String key, final String requestState, final AtomicBoolean cancelled,
             final Logger logger) {
         if (sampling == null) {
             return null;
         }
         if (sampling.isServerInitiatedRequestSupported()) {
-            return sendSampling(sampling, mapper, systemPrompt, data, maxTokens, cancelled, logger);
+            return sendSampling(sampling, mapper, redactor, systemPrompt, data, maxTokens, cancelled, logger);
         }
         if (!sampling.isSupported()) {
             return null;
@@ -353,7 +356,7 @@ public final class DiagnosticHelper {
             return extractSamplingText(responses.getSamplingResponse(key));
         }
         try {
-            String json = mapper.writeValueAsString(data);
+            String json = redactedJson(mapper, redactor, data);
             InputRequiredException.Builder builder = sampling.inputRequired()
                 .addSamplingRequest(key, sampling.requestBuilder()
                     .setSystemPrompt(systemPrompt)
@@ -368,10 +371,19 @@ public final class DiagnosticHelper {
                 builder.setRequestState(requestState);
             }
             throw builder.build();
-        } catch (JsonProcessingException e) {
+        } catch (JsonProcessingException | IllegalArgumentException e) {
             logger.warnf("Failed to serialize analysis data: %s", e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Serialize Sampling input after redacting sensitive values. Sampling data is forwarded
+     * to the client's LLM, so it gets the same redaction as tool responses.
+     */
+    private static String redactedJson(final ObjectMapper mapper, final Redactor redactor,
+                                       final Map<String, Object> data) throws JsonProcessingException {
+        return mapper.writeValueAsString(redactor.redactedCopy(mapper, data));
     }
 
     /**

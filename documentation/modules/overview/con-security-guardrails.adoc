@@ -6,7 +6,7 @@
 
 The server includes built-in security features:
 
-* *Log redaction* -- Automatic removal of sensitive patterns such as tokens, passwords, and keys
+* *Log redaction* -- Automatic removal of sensitive patterns such as tokens, passwords, and keys, and of values stored under secret-named keys; also applied to data sent to the client's LLM through Sampling
 * *Response size limits* -- Truncation of responses that exceed a configurable size threshold
 * *Rate limiting* -- Per-category request throttling to prevent resource exhaustion
 * *Custom patterns* -- Support for organization-specific redaction rules

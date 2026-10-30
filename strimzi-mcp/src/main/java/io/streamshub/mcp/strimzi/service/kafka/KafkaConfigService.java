@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.service.kafka;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.streamshub.mcp.common.guardrail.SensitiveKeys;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
@@ -111,7 +112,7 @@ public class KafkaConfigService {
             resolvedNs,
             kafkaSpec != null ? kafkaSpec.getVersion() : null,
             kafkaSpec != null ? kafkaSpec.getMetadataVersion() : null,
-            kafkaSpec != null ? kafkaSpec.getConfig() : null,
+            kafkaSpec != null ? SensitiveKeys.redactValues(kafkaSpec.getConfig()) : null,
             kafkaSpec != null ? extractJvmOptions(kafkaSpec.getJvmOptions()) : null,
             kafkaSpec != null ? extractRack(kafkaSpec.getRack()) : null,
             extractListenerConfigs(kafka),
@@ -128,28 +129,6 @@ public class KafkaConfigService {
         );
     }
 
-    private static final java.util.Set<String> SENSITIVE_CONFIG_PATTERNS = java.util.Set.of(
-        "secret", "password", "key", "token", "credential", "auth"
-    );
-
-    private static Map<String, Object> sanitizeConfigMap(Map<String, Object> original) {
-        if (original == null || original.isEmpty()) {
-            return original;
-        }
-        Map<String, Object> sanitized = new java.util.LinkedHashMap<>();
-        for (Map.Entry<String, Object> entry : original.entrySet()) {
-            String k = entry.getKey();
-            String lowerK = k.toLowerCase(Locale.ROOT);
-            boolean isSensitive = SENSITIVE_CONFIG_PATTERNS.stream().anyMatch(lowerK::contains);
-            if (isSensitive) {
-                sanitized.put(k, "[REDACTED]");
-            } else {
-                sanitized.put(k, entry.getValue());
-            }
-        }
-        return sanitized;
-    }
-
     private KafkaEffectiveConfigResponse.TieredStorageInfo extractTieredStorage(
             final io.strimzi.api.kafka.model.kafka.tieredstorage.TieredStorage tieredStorage) {
         if (tieredStorage == null) {
@@ -160,9 +139,7 @@ public class KafkaConfigService {
         if (tieredStorage instanceof io.strimzi.api.kafka.model.kafka.tieredstorage.TieredStorageCustom custom) {
             if (custom.getRemoteStorageManager() != null) {
                 RemoteStorageManager rsm = custom.getRemoteStorageManager();
-                Map<String, Object> rawConfig = rsm.getConfig() != null
-                    ? new java.util.LinkedHashMap<>(rsm.getConfig()) : null;
-                Map<String, Object> safeConfig = sanitizeConfigMap(rawConfig);
+                Map<String, Object> safeConfig = SensitiveKeys.redactValues(rsm.getConfig());
                 rsmInfo = new KafkaEffectiveConfigResponse.RemoteStorageManagerInfo(
                     rsm.getClassName(), rsm.getClassPath(), safeConfig);
             }
@@ -371,7 +348,7 @@ public class KafkaConfigService {
                 .toList();
         }
         return new CruiseControlInfo(
-            ccSpec.getConfig(),
+            SensitiveKeys.redactValues(ccSpec.getConfig()),
             capacity,
             autoRebalance,
             extractResources(ccSpec.getResources()),
