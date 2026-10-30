@@ -16,7 +16,6 @@ spec:
       containers:
         - name: strimzi-mcp
           image: quay.io/streamshub/strimzi-mcp:latest
-          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080

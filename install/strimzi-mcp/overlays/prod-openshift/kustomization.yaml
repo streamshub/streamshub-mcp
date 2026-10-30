@@ -16,3 +16,4 @@ labels:
 resources:
 - ../prod
 - route.yaml
+- networkpolicy.yaml
