@@ -154,7 +154,7 @@ public final class KafkaMetricCategories {
             "kafka_server_brokertopicmetrics_messagesin_total: Cumulative messages received. "
                 + "Rate of change = messages/sec. Sudden drops = producer issues.\n"
                 + "kafka_server_brokertopicmetrics_bytesin_total: Cumulative bytes received. "
-                + "Request aggregation=broker to compare brokers — large imbalance = hot partitions.\n"
+                + "Request aggregation=BROKER to compare brokers — large imbalance = hot partitions.\n"
                 + "kafka_server_brokertopicmetrics_bytesout_total: Cumulative bytes sent to consumers. "
                 + "bytesout >> bytesin can indicate replication or high consumer fan-out.\n"
                 + "kafka_server_brokertopicmetrics_totalproducerequests_total: Total produce requests. "
@@ -169,11 +169,14 @@ public final class KafkaMetricCategories {
                 + "**[AGGREGATION]** These are cluster totals, summed across brokers — each series "
                 + "carries `aggregation_fn` = \"sum\". Kafka publishes each of them per topic *and* as a "
                 + "broker-wide roll-up; at the default level only the roll-up is used. Request "
-                + "aggregation=topic for a per-topic breakdown — that response also carries one row "
+                + "aggregation=TOPIC for a per-topic breakdown — that response also carries one row "
                 + "with no `topic` label, which is the total of the others, so do not sum the rows.",
         RESOURCES,
             MetricsDescriptions.jvmDescription("get_kafka_cluster_pods",
-                "performance degradation or pod restarts"),
+                "performance degradation or pod restarts")
+                + "\n\n**[AGGREGATION]** At the default level each metric is the worst pod, not the "
+                + "mean — each series carries `aggregation_fn` = \"max\" — so one leaking or GC-bound "
+                + "broker is not diluted by healthy peers. Request aggregation=BROKER to see which pod.",
         PERFORMANCE,
             "**[HIGH - BROKER CAPACITY]**\n\n"
                 + "kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent: "
@@ -191,7 +194,11 @@ public final class KafkaMetricCategories {
                 + "sent. High values = network thread bottleneck.\n\n"
                 + "**[MEDIUM - NETWORK CAPACITY]**\n\n"
                 + "kafka_network_socketserver_networkprocessoravgidle_percent: Network thread idle "
-                + "ratio. **THRESHOLDS**: >0.5 = healthy, 0.3-0.5 = monitor, <0.3 = network bottleneck.",
+                + "ratio. **THRESHOLDS**: >0.5 = healthy, 0.3-0.5 = monitor, <0.3 = network bottleneck.\n\n"
+                + "**[AGGREGATION]** The thresholds above are per broker, so at the default level each "
+                + "series is the worst broker, not the mean: the lowest value for the two idle ratios "
+                + "(`aggregation_fn` = \"min\") and the highest for the request times "
+                + "(`aggregation_fn` = \"max\"). Request aggregation=BROKER to see which broker.",
         KRAFT,
             "**[CRITICAL - KRAFT QUORUM STATE]**\n\n"
                 + "kafka_server_raftmetrics_current_state: Current role of this node in the KRaft quorum. "
