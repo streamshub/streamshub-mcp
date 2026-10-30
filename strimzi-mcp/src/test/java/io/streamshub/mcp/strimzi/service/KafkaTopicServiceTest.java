@@ -15,9 +15,12 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
+import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
+import io.streamshub.mcp.common.dto.error.McpErrorData;
+import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.TopicStatusFilter;
 import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicService;
@@ -35,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 /**
@@ -311,6 +315,100 @@ class KafkaTopicServiceTest {
             "kafka", "my-cluster", null, null, "   ", null);
 
         assertEquals(2, result.total());
+    }
+
+    @Test
+    void testGetTopicResolvesKafkaTopicNameWithUnderscoresViaSpecTopicName() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topicWithKafkaName("my-topic-resource", "kafka", "my_topic", null)));
+
+        KafkaTopicResponse response = topicService.getTopic("kafka", "my-cluster", "my_topic");
+
+        assertEquals("my-topic-resource", response.name());
+    }
+
+    @Test
+    void testGetTopicResolvesInternalTopicViaStatusTopicName() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topicWithKafkaName("consumer-offsets", "kafka", null, "__consumer_offsets")));
+
+        KafkaTopicResponse response = topicService.getTopic(null, "my-cluster", "__consumer_offsets");
+
+        assertEquals("consumer-offsets", response.name());
+        assertEquals("__consumer_offsets", response.topicName());
+    }
+
+    @Test
+    void testGetTopicKeepsCaseOfKafkaTopicName() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topicWithKafkaName("orders-v1", "kafka", "Orders_V1", null)));
+
+        assertEquals("orders-v1", topicService.getTopic("kafka", "my-cluster", "Orders_V1").name());
+        assertThrows(McpException.class, () -> topicService.getTopic("kafka", "my-cluster", "orders_v1"));
+    }
+
+    @Test
+    void testGetTopicRejectsIllegalKafkaTopicName() {
+        McpException ex = assertThrows(McpException.class,
+            () -> topicService.getTopic("kafka", "my-cluster", "bad/topic"));
+
+        assertTrue(ex.getMessage().contains("Invalid topic name"));
+    }
+
+    @Test
+    void testGetTopicAmbiguousAcrossNamespacesReportsCandidates() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topicWithKafkaName("my-topic", "team-a", null, null),
+            topicWithKafkaName("my-topic", "team-b", null, null)));
+
+        McpException ex = assertThrows(McpException.class,
+            () -> topicService.getTopic(null, "my-cluster", "my-topic"));
+
+        assertTrue(NamespaceElicitationHelper.isMultipleNamespacesError(ex));
+        McpErrorData data = (McpErrorData) ex.getData();
+        assertEquals(List.of("team-a", "team-b"), data.candidates());
+    }
+
+    @Test
+    void testGetTopicInOneNamespaceIsNotAmbiguous() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topicWithKafkaName("my-topic", "team-a", null, null),
+            topicWithKafkaName("other", "team-b", null, null)));
+
+        assertEquals("team-a", topicService.getTopic(null, "my-cluster", "my-topic").namespace());
+    }
+
+    @Test
+    void testGetTopicNormalizesClusterName() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topicWithKafkaName("my-topic", "kafka", null, null)));
+
+        assertEquals("my-topic", topicService.getTopic("kafka", "  My-Cluster ", "my-topic").name());
+        assertEquals("my-topic", topicService.getTopic("kafka", "null", "my-topic").name());
+    }
+
+    @Test
+    void testGetTopicFromOtherClusterIsRejected() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topicWithKafkaName("my-topic", "kafka", null, null)));
+
+        McpException ex = assertThrows(McpException.class,
+            () -> topicService.getTopic("kafka", "other-cluster", "my-topic"));
+
+        assertTrue(ex.getMessage().contains("belongs to cluster 'my-cluster'"));
+    }
+
+    private KafkaTopic topicWithKafkaName(final String resourceName, final String namespace,
+                                          final String specTopicName, final String statusTopicName) {
+        KafkaTopicBuilder builder = new KafkaTopicBuilder()
+            .withNewMetadata().withName(resourceName).withNamespace(namespace)
+                .withLabels(Map.of("strimzi.io/cluster", "my-cluster"))
+            .endMetadata()
+            .withNewSpec().withPartitions(3).withReplicas(3).withTopicName(specTopicName).endSpec();
+        if (statusTopicName != null) {
+            builder = builder.withNewStatus().withTopicName(statusTopicName).endStatus();
+        }
+        return builder.build();
     }
 
     private KafkaTopic topic(final String name, final boolean ready, final String managedAnnotation) {

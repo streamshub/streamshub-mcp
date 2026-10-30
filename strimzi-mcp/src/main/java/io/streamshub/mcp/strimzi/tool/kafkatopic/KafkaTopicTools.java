@@ -133,7 +133,8 @@ public class KafkaTopicTools {
             description = StrimziToolsPrompts.CLUSTER_DESC
         ) final String clusterName,
         @NotBlank @ToolArg(
-            description = "Name of the topic (e.g., 'user-events')."
+            description = "Name of the topic (e.g., 'user-events'). The Kafka topic name or the KafkaTopic"
+                + " resource name; case-sensitive."
         ) final String topicName,
         @ToolArg(
             description = StrimziToolsPrompts.NS_DESC,

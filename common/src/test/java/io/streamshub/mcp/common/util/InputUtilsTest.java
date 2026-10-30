@@ -115,4 +115,37 @@ class InputUtilsTest {
         assertThrows(McpException.class,
             () -> InputUtils.validateK8sName("-invalid", "name"));
     }
+
+    @Test
+    void testNormalizeNameKeepsCase() {
+        assertEquals("My_Topic", InputUtils.normalizeName("  My_Topic "));
+        assertNull(InputUtils.normalizeName(" "));
+        assertNull(InputUtils.normalizeName("null"));
+        assertNull(InputUtils.normalizeName(null));
+    }
+
+    @Test
+    void testIsValidK8sName() {
+        assertTrue(InputUtils.isValidK8sName("my-topic"));
+        assertTrue(!InputUtils.isValidK8sName("my_topic"));
+        assertTrue(!InputUtils.isValidK8sName("MyTopic"));
+        assertTrue(!InputUtils.isValidK8sName(null));
+    }
+
+    @Test
+    void testValidateKafkaTopicNameAcceptsKafkaNames() {
+        for (String name : new String[] {"my-topic", "my_topic", "MyTopic", "__consumer_offsets",
+            "__transaction_state", "a.b.c", "a".repeat(249)}) {
+            assertDoesNotThrow(() -> InputUtils.validateKafkaTopicName(name, "topic name"), name);
+        }
+        assertDoesNotThrow(() -> InputUtils.validateKafkaTopicName(null, "topic name"));
+    }
+
+    @Test
+    void testValidateKafkaTopicNameRejectsIllegalNames() {
+        for (String name : new String[] {".", "..", "has space", "slash/name", "semi;colon", "a".repeat(250),
+            "new\nline", "uni\u00e9code"}) {
+            assertThrows(McpException.class, () -> InputUtils.validateKafkaTopicName(name, "topic name"), name);
+        }
+    }
 }
