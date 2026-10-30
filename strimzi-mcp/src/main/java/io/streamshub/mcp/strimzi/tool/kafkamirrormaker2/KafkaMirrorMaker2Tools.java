@@ -63,6 +63,7 @@ public class KafkaMirrorMaker2Tools {
      * @param namespace optional namespace filter
      * @return list of MM2 summary responses
      */
+    @RunOnVirtualThread
     @WithSpan("tool.list_kafka_mirror_makers")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_MIRROR_MAKER_2)
@@ -99,6 +100,7 @@ public class KafkaMirrorMaker2Tools {
      * @param namespace       optional namespace
      * @return the detailed MM2 response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_mirror_maker")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_MIRROR_MAKER_2)
@@ -137,6 +139,7 @@ public class KafkaMirrorMaker2Tools {
      * @param namespace       optional namespace
      * @return the pods response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_mirror_maker_pods")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_MIRROR_MAKER_2)

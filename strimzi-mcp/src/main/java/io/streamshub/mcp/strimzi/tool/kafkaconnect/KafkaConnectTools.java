@@ -63,6 +63,7 @@ public class KafkaConnectTools {
      * @param namespace optional namespace filter
      * @return list of KafkaConnect responses
      */
+    @RunOnVirtualThread
     @WithSpan("tool.list_kafka_connects")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)
@@ -99,6 +100,7 @@ public class KafkaConnectTools {
      * @param namespace   optional namespace
      * @return the KafkaConnect response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_connect")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)
@@ -139,6 +141,7 @@ public class KafkaConnectTools {
      * @param namespace   optional namespace
      * @return the Connect pods response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_connect_pods")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)

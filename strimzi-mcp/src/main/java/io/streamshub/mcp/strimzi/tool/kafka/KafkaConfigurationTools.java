@@ -12,6 +12,7 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.ToolGuardrails;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.ArgumentSanitizationGuardrail;
 import io.streamshub.mcp.common.guardrail.GeneralRateLimitGuardrail;
@@ -46,6 +47,7 @@ public class KafkaConfigurationTools {
      * @param namespace   optional namespace
      * @return the effective configuration response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_cluster_config")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)

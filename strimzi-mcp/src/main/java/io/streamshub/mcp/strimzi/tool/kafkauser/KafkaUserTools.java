@@ -12,6 +12,7 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.ToolGuardrails;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.ArgumentSanitizationGuardrail;
 import io.streamshub.mcp.common.guardrail.GeneralRateLimitGuardrail;
@@ -51,6 +52,7 @@ public class KafkaUserTools {
      * @param namespace   optional namespace filter
      * @return list of user summary responses
      */
+    @RunOnVirtualThread
     @WithSpan("tool.list_kafka_users")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_USER)
@@ -91,6 +93,7 @@ public class KafkaUserTools {
      * @param namespace optional namespace
      * @return the detailed user response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_user")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_USER)
@@ -130,6 +133,7 @@ public class KafkaUserTools {
      * @param resourceType optional ACL resource type filter
      * @return the ACL matrix response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_user_acls_matrix")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_USER)

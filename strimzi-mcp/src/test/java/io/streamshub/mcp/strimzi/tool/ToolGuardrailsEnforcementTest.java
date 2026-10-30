@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.tool;
 
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolGuardrails;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.streamshub.mcp.common.guardrail.ArgumentSanitizationGuardrail;
 import io.streamshub.mcp.common.guardrail.GeneralRateLimitGuardrail;
 import io.streamshub.mcp.common.guardrail.LogRateLimitGuardrail;
@@ -95,6 +96,11 @@ class ToolGuardrailsEnforcementTest {
                 if (method.isAnnotationPresent(Tool.class)) {
                     toolMethods.add(method);
                     String methodName = toolClass.getSimpleName() + "#" + method.getName();
+
+                    // Check 0b: every tool does blocking Kubernetes I/O, so it must not run on the event loop
+                    if (!method.isAnnotationPresent(RunOnVirtualThread.class)) {
+                        violations.add(methodName + " lacks @RunOnVirtualThread");
+                    }
 
                     // Check 1: @ToolGuardrails presence
                     ToolGuardrails guardrails = method.getAnnotation(ToolGuardrails.class);
