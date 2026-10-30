@@ -134,11 +134,15 @@ public class AssessUpgradeReadinessPrompt {
             - underreplicatedpartitions = 0
             - All partitions fully in-sync (ISR = replication factor)
             - maxlag close to 0
+            - min.insync.replicas < replication factor for all topics \
+            (ensures at least one spare replica can tolerate the rolling restart)
 
             **NO-GO conditions** (ANY blocks upgrade):
             - offlinepartitionscount > 0 (CRITICAL — data unavailable)
             - underreplicatedpartitions > 0 (rolling restart will lose replicas)
             - High replication lag (followers cannot keep up)
+            - min.insync.replicas = replication factor on any topic (no spare replica \
+            during restart; Strimzi Drain Cleaner docs cite this as a prerequisite check)
 
             **This is the most critical check.** During a rolling restart, one \
             broker is down at a time. If partitions are already under-replicated, \
@@ -150,15 +154,15 @@ public class AssessUpgradeReadinessPrompt {
 
             **GO conditions**:
             - No KafkaRebalance resources in active states \
-            (New, PendingProposal, ProposalReady, Rebalancing, Stopped)
-            - Only Ready or ReconciliationPaused rebalances are acceptable
+            (New, PendingProposal, ProposalReady, Rebalancing)
+            - Ready, Stopped, or ReconciliationPaused rebalances are acceptable
             - Empty list (no rebalances or CRD not installed) is also GO
 
             **NO-GO conditions** (ANY blocks upgrade):
             - Any rebalance in Rebalancing state (data movement in progress)
             - Any rebalance in PendingProposal or ProposalReady state \
             (proposal pending — may be approved during upgrade)
-            - Any rebalance in New or Stopped state (pending processing)
+            - Any rebalance in New state (submitted, awaiting Cruise Control proposal)
 
             **Why this is a hard blocker:** A rebalance moves partition replicas \
             between brokers. If an upgrade triggers a rolling restart while \
@@ -174,15 +178,20 @@ public class AssessUpgradeReadinessPrompt {
             and `get_kafka_metrics(clusterName='%s'%s, category='performance')`.
 
             **GO conditions**:
-            - Broker request handler idle > 0.5 (50%% headroom)
+            - Broker request handler idle > 0.5 (50%% headroom recommended before upgrade)
             - Heap usage < 80%% of max
             - No GC pressure (stable GC count)
 
+            **CONDITIONAL conditions** (proceed with caution):
+            - Broker request handler idle between 0.2 and 0.5 (degraded headroom — \
+            remaining brokers may struggle under extra load during restart)
+            - Network processor idle between 0.2 and 0.3 (near saturation)
+
             **NO-GO conditions**:
-            - Broker request handler idle < 0.3 (overloaded — restart will \
+            - Broker request handler idle < 0.2 (severely overloaded — restart will \
             overwhelm remaining brokers)
             - Heap usage > 90%% (OOM risk during restart)
-            - Network processor idle < 0.3 (network saturated)
+            - Network processor idle < 0.2 (network saturated)
 
             During a rolling restart, the remaining brokers must absorb the \
             load of the restarting broker. If utilization is already high, \
@@ -236,7 +245,9 @@ public class AssessUpgradeReadinessPrompt {
 
             **If GO:**
             - Recommended maintenance window duration estimate
-            - Expected rolling restart time (approx 2-3 min per broker)
+            - Expected rolling restart time (typically 3–15+ min per broker depending on \
+            partition count, replication factor, and storage speed; production clusters \
+            commonly take 5–10+ min per broker)
             - Suggested time of day (low-traffic period)
 
             **If NO-GO:**

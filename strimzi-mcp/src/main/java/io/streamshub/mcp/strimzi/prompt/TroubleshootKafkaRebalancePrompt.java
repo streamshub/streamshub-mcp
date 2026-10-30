@@ -98,14 +98,18 @@ public class TroubleshootKafkaRebalancePrompt {
             ## Step 2: Locate the current state in the rebalance state machine
             A KafkaRebalance advances through \
             `New` -> `PendingProposal` -> `ProposalReady` -> `Rebalancing` -> `Ready`, \
-            with `Stopped` and `NotReady` as aborted or failed outcomes.
+            with `Stopped` and `NotReady` as aborted or failed outcomes, and \
+            `ReconciliationPaused` when reconciliation is paused by annotation.
             - **New** -- the operator accepted the resource and is about to request a proposal
             - **PendingProposal** -- Cruise Control is computing an optimization proposal
             - **ProposalReady** -- a proposal is available and (unless auto-approved) awaiting approval
             - **Rebalancing** -- partition reassignment is in progress
             - **Ready** -- the rebalance completed successfully
-            - **Stopped** -- the rebalance was stopped by annotation
+            - **Stopped** -- the rebalance was stopped by user annotation (`strimzi.io/rebalance=stop`); \
+no data movement is in progress — safe to upgrade through
             - **NotReady** -- the rebalance failed; inspect conditions for the reason
+            - **ReconciliationPaused** -- reconciliation paused via `strimzi.io/pause-reconciliation=true`; \
+remove the annotation to resume
 
             ## Step 3: Inspect conditions for goal violations and errors
             From the `conditions` gathered in Step 1, read the reason and message of any \

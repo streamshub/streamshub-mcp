@@ -112,8 +112,9 @@ public class TroubleshootKafkaStoragePrompt {
             Key indicators:
             - **`kafka_log_log_size`** -- total bytes used by Kafka logs per broker; \
             compare against PVC capacity to estimate free space
-            - **`kafka_server_kafkaserver_linux_disk_read_bytes` / \
-            `kafka_server_kafkaserver_linux_disk_write_bytes`** -- I/O throughput; \
+            - **Disk I/O throughput** -- Kafka does not expose disk read/write bytes \
+            as JMX metrics; if your cluster has Prometheus Node Exporter, look for \
+            `node_disk_read_bytes_total` and `node_disk_written_bytes_total`; \
             unusually high write rates may indicate runaway producers or missing \
             retention settings
             - **Trends** -- a steadily growing `kafka_log_log_size` with no \

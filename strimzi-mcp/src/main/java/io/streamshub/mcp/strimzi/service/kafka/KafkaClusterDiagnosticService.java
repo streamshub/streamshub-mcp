@@ -885,10 +885,13 @@ public class KafkaClusterDiagnosticService extends BaseDiagnosticService {
         1. Operator-initiated changes (EXPECTED): rolling updates, certificate renewal, config changes
         2. Infrastructure failures (CRITICAL): OOM, disk full, node failures, network issues
         3. Configuration errors (HIGH): invalid specs, missing secrets, RBAC issues
-        4. Performance degradation (MEDIUM): overloaded brokers, replication lag
-        5. Cascading failures (CRITICAL): broker overload -> replication lag -> offline partitions
+        4. Performance degradation (MEDIUM): overloaded brokers, replication lag; \
+        isrshrinkspersec > 0 consistently is a leading indicator of approaching under-replication
+        5. Cascading failures (CRITICAL): broker overload -> replication lag -> offline partitions; \
+        uncleanleaderelectionspersec > 0 means data loss has already occurred
         6. Drain cleaner issues (HIGH): missing deployment, webhook unconfigured, \
-        legacy mode, TLS certificate expiring \
+        legacy mode (uses PodDisruptionBudget instead of Strimzi pod annotations, less reliable \
+        for fast-rolling nodes), TLS certificate expiring \
         Action: deploy drain cleaner, verify webhook, switch to standard mode
         
         Structure your response as:

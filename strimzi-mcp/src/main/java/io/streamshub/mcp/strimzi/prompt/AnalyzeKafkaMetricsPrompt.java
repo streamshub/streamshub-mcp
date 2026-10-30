@@ -80,6 +80,12 @@ public class AnalyzeKafkaMetricsPrompt {
             **STOP AND ESCALATE IF:**
             - offlinepartitionscount > 0 → partitions unavailable
             - underreplicatedpartitions > 0 for >5 minutes → data loss risk
+            - uncleanleaderelectionspersec > 0 → data loss has already occurred \
+            (out-of-sync replica elected leader; treat as CRITICAL even if transient)
+
+            **Leading indicators (investigate before they escalate):**
+            - isrshrinkspersec > 0 consistently → replicas leaving ISR; \
+            precedes under-replication; investigate broker health and network
 
             Use the `interpretation` field for threshold guidance on maxlag and leadercount. \
             If replication issues found, immediately check Step 3 to identify root cause.
@@ -107,13 +113,13 @@ public class AnalyzeKafkaMetricsPrompt {
             **Common Cascading Failure Patterns:**
 
             1. **Broker Overload Cascade:**
-               - brokerrequesthandleravgidle < 0.3 (Step 3)
+               - brokerrequesthandleravgidle warning < 0.3, critical < 0.2 (Step 3)
                → requestqueuetimems increasing (Step 3)
                → underreplicatedpartitions > 0 (Step 1)
                **Action**: Scale horizontally or reduce load
 
             2. **Network Bottleneck Cascade:**
-               - networkprocessoravgidle < 0.3 (Step 3)
+               - networkprocessoravgidle warning < 0.3, critical < 0.2 (Step 3)
                → responsequeuetimems increasing (Step 3)
                → maxlag growing (Step 1)
                **Action**: Increase network threads or reduce connections

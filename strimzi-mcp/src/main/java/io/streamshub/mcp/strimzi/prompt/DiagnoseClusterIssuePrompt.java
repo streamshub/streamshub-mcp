@@ -88,7 +88,7 @@ public class DiagnoseClusterIssuePrompt {
             
             **STOP AND ESCALATE IF:**
             - Cluster status is NotReady for >10 minutes (not during rolling update)
-            - Conditions show "KafkaNotReady" or "ZooKeeperNotReady"
+            - Conditions show "KafkaNotReady"
             
             Look for:
             - NotReady conditions → cluster unavailable or degraded
@@ -97,8 +97,8 @@ public class DiagnoseClusterIssuePrompt {
             - Recent status changes → correlate with symptom timeline
             
             **Expected during normal operations:**
-            - Brief NotReady during rolling updates (2-3 min per broker)
-            - Certificate renewal reconciliations (every 30 days)
+            - Brief NotReady during rolling updates (typically 3–15+ min per broker)
+            - Certificate renewal reconciliations (triggered when < 30 days remain before CA expiry; default CA validity is 365 days)
 
             ## Step 2: Check Strimzi Drain Cleaner [HIGH - graceful eviction handling]
             Use `check_drain_cleaner_readiness` **without passing a namespace** to assess drain cleaner \
@@ -217,6 +217,10 @@ public class DiagnoseClusterIssuePrompt {
             **STOP AND ESCALATE IF:**
             - offlinepartitionscount > 0 → partitions unavailable (CRITICAL)
             - underreplicatedpartitions > 0 for >5 minutes → data loss risk
+            - uncleanleaderelectionspersec > 0 → data loss has already occurred \
+            (out-of-sync replica elected leader; treat as CRITICAL)
+            - isrshrinkspersec > 0 consistently → replicas leaving ISR (leading indicator; \
+            escalates to under-replication if not addressed)
 
             Use the `interpretation` field for per-metric threshold guidance.
 
@@ -267,11 +271,12 @@ public class DiagnoseClusterIssuePrompt {
                **Action**: Address root cause first, then allow system to recover
 
             6. **Drain cleaner issues (HIGH):**
-               - Not deployed → abrupt pod evictions during node drains
-               - Webhook unconfigured → eviction interception disabled
-               - Legacy mode → less reliable eviction handling via PDB
-               - TLS certificate expiring → webhook will stop working
-               **Action**: Deploy drain cleaner, verify webhook, switch to standard mode
+                - Not deployed → abrupt pod evictions during node drains
+                - Webhook unconfigured → eviction interception disabled
+                - Legacy mode → uses PodDisruptionBudget instead of Strimzi pod annotations; \
+                less reliable for fast node drains because PDB cannot prevent all evictions
+                - TLS certificate expiring → webhook will stop working
+                **Action**: Deploy drain cleaner, verify webhook, switch to standard mode
 
             ## Final Summary
             Provide a clear summary with:
