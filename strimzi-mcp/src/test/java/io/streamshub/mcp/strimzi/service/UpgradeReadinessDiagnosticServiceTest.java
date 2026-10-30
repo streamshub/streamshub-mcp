@@ -24,10 +24,15 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import io.strimzi.api.kafka.model.rebalance.KafkaRebalance;
+import io.strimzi.api.kafka.model.topic.KafkaTopic;
+import io.strimzi.api.kafka.model.topic.KafkaTopicBuilder;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -65,6 +70,7 @@ class UpgradeReadinessDiagnosticServiceTest {
         KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaNodePool.class);
         KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Pod.class);
         KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaRebalance.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaTopic.class);
     }
 
     @Test
@@ -108,6 +114,30 @@ class UpgradeReadinessDiagnosticServiceTest {
 
         assertNotNull(report);
         assertTrue(report.stepsCompleted().contains("cluster_status"));
+    }
+
+    @Test
+    void testPreflightFindingsReportBlockingTopicAndUnsupportedTarget() {
+        setupKafkaCluster("my-cluster", "kafka");
+        KafkaTopic topic = new KafkaTopicBuilder()
+            .withNewMetadata().withName("orders").withNamespace("kafka")
+                .withLabels(Map.of("strimzi.io/cluster", "my-cluster"))
+            .endMetadata()
+            .withNewSpec().withPartitions(3).withReplicas(3)
+                .withConfig(Map.of("min.insync.replicas", 3))
+            .endSpec()
+            .build();
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(topic));
+
+        UpgradeReadinessReport report = upgradeReadinessDiagnosticService.diagnose(
+            "kafka", "my-cluster", "Kafka 4.2.0",
+            null, null, null, null);
+
+        assertTrue(report.stepsCompleted().contains("preflight_checks"));
+        assertNotNull(report.preflightFindings());
+        assertTrue(report.preflightFindings().stream().anyMatch(f ->
+            "BLOCKER".equals(f.severity()) && "topic_durability".equals(f.check())
+                && f.message().contains("orders")));
     }
 
     // ---- Test helpers ----

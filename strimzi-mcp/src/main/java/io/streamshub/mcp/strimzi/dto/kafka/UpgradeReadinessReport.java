@@ -30,6 +30,7 @@ import java.util.List;
  * @param certificates        certificate expiry information
  * @param events              recent Kubernetes events
  * @param activeRebalances    active KafkaRebalance operations (hard blocker if non-empty)
+ * @param preflightFindings   deterministic pre-flight findings (topic durability, unclean election, version path)
  * @param analysis            LLM-generated GO/NO-GO verdict (null if Sampling not supported)
  * @param stepsCompleted      the list of successfully completed check steps
  * @param stepsFailed         the list of failed check steps with error messages
@@ -49,6 +50,7 @@ public record UpgradeReadinessReport(
     @JsonProperty("certificates") KafkaCertificateResponse certificates,
     @JsonProperty("events") StrimziEventsResponse events,
     @JsonProperty("active_rebalances") List<KafkaRebalanceResponse> activeRebalances,
+    @JsonProperty("preflight_findings") List<UpgradePreflightFinding> preflightFindings,
     @JsonProperty("analysis") String analysis,
     @JsonProperty("steps_completed") List<String> stepsCompleted,
     @JsonProperty("steps_failed") List<String> stepsFailed,
@@ -70,6 +72,7 @@ public record UpgradeReadinessReport(
      * @param certificates       the certificate info
      * @param events             the Kubernetes events
      * @param activeRebalances   the active rebalance operations
+     * @param preflightFindings  the deterministic pre-flight findings
      * @param analysis           the LLM verdict
      * @param stepsCompleted     the completed steps
      * @param stepsFailed        the failed steps (null if none)
@@ -87,6 +90,7 @@ public record UpgradeReadinessReport(
                                              final KafkaCertificateResponse certificates,
                                              final StrimziEventsResponse events,
                                              final List<KafkaRebalanceResponse> activeRebalances,
+                                             final List<UpgradePreflightFinding> preflightFindings,
                                              final String analysis,
                                              final List<String> stepsCompleted,
                                              final List<String> stepsFailed) {
@@ -97,6 +101,7 @@ public record UpgradeReadinessReport(
         return new UpgradeReadinessReport(cluster, operator, nodePools, pods,
             replicationMetrics, performanceMetrics, resourceMetrics,
             drainCleaner, certificates, events, rebalances,
+            preflightFindings != null && !preflightFindings.isEmpty() ? preflightFindings : null,
             analysis, stepsCompleted, stepsFailed, Instant.now(), msg);
     }
 }

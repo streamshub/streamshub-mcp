@@ -126,7 +126,7 @@ public final class KafkaMetricCategories {
                 + "replicas than configured. Should be 0. >0 means data loss risk. "
                 + "**TIME-SENSITIVE**: If >0 for >5 minutes during normal operations, indicates broker "
                 + "overload, network issues, or disk I/O problems. Transient spikes during rolling "
-                + "restarts are expected (2-3 minutes per broker).\n\n"
+                + "restarts are expected.\n\n"
                 + "**[CRITICAL - PARTITION AVAILABILITY]**\n\n"
                 + "kafka_controller_kafkacontroller_offlinepartitionscount: Partitions with no active "
                 + "leader. Should be 0. >0 is critical — those partitions are unavailable to producers "
