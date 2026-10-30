@@ -420,7 +420,8 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
         
         Distinguish between:
         1. Replication failures (CRITICAL): offline partitions, under-replicated partitions, growing lag
-        2. Performance degradation (HIGH): low handler idle, high queue times, network saturation
+        2. Performance degradation (HIGH): low handler idle (warn < 0.3, critical < 0.2), \
+high queue times, network saturation (network processor idle warn < 0.3, critical < 0.2)
         3. Resource exhaustion (MEDIUM): GC thrashing, high heap usage, CPU saturation
         4. Throughput anomalies (LOW): rate drops, cross-broker imbalance
         

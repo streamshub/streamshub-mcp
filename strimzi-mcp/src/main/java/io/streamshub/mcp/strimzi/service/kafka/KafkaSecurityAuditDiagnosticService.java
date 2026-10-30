@@ -361,8 +361,10 @@ public class KafkaSecurityAuditDiagnosticService extends BaseDiagnosticService {
         - ACL grants with 'All' operations (superuser-level access)
         - ACL grants on the 'cluster' resource (cluster admin access)
         - ACL grants with wildcard resource name '*' (matches all resources)
-        - Users with authentication but no authorization/ACLs (unrestricted access when the cluster \
-        uses the built-in 'simple' authorizer)
+        - Users with authentication but no authorization/ACLs — note: the 'simple' authorizer \
+        (AclAuthorizer / StandardAuthorizer) denies all access by default unless the user is a \
+        super.user; this is a misconfiguration risk (user cannot connect) rather than a \
+        privilege-escalation risk, unless allow.everyone.if.no.acl.found=true is explicitly set
         - Certificates expired or expiring within 30 days
 
         MEDIUM RISK:
