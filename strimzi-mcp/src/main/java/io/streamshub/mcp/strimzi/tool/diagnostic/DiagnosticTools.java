@@ -461,7 +461,7 @@ public class DiagnosticTools {
             description = StrimziToolsPrompts.SYMPTOM_DESC,
             required = false
         ) final String symptom,
-        @ToolArg(
+        @Min(1) @ToolArg(
             description = StrimziToolsPrompts.SINCE_MINUTES_DESC,
             required = false
         ) final Integer sinceMinutes,

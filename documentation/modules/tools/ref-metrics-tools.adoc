@@ -21,7 +21,7 @@ Returns samples with an interpretation guide for thresholds and diagnostics.
 * `startTime` (optional) -- Absolute start time (ISO 8601 format)
 * `endTime` (optional) -- Absolute end time (ISO 8601 format)
 * `stepSeconds` (optional) -- Range query step in seconds
-* `aggregation` (optional) -- Aggregation level: "partition" (full detail), "topic" (avg across partitions), "broker" (avg across topics+partitions), or "cluster" (single avg across all dimensions). An explicit value is clamped to the finest level the requested category supports. When omitted the default is "cluster", except for the "partitions" category, which defaults to "partition" -- its metrics are per-partition 0/1 gauges that lose their meaning when averaged.
+* `aggregation` (optional) -- Aggregation level (schema enum): `PARTITION` (full detail), `TOPIC` (avg across partitions), `BROKER` (avg across topics+partitions), or `CLUSTER` (single avg across all dimensions). An explicit value is clamped to the finest level the requested category supports. When omitted the default is `CLUSTER`, except for the "partitions" category, which defaults to `PARTITION` -- its metrics are per-partition 0/1 gauges that lose their meaning when averaged.
 * `requestTypes` (optional) -- Comma-separated list of Kafka request types to include (for example, "Produce,Fetch,FindCoordinator"). Filters performance metrics that have a "request" label. Omit to include all request types.
 
 *Returns:* Aggregated metrics with summary statistics (min, max, avg, latest), interpretation guide, and diagnostic thresholds
@@ -48,7 +48,7 @@ The `resources` category returns Go process metrics (`process_cpu_seconds_total`
 * `startTime` (optional) -- Absolute start time (ISO 8601 format)
 * `endTime` (optional) -- Absolute end time (ISO 8601 format)
 * `stepSeconds` (optional) -- Range query step in seconds
-* `aggregation` (optional) -- Aggregation level: "partition" (full detail), "topic" (avg across partitions), "broker" (avg across topics+partitions), or "cluster" (single avg across all dimensions). An explicit value is clamped to the finest level the requested category supports. When omitted the default is "cluster", except for the "partitions" category, which defaults to "partition" -- its metrics are per-partition 0/1 gauges that lose their meaning when averaged.
+* `aggregation` (optional) -- Aggregation level (schema enum): `PARTITION` (full detail), `TOPIC` (avg across partitions), `BROKER` (avg across topics+partitions), or `CLUSTER` (single avg across all dimensions). An explicit value is clamped to the finest level the requested category supports. When omitted the default is `CLUSTER`, except for the "partitions" category, which defaults to `PARTITION` -- its metrics are per-partition 0/1 gauges that lose their meaning when averaged.
 
 *Returns:* Aggregated Kafka Exporter metrics with summary statistics and interpretation guide
 
@@ -72,7 +72,7 @@ Returns HTTP request, producer, consumer, and resource (Micrometer JVM) metrics 
 * `startTime` (optional) -- Absolute start time (ISO 8601 format)
 * `endTime` (optional) -- Absolute end time (ISO 8601 format)
 * `stepSeconds` (optional) -- Range query step in seconds
-* `aggregation` (optional) -- Aggregation level (automatically clamped to supported levels for bridge categories)
+* `aggregation` (optional) -- Aggregation level (schema enum): `PARTITION`, `TOPIC`, `BROKER`, or `CLUSTER` (default `CLUSTER`). KafkaBridge categories have no topic or partition dimensions, so the server clamps an explicit value to the finest level the category supports.
 
 *Returns:* KafkaBridge metrics with samples and interpretation guide. The `resources` category uses Micrometer JVM metric names (`jvm_gc_pause_seconds_count`, `process_cpu_usage`, `jvm_threads_live_threads`) -- the Bridge runs on Micrometer/Vert.x, not the JMX Prometheus Exporter.
 
@@ -96,7 +96,7 @@ Returns worker, connector, source, sink, and JVM metrics with interpretation gui
 * `startTime` (optional) -- Absolute start time (ISO 8601 format)
 * `endTime` (optional) -- Absolute end time (ISO 8601 format)
 * `stepSeconds` (optional) -- Range query step in seconds
-* `aggregation` (optional) -- Aggregation level (automatically clamped to "cluster" for all KafkaConnect categories)
+* `aggregation` (optional) -- Aggregation level (schema enum): `PARTITION`, `TOPIC`, `BROKER`, or `CLUSTER` (default `CLUSTER`). KafkaConnect categories have no topic or partition dimensions, so the server clamps an explicit value to `CLUSTER`.
 
 *Returns:* KafkaConnect metrics with samples and interpretation guide
 
@@ -123,7 +123,7 @@ The `jvm` category uses Micrometer JVM metric names (`jvm_gc_pause_seconds_count
 * `startTime` (optional) -- Absolute start time (ISO 8601 format)
 * `endTime` (optional) -- Absolute end time (ISO 8601 format)
 * `stepSeconds` (optional) -- Range query step in seconds
-* `aggregation` (optional) -- Aggregation level: "partition" (full detail), "topic" (avg across partitions), "broker" (avg across topics+partitions), or "cluster" (single avg across all dimensions). An explicit value is clamped to the finest level the requested category supports. When omitted the default is "cluster", except for the "partitions" category, which defaults to "partition" -- its metrics are per-partition 0/1 gauges that lose their meaning when averaged.
+* `aggregation` (optional) -- Aggregation level (schema enum): `PARTITION` (full detail), `TOPIC` (avg across partitions), `BROKER` (avg across topics+partitions), or `CLUSTER` (single avg across all dimensions). An explicit value is clamped to the finest level the requested category supports. When omitted the default is `CLUSTER`, except for the "partitions" category, which defaults to `PARTITION` -- its metrics are per-partition 0/1 gauges that lose their meaning when averaged.
 
 *Returns:* Aggregated operator metrics with summary statistics and interpretation guide
 
@@ -147,7 +147,7 @@ Returns sample collection, partition monitoring, and anomaly detection metrics w
 * `startTime` (optional) -- Absolute start time (ISO 8601 format)
 * `endTime` (optional) -- Absolute end time (ISO 8601 format)
 * `stepSeconds` (optional) -- Range query step in seconds
-* `aggregation` (optional) -- Aggregation level (always clamped to "cluster")
+* `aggregation` (optional) -- Aggregation level (schema enum): `PARTITION`, `TOPIC`, `BROKER`, or `CLUSTER`. Always clamped to `CLUSTER` for Cruise Control metrics, which have no partition or topic dimensions.
 
 *Returns:* Aggregated Cruise Control metrics with summary statistics and interpretation guide
 

@@ -317,13 +317,13 @@ public final class StrimziToolsPrompts {
      * Aggregation level parameter description for metrics tools.
      */
     public static final String AGGREGATION_DESC =
-        "Aggregation level: 'partition' (full per-pod/topic/partition detail),"
-            + " 'topic' (per-pod/topic, avg across partitions),"
-            + " 'broker' (per-pod, avg across topics+partitions),"
-            + " or 'cluster' (single avg across all dimensions, default)."
+        "Aggregation level: PARTITION (full per-pod/topic/partition detail),"
+            + " TOPIC (per-pod/topic, avg across partitions),"
+            + " BROKER (per-pod, avg across topics+partitions),"
+            + " or CLUSTER (single avg across all dimensions, default)."
             + " Aggregation works on topic/partition dimensions."
             + " The server automatically adjusts to the finest level supported by the"
-            + " requested category (e.g., 'partition' on a broker-only category becomes 'broker')."
+            + " requested category (e.g., PARTITION on a broker-only category becomes BROKER)."
             + " For performance metrics (which have request type, not topic/partition),"
             + " use requestTypes to control cardinality instead.";
 
@@ -332,7 +332,7 @@ public final class StrimziToolsPrompts {
      * Cruise Control has no partition or topic granularity; all categories are always clamped to cluster level.
      */
     public static final String CC_AGGREGATION_DESC =
-        "Aggregation level (always clamped to 'cluster' for Cruise Control metrics,"
+        "Aggregation level (always clamped to CLUSTER for Cruise Control metrics,"
             + " which have no partition or topic dimensions).";
 
     /**

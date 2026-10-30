@@ -20,4 +20,14 @@ public record DrainCleanerListResponse(
     @JsonProperty("items") List<DrainCleanerResponse> items,
     @JsonProperty("count") int count
 ) {
+
+    /**
+     * Creates a DrainCleanerListResponse from its items, computing the count.
+     *
+     * @param items the list items
+     * @return a new list response
+     */
+    public static DrainCleanerListResponse of(final List<DrainCleanerResponse> items) {
+        return new DrainCleanerListResponse(items, items.size());
+    }
 }

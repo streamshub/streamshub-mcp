@@ -48,7 +48,7 @@ Build an ACL matrix (resource to principal to operations) aggregated across all 
 
 * `clusterName` (required) -- Kafka cluster name
 * `namespace` (optional) -- Kubernetes namespace
-* `resourceType` (optional) -- ACL resource type to filter on: `topic` (default), `group`, `transactionalId`, or `cluster`
+* `resourceType` (optional) -- ACL resource type to filter on (schema enum): `TOPIC` (default), `GROUP`, `TRANSACTIONAL_ID`, or `CLUSTER`
 
 *Returns:* `matrix` (resource name to principal to sorted operations for allow rules), `denied` (same shape for deny rules, omitted when there are none), `principals` (sorted list of principals in `matrix`), `resource_count`, `principal_count`, `broad_grants` (principal, resource, operations, and a reason such as `"wildcard resource"` or `"All operations"`), and a summary `message`
 

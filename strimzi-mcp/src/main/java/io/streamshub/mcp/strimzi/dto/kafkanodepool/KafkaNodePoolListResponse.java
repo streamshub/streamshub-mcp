@@ -20,4 +20,14 @@ public record KafkaNodePoolListResponse(
     @JsonProperty("items") List<KafkaNodePoolResponse> items,
     @JsonProperty("count") int count
 ) {
+
+    /**
+     * Creates a KafkaNodePoolListResponse from its items, computing the count.
+     *
+     * @param items the list items
+     * @return a new list response
+     */
+    public static KafkaNodePoolListResponse of(final List<KafkaNodePoolResponse> items) {
+        return new KafkaNodePoolListResponse(items, items.size());
+    }
 }

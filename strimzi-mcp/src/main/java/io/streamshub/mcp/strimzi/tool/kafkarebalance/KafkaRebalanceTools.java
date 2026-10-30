@@ -79,7 +79,7 @@ public class KafkaRebalanceTools {
         ) final String namespace
     ) {
         List<KafkaRebalanceResponse> items = rebalanceService.listRebalances(namespace, clusterName);
-        return new KafkaRebalanceListResponse(items, items.size());
+        return KafkaRebalanceListResponse.of(items);
     }
 
     /**

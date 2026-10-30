@@ -20,4 +20,14 @@ public record KafkaMirrorMaker2ListResponse(
     @JsonProperty("items") List<KafkaMirrorMaker2Response> items,
     @JsonProperty("count") int count
 ) {
+
+    /**
+     * Creates a KafkaMirrorMaker2ListResponse from its items, computing the count.
+     *
+     * @param items the list items
+     * @return a new list response
+     */
+    public static KafkaMirrorMaker2ListResponse of(final List<KafkaMirrorMaker2Response> items) {
+        return new KafkaMirrorMaker2ListResponse(items, items.size());
+    }
 }
