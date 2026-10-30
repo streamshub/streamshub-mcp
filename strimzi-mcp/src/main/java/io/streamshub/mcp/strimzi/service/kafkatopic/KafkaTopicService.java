@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.service.kafkatopic;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.dto.ReconciliationInfo;
+import io.streamshub.mcp.common.guardrail.SensitiveKeys;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.GlobMatcher;
 import io.streamshub.mcp.common.util.InputUtils;
@@ -179,7 +180,7 @@ public class KafkaTopicService {
         if (topic.getSpec() != null) {
             partitions = topic.getSpec().getPartitions();
             replicas = topic.getSpec().getReplicas();
-            Map<String, Object> specConfig = topic.getSpec().getConfig();
+            Map<String, Object> specConfig = SensitiveKeys.redactValues(topic.getSpec().getConfig());
             config = (specConfig != null && !specConfig.isEmpty()) ? specConfig : null;
         }
 

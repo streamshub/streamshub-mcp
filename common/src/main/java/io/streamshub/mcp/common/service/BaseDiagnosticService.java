@@ -7,6 +7,7 @@ package io.streamshub.mcp.common.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkiverse.mcp.server.InputRequiredException;
 import io.quarkiverse.mcp.server.Sampling;
+import io.streamshub.mcp.common.guardrail.Redactor;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -25,6 +26,9 @@ public abstract class BaseDiagnosticService {
 
     @Inject
     protected ObjectMapper objectMapper;
+
+    @Inject
+    protected Redactor redactor;
 
     @ConfigProperty(name = "mcp.sampling.triage-max-tokens", defaultValue = "200")
     protected int triageMaxTokens;
@@ -73,7 +77,7 @@ public abstract class BaseDiagnosticService {
     protected String performSampling(Sampling sampling, String systemPrompt,
                                       Map<String, Object> data, int maxTokens,
                                       AtomicBoolean cancelled) {
-        return DiagnosticHelper.sendSampling(sampling, objectMapper, systemPrompt, data,
+        return DiagnosticHelper.sendSampling(sampling, objectMapper, redactor, systemPrompt, data,
             maxTokens, cancelled, getLogger());
     }
 
@@ -152,7 +156,7 @@ public abstract class BaseDiagnosticService {
     protected String performAnalysisMrtr(final Sampling sampling, final String systemPrompt,
                                          final Map<String, Object> fullData, final String key,
                                          final String requestState, final AtomicBoolean cancelled) {
-        return DiagnosticHelper.analysisSamplingMrtr(sampling, objectMapper, systemPrompt,
+        return DiagnosticHelper.analysisSamplingMrtr(sampling, objectMapper, redactor, systemPrompt,
             fullData, analysisMaxTokens, key, requestState, cancelled, getLogger());
     }
 }

@@ -11,6 +11,7 @@ import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
+import io.streamshub.mcp.common.guardrail.Redactor;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
@@ -46,6 +47,9 @@ public class KafkaConfigComparisonService {
 
     @Inject
     ObjectMapper objectMapper;
+
+    @Inject
+    Redactor redactor;
 
     @ConfigProperty(name = "mcp.sampling.analysis-max-tokens", defaultValue = "1500")
     int analysisMaxTokens;
@@ -185,7 +189,7 @@ public class KafkaConfigComparisonService {
         data.put("cluster1", config1);
         data.put("cluster2", config2);
 
-        return DiagnosticHelper.analysisSamplingMrtr(sampling, objectMapper,
+        return DiagnosticHelper.analysisSamplingMrtr(sampling, objectMapper, redactor,
             COMPARISON_SYSTEM_PROMPT, data, analysisMaxTokens, "analysis", null, null, LOG);
     }
 

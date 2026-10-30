@@ -427,7 +427,7 @@ class KafkaConfigServiceTest {
     }
 
     @Test
-    void testTieredStorageConfigRedactsAllDenylistPatterns() {
+    void testTieredStorageConfigRedactsSecretKeys() {
         Kafka kafka = new KafkaBuilder()
             .withMetadata(new ObjectMetaBuilder().withName("my-cluster").withNamespace("kafka").build())
             .withNewSpec()
@@ -484,8 +484,8 @@ class KafkaConfigServiceTest {
         KafkaEffectiveConfigResponse response = kafkaConfigService.getEffectiveConfig("kafka", "my-cluster");
         Map<String, Object> config = response.tieredStorage().remoteStorageManager().config();
 
-        // KafkaConfigService#sanitizeConfigMap lowercases keys (Locale.ROOT) before matching the denylist,
-        // so mixed-case keys like "AccessKeyId" / "S3_SECRET" are still redacted -- not a case-sensitivity gap.
+        // SensitiveKeys splits keys into words (including camelCase) and compares them lower-cased,
+        // so mixed-case keys like "AccessKeyId" / "S3_SECRET" are still redacted.
         assertEquals("[REDACTED]", config.get("AccessKeyId"));
         assertEquals("[REDACTED]", config.get("S3_SECRET"));
     }
@@ -518,7 +518,7 @@ class KafkaConfigServiceTest {
     }
 
     @Test
-    void testTieredStorageConfigRedactsSubstringWithinUnrelatedWord() {
+    void testTieredStorageConfigDoesNotRedactFileLocationContainingKeyword() {
         Kafka kafka = new KafkaBuilder()
             .withMetadata(new ObjectMetaBuilder().withName("my-cluster").withNamespace("kafka").build())
             .withNewSpec()
@@ -537,9 +537,35 @@ class KafkaConfigServiceTest {
         KafkaEffectiveConfigResponse response = kafkaConfigService.getEffectiveConfig("kafka", "my-cluster");
         Map<String, Object> config = response.tieredStorage().remoteStorageManager().config();
 
-        // Known false-positive ceiling of the substring-based denylist: "keystore.location" contains "key"
-        // so it is redacted even though it is a file path, not a secret. Not a bug to fix here.
-        assertEquals("[REDACTED]", config.get("keystore.location"));
+        // Keys are matched word by word, so "keystore.location" (a file path) is not mistaken for a secret.
+        assertEquals("/etc/ssl/keystore.jks", config.get("keystore.location"));
+    }
+
+    @Test
+    void testBrokerAndCruiseControlConfigRedactSecretsOnly() {
+        Kafka kafka = new KafkaBuilder()
+            .withMetadata(new ObjectMetaBuilder().withName("my-cluster").withNamespace("kafka").build())
+            .withNewSpec()
+                .withNewKafka()
+                    .withConfig(Map.of(
+                        "min.insync.replicas", 2,
+                        "ssl.keystore.password", "kspw",
+                        "delegation.token.max.lifetime.ms", 604800000))
+                .endKafka()
+                .withCruiseControl(new CruiseControlSpecBuilder()
+                    .withConfig(Map.of("webserver.auth.credentials.file", "/etc/cc/creds",
+                        "webserver.ssl.key.password", "ccpw"))
+                    .build())
+            .endSpec()
+            .build();
+        setupKafkaResource(kafka, "kafka", "my-cluster");
+
+        KafkaEffectiveConfigResponse response = kafkaConfigService.getEffectiveConfig("kafka", "my-cluster");
+
+        assertEquals(2, response.brokerConfig().get("min.insync.replicas"));
+        assertEquals("[REDACTED]", response.brokerConfig().get("ssl.keystore.password"));
+        assertEquals(604800000, response.brokerConfig().get("delegation.token.max.lifetime.ms"));
+        assertEquals("[REDACTED]", response.cruiseControl().config().get("webserver.ssl.key.password"));
     }
 
     // ---- Test helpers ----

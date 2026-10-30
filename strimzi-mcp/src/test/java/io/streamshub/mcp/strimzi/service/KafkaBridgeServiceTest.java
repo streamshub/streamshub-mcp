@@ -17,12 +17,14 @@ import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgePodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafkabridge.KafkaBridgeResponse;
 import io.streamshub.mcp.strimzi.service.kafkabridge.KafkaBridgeService;
 import io.strimzi.api.kafka.model.bridge.KafkaBridge;
+import io.strimzi.api.kafka.model.bridge.KafkaBridgeBuilder;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -102,5 +104,36 @@ class KafkaBridgeServiceTest {
         assertEquals("kafka", result.namespace());
         assertEquals("my-bridge", result.bridgeName());
         assertTrue(result.message().contains("No KafkaBridge pods found"));
+    }
+
+    /**
+     * Verify get redacts secret values in the producer, consumer and admin client configs
+     * but keeps non-secret keys.
+     */
+    @Test
+    void testGetBridgeRedactsSecretConfigValues() {
+        KafkaBridge bridge = new KafkaBridgeBuilder()
+            .withNewMetadata().withName("my-bridge").withNamespace("kafka").endMetadata()
+            .withNewSpec()
+                .withBootstrapServers("my-cluster-kafka-bootstrap:9092")
+                .withReplicas(1)
+                .withNewHttp(8080)
+                .withNewProducer().withConfig(Map.of("acks", "all", "ssl.key.password", "pw1")).endProducer()
+                .withNewConsumer().withConfig(Map.of("group.id", "g", "sasl.jaas.config", "x required;"))
+                    .endConsumer()
+                .withNewAdminClient().withConfig(Map.of("client.id", "c", "oauth.client.secret", "s3"))
+                    .endAdminClient()
+            .endSpec()
+            .build();
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaBridge.class, List.of(bridge));
+
+        KafkaBridgeResponse response = bridgeService.getBridge("kafka", "my-bridge");
+
+        assertEquals("all", response.producerConfig().get("acks"));
+        assertEquals("[REDACTED]", response.producerConfig().get("ssl.key.password"));
+        assertEquals("g", response.consumerConfig().get("group.id"));
+        assertEquals("[REDACTED]", response.consumerConfig().get("sasl.jaas.config"));
+        assertEquals("c", response.adminClientConfig().get("client.id"));
+        assertEquals("[REDACTED]", response.adminClientConfig().get("oauth.client.secret"));
     }
 }
