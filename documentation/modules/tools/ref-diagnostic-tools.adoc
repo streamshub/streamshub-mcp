@@ -180,7 +180,7 @@ Gathers topic status, related topics (scope detection), cluster health, operator
 *3-phase workflow:*
 
 . *Phase 1 -- Initial data gathering*: Topic status, related topics for scope detection (topic-wide vs cluster-wide), parent cluster health gate.
-. *Phase 2 -- Deep investigation*: Operator logs (filtered for topic name), Kubernetes events, Kafka Exporter partition metrics.
+. *Phase 2 -- Deep investigation*: Operator logs (filtered for topic name), Kubernetes events, Kafka Exporter partition metrics. A Ready topic on a Ready cluster is not treated as healthy by itself: when you pass a `symptom`, when a replication-factor change is in flight, or when the topic or cluster is not Ready, all areas that can explain it are always investigated, whatever the triage answers.
 . *Phase 3 -- Analysis*: Root cause analysis distinguishing topic config issues, Topic Operator issues, and cluster-wide problems.
 
 *Parameters:*
@@ -202,13 +202,19 @@ Diagnose issues with my-topic on cluster my-cluster
 
 Server-driven companion to the xref:ref-prompt-templates-{context}[`assess-upgrade-readiness` prompt template].
 Assesses whether a Kafka cluster is ready for a Strimzi or Kafka version upgrade.
-Checks cluster health, operator status, pod health, replication, resource headroom, Drain Cleaner, and certificates.
+Checks cluster health, operator status, pod health, replication, topic durability, resource headroom, Drain Cleaner, and certificates.
 
 *3-phase workflow:*
 
-. *Phase 1 -- Pre-flight checks*: Cluster health, operator status, node pools and pods, replication metrics, active rebalance check (hard blocker).
-. *Phase 2 -- Safety checks*: Performance metrics (headroom), resource metrics, Drain Cleaner readiness, certificate expiry, events.
-. *Phase 3 -- Verdict*: GO/NO-GO/CONDITIONAL verdict with pre-flight checklist and maintenance window estimate.
+. *Phase 1 -- Pre-flight checks*: Cluster health, operator status, node pools and pods, replication metrics, active rebalance check (hard blocker), and deterministic `preflight_findings` (see below).
+. *Phase 2 -- Safety checks*: Performance metrics (headroom), resource metrics, Drain Cleaner readiness, certificate expiry, events. Certificates and Drain Cleaner are always checked, whatever the triage answers; events are also always gathered when the cluster is not Ready.
+. *Phase 3 -- Verdict*: GO/NO-GO/CONDITIONAL verdict with pre-flight checklist and maintenance window estimate. The estimate states its assumptions; no fixed per-broker restart time is assumed.
+
+*Pre-flight findings* are computed by the server without the LLM and returned in `preflight_findings` (each with `severity` `BLOCKER` or `WARNING`, a `check` name, and a `message`):
+
+* `topic_durability` -- `BLOCKER` for topics whose effective `min.insync.replicas` (topic override, else broker default) is greater than or equal to the replication factor, because `acks=all` producers cannot write while one broker restarts; `WARNING` for single-replica topics.
+* `unclean_leader_election` -- `WARNING` when `unclean.leader.election.enable=true` on the brokers or on a topic.
+* `version_path` -- when `targetVersion` is a Kafka version: `BLOCKER` if the installed Strimzi operator does not list it in `supported_kafka_versions`; `WARNING` for a downgrade or a same-version target. Also a `WARNING` when the metadata version is older than the running Kafka version (an earlier upgrade was never finalized). A Strimzi target (for example `Strimzi 0.45.0`) is not checked.
 
 *Parameters:*
 
@@ -219,8 +225,8 @@ Checks cluster health, operator status, pod health, replication, resource headro
 Uses Sampling:: Yes -- GO/NO-GO verdict generation
 Uses Elicitation:: Yes -- Namespace disambiguation
 
-This tool does not verify that the operator itself supports `targetVersion`.
-Call xref:ref-strimzi-operator-tools-{context}[`get_strimzi_operator_config`] first and check `supported_kafka_versions`.
+For a Kafka `targetVersion`, the tool compares it with the `supported_kafka_versions` of the installed Strimzi operator (see xref:ref-strimzi-operator-tools-{context}[`get_strimzi_operator_config`]).
+It does not verify that a Strimzi operator version target is a valid upgrade path.
 
 .Example
 ----

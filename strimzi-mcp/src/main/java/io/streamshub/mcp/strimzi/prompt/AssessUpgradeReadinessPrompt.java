@@ -92,7 +92,9 @@ public class AssessUpgradeReadinessPrompt {
             - Active conditions with type Warning or Error
             - Reconciliation in progress (generation mismatch)
 
-            Record the current Kafka version and Strimzi operator version.
+            Record the current Kafka version, the metadata version (`kafka_metadata_version`) and the \
+            Strimzi operator version. A metadata version older than the running Kafka version means an \
+            earlier upgrade was never finalized: finish it first.
 
             ## Step 2: Operator health [GO/NO-GO]
             Use `list_strimzi_operators` **without passing a namespace** and `get_strimzi_operator` \
@@ -102,6 +104,8 @@ public class AssessUpgradeReadinessPrompt {
             **GO conditions**:
             - Operator deployment is available with all replicas ready
             - Operator version is known (for upgrade path validation)
+            - If the target is a Kafka version, `get_strimzi_operator_config(...)` lists it in \
+            `supported_kafka_versions`; otherwise upgrade the operator first (**NO-GO**)
 
             **NO-GO conditions**:
             - Operator not available or degraded
@@ -148,6 +152,22 @@ public class AssessUpgradeReadinessPrompt {
             broker is down at a time. If partitions are already under-replicated, \
             the restart will cause further replica loss and potential data \
             unavailability.
+
+            ## Step 4b: Topic durability and unclean election [GO/NO-GO]
+            Use `get_kafka_cluster_config(clusterName='%s'%s)` for the broker defaults \
+            (`min.insync.replicas`, `unclean.leader.election.enable`) and \
+            `list_kafka_topics(clusterName='%s'%s)` for per-topic `replicas` and `configuration`.
+            The effective `min.insync.replicas` of a topic is its own override, else the broker default, \
+            else 1.
+
+            **NO-GO conditions**:
+            - Any topic whose effective `min.insync.replicas` is >= its replication factor: producers using \
+            `acks=all` cannot write while one broker restarts
+
+            **WARNING**:
+            - Single-replica topics (unavailable while their broker restarts)
+            - `unclean.leader.election.enable=true` on the brokers or on any topic (acknowledged records can \
+            be lost during the rolling restart)
 
             ## Step 5: Active rebalance check [GO/NO-GO — HARD BLOCKER]
             Use `list_kafka_rebalances(clusterName='%s'%s)`.
@@ -237,6 +257,7 @@ public class AssessUpgradeReadinessPrompt {
             | Operator health | GO/NO-GO | ... |
             | Pod health | GO/NO-GO | ... |
             | Replication | GO/NO-GO | ... |
+            | Topic durability / unclean election | GO/NO-GO | ... |
             | Rebalances | GO/NO-GO | ... |
             | Resource headroom | GO/NO-GO | ... |
             | Drain Cleaner | GO/NO-GO | ... |
@@ -260,6 +281,8 @@ public class AssessUpgradeReadinessPrompt {
             - Risk assessment for proceeding without meeting conditions\
             """.formatted(
                 clusterName, nsClause, versionClause,
+                clusterName, nsArg,
+                clusterName, nsArg,
                 clusterName, nsArg,
                 clusterName, nsArg,
                 clusterName, nsArg,
