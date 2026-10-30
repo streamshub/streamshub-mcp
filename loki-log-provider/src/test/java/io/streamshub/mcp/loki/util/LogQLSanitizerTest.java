@@ -85,4 +85,18 @@ class LogQLSanitizerTest {
         assertThrows(IllegalArgumentException.class, () -> LogQLSanitizer.sanitizeLabelName("name-with-dash"));
         assertThrows(IllegalArgumentException.class, () -> LogQLSanitizer.sanitizeLabelName("name.with.dot"));
     }
+
+    @Test
+    void testEscapeRegexLiteralEscapesEveryMetacharacter() {
+        assertEquals("a\\.b", LogQLSanitizer.escapeRegexLiteral("a.b"));
+        assertEquals("\\(\\)\\[\\]\\{\\}", LogQLSanitizer.escapeRegexLiteral("()[]{}"));
+        assertEquals("a\\|b\\+c\\*d\\?e\\^f\\$", LogQLSanitizer.escapeRegexLiteral("a|b+c*d?e^f$"));
+        assertEquals("c:\\\\temp", LogQLSanitizer.escapeRegexLiteral("c:\\temp"));
+    }
+
+    @Test
+    void testEscapeRegexLiteralLeavesPlainTextAndNull() {
+        assertEquals("OutOfMemory-error_1", LogQLSanitizer.escapeRegexLiteral("OutOfMemory-error_1"));
+        assertEquals("", LogQLSanitizer.escapeRegexLiteral(null));
+    }
 }

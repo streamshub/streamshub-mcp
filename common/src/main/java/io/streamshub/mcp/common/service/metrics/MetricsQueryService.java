@@ -66,6 +66,27 @@ public class MetricsQueryService {
     }
 
     /**
+     * Returns the configured maximum number of samples a query may return.
+     *
+     * @return the sample limit, or 0 or less when unlimited
+     */
+    public int maxSamples() {
+        return maxSamples;
+    }
+
+    /**
+     * Reports whether a query result was cut at the sample limit. Providers stop collecting at
+     * the limit, so a result that holds exactly {@code maxSamples} samples is treated as
+     * truncated: the backend may have had more.
+     *
+     * @param samples the raw samples returned by {@link #queryMetrics}, before any filtering
+     * @return true when the result reached the configured sample limit
+     */
+    public boolean reachedSampleLimit(final List<MetricSample> samples) {
+        return maxSamples > 0 && samples.size() >= maxSamples;
+    }
+
+    /**
      * Returns the configured metrics provider name.
      *
      * @return the provider name (e.g. "streamshub-pod-scraping", "streamshub-prometheus")

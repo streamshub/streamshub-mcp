@@ -11,6 +11,7 @@ import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
 import io.streamshub.mcp.common.config.KubernetesConstants;
+import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
@@ -405,11 +406,15 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
             if (kafka.getSpec() != null && kafka.getSpec().getKafka() != null) {
                 brokerConfig = kafka.getSpec().getKafka().getConfig();
             }
-            List<KafkaTopicResponse> topics = topicService.listTopics(
-                namespace, clusterName, null, Integer.MAX_VALUE, null, null).items();
+            PaginatedResponse<KafkaTopicResponse> topicPage = topicService.listTopics(
+                namespace, clusterName, null, Integer.MAX_VALUE, null, null);
+            List<KafkaTopicResponse> topics = topicPage.items();
 
             List<UpgradePreflightFinding> findings = new ArrayList<>(
                 UpgradePreflightChecks.topicFindings(brokerConfig, topics));
+            if (Boolean.TRUE.equals(topicPage.truncated())) {
+                findings.add(UpgradePreflightChecks.truncationFinding(topics.size(), topicPage.total()));
+            }
 
             List<String> supported = null;
             if (UpgradePreflightChecks.parseKafkaTarget(targetVersion) != null) {

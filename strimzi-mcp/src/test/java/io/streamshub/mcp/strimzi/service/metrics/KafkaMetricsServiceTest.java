@@ -36,6 +36,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -159,6 +160,51 @@ class KafkaMetricsServiceTest {
         assertEquals("kafka", response.namespace());
         assertEquals(1, response.sampleCount());
         assertEquals(1, response.metricCount());
+    }
+
+    @Test
+    void truncatedQueryIsFlaggedInResponse() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
+                Map.of("namespace", "kafka"), 0.0));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(samples);
+        when(metricsQueryService.reachedSampleLimit(samples)).thenReturn(true);
+        when(metricsQueryService.maxSamples()).thenReturn(1);
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "replication", null, null, null, null, null, null, null);
+
+        assertEquals(Boolean.TRUE, response.truncated());
+        assertTrue(response.message().contains("truncated at 1 samples"), response.message());
+    }
+
+    @Test
+    void completeQueryIsNotFlaggedTruncated() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod pod = createPod("my-cluster-kafka-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(pod));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(List.of(MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
+                Map.of("namespace", "kafka"), 0.0)));
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "replication", null, null, null, null, null, null, null);
+
+        assertNull(response.truncated());
     }
 
     @Test

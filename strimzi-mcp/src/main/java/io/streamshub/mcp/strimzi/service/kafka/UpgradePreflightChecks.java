@@ -117,6 +117,23 @@ public final class UpgradePreflightChecks {
     }
 
     /**
+     * Report that the topic list was cut at the list-size cap, so the topic checks did not see every topic.
+     *
+     * <p>Without this finding an empty topic result would read as "all topics pass" even though the
+     * unchecked topics may reject {@code acks=all} writes during the rolling restart.</p>
+     *
+     * @param checked the number of topics that were checked
+     * @param total   the real number of topics in the cluster
+     * @return a warning finding
+     */
+    public static UpgradePreflightFinding truncationFinding(final int checked, final int total) {
+        return UpgradePreflightFinding.warning(CHECK_TOPIC_DURABILITY,
+            "Only the first " + checked + " of " + total + " topics were checked because the topic list is capped "
+                + "(mcp.topics.max-list-size); the other " + (total - checked) + " topics were not checked "
+                + "and may reject acks=all writes during the rolling restart.");
+    }
+
+    /**
      * Check the Kafka version path.
      *
      * <p>Compares the target with the running version and with the versions the installed Strimzi
