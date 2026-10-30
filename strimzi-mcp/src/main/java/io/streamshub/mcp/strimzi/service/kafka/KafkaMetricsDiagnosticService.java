@@ -277,6 +277,9 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
                 allMetrics.clusterName(), allMetrics.namespace(),
                 allMetrics.provider(), List.of(category),
                 categorySeries, interpretation);
+            if (Boolean.TRUE.equals(allMetrics.truncated())) {
+                categoryResponse = categoryResponse.withTruncation(0);
+            }
             results.put(category, categoryResponse);
             completed.add(categoryStepName(category));
         }

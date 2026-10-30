@@ -4,13 +4,25 @@
  */
 package io.streamshub.mcp.strimzi.service.kafka;
 
+import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.UpgradePreflightFinding;
+import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
+import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicService;
+import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests that certificates and Drain Cleaner are always investigated by the upgrade readiness
@@ -52,5 +64,30 @@ class UpgradeReadinessInvestigationFloorTest {
             new UpgradeReadinessDiagnosticService.InvestigationAreas(false, false, false, false, false);
 
         assertTrue(none.withFloor(cluster("NotReady")).events());
+    }
+
+    /**
+     * Verify a truncated topic list produces a warning instead of a silent "all topics pass".
+     */
+    @Test
+    void testPreflightWarnsWhenTopicListIsTruncated() {
+        UpgradeReadinessDiagnosticService service = new UpgradeReadinessDiagnosticService();
+        service.kafkaService = mock(KafkaService.class);
+        service.topicService = mock(KafkaTopicService.class);
+        Kafka kafka = new KafkaBuilder()
+            .withNewMetadata().withName("c").withNamespace("kafka").endMetadata()
+            .withNewSpec().withNewKafka().endKafka().endSpec()
+            .build();
+        when(service.kafkaService.findKafkaCluster(anyString(), anyString())).thenReturn(kafka);
+        when(service.kafkaService.getCluster(anyString(), anyString())).thenReturn(cluster("Ready"));
+        when(service.topicService.listTopics(anyString(), anyString(), any(), eq(Integer.MAX_VALUE), any(), any()))
+            .thenReturn(PaginatedResponse.<KafkaTopicResponse>of(List.of(), 7200, 0, 5000, false, true));
+
+        List<UpgradePreflightFinding> findings = service.gatherPreflightFindings(
+            "kafka", "c", null, new ArrayList<>(), new ArrayList<>());
+
+        assertTrue(findings.stream().anyMatch(f -> UpgradePreflightFinding.WARNING.equals(f.severity())
+            && UpgradePreflightChecks.CHECK_TOPIC_DURABILITY.equals(f.check())
+            && f.message().contains("7200")), findings.toString());
     }
 }

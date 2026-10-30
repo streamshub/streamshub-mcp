@@ -10,6 +10,7 @@ import io.streamshub.mcp.common.dto.metrics.AggregatedTimeSeries;
 import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.util.metrics.CommonLabelExtractor;
+import io.streamshub.mcp.common.util.metrics.MetricTruncation;
 
 import java.time.Instant;
 import java.util.List;
@@ -30,6 +31,8 @@ import java.util.Map;
  * @param commonLabels   labels shared by all time series (factored out to reduce response size)
  * @param timeSeries     the aggregated time series
  * @param interpretation brief guide for interpreting the returned metrics
+ * @param truncated      {@code true} when the samples were cut at {@code mcp.metrics.max-samples}
+ *                       and the data is incomplete; omitted otherwise
  * @param timestamp      the time this result was generated
  * @param message        a human-readable summary of the result
  */
@@ -45,6 +48,7 @@ public record KafkaBridgeMetricsResponse(
     @JsonProperty("common_labels") Map<String, String> commonLabels,
     @JsonProperty("time_series") List<AggregatedTimeSeries> timeSeries,
     @JsonProperty("interpretation") String interpretation,
+    @JsonProperty("truncated") Boolean truncated,
     @JsonProperty("timestamp") Instant timestamp,
     @JsonProperty("message") String message
 ) {
@@ -82,7 +86,19 @@ public record KafkaBridgeMetricsResponse(
 
         return new KafkaBridgeMetricsResponse(bridgeName, namespace, provider, categories,
             metricCount, samples.size(), level.name().toLowerCase(Locale.ROOT),
-            common, extracted.strippedSeries(), interpretation, Instant.now(), msg);
+            common, extracted.strippedSeries(), interpretation, null, Instant.now(), msg);
+    }
+
+    /**
+     * Returns a copy flagged as truncated, with a note appended to the message.
+     *
+     * @param limit the sample limit that was reached
+     * @return a copy with {@code truncated=true} and an explanatory message
+     */
+    public KafkaBridgeMetricsResponse withTruncation(final int limit) {
+        return new KafkaBridgeMetricsResponse(bridgeName, namespace, provider, categories,
+            metricCount, sampleCount, aggregation, commonLabels, timeSeries, interpretation,
+            Boolean.TRUE, timestamp, message + " " + MetricTruncation.note(limit));
     }
 
     /**
@@ -96,6 +112,6 @@ public record KafkaBridgeMetricsResponse(
     public static KafkaBridgeMetricsResponse empty(final String bridgeName, final String namespace,
                                                      final String message) {
         return new KafkaBridgeMetricsResponse(bridgeName, namespace, null, List.of(),
-            0, 0, null, null, List.of(), null, Instant.now(), message);
+            0, 0, null, null, List.of(), null, null, Instant.now(), message);
     }
 }
