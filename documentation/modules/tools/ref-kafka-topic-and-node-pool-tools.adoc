@@ -38,8 +38,8 @@ Get detailed information for a specific Kafka topic including configuration, par
 *Parameters:*
 
 * `clusterName` (required) -- Name of the Kafka cluster
-* `topicName` (required) -- Name of the topic
-* `namespace` (optional) -- Kubernetes namespace
+* `topicName` (required) -- Kafka topic name or KafkaTopic resource name (case-sensitive). Kafka names that are not valid Kubernetes names, such as `my_topic` or `__consumer_offsets`, are resolved through `spec.topicName` or `status.topicName`.
+* `namespace` (optional) -- Kubernetes namespace. When omitted and the topic exists in several namespaces, the call fails with an ambiguity error that lists the candidate namespaces.
 
 *Returns:* Detailed topic information including:
 

@@ -112,7 +112,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
                                                 final Cancellation cancellation) {
         String ns = InputUtils.normalizeInput(namespace);
         ns = DiagnosticHelper.effectiveNamespace(sampling, ns);
-        String name = InputUtils.normalizeInput(topicName);
+        String name = InputUtils.normalizeName(topicName);
         String cluster = InputUtils.normalizeInput(clusterName);
 
         if (name == null) {
