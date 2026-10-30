@@ -635,8 +635,9 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         If the operator is not running or its version is very old, set events to true. \
         Always set certificates to true if the cluster uses TLS. \
         Always set drain_cleaner to true if node pools have more than a few replicas. \
-        If there are active rebalances (New, PendingProposal, ProposalReady, Rebalancing, Stopped), \
-        always note this as a hard blocker — upgrades must not proceed while rebalancing is in progress.\
+        If there are active rebalances (New, PendingProposal, ProposalReady, Rebalancing), \
+        always note this as a hard blocker — upgrades must not proceed while rebalancing is in progress. \
+        Stopped is an aborted rebalance and is NOT a blocker; treat it like Ready.\
         """;
 
     static final String ANALYSIS_SYSTEM_PROMPT = """
@@ -649,19 +650,24 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
           * Cluster health
           * Operator readiness
           * Node pool and pod status
-          * Replication health (under-replicated partitions, ISR lag)
-          * Performance headroom (request queue times, handler idle ratio)
+          * Replication health (under-replicated partitions, ISR lag, \
+min.insync.replicas < replication factor required)
+          * Performance headroom: request handler idle > 0.5 (GO), 0.2–0.5 (CONDITIONAL), < 0.2 (NO-GO); \
+network processor idle > 0.3 (GO), 0.2–0.3 (CONDITIONAL), < 0.2 (NO-GO)
           * Resource headroom (JVM heap, GC pressure)
           * Drain Cleaner status (if applicable)
-          * Active rebalances (hard blocker if any are in progress)
+          * Active rebalances (hard blocker if New, PendingProposal, ProposalReady, or Rebalancing; \
+Stopped and Ready are not blockers)
           * Certificate expiry (days remaining)
           * Recent warning/error events
         - Blocking issues (if any, with severity)
         - Recommendations (prioritized, actionable steps before upgrading)
-        - Maintenance window estimate (based on cluster size and rolling restart time)
+        - Maintenance window estimate: rolling restart typically takes 3–15+ min per broker \
+(production clusters commonly 5–10+ min) depending on partition count and storage speed
 
         Be conservative: flag CONDITIONAL if any area shows degradation, \
-        and NO-GO if there are active rebalances, under-replicated partitions, expired certificates, \
-        or the operator is not healthy.\
+        and NO-GO if there are active rebalances (New, PendingProposal, ProposalReady, Rebalancing), \
+        under-replicated partitions, min.insync.replicas = replication factor, \
+        expired certificates, or the operator is not healthy.\
         """;
 }

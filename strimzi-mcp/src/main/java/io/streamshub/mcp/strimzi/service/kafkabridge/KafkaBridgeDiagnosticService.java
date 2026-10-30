@@ -403,7 +403,8 @@ public class KafkaBridgeDiagnosticService extends BaseDiagnosticService {
         Common KafkaBridge issue categories:
         1. Kafka connectivity (bad bootstrap servers, TLS or SASL misconfiguration, network policy)
         2. HTTP listener problems (port not exposed, missing Ingress or Route, CORS rejecting origins)
-        3. Consumer lifecycle errors (consumer instance not created, expired, or wrong base URI)
+        3. Consumer lifecycle errors (consumer instance not created, deleted due to inactivity timeout \
+        when http.timeoutSeconds is set, or wrong base URI)
         4. Authorization failures (bridge principal lacks ACLs for the requested topic or group)
         5. Resource exhaustion (OOM, CPU throttling, HTTP request queue saturation)
         6. Operator reconciliation failures (invalid CR, image pull errors)\

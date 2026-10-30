@@ -465,7 +465,8 @@ public class KafkaNodePoolDiagnosticService extends BaseDiagnosticService {
         1. Scaling stuck: spec.replicas does not match status.replicas after a scale operation,
            usually because new pods cannot schedule or the operator reconciliation is failing
         2. Node IDs not assigned: status.nodeIds is empty or incomplete for a KRaft pool,
-           often caused by a stuck reconciliation or a full node ID range
+           usually caused by a stuck reconciliation; exhausting the full node ID range (0–999) is
+           extremely rare in practice
         3. Storage not bound: a PersistentVolumeClaim is stuck Pending, typically due to a missing
            StorageClass, no available Persistent Volumes, or a storage provisioner failure
         4. Pods not scheduling: FailedScheduling or FailedAttachVolume events indicate insufficient
