@@ -90,6 +90,7 @@ spec:
         - CN=console-user
         - console-user
     listeners:
+      # DEV ONLY: unauthenticated plaintext listener for local testing. Do not copy to production.
       - name: plain
         port: 9092
         type: internal

@@ -130,7 +130,9 @@ io.streamshub.mcp.common.
 │                     ExceptionUtils (extract root-cause message without Java class names),
 │                     EnvVarUtils (describe a valueFrom env var source, e.g. secretKeyRef:name/key),
 │                     GlobMatcher (prefix/glob name matching: '*'/'?', case-sensitive),
-│                     PaginationUtils (offset/limit helpers for paginated list responses)
+│                     PaginationUtils (offset/limit helpers for paginated list responses),
+│                     QueryLiteralSanitizer (label-name check and string-literal escaping shared
+│                       by PromQLSanitizer and LogQLSanitizer)
     └── metrics/    → PrometheusTextParser, MetricLabelFilter,
                       CommonLabelExtractor (extracts shared labels from a set of metric samples),
                       TimeSeriesCompressor (compresses constant-value runs in time series)
