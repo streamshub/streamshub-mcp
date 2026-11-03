@@ -109,8 +109,11 @@ public class AuditSecurityPrompt {
             - ACL rules granting `All` operations (superuser-level access)
             - ACL rules on `cluster` resource type (cluster admin access)
             - ACL rules with wildcard resource name `*` (matches all resources)
-            - Users with authentication but NO authorization/ACLs (unrestricted access \
-            when using Kafka's built-in authorizer)
+            - Users with authentication but NO authorization/ACLs — note: Kafka's \
+            built-in authorizer (AclAuthorizer / StandardAuthorizer) denies all access \
+            by default; this typically means the user cannot connect rather than having \
+            unrestricted access (flag as misconfiguration, not privilege escalation, \
+            unless allow.everyone.if.no.acl.found=true is set on the broker)
 
             **MEDIUM RISK:**
             - ACL rules with `prefix` pattern on very short prefixes (1-2 chars, overly broad)
