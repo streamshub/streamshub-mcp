@@ -4,6 +4,8 @@
  */
 package io.streamshub.mcp.metrics.prometheus.util;
 
+import io.streamshub.mcp.common.util.QueryLiteralSanitizer;
+
 import java.util.regex.Pattern;
 
 /**
@@ -17,10 +19,6 @@ public final class PromQLSanitizer {
     /** Valid Prometheus metric name pattern: starts with letter, underscore, or colon. */
     private static final Pattern METRIC_NAME_PATTERN =
         Pattern.compile("^[a-zA-Z_:][a-zA-Z0-9_:]*$");
-
-    /** Valid Prometheus label name pattern: starts with letter or underscore. */
-    private static final Pattern LABEL_NAME_PATTERN =
-        Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
 
     private PromQLSanitizer() {
         // Utility class — no instantiation
@@ -53,15 +51,7 @@ public final class PromQLSanitizer {
      * @throws IllegalArgumentException if the name is invalid
      */
     public static String sanitizeLabelName(final String name) {
-        if (name == null || name.isEmpty()) {
-            throw new IllegalArgumentException("Label name must not be null or empty");
-        }
-        if (!LABEL_NAME_PATTERN.matcher(name).matches()) {
-            throw new IllegalArgumentException(
-                String.format("Invalid label name '%s'. Must match pattern: %s",
-                    name, LABEL_NAME_PATTERN.pattern()));
-        }
-        return name;
+        return QueryLiteralSanitizer.validateLabelName(name, "label name");
     }
 
     /**
@@ -72,12 +62,6 @@ public final class PromQLSanitizer {
      * @return the escaped label value safe for use in PromQL
      */
     public static String sanitizeLabelValue(final String value) {
-        if (value == null) {
-            return "";
-        }
-        return value
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n");
+        return QueryLiteralSanitizer.escapeStringLiteral(value);
     }
 }
