@@ -359,7 +359,7 @@ public class DrainCleanerService {
         }
 
         return container.getEnv().stream()
-            .filter(env -> varName.equals(env.getName()))
+            .filter(env -> varName.equals(env.getName()) && env.getValue() != null)
             .map(EnvVar::getValue)
             .findFirst()
             .orElse(null);
