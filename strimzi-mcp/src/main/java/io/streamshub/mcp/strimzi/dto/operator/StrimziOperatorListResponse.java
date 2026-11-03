@@ -20,4 +20,14 @@ public record StrimziOperatorListResponse(
     @JsonProperty("items") List<StrimziOperatorResponse> items,
     @JsonProperty("count") int count
 ) {
+
+    /**
+     * Creates a StrimziOperatorListResponse from its items, computing the count.
+     *
+     * @param items the list items
+     * @return a new list response
+     */
+    public static StrimziOperatorListResponse of(final List<StrimziOperatorResponse> items) {
+        return new StrimziOperatorListResponse(items, items.size());
+    }
 }

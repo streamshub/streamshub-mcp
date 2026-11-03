@@ -241,6 +241,43 @@ class McpDiscoveryTest {
             .thenAssertResults();
     }
 
+    /**
+     * Verify enum-typed tool arguments advertise their valid values as a JSON-schema
+     * {@code enum}, so schema-aware clients see the accepted (uppercase) set upfront.
+     */
+    @Test
+    void testToolInputSchemaAdvertisesEnum() {
+        client.when()
+            .toolsList(page -> {
+                McpAssured.ToolInfo metrics = page.findByName("get_kafka_metrics");
+                assertNotNull(metrics, "Tool 'get_kafka_metrics' should be registered");
+                io.vertx.core.json.JsonArray aggregationEnum = metrics.inputSchema()
+                    .getJsonObject("properties")
+                    .getJsonObject("aggregation")
+                    .getJsonArray("enum");
+                assertNotNull(aggregationEnum, "aggregation property should advertise an enum");
+                assertTrue(aggregationEnum.contains("PARTITION")
+                        && aggregationEnum.contains("TOPIC")
+                        && aggregationEnum.contains("BROKER")
+                        && aggregationEnum.contains("CLUSTER"),
+                    "aggregation enum should list the uppercase AggregationLevel values, was: " + aggregationEnum);
+
+                McpAssured.ToolInfo aclMatrix = page.findByName("get_kafka_user_acls_matrix");
+                assertNotNull(aclMatrix, "Tool 'get_kafka_user_acls_matrix' should be registered");
+                io.vertx.core.json.JsonArray resourceTypeEnum = aclMatrix.inputSchema()
+                    .getJsonObject("properties")
+                    .getJsonObject("resourceType")
+                    .getJsonArray("enum");
+                assertNotNull(resourceTypeEnum, "resourceType property should advertise an enum");
+                assertTrue(resourceTypeEnum.contains("TOPIC")
+                        && resourceTypeEnum.contains("GROUP")
+                        && resourceTypeEnum.contains("TRANSACTIONAL_ID")
+                        && resourceTypeEnum.contains("CLUSTER"),
+                    "resourceType enum should list the uppercase AclResourceType values, was: " + resourceTypeEnum);
+            })
+            .thenAssertResults();
+    }
+
     @SuppressWarnings("checkstyle:MethodLength")
     private static Map<String, String[]> expectedToolMetadata() {
         Map<String, String[]> map = new HashMap<>();

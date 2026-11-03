@@ -93,7 +93,7 @@ public class StrimziOperatorTools {
         ) final String namespace
     ) {
         List<StrimziOperatorResponse> items = operatorService.listOperators(namespace);
-        return new StrimziOperatorListResponse(items, items.size());
+        return StrimziOperatorListResponse.of(items);
     }
 
     /**
@@ -148,9 +148,8 @@ public class StrimziOperatorTools {
         structuredContent = true,
         description = "Get the effective configuration of a Strimzi cluster operator:"
             + " enabled feature gates, watched namespaces, supported Kafka versions,"
-            + " operation timeout, full reconciliation interval, and leader election."
-            + " Use this to check whether the operator supports a target Kafka version"
-            + " before planning an upgrade.",
+            + " operation timeout, full reconciliation interval, leader election,"
+            + " and all environment variables.",
         annotations = @Tool.Annotations(
             readOnlyHint = true,
             destructiveHint = false,

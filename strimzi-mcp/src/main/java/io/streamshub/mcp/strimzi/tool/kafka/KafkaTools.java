@@ -109,7 +109,7 @@ public class KafkaTools {
         ) final String namespace
     ) {
         List<KafkaClusterResponse> items = kafkaService.listClusters(namespace);
-        return new KafkaClusterListResponse(items, items.size());
+        return KafkaClusterListResponse.of(items);
     }
 
     /**

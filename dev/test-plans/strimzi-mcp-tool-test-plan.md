@@ -771,7 +771,8 @@ Parameters: { "clusterName": "mcp-cluster", "resourceType": "bogus" }
 ```
 
 **Expected:**
-- [ ] Returns `INVALID_PARAMS` error listing the accepted resourceType values
+- [ ] Returns a tool error -- `resourceType` is a schema enum (`AclResourceType`), so the framework rejects an unknown value before the tool runs
+- [ ] The error response contains no stack trace
 
 ---
 

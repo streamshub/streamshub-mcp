@@ -99,6 +99,17 @@ class AggregationLevelTest {
         assertEquals(AggregationLevel.CLUSTER, AggregationLevel.resolve("cluster", AggregationLevel.PARTITION));
     }
 
+    /**
+     * A tool that accepts an {@link AggregationLevel} enum argument and forwards {@code name()} to a
+     * service taking a {@code String} relies on this round-trip holding for every value.
+     */
+    @Test
+    void fromStringRoundTripsEveryEnumName() {
+        for (AggregationLevel level : AggregationLevel.values()) {
+            assertEquals(level, AggregationLevel.fromString(level.name()));
+        }
+    }
+
     @Test
     void resolveRejectsAnUnknownLevel() {
         McpException ex = assertThrows(McpException.class,

@@ -432,7 +432,7 @@ class MetricsPrometheusToolsST extends AbstractST {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "category", "replication",
-            "aggregation", "broker",
+            "aggregation", "BROKER",
             "rangeMinutes", 30,
             "stepSeconds", 60);
 

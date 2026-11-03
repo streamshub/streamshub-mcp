@@ -89,7 +89,7 @@ public class KafkaMirrorMaker2Tools {
         ) final String namespace
     ) {
         List<KafkaMirrorMaker2Response> items = mirrorMakerService.listMirrorMakers(namespace);
-        return new KafkaMirrorMaker2ListResponse(items, items.size());
+        return KafkaMirrorMaker2ListResponse.of(items);
     }
 
     /**

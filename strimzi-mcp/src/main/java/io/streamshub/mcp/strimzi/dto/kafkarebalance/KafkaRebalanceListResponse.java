@@ -20,4 +20,14 @@ public record KafkaRebalanceListResponse(
     @JsonProperty("items") List<KafkaRebalanceResponse> items,
     @JsonProperty("count") int count
 ) {
+
+    /**
+     * Creates a KafkaRebalanceListResponse from its items, computing the count.
+     *
+     * @param items the list items
+     * @return a new list response
+     */
+    public static KafkaRebalanceListResponse of(final List<KafkaRebalanceResponse> items) {
+        return new KafkaRebalanceListResponse(items, items.size());
+    }
 }

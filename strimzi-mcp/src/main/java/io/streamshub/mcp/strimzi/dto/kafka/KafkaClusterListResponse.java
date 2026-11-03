@@ -20,4 +20,14 @@ public record KafkaClusterListResponse(
     @JsonProperty("items") List<KafkaClusterResponse> items,
     @JsonProperty("count") int count
 ) {
+
+    /**
+     * Creates a KafkaClusterListResponse from its items, computing the count.
+     *
+     * @param items the list items
+     * @return a new list response
+     */
+    public static KafkaClusterListResponse of(final List<KafkaClusterResponse> items) {
+        return new KafkaClusterListResponse(items, items.size());
+    }
 }

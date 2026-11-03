@@ -347,19 +347,20 @@ class KafkaUserToolsST extends AbstractST {
     }
 
     @Test
-    @Story("get_kafka_user_acls_matrix returns error for invalid resourceType")
+    @Story("get_kafka_user_acls_matrix rejects an invalid resourceType enum value")
     void testGetKafkaUserAclsMatrixInvalidResourceType() {
         Map<String, Object> args = Map.of(
             "clusterName", Constants.KAFKA_CLUSTER_NAME,
             "namespace", Environment.KAFKA_NAMESPACE,
             "resourceType", "bogus");
 
+        // resourceType is a schema enum (AclResourceType); the framework rejects an
+        // unknown value as a tool error before the service runs.
         mcpClient.when()
-            .toolsCall("get_kafka_user_acls_matrix")
-            .withArguments(args)
-            .withErrorAssert(error -> assertToolProtocolError(error, -32602, "INVALID_PARAMS",
-                "bogus", "topic"))
-            .send()
+            .toolsCall("get_kafka_user_acls_matrix", args, response -> {
+                assertToolError(response);
+                assertNoStackTrace(response.content().getFirst().asText().text());
+            })
             .thenAssertResults();
     }
 
