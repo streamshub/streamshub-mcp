@@ -87,7 +87,7 @@ public class AnalyzeKafkaMetricsPrompt {
             - isrshrinkspersec > 0 consistently → replicas leaving ISR; \
             precedes under-replication; investigate broker health and network
 
-            Use the `interpretation` field for threshold guidance on maxlag and leadercount. \
+            Use the `interpretation` field for guidance on maxlag (judge its trend, not a fixed number) and leadercount (a heuristic). \
             If replication issues found, immediately check Step 3 to identify root cause.
 
             ## Step 2: Throughput [LOW - informational]
