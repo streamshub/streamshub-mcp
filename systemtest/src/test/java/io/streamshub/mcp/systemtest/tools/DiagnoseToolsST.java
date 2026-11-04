@@ -433,7 +433,15 @@ class DiagnoseToolsST extends AbstractST {
                 assertEquals("HEALTHY", root.path("operator").path("status").asText(), "Operator should be HEALTHY");
                 assertEquals(2, root.path("node_pools").size(), "Should have 2 node pools");
                 assertEquals(4, root.path("pods").path("pod_summary").path("total_pods").asInt(), "Should have 4 total pods");
-                assertEquals(10, root.path("steps_completed").size(), "Should have 10 completed steps");
+                assertEquals(11, root.path("steps_completed").size(), "Should have 11 completed steps");
+                boolean hasPreflight = false;
+                for (JsonNode step : root.path("steps_completed")) {
+                    if ("preflight_checks".equals(step.asText())) {
+                        hasPreflight = true;
+                        break;
+                    }
+                }
+                assertTrue(hasPreflight, "steps_completed should contain 'preflight_checks'");
             })
             .thenAssertResults();
     }
