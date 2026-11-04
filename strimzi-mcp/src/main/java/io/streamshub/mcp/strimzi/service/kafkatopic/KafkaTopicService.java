@@ -112,31 +112,31 @@ public class KafkaTopicService {
      */
     public KafkaTopicResponse getTopic(final String namespace, final String clusterName, final String topicName) {
         String ns = InputUtils.normalizeInput(namespace);
-        String cluster = InputUtils.normalizeInput(clusterName);
-        String name = InputUtils.normalizeName(topicName);
+        String clusterNameNormalized = InputUtils.normalizeInput(clusterName);
+        String topicNameNormalized = InputUtils.normalizeName(topicName);
 
-        if (name == null) {
+        if (topicNameNormalized == null) {
             throw McpErrors.invalidParams("Topic name is required");
         }
-        InputUtils.validateKafkaTopicName(name, "topic name");
+        InputUtils.validateKafkaTopicName(topicNameNormalized, "topic name");
         InputUtils.validateK8sName(ns, "namespace");
 
-        LOG.infof("Getting topic=%s for cluster=%s in namespace=%s", name, cluster, ns != null ? ns : "auto");
+        LOG.infof("Getting topic=%s for cluster=%s in namespace=%s", topicNameNormalized, clusterNameNormalized, ns != null ? ns : "auto");
 
-        KafkaTopic topic = findTopic(ns, cluster, name);
+        KafkaTopic topic = findTopic(ns, clusterNameNormalized, topicNameNormalized);
 
         if (topic == null) {
-            throw McpErrors.notFound("Topic", name, ns);
+            throw McpErrors.notFound("Topic", topicNameNormalized, ns);
         }
 
-        if (cluster != null) {
+        if (clusterNameNormalized != null) {
             String topicCluster = topic.getMetadata().getLabels() != null
                 ? topic.getMetadata().getLabels().get(ResourceLabels.STRIMZI_CLUSTER_LABEL)
                 : null;
 
-            if (!cluster.equals(topicCluster)) {
-                throw McpErrors.invalidParams("Topic '" + name + "' belongs to cluster '"
-                    + topicCluster + "', not '" + cluster + "'");
+            if (!clusterNameNormalized.equals(topicCluster)) {
+                throw McpErrors.invalidParams("Topic '" + topicNameNormalized + "' belongs to cluster '"
+                    + topicCluster + "', not '" + clusterNameNormalized + "'");
             }
         }
 
