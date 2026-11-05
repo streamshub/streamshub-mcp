@@ -27,6 +27,7 @@ import org.jboss.logging.Logger;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 /**
  * Service for Kafka topic operations.
  */
@@ -129,17 +130,6 @@ public class KafkaTopicService {
             throw McpErrors.notFound("Topic", topicNameNormalized, ns);
         }
 
-        if (clusterNameNormalized != null) {
-            String topicCluster = topic.getMetadata().getLabels() != null
-                ? topic.getMetadata().getLabels().get(ResourceLabels.STRIMZI_CLUSTER_LABEL)
-                : null;
-
-            if (!clusterNameNormalized.equals(topicCluster)) {
-                throw McpErrors.invalidParams("Topic '" + topicNameNormalized + "' belongs to cluster '"
-                    + topicCluster + "', not '" + clusterNameNormalized + "'");
-            }
-        }
-
         return createTopicResponse(topic);
     }
 
@@ -148,7 +138,7 @@ public class KafkaTopicService {
         if (ns != null) {
             if (InputUtils.isValidK8sName(topicName)) {
                 KafkaTopic direct = k8sService.getResource(KafkaTopic.class, ns, topicName);
-                if (direct != null) {
+                if (direct != null && (cluster == null || cluster.equals(clusterLabel(direct)))) {
                     return direct;
                 }
             }
@@ -168,7 +158,7 @@ public class KafkaTopicService {
         List<KafkaTopic> matching = candidates.stream()
             .filter(t -> exposesTopicName(t, topicName))
             .toList();
-        return selectUnique(matching, topicName);
+        return selectUnique(matching, cluster, topicName);
     }
 
     /**
@@ -180,7 +170,13 @@ public class KafkaTopicService {
             || topic.getStatus() != null && topicName.equals(topic.getStatus().getTopicName());
     }
 
-    private static KafkaTopic selectUnique(final List<KafkaTopic> matching, final String topicName) {
+    private static String clusterLabel(final KafkaTopic topic) {
+        return topic.getMetadata().getLabels() != null
+            ? topic.getMetadata().getLabels().get(ResourceLabels.STRIMZI_CLUSTER_LABEL)
+            : null;
+    }
+
+    private static KafkaTopic selectUnique(final List<KafkaTopic> matching, final String cluster, final String topicName) {
         if (matching.isEmpty()) {
             return null;
         }
@@ -203,14 +199,19 @@ public class KafkaTopicService {
             return byResourceName.getFirst();
         }
 
+        String where = "in namespace '" + namespaces.getFirst() + "'";
+        if (cluster != null) {
+            String resources = matching.stream().map(t -> t.getMetadata().getName()).collect(Collectors.joining(", "));
+            throw McpErrors.invalidParams("Multiple KafkaTopic resources " + where + " of cluster '" + cluster
+                + "' manage the topic '" + topicName + "' (resources: " + resources
+                + "). Use the KafkaTopic resource name to select one.");
+        }
         List<String> clusters = matching.stream()
-            .map(t -> t.getMetadata().getLabels() != null
-                ? t.getMetadata().getLabels().get(ResourceLabels.STRIMZI_CLUSTER_LABEL) : null)
+            .map(t -> clusterLabel(t) != null ? clusterLabel(t) : KubernetesConstants.UNKNOWN)
             .distinct()
-            .map(c -> c != null ? c : KubernetesConstants.UNKNOWN)
             .toList();
-        throw McpErrors.invalidParams("Multiple KafkaTopic resources in namespace '" + namespaces.getFirst()
-            + "' manage the topic '" + topicName + "' (clusters: " + String.join(", ", clusters)
+        throw McpErrors.invalidParams("Multiple KafkaTopic resources " + where
+            + " manage the topic '" + topicName + "' (clusters: " + String.join(", ", clusters)
             + "). Please specify the cluster name.");
     }
 

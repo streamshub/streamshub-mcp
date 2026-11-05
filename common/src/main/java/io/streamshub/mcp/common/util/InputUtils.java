@@ -115,7 +115,7 @@ public final class InputUtils {
             throw McpErrors.invalidParams(
                 "Invalid " + label + " '" + name + "': exceeds maximum length of " + K8S_NAME_MAX_LENGTH + " characters");
         }
-        if (!K8S_NAME_PATTERN.matcher(name).matches()) {
+        if (!isValidK8sName(name)) {
             throw McpErrors.invalidParams(
                 "Invalid " + label + " '" + name + "': must consist of lowercase alphanumeric characters, '-', or '.', "
                     + "and must start and end with an alphanumeric character");

@@ -155,6 +155,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         DiagnosticHelper.checkCancellation(cancellation);
 
         String resolvedNs = clusterStatus != null ? clusterStatus.namespace() : ns;
+        String logKeyword = topic.topicName() != null ? topic.topicName() : name;
 
         // === Phase 2: Deep investigation ===
         InvestigationAreas areas = investigateAreas(
@@ -166,7 +167,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         StrimziOperatorLogsResponse operatorLogs = null;
         if (areas.operatorLogs) {
             operatorLogs = gatherOperatorLogs(
-                resolvedNs, resolvedCluster, name, completed, failed);
+                resolvedNs, resolvedCluster, logKeyword, completed, failed);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
                 operatorLogs != null ? "Collected Strimzi Entity Operator logs" : "Failed to collect operator logs");
             DiagnosticHelper.checkCancellation(cancellation);

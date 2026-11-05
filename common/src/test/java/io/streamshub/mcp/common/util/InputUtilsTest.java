@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -127,9 +128,9 @@ class InputUtilsTest {
     @Test
     void testIsValidK8sName() {
         assertTrue(InputUtils.isValidK8sName("my-topic"));
-        assertTrue(!InputUtils.isValidK8sName("my_topic"));
-        assertTrue(!InputUtils.isValidK8sName("MyTopic"));
-        assertTrue(!InputUtils.isValidK8sName(null));
+        assertFalse(InputUtils.isValidK8sName("my_topic"));
+        assertFalse(InputUtils.isValidK8sName("MyTopic"));
+        assertFalse(InputUtils.isValidK8sName(null));
     }
 
     @Test
