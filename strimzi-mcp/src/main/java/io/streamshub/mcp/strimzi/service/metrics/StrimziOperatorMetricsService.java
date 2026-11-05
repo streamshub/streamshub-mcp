@@ -173,9 +173,9 @@ public class StrimziOperatorMetricsService {
      * avoid label mismatches (operator metrics don't carry strimzi_io_cluster).
      */
     private QueryResult queryByNamespace(final List<Pod> coPods, final List<Pod> eoPods,
-                                                 final List<String> metricNames,
-                                                 final Integer rangeMinutes, final String startTime,
-                                                 final String endTime, final Integer stepSeconds) {
+                                         final List<String> metricNames,
+                                         final Integer rangeMinutes, final String startTime,
+                                         final String endTime, final Integer stepSeconds) {
         String coNamespace = !coPods.isEmpty()
             ? coPods.getFirst().getMetadata().getNamespace() : null;
         String eoNamespace = !eoPods.isEmpty()

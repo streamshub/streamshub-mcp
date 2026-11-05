@@ -26,7 +26,7 @@ public final class MetricTruncation {
             where = "";
         }
         return "Results truncated " + where + "(mcp.metrics.max-samples): data is incomplete."
-            + " Narrow the query (fewer categories, shorter rangeMinutes, larger stepSeconds)"
-            + " or raise the limit.";
+            + " Narrow the query (fewer categories or metricNames; for Prometheus range queries also"
+            + " a shorter rangeMinutes or a larger stepSeconds) or raise the limit.";
     }
 }
