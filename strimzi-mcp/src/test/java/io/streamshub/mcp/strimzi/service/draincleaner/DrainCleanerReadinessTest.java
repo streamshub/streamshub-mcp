@@ -4,6 +4,8 @@
  */
 package io.streamshub.mcp.strimzi.service.draincleaner;
 
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.admissionregistration.v1.ValidatingWebhookConfiguration;
@@ -19,6 +21,7 @@ import io.streamshub.mcp.common.service.KubernetesQueryException;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerLogsResponse;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerReadinessResponse;
+import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerResponse;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,6 +51,8 @@ class DrainCleanerReadinessTest {
     private static final String NAME = "strimzi-drain-cleaner";
 
     // Generated with keytool; "valid" expires in year 2126, "expired" expired in January 2020.
+    // To regenerate: keytool -genkeypair -alias x -keyalg EC -dname CN=valid -validity 36500 -keystore k.p12
+    // -storepass changeit, then keytool -exportcert -rfc and base64-encode the PEM (single line).
     private static final String VALID_CERT_B64 =
         "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tDQpNSUlCT0RDQjRLQURBZ0VDQWdrQWx6cjZWdmlxeW1Fd0NnWUlLb1pJemowRUF3TXdFREVP"
             + "TUF3R0ExVUVBeE1GDQpkbUZzYVdRd0lCY05Nall4TVRBek1UUXhPRFUzV2hnUE1qRXlOakV3TVRBeE5ERTROVGRhTUJBeERqQU1CZ05WDQpC"
@@ -84,18 +89,36 @@ class DrainCleanerReadinessTest {
 
     private static Deployment deployment(final String namespace, final Integer replicas,
                                          final Integer ready, final String denyEviction) {
-        DeploymentBuilder builder = new DeploymentBuilder()
+        ContainerBuilder container = new ContainerBuilder()
+            .withName("drain-cleaner")
+            .withImage("quay.io/strimzi/drain-cleaner:1.4.0");
+        if (denyEviction != null) {
+            container.addNewEnv().withName("STRIMZI_DENY_EVICTION").withValue(denyEviction).endEnv();
+        }
+        return deploymentWith(namespace, replicas, ready, container.build());
+    }
+
+    private static Deployment deploymentWithConfigMapEnv(final String... varNames) {
+        ContainerBuilder container = new ContainerBuilder()
+            .withName("drain-cleaner")
+            .withImage("quay.io/strimzi/drain-cleaner:1.4.0");
+        for (String varName : varNames) {
+            container.addNewEnv().withName(varName)
+                .withNewValueFrom().withNewConfigMapKeyRef("key-" + varName, "drain-config", false).endValueFrom()
+                .endEnv();
+        }
+        return deploymentWith(NS, 1, 1, container.build());
+    }
+
+    private static Deployment deploymentWith(final String namespace, final Integer replicas,
+                                             final Integer ready, final Container container) {
+        return new DeploymentBuilder()
             .withNewMetadata().withName(NAME).withNamespace(namespace).endMetadata()
             .withNewSpec().withReplicas(replicas)
-                .withNewTemplate().withNewSpec()
-                    .addNewContainer().withName("drain-cleaner")
-                        .withImage("quay.io/strimzi/drain-cleaner:1.4.0")
-                        .addNewEnv().withName("STRIMZI_DENY_EVICTION").withValue(denyEviction).endEnv()
-                    .endContainer()
-                .endSpec().endTemplate()
+                .withNewTemplate().withNewSpec().addToContainers(container).endSpec().endTemplate()
             .endSpec()
-            .withNewStatus().withReadyReplicas(ready).endStatus();
-        return builder.build();
+            .withNewStatus().withReadyReplicas(ready).endStatus()
+            .build();
     }
 
     private static Deployment readyDeployment() {
@@ -162,6 +185,63 @@ class DrainCleanerReadinessTest {
         assertNotNull(result.modeRecommendation());
         assertFalse(check(result, "Operating mode").passed());
         assertFalse(result.overallReady());
+    }
+
+    @Test
+    void testDenyEvictionFromValueFromIsUnknownAndNotOverallReady() {
+        givenDeployment(deploymentWithConfigMapEnv("STRIMZI_DENY_EVICTION"));
+        givenWebhookAndSecret(webhook(), tlsSecret(Map.of("tls.crt", VALID_CERT_B64)));
+
+        DrainCleanerReadinessResponse result = service.checkReadiness(NS);
+
+        assertEquals("unknown", result.mode());
+        assertNotNull(result.modeRecommendation());
+        assertFalse(check(result, "Operating mode").passed());
+        assertTrue(check(result, "Operating mode").detail().contains("configMapKeyRef:drain-config/"));
+        assertFalse(result.overallReady());
+    }
+
+    @Test
+    void testWatchedNamespacesFromValueFromIsUnknownAndNotOverallReady() {
+        givenDeployment(deploymentWithConfigMapEnv("STRIMZI_DRAIN_NAMESPACES"));
+        givenWebhookAndSecret(webhook(), tlsSecret(Map.of("tls.crt", VALID_CERT_B64)));
+
+        DrainCleanerReadinessResponse result = service.checkReadiness(NS);
+
+        assertEquals("standard", result.mode());
+        assertTrue(result.coveredNamespaces().startsWith("unknown"), result.coveredNamespaces());
+        assertFalse(check(result, "Namespace coverage").passed());
+        assertFalse(result.overallReady());
+    }
+
+    @Test
+    void testListDrainCleanersWithValueFromEnvVarsDoesNotFail() {
+        when(k8sService.queryResourcesByLabel(eq(Deployment.class), eq(NS), anyString(), anyString()))
+            .thenReturn(List.of(deploymentWithConfigMapEnv(
+                "STRIMZI_DENY_EVICTION", "STRIMZI_DRAIN_KAFKA", "STRIMZI_DRAIN_NAMESPACES")));
+
+        List<DrainCleanerResponse> result = service.listDrainCleaners(NS);
+
+        assertEquals(1, result.size());
+        DrainCleanerResponse response = result.getFirst();
+        assertEquals("unknown", response.mode());
+        assertNull(response.denyEviction());
+        assertNull(response.drainKafka());
+        assertEquals("configMapKeyRef:drain-config/key-STRIMZI_DRAIN_NAMESPACES", response.watchedNamespaces());
+    }
+
+    @Test
+    void testGetDrainCleanerWithValueFromEnvVarsDoesNotFail() {
+        when(k8sService.getResource(Deployment.class, NS, NAME))
+            .thenReturn(deploymentWithConfigMapEnv("STRIMZI_DENY_EVICTION"));
+        when(k8sService.getClusterScopedResource(eq(ValidatingWebhookConfiguration.class), anyString()))
+            .thenReturn(webhook());
+
+        DrainCleanerResponse response = service.getDrainCleaner(NS, NAME);
+
+        assertEquals("unknown", response.mode());
+        assertNull(response.denyEviction());
+        assertEquals(Boolean.TRUE, response.webhookConfigured());
     }
 
     @Test
