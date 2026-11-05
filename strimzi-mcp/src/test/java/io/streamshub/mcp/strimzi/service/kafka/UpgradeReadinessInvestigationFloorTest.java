@@ -79,12 +79,11 @@ class UpgradeReadinessInvestigationFloorTest {
             .withNewSpec().withNewKafka().endKafka().endSpec()
             .build();
         when(service.kafkaService.findKafkaCluster(anyString(), anyString())).thenReturn(kafka);
-        when(service.kafkaService.getCluster(anyString(), anyString())).thenReturn(cluster("Ready"));
         when(service.topicService.listTopics(anyString(), anyString(), any(), eq(Integer.MAX_VALUE), any(), any()))
             .thenReturn(PaginatedResponse.<KafkaTopicResponse>of(List.of(), 7200, 0, 5000, false, true));
 
         List<UpgradePreflightFinding> findings = service.gatherPreflightFindings(
-            "kafka", "c", null, new ArrayList<>(), new ArrayList<>());
+            "kafka", "c", cluster("Ready"), null, null, new ArrayList<>(), new ArrayList<>());
 
         assertTrue(findings.stream().anyMatch(f -> UpgradePreflightFinding.WARNING.equals(f.severity())
             && UpgradePreflightChecks.CHECK_TOPIC_DURABILITY.equals(f.check())
