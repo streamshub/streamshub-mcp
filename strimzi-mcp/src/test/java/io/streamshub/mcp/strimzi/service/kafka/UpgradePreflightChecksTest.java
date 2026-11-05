@@ -9,10 +9,12 @@ import io.streamshub.mcp.strimzi.dto.kafka.UpgradePreflightFinding;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -49,7 +51,7 @@ class UpgradePreflightChecksTest {
 
         assertEquals(1, blockers(findings).size());
         assertTrue(findings.getFirst().message().contains("orders"));
-        assertTrue(!findings.getFirst().message().contains("ok (replicas"));
+        assertFalse(findings.getFirst().message().contains("ok (replicas"));
     }
 
     /**
@@ -62,7 +64,30 @@ class UpgradePreflightChecksTest {
 
         assertEquals(1, blockers(findings).size());
         assertTrue(findings.getFirst().message().contains("t1"));
-        assertTrue(!findings.getFirst().message().contains("t2"));
+        assertFalse(findings.getFirst().message().contains("t2"));
+    }
+
+    /**
+     * Verify a topic without spec.replicas uses the broker default.replication.factor.
+     */
+    @Test
+    void testTopicWithoutReplicasUsesBrokerDefaultReplicationFactor() {
+        List<UpgradePreflightFinding> findings = UpgradePreflightChecks.topicFindings(
+            Map.of("default.replication.factor", 3, "min.insync.replicas", 3),
+            List.of(topic("unset", null, null), topic("explicit", 3, Map.of("min.insync.replicas", 2))));
+
+        assertEquals(1, blockers(findings).size());
+        assertTrue(findings.getFirst().message().contains("unset (replicas=3, min.insync.replicas=3)"));
+        assertFalse(findings.getFirst().message().contains("explicit"));
+    }
+
+    /**
+     * Verify a topic without spec.replicas is skipped when the broker sets no default.replication.factor.
+     */
+    @Test
+    void testTopicWithoutReplicasAndWithoutBrokerDefaultIsSkipped() {
+        assertTrue(UpgradePreflightChecks.topicFindings(
+            Map.of("min.insync.replicas", 3), List.of(topic("unset", null, null))).isEmpty());
     }
 
     /**
@@ -94,7 +119,7 @@ class UpgradePreflightChecksTest {
      */
     @Test
     void testLongListIsTruncated() {
-        List<KafkaTopicResponse> topics = new java.util.ArrayList<>();
+        List<KafkaTopicResponse> topics = new ArrayList<>();
         for (int i = 0; i < 25; i++) {
             topics.add(topic("t" + i, 3, Map.of("min.insync.replicas", 3)));
         }
@@ -110,9 +135,13 @@ class UpgradePreflightChecksTest {
     void testParseKafkaTarget() {
         assertEquals("4.2.0", UpgradePreflightChecks.parseKafkaTarget("Kafka 4.2.0"));
         assertEquals("4.2.0", UpgradePreflightChecks.parseKafkaTarget("4.2.0"));
-        assertEquals("4.1", UpgradePreflightChecks.parseKafkaTarget("kafka 4.1"));
+        assertEquals("4.3", UpgradePreflightChecks.parseKafkaTarget("kafka 4.3"));
+        assertNull(UpgradePreflightChecks.parseKafkaTarget("Strimzi 1.3.0"));
         assertNull(UpgradePreflightChecks.parseKafkaTarget("Strimzi 0.45.0"));
         assertNull(UpgradePreflightChecks.parseKafkaTarget("0.45.0"));
+        assertNull(UpgradePreflightChecks.parseKafkaTarget("1.4.0"));
+        assertEquals("1.4.0", UpgradePreflightChecks.parseKafkaTarget("Kafka 1.4.0"));
+        assertEquals("3.9.0", UpgradePreflightChecks.parseKafkaTarget("3.9.0"));
         assertNull(UpgradePreflightChecks.parseKafkaTarget("latest"));
         assertNull(UpgradePreflightChecks.parseKafkaTarget(null));
     }
@@ -123,7 +152,7 @@ class UpgradePreflightChecksTest {
     @Test
     void testUnsupportedTargetBlocks() {
         List<UpgradePreflightFinding> findings = UpgradePreflightChecks.versionFindings(
-            cluster("4.0.0", "4.0-IV3"), "Kafka 4.2.0", List.of("4.0.0", "4.1.0"));
+            cluster("4.2.0", "4.2-IV1"), "Kafka 4.4.0", List.of("4.2.0", "4.3.0"));
 
         assertEquals(1, blockers(findings).size());
         assertTrue(findings.getFirst().message().contains("not supported"));
@@ -135,9 +164,9 @@ class UpgradePreflightChecksTest {
     @Test
     void testSupportedTargetPasses() {
         assertTrue(UpgradePreflightChecks.versionFindings(
-            cluster("4.0.0", "4.0-IV3"), "Kafka 4.1.0", List.of("4.0.0", "4.1.0")).isEmpty());
+            cluster("4.2.0", "4.2-IV1"), "Kafka 4.3.0", List.of("4.2.0", "4.3.0")).isEmpty());
         assertTrue(UpgradePreflightChecks.versionFindings(
-            cluster("4.0.0", "4.0-IV3"), "Kafka 4.1", List.of("4.0.0", "4.1.0")).isEmpty());
+            cluster("4.2.0", "4.2-IV1"), "Kafka 4.3", List.of("4.2.0", "4.3.0")).isEmpty());
     }
 
     /**
@@ -146,12 +175,12 @@ class UpgradePreflightChecksTest {
     @Test
     void testDowngradeAndSameVersionWarn() {
         List<UpgradePreflightFinding> down = UpgradePreflightChecks.versionFindings(
-            cluster("4.1.0", "4.1-IV0"), "Kafka 4.0.0", List.of("4.0.0", "4.1.0"));
+            cluster("4.3.0", "4.3-IV0"), "Kafka 4.2.0", List.of("4.2.0", "4.3.0"));
         assertEquals(1, down.size());
         assertTrue(down.getFirst().message().contains("downgrade"));
 
         List<UpgradePreflightFinding> same = UpgradePreflightChecks.versionFindings(
-            cluster("4.1.0", "4.1-IV0"), "Kafka 4.1.0", List.of("4.1.0"));
+            cluster("4.3.0", "4.3-IV0"), "Kafka 4.3.0", List.of("4.3.0"));
         assertEquals(1, same.size());
         assertTrue(same.getFirst().message().contains("nothing to upgrade"));
     }
@@ -162,7 +191,7 @@ class UpgradePreflightChecksTest {
     @Test
     void testUnfinalizedMetadataVersionWarns() {
         List<UpgradePreflightFinding> findings = UpgradePreflightChecks.versionFindings(
-            cluster("4.1.0", "4.0-IV3"), null, null);
+            cluster("4.3.0", "4.2-IV1"), null, null);
 
         assertEquals(1, findings.size());
         assertTrue(findings.getFirst().message().contains("not been finalized"));
@@ -174,8 +203,10 @@ class UpgradePreflightChecksTest {
     @Test
     void testStrimziTargetAndMissingSupportListAreSkipped() {
         assertTrue(UpgradePreflightChecks.versionFindings(
-            cluster("4.0.0", "4.0-IV3"), "Strimzi 0.45.0", List.of("4.0.0")).isEmpty());
+            cluster("4.2.0", "4.2-IV1"), "Strimzi 1.3.0", List.of("4.2.0")).isEmpty());
         assertTrue(UpgradePreflightChecks.versionFindings(
-            cluster("4.0.0", "4.0-IV3"), "Kafka 9.9.9", null).isEmpty());
+            cluster("4.2.0", "4.2-IV1"), "1.4.0", List.of("4.2.0")).isEmpty());
+        assertTrue(UpgradePreflightChecks.versionFindings(
+            cluster("4.2.0", "4.2-IV1"), "Kafka 9.9.9", null).isEmpty());
     }
 }

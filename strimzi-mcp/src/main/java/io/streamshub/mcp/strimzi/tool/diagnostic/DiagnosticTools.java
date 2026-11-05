@@ -742,7 +742,8 @@ public class DiagnosticTools {
         ) final String namespace,
         @ToolArg(
             description = "Target Kafka or Strimzi version for the upgrade,"
-                + " e.g. 'Kafka 4.2.0' or 'Strimzi 0.45.0'.",
+                + " e.g. 'Kafka 4.2.0' or 'Strimzi 1.3.0'."
+                + " A bare version below 2.0 is read as a Strimzi version; prefix it with 'Kafka' to override.",
             required = false
         ) final String targetVersion,
         final Sampling sampling,

@@ -212,9 +212,9 @@ Checks cluster health, operator status, pod health, replication, topic durabilit
 
 *Pre-flight findings* are computed by the server without the LLM and returned in `preflight_findings` (each with `severity` `BLOCKER` or `WARNING`, a `check` name, and a `message`):
 
-* `topic_durability` -- `BLOCKER` for topics whose effective `min.insync.replicas` (topic override, else broker default) is greater than or equal to the replication factor, because `acks=all` producers cannot write while one broker restarts; `WARNING` for single-replica topics.
+* `topic_durability` -- `BLOCKER` for topics whose effective `min.insync.replicas` (topic override, else broker default) is greater than or equal to the replication factor, because `acks=all` producers cannot write while one broker restarts; `WARNING` for single-replica topics. A topic without `spec.replicas` uses the broker's `default.replication.factor`; it is skipped if the broker config does not set one.
 * `unclean_leader_election` -- `WARNING` when `unclean.leader.election.enable=true` on the brokers or on a topic.
-* `version_path` -- when `targetVersion` is a Kafka version: `BLOCKER` if the installed Strimzi operator does not list it in `supported_kafka_versions`; `WARNING` for a downgrade or a same-version target. Also a `WARNING` when the metadata version is older than the running Kafka version (an earlier upgrade was never finalized). A Strimzi target (for example `Strimzi 0.45.0`) is not checked.
+* `version_path` -- when `targetVersion` is a Kafka version: `BLOCKER` if the installed Strimzi operator does not list it in `supported_kafka_versions`; `WARNING` for a downgrade or a same-version target. Also a `WARNING` when the metadata version is older than the running Kafka version (an earlier upgrade was never finalized). A Strimzi target (for example `Strimzi 1.3.0`) is not checked; a bare version below `2.0` is read as a Strimzi version, so prefix a Kafka version with `Kafka`.
 
 *Parameters:*
 

@@ -53,7 +53,8 @@ public class AssessUpgradeReadinessPrompt {
         @PromptArg(
             name = "target_version",
             description = "Target Kafka or Strimzi version for the upgrade,"
-                + " e.g. 'Kafka 4.2.0' or 'Strimzi 0.45.0'.",
+                + " e.g. 'Kafka 4.2.0' or 'Strimzi 1.3.0'."
+                + " A bare version below 2.0 is read as a Strimzi version; prefix it with 'Kafka' to override.",
             required = false
         ) final String targetVersion
     ) {
@@ -156,7 +157,10 @@ public class AssessUpgradeReadinessPrompt {
             ## Step 4b: Topic durability and unclean election [GO/NO-GO]
             Use `get_kafka_cluster_config(clusterName='%s'%s)` for the broker defaults \
             (`min.insync.replicas`, `unclean.leader.election.enable`) and \
-            `list_kafka_topics(clusterName='%s'%s)` for per-topic `replicas` and `configuration`.
+            `list_kafka_topics(clusterName='%s'%s)` for per-topic `replicas` and `configuration`. \
+            The list returns 100 topics per page: keep paging with `offset` until `has_more` is false, \
+            or raise `limit`, so every topic is checked.
+            A topic without `replicas` uses the broker `default.replication.factor`.
             The effective `min.insync.replicas` of a topic is its own override, else the broker default, \
             else 1.
 
