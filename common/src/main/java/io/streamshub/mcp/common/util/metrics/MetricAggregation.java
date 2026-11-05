@@ -22,8 +22,12 @@ import java.util.stream.DoubleStream;
  * <p>Only metrics where averaging changes the answer a client would act on are listed
  * here. Metrics whose interpretation is explicitly per-broker — {@code leadercount},
  * {@code partitioncount}, both documented as "should be roughly equal across brokers" —
- * stay on {@link #AVG} on purpose, as do latency and {@code *_avg}/{@code *_max} metrics
- * and the JVM/process resource block.</p>
+ * stay on {@link #AVG} on purpose, as do {@code *_avg} metrics.</p>
+ *
+ * <p>Broker-health gauges whose documented thresholds are per broker use the <em>worst</em>
+ * broker instead of the mean: the lowest value for idle ratios ({@link #MIN}), the highest
+ * for request times and for JVM/process resource usage ({@link #MAX}). With idle ratios of
+ * 0.90, 0.88 and 0.04 the mean is 0.61 and looks healthy while one broker is saturated.</p>
  *
  * <p>The table covers every component whose samples can actually collapse. Strimzi operator
  * metrics carry {@code kind} and {@code namespace}, and most Bridge metrics carry
@@ -39,8 +43,11 @@ public enum MetricAggregation {
     /** Total across source series — for counts that are cluster-wide facts. */
     SUM,
 
-    /** Largest across source series — for metrics that are already a maximum. */
-    MAX;
+    /** Largest across source series — for metrics that are already a maximum, or where the highest value is the worst. */
+    MAX,
+
+    /** Smallest across source series — for metrics where the lowest value is the worst, such as idle ratios. */
+    MIN;
 
     private static final Map<String, MetricAggregation> BY_METRIC = Map.ofEntries(
         // --- Kafka broker: replication ---
@@ -56,6 +63,33 @@ public enum MetricAggregation {
         // Per-partition 0/1 health flags: the count of bad partitions, not their mean.
         Map.entry("kafka_cluster_partition_underminisr", SUM),
         Map.entry("kafka_cluster_partition_atminisr", SUM),
+
+        // --- Kafka broker: performance ---
+        // Idle ratios: the thresholds (<0.3 overloaded, <0.1 critical) are per broker, so the
+        // saturated broker is the lowest one. A mean across brokers hides it.
+        Map.entry("kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent", MIN),
+        Map.entry("kafka_network_socketserver_networkprocessoravgidle_percent", MIN),
+        Map.entry("kafka_network_socketserver_networkprocessoravgidlepercent", MIN),
+        // Request times: the thresholds are per broker and higher is worse.
+        Map.entry("kafka_network_requestmetrics_totaltimems", MAX),
+        Map.entry("kafka_network_requestmetrics_requestqueuetimems", MAX),
+        Map.entry("kafka_network_requestmetrics_responsequeuetimems", MAX),
+
+        // --- JVM / process resources (Kafka, Connect, Bridge, operator) ---
+        // Heap use, descriptors, threads and CPU are judged per pod; a leaking or CPU-bound pod
+        // must not be diluted by its healthy peers. Only process_cpu_seconds_total is a counter
+        // that reaches the rate-rename fallback in forMetric, so it is listed in catalog spelling.
+        // Deliberately NOT listed: jvm_gc_*_count/_sum (cumulative since JVM start, so a max picks
+        // the longest-running pod and the sum/count ratio would mix pods) and jvm_memory_max_bytes
+        // (a limit, not a load; maxing it independently of used pairs values of different pods).
+        Map.entry("jvm_memory_used_bytes", MAX),
+        Map.entry("process_cpu_seconds_total", MAX),
+        Map.entry("process_open_fds", MAX),
+        Map.entry("jvm_threads_current", MAX),
+        // Micrometer spelling, used by the Bridge and the Strimzi operators. The Bridge runs
+        // several replicas whose series collapse, so the busiest pod must not be averaged away.
+        Map.entry("process_cpu_usage", MAX),
+        Map.entry("jvm_threads_live_threads", MAX),
 
         // --- Kafka broker: throughput ---
         // Cluster ingress/egress is the total across brokers, not one broker's share. Listed
@@ -145,10 +179,10 @@ public enum MetricAggregation {
     /**
      * Combines the values recorded at one timestamp by several source series.
      *
-     * <p>For {@link #AVG} and {@link #MAX}, an empty list produces {@code 0.0} via
+     * <p>For {@link #AVG}, {@link #MAX} and {@link #MIN}, an empty list produces {@code 0.0} via
      * {@link java.util.OptionalDouble#orElse}. In practice this cannot occur because the
      * caller always passes at least one value, but callers should not rely on the 0.0
-     * fallback for {@link #MAX} with a negative-valued series.</p>
+     * fallback for {@link #MAX} or {@link #MIN} with a negative-valued series.</p>
      *
      * @param values the values to combine; must not be null
      * @return the combined value
@@ -159,6 +193,7 @@ public enum MetricAggregation {
             case AVG -> stream.average().orElse(0.0);
             case SUM -> stream.sum();
             case MAX -> stream.max().orElse(0.0);
+            case MIN -> stream.min().orElse(0.0);
         };
     }
 }

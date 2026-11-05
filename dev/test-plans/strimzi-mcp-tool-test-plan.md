@@ -1460,6 +1460,8 @@ Parameters: {
 
 **Expected:**
 - [ ] `requesthandleravgidle_percent` returns data (was broken — queried `brokerrequesthandleravgidle_percent` which does not exist in the JMX exporter output; fixed in B1)
+- [ ] At the default level the series carries `aggregation_fn` = `min` (the most saturated broker, not the mean across brokers)
+- [ ] Repeating the call with `"aggregation": "BROKER"` returns one series per broker pod, and the default value equals the lowest of them
 
 ### T14.3b - Get Kafka Metrics (time range)
 

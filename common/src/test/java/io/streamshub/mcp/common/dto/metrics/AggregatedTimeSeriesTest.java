@@ -246,6 +246,93 @@ class AggregatedTimeSeriesTest {
         assertNull(result.getFirst().aggregationFn());
     }
 
+    /**
+     * The idle-ratio thresholds (&lt;0.3 overloaded, &lt;0.1 critical) are per broker. With idle
+     * ratios of 0.90, 0.88 and 0.04 the mean is 0.61 and looks healthy while broker 3 is
+     * saturated, so the cluster-level value must be the lowest one.
+     */
+    @Test
+    void idleRatioTakesTheMostSaturatedBrokerNotTheMean() {
+        String name = "kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent";
+        List<MetricSample> samples = List.of(
+            MetricSample.of(name, Map.of("pod", "b-0"), 0.90),
+            MetricSample.of(name, Map.of("pod", "b-1"), 0.88),
+            MetricSample.of(name, Map.of("pod", "b-2"), 0.04)
+        );
+
+        List<AggregatedTimeSeries> result =
+            AggregatedTimeSeries.fromSamples(samples, AggregationLevel.CLUSTER);
+
+        assertEquals(1, result.size());
+        assertEquals(0.04, result.getFirst().summary().latest(), 0.0001);
+        assertEquals("min", result.getFirst().aggregationFn());
+    }
+
+    @Test
+    void idleRatioStaysPerBrokerAtBrokerLevel() {
+        String name = "kafka_network_socketserver_networkprocessoravgidle_percent";
+        List<MetricSample> samples = List.of(
+            MetricSample.of(name, Map.of("pod", "b-0"), 0.90),
+            MetricSample.of(name, Map.of("pod", "b-1"), 0.04)
+        );
+
+        List<AggregatedTimeSeries> result =
+            AggregatedTimeSeries.fromSamples(samples, AggregationLevel.BROKER);
+
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void requestQueueTimeTakesTheSlowestBroker() {
+        String name = "kafka_network_requestmetrics_requestqueuetimems";
+        List<MetricSample> samples = List.of(
+            MetricSample.of(name, Map.of("pod", "b-0"), 5.0),
+            MetricSample.of(name, Map.of("pod", "b-1"), 600.0)
+        );
+
+        List<AggregatedTimeSeries> result =
+            AggregatedTimeSeries.fromSamples(samples, AggregationLevel.CLUSTER);
+
+        assertEquals(600.0, result.getFirst().summary().latest(), 0.001);
+        assertEquals("max", result.getFirst().aggregationFn());
+    }
+
+    /**
+     * A broker leaking file descriptors must not be diluted by its healthy peers.
+     */
+    @Test
+    void jvmResourceMetricsTakeTheWorstPod() {
+        List<MetricSample> samples = List.of(
+            MetricSample.of("process_open_fds", Map.of("pod", "b-0"), 120.0),
+            MetricSample.of("process_open_fds", Map.of("pod", "b-1"), 980.0),
+            MetricSample.of("process_open_fds", Map.of("pod", "b-2"), 110.0)
+        );
+
+        List<AggregatedTimeSeries> result =
+            AggregatedTimeSeries.fromSamples(samples, AggregationLevel.CLUSTER);
+
+        assertEquals(980.0, result.getFirst().summary().latest(), 0.001);
+        assertEquals("max", result.getFirst().aggregationFn());
+    }
+
+    /**
+     * Rate-converted counters are renamed to {@code *_rate_per_second}; the worst-pod rule
+     * must still apply to them.
+     */
+    @Test
+    void rateConvertedCpuCounterTakesTheWorstPod() {
+        List<MetricSample> samples = List.of(
+            MetricSample.of("process_cpu_seconds_rate_per_second", Map.of("pod", "b-0"), 0.1),
+            MetricSample.of("process_cpu_seconds_rate_per_second", Map.of("pod", "b-1"), 0.95)
+        );
+
+        List<AggregatedTimeSeries> result =
+            AggregatedTimeSeries.fromSamples(samples, AggregationLevel.CLUSTER);
+
+        assertEquals(0.95, result.getFirst().summary().latest(), 0.001);
+        assertEquals("max", result.getFirst().aggregationFn());
+    }
+
     // ---------------------------------------------------------------
     // Roll-up preference — a total must not be averaged with its own parts
     // ---------------------------------------------------------------

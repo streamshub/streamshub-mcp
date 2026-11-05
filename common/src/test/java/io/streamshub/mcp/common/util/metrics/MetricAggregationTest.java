@@ -65,5 +65,45 @@ class MetricAggregationTest {
         assertEquals(3.0, MetricAggregation.AVG.reduce(values));
         assertEquals(9.0, MetricAggregation.SUM.reduce(values));
         assertEquals(6.0, MetricAggregation.MAX.reduce(values));
+        assertEquals(1.0, MetricAggregation.MIN.reduce(values));
+    }
+
+    @Test
+    void idleRatiosResolveToMinOnBothSpellings() {
+        assertEquals(MetricAggregation.MIN,
+            MetricAggregation.forMetric("kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent"));
+        assertEquals(MetricAggregation.MIN,
+            MetricAggregation.forMetric("kafka_network_socketserver_networkprocessoravgidle_percent"));
+        assertEquals(MetricAggregation.MIN,
+            MetricAggregation.forMetric("kafka_network_socketserver_networkprocessoravgidlepercent"));
+    }
+
+    @Test
+    void requestTimesAndJvmResourcesResolveToMax() {
+        assertEquals(MetricAggregation.MAX,
+            MetricAggregation.forMetric("kafka_network_requestmetrics_requestqueuetimems"));
+        assertEquals(MetricAggregation.MAX, MetricAggregation.forMetric("jvm_memory_used_bytes"));
+        assertEquals(MetricAggregation.MAX, MetricAggregation.forMetric("process_open_fds"));
+        assertEquals(MetricAggregation.MAX,
+            MetricAggregation.forMetric("process_cpu_seconds_rate_per_second"));
+    }
+
+    @Test
+    void micrometerJvmResourcesResolveToMax() {
+        assertEquals(MetricAggregation.MAX, MetricAggregation.forMetric("process_cpu_usage"));
+        assertEquals(MetricAggregation.MAX, MetricAggregation.forMetric("jvm_threads_live_threads"));
+    }
+
+    /**
+     * Cumulative GC counters and the heap limit stay on the mean: a max of a running total picks
+     * the longest-running pod and splits the documented sum/count ratio across pods.
+     */
+    @Test
+    void gcCountersAndHeapLimitStayOnAverage() {
+        assertEquals(MetricAggregation.AVG, MetricAggregation.forMetric("jvm_gc_collection_seconds_count"));
+        assertEquals(MetricAggregation.AVG, MetricAggregation.forMetric("jvm_gc_collection_seconds_sum"));
+        assertEquals(MetricAggregation.AVG, MetricAggregation.forMetric("jvm_gc_pause_seconds_count"));
+        assertEquals(MetricAggregation.AVG, MetricAggregation.forMetric("jvm_gc_pause_seconds_sum"));
+        assertEquals(MetricAggregation.AVG, MetricAggregation.forMetric("jvm_memory_max_bytes"));
     }
 }
