@@ -13,6 +13,7 @@ import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -85,10 +86,10 @@ class PromptCompletionsTest {
         Mockito.verify(service, Mockito.times(handlers)).completeByArgumentName("pre", context);
     }
 
-    private static List<Class<?>> promptClasses() throws IOException, ClassNotFoundException {
+    private static List<Class<?>> promptClasses() throws IOException, ClassNotFoundException, URISyntaxException {
         List<Class<?>> classes = new ArrayList<>();
-        Path dir = Paths.get(PromptCompletions.class.getProtectionDomain().getCodeSource().getLocation().getPath(),
-            PromptCompletions.class.getPackageName().replace('.', '/'));
+        Path dir = Paths.get(PromptCompletions.class.getProtectionDomain().getCodeSource().getLocation().toURI())
+            .resolve(PromptCompletions.class.getPackageName().replace('.', '/'));
         try (Stream<Path> files = Files.list(dir)) {
             for (Path file : files.filter(p -> p.getFileName().toString().endsWith("Prompt.class")).toList()) {
                 String simple = file.getFileName().toString().replace(".class", "");

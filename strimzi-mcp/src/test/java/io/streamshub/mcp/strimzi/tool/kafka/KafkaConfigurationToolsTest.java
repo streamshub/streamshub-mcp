@@ -20,6 +20,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -53,7 +54,7 @@ class KafkaConfigurationToolsTest {
     }
 
     private static KafkaEffectiveConfigResponse config(final String name, final String namespace) {
-        return new KafkaEffectiveConfigResponse(name, namespace, "4.0.0", "4.0-IV3",
+        return new KafkaEffectiveConfigResponse(name, namespace, "4.2.0", "4.2-IV1",
             Map.of("default.replication.factor", 3), null, null, null, null, null, null, null, null, null,
             null, null, null, null);
     }
@@ -69,7 +70,7 @@ class KafkaConfigurationToolsTest {
                     assertFalse(response.isError());
                     String json = response.structuredContent().toString();
                     assertTrue(json.contains("\"name\":\"my-cluster\""), json);
-                    assertTrue(json.contains("\"kafka_version\":\"4.0.0\""), json);
+                    assertTrue(json.contains("\"kafka_version\":\"4.2.0\""), json);
                     assertTrue(json.contains("default.replication.factor"), json);
                 })
             .thenAssertResults();
@@ -95,5 +96,6 @@ class KafkaConfigurationToolsTest {
             .toolsCall("get_kafka_cluster_config", Map.of("clusterName", ""), response ->
                 assertTrue(response.isError()))
             .thenAssertResults();
+        verifyNoInteractions(kafkaConfigService);
     }
 }

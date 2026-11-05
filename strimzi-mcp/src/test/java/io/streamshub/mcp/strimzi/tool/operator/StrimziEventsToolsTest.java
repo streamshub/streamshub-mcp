@@ -24,6 +24,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -82,6 +83,7 @@ class StrimziEventsToolsTest {
             .toolsCall("get_strimzi_events", Map.of("resourceName", "my-cluster"), response ->
                 assertTrue(response.isError()))
             .thenAssertResults();
+        verifyNoInteractions(eventsService);
     }
 
     @Test
@@ -90,6 +92,7 @@ class StrimziEventsToolsTest {
             .toolsCall("get_strimzi_events", Map.of("resourceName", "my-cluster", "resourceKind", "Kafka",
                 "sinceMinutes", 0), response -> assertTrue(response.isError()))
             .thenAssertResults();
+        verifyNoInteractions(eventsService);
     }
 
     @Test
