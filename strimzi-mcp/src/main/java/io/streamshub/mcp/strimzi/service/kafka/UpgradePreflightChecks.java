@@ -31,6 +31,8 @@ public final class UpgradePreflightChecks {
     public static final String CHECK_VERSION_PATH = "version_path";
 
     private static final String MIN_ISR = "min.insync.replicas";
+    private static final String DEFAULT_REPLICATION_FACTOR = "default.replication.factor";
+    private static final int FIRST_BARE_KAFKA_MAJOR = 2;
     private static final String UNCLEAN = "unclean.leader.election.enable";
     private static final int MAX_LISTED = 10;
     private static final Pattern KAFKA_VERSION =
@@ -47,7 +49,9 @@ public final class UpgradePreflightChecks {
      * {@code min.insync.replicas} is not lower than its replication factor rejects writes from
      * {@code acks=all} producers while a replica is down; a single-replica topic is unavailable
      * while its broker restarts. The effective value is the topic override, else the broker
-     * default; when neither is set Kafka's default of 1 applies.</p>
+     * default; when neither is set Kafka's default of 1 applies. A topic without
+     * {@code spec.replicas} uses the broker's {@code default.replication.factor}; it is skipped when
+     * the broker config does not set one.</p>
      *
      * @param brokerConfig the {@code spec.kafka.config} map, or null when unavailable
      * @param topics       the KafkaTopic resources of the cluster
@@ -56,10 +60,10 @@ public final class UpgradePreflightChecks {
     public static List<UpgradePreflightFinding> topicFindings(final Map<String, Object> brokerConfig,
                                                               final List<KafkaTopicResponse> topics) {
         List<UpgradePreflightFinding> findings = new ArrayList<>();
-        Integer brokerMinIsr = asInt(brokerConfig != null ? brokerConfig.get(MIN_ISR) : null);
-        boolean brokerUnclean = brokerConfig != null && asBool(brokerConfig.get(UNCLEAN));
+        Integer brokerMinIsr = configInt(brokerConfig, MIN_ISR);
+        Integer brokerReplicationFactor = configInt(brokerConfig, DEFAULT_REPLICATION_FACTOR);
 
-        if (brokerUnclean) {
+        if (brokerConfig != null && asBool(brokerConfig.get(UNCLEAN))) {
             findings.add(UpgradePreflightFinding.warning(CHECK_UNCLEAN_ELECTION,
                 "Broker config enables unclean.leader.election.enable: an out-of-sync replica may become leader "
                     + "during the rolling restart and acknowledged records can be lost."));
@@ -74,7 +78,7 @@ public final class UpgradePreflightChecks {
             if (cfg != null && asBool(cfg.get(UNCLEAN))) {
                 uncleanTopics.add(topic.name());
             }
-            Integer replicas = topic.replicas();
+            Integer replicas = topic.replicas() != null ? topic.replicas() : brokerReplicationFactor;
             if (replicas == null) {
                 continue;
             }
@@ -82,10 +86,8 @@ public final class UpgradePreflightChecks {
                 singleReplica.add(topic.name());
                 continue;
             }
-            Integer minIsr = cfg != null ? asInt(cfg.get(MIN_ISR)) : null;
-            if (minIsr == null) {
-                minIsr = brokerMinIsr;
-            }
+            Integer topicMinIsr = configInt(cfg, MIN_ISR);
+            Integer minIsr = topicMinIsr != null ? topicMinIsr : brokerMinIsr;
             if (minIsr != null && minIsr >= replicas) {
                 blocked.add(topic.name() + " (replicas=" + replicas + ", min.insync.replicas=" + minIsr + ")");
             }
@@ -114,8 +116,9 @@ public final class UpgradePreflightChecks {
      *
      * <p>Compares the target with the running version and with the versions the installed Strimzi
      * operator supports, and detects an unfinalized earlier upgrade (metadata version older than the
-     * running version). A target prefixed with {@code Strimzi}, or a bare {@code 0.x} version (which
-     * is a Strimzi, not a Kafka, version), is not checked.</p>
+     * running version). A target prefixed with {@code Strimzi}, or a bare version whose major is below 2
+     * (Strimzi versions are {@code 0.x} and {@code 1.x}; Kafka is 2.x and later), is not checked; a
+     * Kafka target below 2.0 needs the explicit {@code Kafka} prefix.</p>
      *
      * @param cluster           the cluster status
      * @param targetVersion     the user-supplied target (for example {@code Kafka 4.2.0}), may be null
@@ -177,7 +180,7 @@ public final class UpgradePreflightChecks {
             return null;
         }
         boolean explicitKafka = m.group(1) != null;
-        if (!explicitKafka && "0".equals(m.group(2))) {
+        if (!explicitKafka && Integer.parseInt(m.group(2)) < FIRST_BARE_KAFKA_MAJOR) {
             return null;
         }
         return m.group(2) + "." + m.group(3) + (m.group(4) != null ? "." + m.group(4) : "");
@@ -233,6 +236,10 @@ public final class UpgradePreflightChecks {
             return String.join(", ", names);
         }
         return String.join(", ", names.subList(0, MAX_LISTED)) + " and " + (names.size() - MAX_LISTED) + " more";
+    }
+
+    private static Integer configInt(final Map<String, Object> config, final String key) {
+        return config != null ? asInt(config.get(key)) : null;
     }
 
     private static Integer asInt(final Object value) {

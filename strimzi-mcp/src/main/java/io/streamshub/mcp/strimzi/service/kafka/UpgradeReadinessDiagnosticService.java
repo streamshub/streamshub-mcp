@@ -201,7 +201,7 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         DiagnosticHelper.checkCancellation(cancellation);
 
         List<UpgradePreflightFinding> preflight = gatherPreflightFindings(
-            resolvedNs, name, version, completed, failed);
+            resolvedNs, name, cluster, operator, version, completed, failed);
         DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
             preflight == null ? "Failed to run topic durability and version path checks"
                 : String.format("Pre-flight checks found %d issue(s) (topic durability, unclean election, version path)",
@@ -394,6 +394,8 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
     @WithSpan("diagnose.upgrade.preflight")
     List<UpgradePreflightFinding> gatherPreflightFindings(final String namespace,
                                                            final String clusterName,
+                                                           final KafkaClusterResponse cluster,
+                                                           final StrimziOperatorResponse operator,
                                                            final String targetVersion,
                                                            final List<String> completed,
                                                            final List<String> failed) {
@@ -411,9 +413,8 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
 
             List<String> supported = null;
             if (UpgradePreflightChecks.parseKafkaTarget(targetVersion) != null) {
-                supported = gatherSupportedKafkaVersions(failed);
+                supported = gatherSupportedKafkaVersions(operator, failed);
             }
-            KafkaClusterResponse cluster = kafkaService.getCluster(namespace, clusterName);
             findings.addAll(UpgradePreflightChecks.versionFindings(cluster, targetVersion, supported));
 
             completed.add(STEP_PREFLIGHT);
@@ -425,9 +426,12 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         }
     }
 
-    private List<String> gatherSupportedKafkaVersions(final List<String> failed) {
+    private List<String> gatherSupportedKafkaVersions(final StrimziOperatorResponse operator,
+                                                      final List<String> failed) {
         try {
-            StrimziOperatorConfigResponse config = operatorService.getOperatorConfig(null, null);
+            StrimziOperatorConfigResponse config = operator != null
+                ? operatorService.getOperatorConfig(operator.namespace(), operator.name())
+                : operatorService.getOperatorConfig(null, null);
             return config.supportedKafkaVersions();
         } catch (Exception e) {
             LOG.warnf("Could not read supported Kafka versions from the Strimzi operator: %s", e.getMessage());

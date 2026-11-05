@@ -33,7 +33,7 @@ class KafkaTopicTriageFloorTest {
     }
 
     private static KafkaClusterResponse cluster(final String readiness) {
-        return KafkaClusterResponse.of("c", "kafka", "Kafka", "4.0.0", "4.0.0",
+        return KafkaClusterResponse.of("c", "kafka", "Kafka", "4.2.0", "4.2.0",
             null, null, null, readiness, null, null, null, null,
             null, null, null, null, 1L, null, null, null, null, List.of());
     }
