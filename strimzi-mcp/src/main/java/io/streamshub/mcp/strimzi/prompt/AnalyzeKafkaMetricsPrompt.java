@@ -72,10 +72,11 @@ public class AnalyzeKafkaMetricsPrompt {
             4. **LOW**: Throughput trends → informational
 
             Each `get_kafka_metrics` response includes an `interpretation` field with \
-            per-metric descriptions, thresholds, and severity — use it to interpret values.
+            per-metric descriptions, thresholds or heuristics, and severity — use it to interpret values.
 
             ## Step 1: Replication health [CRITICAL]
-            Call `get_kafka_metrics(clusterName='%s'%s, category='replication')`.
+            Call `get_kafka_metrics(clusterName='%s'%s, category='replication', rangeMinutes=15)` \
+            so the maxlag trend is visible (without a Prometheus backend only a point-in-time sample is returned).
 
             **STOP AND ESCALATE IF:**
             - offlinepartitionscount > 0 → partitions unavailable

@@ -132,20 +132,22 @@ public class AssessUpgradeReadinessPrompt {
             - Node pool replica count mismatch (scaling in progress)
 
             ## Step 4: Replication health [GO/NO-GO — CRITICAL]
-            Use `get_kafka_metrics(clusterName='%s'%s, category='replication')`.
+            Use `get_kafka_metrics(clusterName='%s'%s, category='replication', rangeMinutes=15)` \
+            (a range is needed to judge the maxlag trend; without a Prometheus backend only a \
+            point-in-time sample is returned).
 
             **GO conditions** (ALL must be true):
             - offlinepartitionscount = 0
             - underreplicatedpartitions = 0
             - All partitions fully in-sync (ISR = replication factor)
-            - maxlag close to 0
+            - maxlag not growing and back at the cluster's normal baseline
             - min.insync.replicas < replication factor for all topics \
             (ensures at least one spare replica can tolerate the rolling restart)
 
             **NO-GO conditions** (ANY blocks upgrade):
             - offlinepartitionscount > 0 (CRITICAL — data unavailable)
             - underreplicatedpartitions > 0 (rolling restart will lose replicas)
-            - High replication lag (followers cannot keep up)
+            - maxlag growing, or still elevated after restarts finished (followers cannot keep up)
             - min.insync.replicas = replication factor on any topic (no spare replica \
             during restart; Strimzi Drain Cleaner docs cite this as a prerequisite check)
 
