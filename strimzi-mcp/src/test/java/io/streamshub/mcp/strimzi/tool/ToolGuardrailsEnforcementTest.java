@@ -97,7 +97,7 @@ class ToolGuardrailsEnforcementTest {
                     toolMethods.add(method);
                     String methodName = toolClass.getSimpleName() + "#" + method.getName();
 
-                    // Check 0b: every tool does blocking Kubernetes I/O, so it must not run on the event loop
+                    // Check 0b: every tool does blocking I/O, so it must run on a virtual thread, not the Quarkus worker pool
                     if (!method.isAnnotationPresent(RunOnVirtualThread.class)) {
                         violations.add(methodName + " lacks @RunOnVirtualThread");
                     }

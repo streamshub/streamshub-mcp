@@ -49,6 +49,7 @@ Scan the changed files and classify into categories. This guides which checks ap
 
 - [ ] Class annotated `@Singleton`, `@MeasuredTool`, `@WrapBusinessError(value = Exception.class, unless = {ToolCallException.class, McpException.class})`.
 - [ ] Package-private no-arg constructor present for CDI.
+- [ ] Every `@Tool` method has `@RunOnVirtualThread` (above `@WithSpan`).
 - [ ] Every tool method has `@WithSpan("tool.<tool_name>")` matching the `@Tool(name = ...)` value.
 - [ ] Every tool method has `@MetaField` annotations for `type` (from `ToolMetaFields`) and `resource` (from `StrimziToolResources`).
 - [ ] Composite tools have `@MetaField(name = ToolMetaFields.COMPOSITE, value = "true", type = MetaField.Type.BOOLEAN)`.
