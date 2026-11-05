@@ -25,11 +25,14 @@ class QueryLiteralSanitizerTest {
     }
 
     @Test
-    void validateLabelNameRejectsNullAndEmpty() {
-        assertThrows(IllegalArgumentException.class,
-            () -> QueryLiteralSanitizer.validateLabelName(null, "label name"));
-        assertThrows(IllegalArgumentException.class,
-            () -> QueryLiteralSanitizer.validateLabelName("", "label name"));
+    void validateLabelNameRejectsNullAndEmptyAndNamesTheKind() {
+        IllegalArgumentException nullName = assertThrows(IllegalArgumentException.class,
+            () -> QueryLiteralSanitizer.validateLabelName(null, "LogQL label name"));
+        IllegalArgumentException emptyName = assertThrows(IllegalArgumentException.class,
+            () -> QueryLiteralSanitizer.validateLabelName("", "PromQL label name"));
+
+        assertEquals("LogQL label name must not be null or empty", nullName.getMessage());
+        assertEquals("PromQL label name must not be null or empty", emptyName.getMessage());
     }
 
     @Test
@@ -47,6 +50,14 @@ class QueryLiteralSanitizerTest {
         assertEquals("a\\\\b", QueryLiteralSanitizer.escapeStringLiteral("a\\b"));
         assertEquals("say \\\"hi\\\"", QueryLiteralSanitizer.escapeStringLiteral("say \"hi\""));
         assertEquals("l1\\nl2", QueryLiteralSanitizer.escapeStringLiteral("l1\nl2"));
+    }
+
+    @Test
+    void escapeStringLiteralEscapesBackslashBeforeQuote() {
+        // A value ending in a backslash must not be able to escape the closing quote of the literal,
+        // and a backslash directly before a quote must be doubled, not merged into the quote escape.
+        assertEquals("a\\\\\\\"b", QueryLiteralSanitizer.escapeStringLiteral("a\\\"b"));
+        assertEquals("end\\\\", QueryLiteralSanitizer.escapeStringLiteral("end\\"));
     }
 
     @Test

@@ -31,7 +31,7 @@ public final class QueryLiteralSanitizer {
      */
     public static String validateLabelName(final String name, final String description) {
         if (name == null || name.isEmpty()) {
-            throw new IllegalArgumentException("Label name must not be null or empty");
+            throw new IllegalArgumentException(description + " must not be null or empty");
         }
         if (!LABEL_NAME_PATTERN.matcher(name).matches()) {
             throw new IllegalArgumentException(
