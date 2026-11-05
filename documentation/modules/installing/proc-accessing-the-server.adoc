@@ -21,7 +21,6 @@ The `prod-openshift` and `dev-openshift` overlays include an edge-terminated Rou
 
 WARNING: The Route does not authenticate callers. Anyone who can reach the router can call every MCP tool. Put an authenticating proxy in front of it or remove the Route in shared environments.
 
-
 [source,bash]
 ----
 kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/

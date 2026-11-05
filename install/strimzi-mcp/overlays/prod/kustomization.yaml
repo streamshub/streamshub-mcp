@@ -11,11 +11,11 @@ patches:
 - path: deployment-patch.yaml
 
 # Hardened defaults for production. Override any key in the optional strimzi-mcp-config ConfigMap.
+# The generated name carries a content hash that kustomize propagates to the Deployment's envFrom,
+# so changing a default rolls the pods.
 configMapGenerator:
 - name: strimzi-mcp-defaults
   literals:
   - MCP_GUARDRAIL_RATE_LIMIT_LOG_RPM=30
   - MCP_GUARDRAIL_RATE_LIMIT_METRICS_RPM=60
   - MCP_GUARDRAIL_RATE_LIMIT_GENERAL_RPM=120
-generatorOptions:
-  disableNameSuffixHash: true
