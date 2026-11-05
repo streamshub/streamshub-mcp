@@ -61,9 +61,16 @@ class SensitiveKeysTest {
     void testAuthRelatedNonSecretConfigKeysAreKept() {
         for (String key : new String[] {
             "auth.enabled", "auth.type", "authentication.type", "authorizer.class.name",
-            "basic.auth.credentials.source.name", "oauth.client.id", "passes", "bypass.mode"}) {
+            "basic.auth.credentials.source", "value.converter.basic.auth.credentials.source",
+            "schema.registry.basic.auth.credentials.source", "ssl.client.auth",
+            "listener.name.internal.ssl.client.auth", "oauth.client.id", "passes", "bypass.mode"}) {
             assertFalse(SensitiveKeys.isSensitiveConfigKey(key), key);
         }
+        assertEquals("USER_INFO", SensitiveKeys.redactValues(
+            Map.of("value.converter.basic.auth.credentials.source", "USER_INFO"))
+            .get("value.converter.basic.auth.credentials.source"));
+        assertEquals("required", SensitiveKeys.redactValues(Map.of("ssl.client.auth", "required"))
+            .get("ssl.client.auth"));
     }
 
     @Test

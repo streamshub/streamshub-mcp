@@ -25,6 +25,7 @@ import org.jboss.logging.Logger;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -292,6 +293,9 @@ public final class DiagnosticHelper {
         if (cancelled != null && cancelled.get()) {
             return null;
         }
+        // Outside the try: a missing redactor is a wiring mistake and must fail loudly, not be
+        // swallowed by the generic catch below as a failed (null) sampling call.
+        Objects.requireNonNull(redactor, "redactor");
         try {
             String json = redactedJson(mapper, redactor, data);
             SamplingResponse response = sampling.requestBuilder()

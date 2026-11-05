@@ -64,10 +64,15 @@ public final class SensitiveKeys {
     private static final Set<String> DATA_KEY_QUALIFIERS = Set.of(
         "primary", "partition", "message", "record", "foreign", "sort", "hash", "row", "routing");
 
-    /** Last words that mean the value describes a secret rather than being one. */
+    /**
+     * Last words that mean the value describes a secret rather than being one. {@code source}
+     * covers {@code basic.auth.credentials.source} (values {@code USER_INFO}, {@code URL},
+     * {@code SASL_INHERIT}).
+     */
     private static final Set<String> NON_SECRET_SUFFIXES = Set.of(
         "name", "names", "ref", "type", "url", "uri", "endpoint", "location", "path", "file",
-        "ms", "seconds", "lifetime", "interval", "enabled", "enable", "size", "count", "class", "provider");
+        "ms", "seconds", "lifetime", "interval", "enabled", "enable", "size", "count", "class", "provider",
+        "source");
 
     /** Whole keys that name a secret resource without containing a secret. */
     private static final Set<String> SAFE_KEYS = Set.of("push_secret");
@@ -113,6 +118,9 @@ public final class SensitiveKeys {
             return false;
         }
         String last = words.getLast();
+        if (isClientAuthMode(words)) {
+            return false;
+        }
         if (config && SECRET_LAST_WORDS.contains(last)
                 && !(words.size() > 1 && "key".equals(last)
                 && DATA_KEY_QUALIFIERS.contains(words.get(words.size() - 2)))) {
@@ -128,6 +136,12 @@ public final class SensitiveKeys {
             }
         }
         return false;
+    }
+
+    /** {@code ssl.client.auth} is a mode (none, requested, required), not a credential. */
+    private static boolean isClientAuthMode(final List<String> words) {
+        int n = words.size();
+        return n > 1 && "auth".equals(words.get(n - 1)) && "client".equals(words.get(n - 2));
     }
 
     /**
