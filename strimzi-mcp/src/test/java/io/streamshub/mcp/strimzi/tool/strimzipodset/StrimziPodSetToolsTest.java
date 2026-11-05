@@ -20,6 +20,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -90,5 +91,6 @@ class StrimziPodSetToolsTest {
             .toolsCall("get_strimzi_pod_sets", Map.of("clusterName", ""), response ->
                 assertTrue(response.isError()))
             .thenAssertResults();
+        verifyNoInteractions(podSetService);
     }
 }

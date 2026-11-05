@@ -143,6 +143,14 @@ class PodScrapingMetricsProviderTest {
     }
 
     @Test
+    void testFallsBackToPort8080WhenPodDoesNotExist() {
+        when(podResource.get()).thenReturn(null);
+        when(client.raw("/api/v1/namespaces/kafka/pods/p-0:8080/proxy/metrics")).thenReturn(BODY_TWO);
+
+        assertEquals(1, provider.queryMetrics(instant(null, List.of(PodTarget.of(NS, "p-0")), 0)).size());
+    }
+
+    @Test
     void testFallsBackToPort8080WhenPodLookupFails() {
         when(podResource.get()).thenThrow(new RuntimeException("forbidden"));
         when(client.raw("/api/v1/namespaces/kafka/pods/p-0:8080/proxy/metrics")).thenReturn(BODY_TWO);
