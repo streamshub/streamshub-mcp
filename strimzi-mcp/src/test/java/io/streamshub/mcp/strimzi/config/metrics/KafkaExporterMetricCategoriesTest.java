@@ -69,6 +69,14 @@ class KafkaExporterMetricCategoriesTest {
     }
 
     @Test
+    void consumerLagInterpretationJudgesLagByTrendNotFixedNumbers() {
+        String interpretation = KafkaExporterMetricCategories.interpretation(List.of("consumer_lag"));
+        assertTrue(interpretation.contains("trend"), interpretation);
+        assertFalse(interpretation.contains("<1000"), interpretation);
+        assertFalse(interpretation.contains(">10000"), interpretation);
+    }
+
+    @Test
     void interpretationWithNullReturnsNull() {
         assertNull(KafkaExporterMetricCategories.interpretation(null));
     }

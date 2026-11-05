@@ -74,6 +74,7 @@ class PromptTemplateValidationTest {
         assertSystemMessage(response, "analyze-kafka-metrics");
         assertTrue(content.contains("my-cluster"));
         assertTrue(content.contains("kafka-prod"));
+        assertTrue(content.contains("category='replication', rangeMinutes=15"), content);
     }
 
     @Test
@@ -160,6 +161,8 @@ class PromptTemplateValidationTest {
         assertTrue(content.contains("my-cluster"));
         assertTrue(content.contains("kafka-prod"));
         assertTrue(content.contains("4.2.0"));
+        assertTrue(content.contains("category='replication', rangeMinutes=15"), content);
+        assertFalse(content.contains("close to 0"), content);
     }
 
     @Test
