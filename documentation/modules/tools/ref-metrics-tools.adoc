@@ -10,8 +10,10 @@ Tools for retrieving and analyzing Prometheus metrics from Kafka brokers, Kafka 
 ====
 When several pods report the same metric, the default `cluster` aggregation combines them with a function chosen per metric, reported as `aggregation_fn` on the series (omitted for the plain mean).
 Cluster-wide counts and throughput are summed (`sum`).
-Broker-health metrics whose thresholds apply per broker report the worst pod instead of the mean: the lowest value for the handler and network-processor idle ratios (`min`), and the highest value for request times and for JVM and process resource usage (`max`), under both the JMX Exporter and the Micrometer metric names (Kafka Bridge and Strimzi operators).
-Request `aggregation` at `broker` level to see the value for each pod.
+Broker-health metrics whose thresholds apply per broker report the worst pod instead of the mean: the lowest value for the handler and network-processor idle ratios (`min`), and the highest value for request times and for JVM and process resource usage such as heap use, file descriptors, threads and CPU (`max`), under both the JMX Exporter and the Micrometer metric names (Kafka Bridge and Strimzi operators).
+GC counts and times are cumulative since the JVM started, so they stay on the mean.
+For `get_kafka_metrics`, request `aggregation` at `BROKER` level to see the value for each pod.
+The Kafka Connect, Kafka Bridge and Strimzi operator metrics tools always aggregate at `CLUSTER` level, so they report the worst pod without a per-pod view.
 ====
 
 == get_kafka_metrics

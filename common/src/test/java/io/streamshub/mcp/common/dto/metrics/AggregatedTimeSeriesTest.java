@@ -330,6 +330,7 @@ class AggregatedTimeSeriesTest {
             AggregatedTimeSeries.fromSamples(samples, AggregationLevel.CLUSTER);
 
         assertEquals(0.95, result.getFirst().summary().latest(), 0.001);
+        assertEquals("max", result.getFirst().aggregationFn());
     }
 
     // ---------------------------------------------------------------
