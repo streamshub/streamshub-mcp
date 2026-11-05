@@ -90,9 +90,20 @@ class MetricAggregationTest {
 
     @Test
     void micrometerJvmResourcesResolveToMax() {
-        assertEquals(MetricAggregation.MAX, MetricAggregation.forMetric("jvm_gc_pause_seconds_count"));
-        assertEquals(MetricAggregation.MAX, MetricAggregation.forMetric("jvm_gc_pause_seconds_sum"));
         assertEquals(MetricAggregation.MAX, MetricAggregation.forMetric("process_cpu_usage"));
         assertEquals(MetricAggregation.MAX, MetricAggregation.forMetric("jvm_threads_live_threads"));
+    }
+
+    /**
+     * Cumulative GC counters and the heap limit stay on the mean: a max of a running total picks
+     * the longest-running pod and splits the documented sum/count ratio across pods.
+     */
+    @Test
+    void gcCountersAndHeapLimitStayOnAverage() {
+        assertEquals(MetricAggregation.AVG, MetricAggregation.forMetric("jvm_gc_collection_seconds_count"));
+        assertEquals(MetricAggregation.AVG, MetricAggregation.forMetric("jvm_gc_collection_seconds_sum"));
+        assertEquals(MetricAggregation.AVG, MetricAggregation.forMetric("jvm_gc_pause_seconds_count"));
+        assertEquals(MetricAggregation.AVG, MetricAggregation.forMetric("jvm_gc_pause_seconds_sum"));
+        assertEquals(MetricAggregation.AVG, MetricAggregation.forMetric("jvm_memory_max_bytes"));
     }
 }

@@ -76,20 +76,18 @@ public enum MetricAggregation {
         Map.entry("kafka_network_requestmetrics_responsequeuetimems", MAX),
 
         // --- JVM / process resources (Kafka, Connect, Bridge, operator) ---
-        // Heap, descriptors, threads, GC and CPU are judged per pod; a leaking or GC-bound pod
-        // must not be diluted by its healthy peers. Counters are matched through the
-        // rate-rename fallback in forMetric, so they are listed here in catalog spelling.
+        // Heap use, descriptors, threads and CPU are judged per pod; a leaking or CPU-bound pod
+        // must not be diluted by its healthy peers. Only process_cpu_seconds_total is a counter
+        // that reaches the rate-rename fallback in forMetric, so it is listed in catalog spelling.
+        // Deliberately NOT listed: jvm_gc_*_count/_sum (cumulative since JVM start, so a max picks
+        // the longest-running pod and the sum/count ratio would mix pods) and jvm_memory_max_bytes
+        // (a limit, not a load; maxing it independently of used pairs values of different pods).
         Map.entry("jvm_memory_used_bytes", MAX),
-        Map.entry("jvm_memory_max_bytes", MAX),
-        Map.entry("jvm_gc_collection_seconds_count", MAX),
-        Map.entry("jvm_gc_collection_seconds_sum", MAX),
         Map.entry("process_cpu_seconds_total", MAX),
         Map.entry("process_open_fds", MAX),
         Map.entry("jvm_threads_current", MAX),
         // Micrometer spelling, used by the Bridge and the Strimzi operators. The Bridge runs
         // several replicas whose series collapse, so the busiest pod must not be averaged away.
-        Map.entry("jvm_gc_pause_seconds_count", MAX),
-        Map.entry("jvm_gc_pause_seconds_sum", MAX),
         Map.entry("process_cpu_usage", MAX),
         Map.entry("jvm_threads_live_threads", MAX),
 
@@ -181,10 +179,10 @@ public enum MetricAggregation {
     /**
      * Combines the values recorded at one timestamp by several source series.
      *
-     * <p>For {@link #AVG} and {@link #MAX}, an empty list produces {@code 0.0} via
+     * <p>For {@link #AVG}, {@link #MAX} and {@link #MIN}, an empty list produces {@code 0.0} via
      * {@link java.util.OptionalDouble#orElse}. In practice this cannot occur because the
      * caller always passes at least one value, but callers should not rely on the 0.0
-     * fallback for {@link #MAX} with a negative-valued series.</p>
+     * fallback for {@link #MAX} or {@link #MIN} with a negative-valued series.</p>
      *
      * @param values the values to combine; must not be null
      * @return the combined value

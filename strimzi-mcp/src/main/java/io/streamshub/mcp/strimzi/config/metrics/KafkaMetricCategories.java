@@ -174,9 +174,12 @@ public final class KafkaMetricCategories {
         RESOURCES,
             MetricsDescriptions.jvmDescription("get_kafka_cluster_pods",
                 "performance degradation or pod restarts")
-                + "\n\n**[AGGREGATION]** At the default level each metric is the worst pod, not the "
-                + "mean — each series carries `aggregation_fn` = \"max\" — so one leaking or GC-bound "
-                + "broker is not diluted by healthy peers. Request aggregation=BROKER to see which pod.",
+                + "\n\n**[AGGREGATION]** At the default level heap use, file descriptors, threads and CPU "
+                + "are the worst pod, not the mean — each series carries `aggregation_fn` = \"max\" — so one "
+                + "leaking or CPU-bound broker is not diluted by healthy peers. Request aggregation=BROKER "
+                + "to see which pod. GC counts and times, and `jvm_memory_max_bytes`, are cluster means: "
+                + "GC counters are cumulative since JVM start, so request aggregation=BROKER to compare "
+                + "pods and read each pod's sum/count ratio on its own.",
         PERFORMANCE,
             "**[HIGH - BROKER CAPACITY]**\n\n"
                 + "kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent: "
