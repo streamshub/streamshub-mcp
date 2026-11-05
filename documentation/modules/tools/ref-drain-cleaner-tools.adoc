@@ -16,6 +16,8 @@ The drain cleaner operates in two modes:
 * *Standard mode* (default) -- Denies eviction requests and annotates pods with `strimzi.io/manual-rolling-update` for the Strimzi operator to handle
 * *Legacy mode* -- Allows evictions while relying on Pod Disruption Budgets with `maxUnavailable: 0` to prevent actual pod termination
 
+The server reads the mode and the watched namespaces from the Deployment environment. When `STRIMZI_DENY_EVICTION` or `STRIMZI_DRAIN_NAMESPACES` is injected through `valueFrom` (ConfigMap, Secret, or field reference), the server does not resolve the value: the mode is reported as `unknown`, the readiness check does not pass, and the source is shown as a reference such as `configMapKeyRef:name/key`.
+
 == Deployment management
 
 === list_drain_cleaners
@@ -45,7 +47,7 @@ Get detailed information about a Strimzi Drain Cleaner deployment including webh
 *Returns:* Detailed drain cleaner information including:
 
 * Deployment status, version, image, replicas, and uptime
-* Operating mode (standard or legacy)
+* Operating mode (standard, legacy, or unknown when `STRIMZI_DENY_EVICTION` is set through `valueFrom`)
 * Webhook configuration status and failure policy
 * Environment variable configuration (`STRIMZI_DENY_EVICTION`, `STRIMZI_DRAIN_KAFKA`, `STRIMZI_DRAIN_NAMESPACES`)
 

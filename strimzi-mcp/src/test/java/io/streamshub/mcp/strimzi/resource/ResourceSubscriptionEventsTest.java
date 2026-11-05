@@ -33,6 +33,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -123,7 +124,7 @@ class ResourceSubscriptionEventsTest {
     }
 
     private static KafkaClusterResponse cluster(final String name, final String readiness) {
-        return KafkaClusterResponse.of(name, NS, "Kafka", "4.0.0", "4.0.0",
+        return KafkaClusterResponse.of(name, NS, "Kafka", "4.2.0", "4.2.0",
             null, null, null, readiness, null, null, null, null,
             null, null, null, null, 1L, null, null, null, null, List.of());
     }
@@ -133,8 +134,8 @@ class ResourceSubscriptionEventsTest {
         assertNotNull(kafkaWatcher.getValue());
         assertNotNull(nodePoolWatcher.getValue());
         assertEquals(2, manager.watchCount());
-        assertEquals(true, manager.getWatchHealthState().get("Kafka"));
-        assertEquals(true, manager.getWatchHealthState().get("KafkaNodePool"));
+        assertEquals(Boolean.TRUE, manager.getWatchHealthState().get("Kafka"));
+        assertEquals(Boolean.TRUE, manager.getWatchHealthState().get("KafkaNodePool"));
     }
 
     @Test
@@ -159,7 +160,7 @@ class ResourceSubscriptionEventsTest {
     }
 
     @Test
-    void testKafkaModifiedKeepsResourceRegisteredAndRereadsService() {
+    void testKafkaModifiedIsDeduplicatedUntilPayloadChanges() {
         String name = "modified-cluster";
         when(kafkaService.getCluster(NS, name)).thenReturn(cluster(name, "Ready"));
         when(nodePoolService.listNodePools(NS, name)).thenReturn(List.of());
@@ -168,14 +169,23 @@ class ResourceSubscriptionEventsTest {
 
         try {
             kafkaWatcher.getValue().eventReceived(Watcher.Action.ADDED, kafka(name));
-            // An unchanged payload is de-duplicated; a changed one is stored.
+            String initial = manager.getState(statusUri);
+            assertNotNull(initial);
+            assertTrue(initial.contains("Ready"), initial);
+
+            // An unchanged payload leaves the stored state as is.
             kafkaWatcher.getValue().eventReceived(Watcher.Action.MODIFIED, kafka(name));
+            assertEquals(initial, manager.getState(statusUri));
+
+            // A changed payload replaces the stored state.
             when(kafkaService.getCluster(NS, name)).thenReturn(cluster(name, "NotReady"));
             kafkaWatcher.getValue().eventReceived(Watcher.Action.MODIFIED, kafka(name));
+            String updated = manager.getState(statusUri);
+            assertNotEquals(initial, updated);
+            assertTrue(updated.contains("NotReady"), updated);
 
             verify(kafkaService, times(3)).getCluster(NS, name);
             assertNotNull(resourceManager.getResource(statusUri));
-            assertTrue(manager.containsState(statusUri));
         } finally {
             resourceManager.removeResource(statusUri);
             resourceManager.removeResource(topologyUri);
@@ -221,7 +231,7 @@ class ResourceSubscriptionEventsTest {
     }
 
     @Test
-    void testNodePoolEventRegistersPoolAndRefreshesParentTopology() {
+    void testNodePoolEventRegistersPoolStatusAndRefreshesParentTopology() {
         String cluster = "pool-cluster";
         String pool = "pool-a";
         when(nodePoolService.getNodePool(NS, null, pool)).thenReturn(null);
@@ -232,6 +242,9 @@ class ResourceSubscriptionEventsTest {
         try {
             nodePoolWatcher.getValue().eventReceived(Watcher.Action.ADDED, nodePool(pool, cluster));
 
+            verify(nodePoolService).getNodePool(NS, null, pool);
+            assertNotNull(resourceManager.getResource(poolUri), "pool status should be registered");
+            assertTrue(manager.containsState(poolUri));
             verify(nodePoolService).listNodePools(NS, cluster);
             assertNotNull(resourceManager.getResource(topologyUri), "parent topology should be refreshed");
         } finally {

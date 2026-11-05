@@ -130,6 +130,10 @@ public class ResourceSubscriptionManager implements Closeable {
         return lastKnownState.containsKey(uri);
     }
 
+    String getState(final String uri) {
+        return lastKnownState.get(uri);
+    }
+
     void clearState() {
         lastKnownState.clear();
     }
