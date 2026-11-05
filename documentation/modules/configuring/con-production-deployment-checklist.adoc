@@ -26,7 +26,7 @@ See xref:loki-authentication-{context}[Loki authentication] and xref:prometheus-
 == Rate limiting
 
 All rate limits default to `0` (unlimited) in the server itself.
-The `prod` and `prod-openshift` overlays set finite limits (30 log, 60 metrics and 120 general requests per minute) through the `strimzi-mcp-defaults` ConfigMap.
+The `prod` and `prod-openshift` overlays set finite limits (30 log, 60 metrics and 120 general requests per minute, counted per pod and shared by all clients of that pod) through the `strimzi-mcp-defaults` ConfigMap.
 Override them in the optional `strimzi-mcp-config` ConfigMap, which takes precedence.
 The server uses three categories: `log` (log collection tools), `metrics` (metrics tools), and `general` (all other tools).
 Set per-category limits to prevent resource exhaustion:

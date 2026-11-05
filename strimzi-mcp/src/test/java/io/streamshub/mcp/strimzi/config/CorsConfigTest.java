@@ -14,7 +14,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /**
  * Verifies the default CORS configuration really admits {@code localhost} origins on any port
@@ -63,8 +63,8 @@ class CorsConfigTest {
      */
     @Test
     void testForeignOriginRejected() throws Exception {
-        String allowed = preflight("https://evil.example.com");
-        assertFalse("https://evil.example.com".equals(allowed), "Foreign origin must not be echoed");
+        assertNotEquals("https://evil.example.com", preflight("https://evil.example.com"),
+            "Foreign origin must not be echoed");
     }
 
     /**
@@ -72,7 +72,24 @@ class CorsConfigTest {
      */
     @Test
     void testLocalhostLookalikeRejected() throws Exception {
-        String allowed = preflight("http://localhost.evil.example.com:80");
-        assertFalse("http://localhost.evil.example.com:80".equals(allowed), "Lookalike origin must not be echoed");
+        assertNotEquals("http://localhost.evil.example.com:80", preflight("http://localhost.evil.example.com:80"),
+            "Lookalike origin must not be echoed");
+    }
+
+    /**
+     * Verify the loopback IP origin documented as a default is allowed.
+     */
+    @Test
+    void testLoopbackIpOriginAllowed() throws Exception {
+        assertEquals("http://127.0.0.1:6274", preflight("http://127.0.0.1:6274"));
+    }
+
+    /**
+     * Verify the dots in the loopback IP are literal, so a look-alike host is rejected.
+     */
+    @Test
+    void testLoopbackIpLookalikeRejected() throws Exception {
+        assertNotEquals("http://127a0a0a1:6274", preflight("http://127a0a0a1:6274"),
+            "Lookalike origin must not be echoed");
     }
 }

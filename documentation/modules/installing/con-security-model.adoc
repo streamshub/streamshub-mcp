@@ -35,6 +35,7 @@ In production, restrict access to the MCP endpoint using infrastructure-level co
 * *Ingress authentication* -- Configure ingress controller annotations for authentication (for example, `nginx.ingress.kubernetes.io/auth-url`)
 
 The `prod` and `prod-openshift` overlays include a NetworkPolicy that admits only pods in the same namespace (plus the OpenShift router and monitoring on OpenShift).
+The policy works per port, not per path: on OpenShift, pods in the monitoring namespaces can reach the same HTTP port that serves `/mcp`, so they can call every tool.
 The OpenShift Route created by the `*-openshift` overlays exposes the unauthenticated endpoint outside the cluster; place an authenticating front in front of it or remove the Route.
 
 CORS is restricted to `localhost` and `127.0.0.1` origins by default.

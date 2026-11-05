@@ -70,7 +70,7 @@ For production Kubernetes deployments.
 
 - 2 replicas
 - Higher resource requests and limits
-- Finite rate limits (30 log / 60 metrics / 120 general requests per minute) from the generated `strimzi-mcp-defaults` ConfigMap
+- Finite rate limits (30 log / 60 metrics / 120 general requests per minute, counted per pod and shared by all clients of that pod) from the generated `strimzi-mcp-defaults` ConfigMap
 - NetworkPolicy admitting only pods in the `streamshub-mcp` namespace (the endpoint has no authentication; add a policy for your clients' namespaces and, if a PodMonitor scrapes the server, for the Prometheus namespace)
 - Optional ConfigMap (`strimzi-mcp-config`) and Secret (`strimzi-mcp-secrets`) for configuration via `envFrom`
 

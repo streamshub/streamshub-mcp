@@ -44,7 +44,7 @@ The *prod* overlay adds:
 
 * 2 replicas for high availability
 * Higher resource requests and limits
-* Finite rate limits (30 log, 60 metrics, 120 general requests per minute) from the generated `strimzi-mcp-defaults` ConfigMap
+* Finite rate limits (30 log, 60 metrics, 120 general requests per minute; counted per pod and shared by all clients of that pod) from the generated `strimzi-mcp-defaults` ConfigMap
 * A NetworkPolicy that admits only pods in the `streamshub-mcp` namespace; add policies for your MCP clients' namespaces and, if a PodMonitor scrapes the server, for the Prometheus namespace
 * Optional ConfigMap and Secret references for configuration via `envFrom`; they override the defaults
 
