@@ -13,6 +13,7 @@ import io.quarkiverse.mcp.server.Sampling;
 import io.streamshub.mcp.common.dto.metrics.AggregatedTimeSeries;
 import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
+import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
@@ -62,6 +63,9 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
 
     @Inject
     KafkaMetricsService kafkaMetricsService;
+
+    @Inject
+    MetricsQueryService metricsQueryService;
 
     @Override
     protected Logger getLogger() {
@@ -278,7 +282,7 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
                 allMetrics.provider(), List.of(category),
                 categorySeries, interpretation);
             if (Boolean.TRUE.equals(allMetrics.truncated())) {
-                categoryResponse = categoryResponse.withTruncation(0);
+                categoryResponse = categoryResponse.withTruncation(metricsQueryService.maxSamples());
             }
             results.put(category, categoryResponse);
             completed.add(categoryStepName(category));
