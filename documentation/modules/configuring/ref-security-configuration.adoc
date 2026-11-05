@@ -42,6 +42,7 @@ For example, `{"database.password": "hunter2"}` and `sasl.jaas.config` values ar
 Keys are compared word by word, so `key.converter`, `delegation.token.max.lifetime.ms`, `keystore.location`, and the `secret_name` field that names a Kubernetes Secret are not affected.
 Values that are only a configuration-provider reference such as `${secrets:namespace/name:password}` are kept.
 In configuration maps, any key containing the word `auth` or `pass` is treated as secret, so `basic.auth.user.info` (Schema Registry credentials in Kafka Connect configs) is redacted.
+Settings that only select a mode or a credential source, such as `ssl.client.auth` and `basic.auth.credentials.source`, are not secrets and stay visible.
 A bare `Basic <credentials>` value is redacted even when it is not preceded by `Authorization:`.
 
 NOTE: `get_kafka_connector`, `get_kafka_bridge`, `get_kafka_topic`, and `get_kafka_cluster_config` redact secrets in their `config` maps at the source.

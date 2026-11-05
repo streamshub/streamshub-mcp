@@ -320,4 +320,45 @@ class BaseDiagnosticServiceMrtrTest {
         assertFalse(sent.contains("abc123def"), sent);
         assertTrue(sent.contains("tasks.max"), sent);
     }
+
+    @Test
+    void testStatelessSamplingDataIsRedactedBeforeLeavingTheServer() {
+        TestService service = new TestService();
+        service.objectMapper = new ObjectMapper();
+        service.redactor = new Redactor(true, null);
+        service.analysisMaxTokens = 1500;
+
+        Sampling sampling = mock(Sampling.class);
+        when(sampling.isServerInitiatedRequestSupported()).thenReturn(false);
+        when(sampling.isSupported()).thenReturn(true);
+        InputResponses responses = mock(InputResponses.class);
+        when(responses.has("analysis")).thenReturn(false);
+        when(sampling.inputResponses()).thenReturn(responses);
+
+        SamplingRequest.Builder requestBuilder =
+            mock(SamplingRequest.Builder.class, org.mockito.Mockito.RETURNS_SELF);
+        when(requestBuilder.build()).thenReturn(mock(SamplingRequest.class));
+        when(sampling.requestBuilder()).thenReturn(requestBuilder);
+
+        InputRequiredException.Builder exceptionBuilder =
+            mock(InputRequiredException.Builder.class, org.mockito.Mockito.RETURNS_SELF);
+        when(exceptionBuilder.build())
+            .thenThrow(InputRequiredException.builder().setRequestState("test").build());
+        when(sampling.inputRequired()).thenReturn(exceptionBuilder);
+
+        Map<String, Object> data = Map.of(
+            "connector", Map.of("config", Map.of("database.password", "hunter2", "tasks.max", "1")),
+            "logs", "connecting with token=abc123def");
+
+        assertThrows(InputRequiredException.class,
+            () -> service.performAnalysisMrtr(sampling, "sys", data, "analysis", "ns1", null));
+
+        org.mockito.ArgumentCaptor<io.quarkiverse.mcp.server.SamplingMessage> captor =
+            org.mockito.ArgumentCaptor.forClass(io.quarkiverse.mcp.server.SamplingMessage.class);
+        verify(requestBuilder).addMessage(captor.capture());
+        String sent = ((TextContent) captor.getValue().content()).text();
+        assertFalse(sent.contains("hunter2"), sent);
+        assertFalse(sent.contains("abc123def"), sent);
+        assertTrue(sent.contains("tasks.max"), sent);
+    }
 }
