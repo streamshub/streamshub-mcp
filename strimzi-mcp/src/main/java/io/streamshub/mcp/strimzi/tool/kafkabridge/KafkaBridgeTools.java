@@ -63,6 +63,7 @@ public class KafkaBridgeTools {
      * @param namespace optional namespace filter
      * @return list of KafkaBridge responses
      */
+    @RunOnVirtualThread
     @WithSpan("tool.list_kafka_bridges")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)
@@ -99,6 +100,7 @@ public class KafkaBridgeTools {
      * @param namespace  optional namespace
      * @return the KafkaBridge response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_bridge")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)
@@ -137,6 +139,7 @@ public class KafkaBridgeTools {
      * @param namespace  optional namespace
      * @return the bridge pods response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_bridge_pods")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)

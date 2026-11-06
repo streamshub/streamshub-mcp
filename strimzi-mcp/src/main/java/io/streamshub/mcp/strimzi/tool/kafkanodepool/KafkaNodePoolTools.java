@@ -12,6 +12,7 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.ToolGuardrails;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.guardrail.ArgumentSanitizationGuardrail;
@@ -51,6 +52,7 @@ public class KafkaNodePoolTools {
      * @param namespace   optional namespace
      * @return list of node pool responses
      */
+    @RunOnVirtualThread
     @WithSpan("tool.list_kafka_node_pools")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_NODE_POOL)
@@ -89,6 +91,7 @@ public class KafkaNodePoolTools {
      * @param namespace    optional namespace
      * @return the node pool response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_node_pool")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_NODE_POOL)
@@ -129,6 +132,7 @@ public class KafkaNodePoolTools {
      * @param namespace    optional namespace
      * @return list of pod info summaries
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_node_pool_pods")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_NODE_POOL)

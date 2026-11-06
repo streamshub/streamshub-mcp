@@ -83,6 +83,7 @@ public class KafkaTools {
      * @param namespace optional namespace filter
      * @return list of cluster responses
      */
+    @RunOnVirtualThread
     @WithSpan("tool.list_kafka_clusters")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
@@ -118,6 +119,7 @@ public class KafkaTools {
      * @param namespace optional namespace filter
      * @return the fleet overview response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_fleet_overview")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.OVERVIEW)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
@@ -154,6 +156,7 @@ public class KafkaTools {
      * @param namespace   optional namespace
      * @return the cluster response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_cluster")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
@@ -192,6 +195,7 @@ public class KafkaTools {
      * @param namespace   optional namespace
      * @return the cluster overview response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_strimzi_kafka_cluster_overview")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.OVERVIEW)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
@@ -230,6 +234,7 @@ public class KafkaTools {
      * @param namespace   optional namespace
      * @return the cluster pods response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_cluster_pods")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
@@ -270,6 +275,7 @@ public class KafkaTools {
      * @param namespace   optional namespace
      * @return the bootstrap response with listener addresses
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_bootstrap_servers")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
@@ -308,6 +314,7 @@ public class KafkaTools {
      * @param listenerName optional listener name filter
      * @return the certificate and authentication response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_cluster_certificates")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
@@ -351,6 +358,7 @@ public class KafkaTools {
      * @param namespace   optional namespace
      * @return the policies response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_cluster_policies")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
@@ -387,6 +395,7 @@ public class KafkaTools {
      * @param namespace   optional namespace
      * @return the PVC response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_pvcs")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)

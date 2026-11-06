@@ -12,6 +12,7 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.ToolGuardrails;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.guardrail.ArgumentSanitizationGuardrail;
 import io.streamshub.mcp.common.guardrail.GeneralRateLimitGuardrail;
@@ -49,6 +50,7 @@ public class KafkaRebalanceTools {
      * @param namespace   optional namespace filter
      * @return list of rebalance summary responses
      */
+    @RunOnVirtualThread
     @WithSpan("tool.list_kafka_rebalances")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_REBALANCE)
@@ -89,6 +91,7 @@ public class KafkaRebalanceTools {
      * @param namespace     optional namespace
      * @return the detailed rebalance response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_rebalance")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_REBALANCE)

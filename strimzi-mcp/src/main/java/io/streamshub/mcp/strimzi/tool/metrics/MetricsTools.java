@@ -12,6 +12,7 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.ToolGuardrails;
 import io.quarkiverse.mcp.server.WrapBusinessError;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.guardrail.ArgumentSanitizationGuardrail;
@@ -83,6 +84,7 @@ public class MetricsTools {
      * @param requestTypes  optional comma-separated request types to filter
      * @return the metrics response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.METRICS)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
@@ -162,6 +164,7 @@ public class MetricsTools {
      * @param aggregation  optional aggregation level
      * @return the Kafka Exporter metrics response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_exporter_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.METRICS)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA)
@@ -237,6 +240,7 @@ public class MetricsTools {
      * @param aggregation  optional aggregation level
      * @return the KafkaBridge metrics response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_bridge_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.METRICS)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_BRIDGE)
@@ -312,6 +316,7 @@ public class MetricsTools {
      * @param aggregation  optional aggregation level
      * @return the KafkaConnect metrics response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_kafka_connect_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.METRICS)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.KAFKA_CONNECT)
@@ -390,6 +395,7 @@ public class MetricsTools {
      * @param aggregation  optional aggregation level
      * @return the operator metrics response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_strimzi_operator_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.METRICS)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)
@@ -471,6 +477,7 @@ public class MetricsTools {
      * @param aggregation  optional aggregation level
      * @return the Cruise Control metrics response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_cruise_control_metrics")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.METRICS)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.CRUISE_CONTROL)
