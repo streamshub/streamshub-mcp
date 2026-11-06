@@ -121,6 +121,23 @@ class KafkaTopicServiceTest {
     }
 
     @Test
+    void testGetTopicRedactsSecretConfigValues() {
+        setupKafkaTopic(new KafkaTopicBuilder()
+            .withNewMetadata().withName("my-topic").withNamespace("kafka")
+                .withLabels(Map.of("strimzi.io/cluster", "my-cluster"))
+            .endMetadata()
+            .withNewSpec().withPartitions(3).withReplicas(3)
+                .withConfig(Map.of("retention.ms", 60000, "custom.api.key", "abc123"))
+            .endSpec()
+            .build());
+
+        Map<String, Object> config = topicService.getTopic("kafka", "my-cluster", "my-topic").configuration();
+
+        assertEquals(60000, config.get("retention.ms"));
+        assertEquals("[REDACTED]", config.get("custom.api.key"));
+    }
+
+    @Test
     void testGetTopicTopicIdAbsentWhenStatusMissing() {
         setupKafkaTopic(new KafkaTopicBuilder()
             .withNewMetadata().withName("my-topic").withNamespace("kafka")

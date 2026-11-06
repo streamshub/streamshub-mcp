@@ -1181,6 +1181,7 @@ Parameters: { "connectorName": "mcp-timer-source" }
 - [ ] Config includes: `topics: mcp-connect-timer-topic`, `camel.kamelet.timer-source.period: 60000`
 - [ ] Task status: Running
 - [ ] `offsets.config_map_name`: `mcp-timer-source-offsets`
+- [ ] Values of secret-named config keys (for example `*.password`, `*.secret`, `sasl.jaas.config`) are `[REDACTED]`; non-secret keys such as `key.converter` are returned unchanged
 
 ### T11.4 - Get Connector Offsets
 
@@ -1890,6 +1891,8 @@ Parameters: { "clusterName": "mcp-cluster", "tailLines": 1000 }
 - [ ] Returns within reasonable time
 - [ ] Response respects `mcp.guardrail.max-response-bytes` (default 500KB)
 - [ ] Sensitive data is redacted if `mcp.guardrail.log-redaction.enabled` is true
+- [ ] Values stored under secret-named JSON fields or config keys are redacted even when the value has no `key=value` shape
+- [ ] Container image digests (`sha256:...`) in responses are not altered
 
 ---
 

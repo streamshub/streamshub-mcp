@@ -97,7 +97,10 @@ io.streamshub.mcp.common.
 ├── guardrail/      → ArgumentSanitizationGuardrail, AbstractRateLimitGuardrail,
 │                     GeneralRateLimitGuardrail, LogRateLimitGuardrail, MetricsRateLimitGuardrail,
 │                     LogRedactionGuardrail, ResponseSizeLimitGuardrail, GuardedResponses,
-│                     JsonNodeSanitizer (recursive text-node transformer for redaction)
+│                     Redactor (shared pattern + key-name redaction; used by LogRedactionGuardrail and
+│                       by the diagnostic Sampling path), SensitiveKeys (word-based secret key matcher
+│                       and config-map redaction; applied at source to Kafka/Connector/Bridge/Topic configs),
+│                     JsonNodeSanitizer (recursive text-node transformer for argument sanitization)
 ├── observability/  → McpTrafficLogger (MCP protocol traffic listener for DEBUG logging),
 │                     MeasuredTool (@InterceptorBinding), ToolMetricsInterceptor (records tool-call
 │                     metrics around every outcome, incl. thrown McpException), ToolCallMetricsRecorder

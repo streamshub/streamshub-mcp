@@ -45,7 +45,7 @@ The server never creates, modifies, or deletes Kubernetes resources.
 Sensitive data is protected by multiple layers:
 
 * *Credential secrets* are never exposed. The server reads Secrets only for certificate metadata (issuer, expiry) -- never for secret data such as passwords, keys, or tokens.
-* *Log redaction* automatically strips sensitive patterns (tokens, passwords, API keys) from log output before returning it to the client.
+* *Log redaction* automatically strips sensitive patterns (tokens, passwords, API keys) and values stored under secret-named keys from tool responses and from the data sent to the client's LLM through Sampling.
 * *Response size limits* truncate large responses to prevent excessive data transfer.
 * *Rate limiting* throttles requests per category to prevent resource exhaustion.
 
