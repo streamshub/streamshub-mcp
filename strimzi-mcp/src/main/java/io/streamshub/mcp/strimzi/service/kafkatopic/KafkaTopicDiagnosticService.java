@@ -10,6 +10,7 @@ import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
+import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.service.BaseDiagnosticService;
@@ -345,9 +346,16 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
                                          final KafkaClusterResponse cluster,
                                          final String symptom,
                                          final AtomicBoolean cancelled) {
+        InvestigationAreas mandatory = new InvestigationAreas(false, false, false)
+            .withFloor(topic, cluster, symptom);
+        if (mandatory.enabledCount() == InvestigationAreas.all().enabledCount()) {
+            // The floor already enables every area, so a triage round-trip could not narrow anything.
+            return mandatory;
+        }
         Map<String, Object> parsed = performTriage(sampling, TRIAGE_SYSTEM_PROMPT,
             buildPhase1Summary(topic, relatedTopics, cluster, symptom), cancelled);
-        return parsed != null ? parseInvestigationAreas(parsed) : InvestigationAreas.all();
+        InvestigationAreas areas = parsed != null ? parseInvestigationAreas(parsed) : InvestigationAreas.all();
+        return areas.withFloor(topic, cluster, symptom);
     }
 
     @WithSpan("diagnose.topic.analysis")
@@ -447,6 +455,34 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         }
 
         /**
+         * Apply the areas that are always investigated, whatever the triage answered.
+         *
+         * <p>A Ready topic on a Ready cluster does not mean there is nothing to find: replication
+         * and partition problems, an unfinished replication-factor change and any user-reported
+         * symptom are invisible in the Phase 1 status. Operator logs and events are therefore
+         * gathered when the topic or cluster is not Ready, a replication change is in flight, or the
+         * user described a symptom; exporter metrics are gathered whenever a symptom was described or
+         * a replication change is in flight.</p>
+         *
+         * @param topic   the topic status from Phase 1
+         * @param cluster the cluster status from Phase 1, may be null when unavailable
+         * @param symptom the user-described symptom, may be null
+         * @return the areas with the mandatory ones enabled
+         */
+        InvestigationAreas withFloor(final KafkaTopicResponse topic,
+                                     final KafkaClusterResponse cluster,
+                                     final String symptom) {
+            boolean topicReady = KubernetesConstants.ResourceStatus.READY.equals(topic.status());
+            boolean clusterReady = cluster != null
+                && KubernetesConstants.ResourceStatus.READY.equals(cluster.readiness());
+            boolean hasSymptom = symptom != null && !symptom.isBlank();
+            boolean changing = topic.replicasChange() != null;
+            boolean problem = !topicReady || !clusterReady || hasSymptom || changing;
+            return new InvestigationAreas(operatorLogs || problem, events || problem,
+                exporterMetrics || hasSymptom || changing);
+        }
+
+        /**
          * Count how many investigation areas are enabled.
          *
          * @return the number of enabled investigation areas
@@ -469,7 +505,10 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         Return ONLY a JSON object with these boolean fields: \
         operator_logs, events, exporter_metrics. \
         Set true only for areas likely to reveal the root cause. \
-        For example, if the topic is Ready and the cluster is Ready, set all to false. \
+        A Ready topic on a Ready cluster can still have replication or partition problems, so do not \
+        skip investigation only because both are Ready: if a symptom was reported, set all to true. \
+        Set all to false only when there is no symptom, the topic and cluster are Ready, and nothing \
+        else in the findings looks abnormal. \
         If the topic is in Error state, set operator_logs and events to true. \
         If there may be replication or partition issues, set exporter_metrics to true. \
         If the cluster is NotReady, set operator_logs and events to true.\

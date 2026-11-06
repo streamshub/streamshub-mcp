@@ -10,6 +10,7 @@ import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
+import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
@@ -20,18 +21,23 @@ import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerReadinessResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaCertificateResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.UpgradePreflightFinding;
 import io.streamshub.mcp.strimzi.dto.kafka.UpgradeReadinessReport;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
 import io.streamshub.mcp.strimzi.dto.kafkarebalance.KafkaRebalanceResponse;
+import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
+import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorConfigResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziOperatorResponse;
 import io.streamshub.mcp.strimzi.service.draincleaner.DrainCleanerService;
 import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
 import io.streamshub.mcp.strimzi.service.kafkarebalance.KafkaRebalanceService;
+import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicService;
 import io.streamshub.mcp.strimzi.service.metrics.KafkaMetricsService;
 import io.streamshub.mcp.strimzi.service.operator.StrimziEventsService;
 import io.streamshub.mcp.strimzi.service.operator.StrimziOperatorService;
+import io.strimzi.api.kafka.model.kafka.Kafka;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -55,7 +61,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(UpgradeReadinessDiagnosticService.class);
-    private static final int PHASE1_STEPS = 5;
+    private static final int PHASE1_STEPS = 6;
     private static final int MAX_PHASE2_STEPS = 5;
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
     private static final String STEP_OPERATOR_STATUS = "operator_status";
@@ -67,6 +73,7 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
     private static final String STEP_CERTIFICATES = "certificates";
     private static final String STEP_EVENTS = "events";
     private static final String STEP_ACTIVE_REBALANCES = "active_rebalances";
+    private static final String STEP_PREFLIGHT = "preflight_checks";
 
     @Inject
     KafkaService kafkaService;
@@ -91,6 +98,9 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
 
     @Inject
     KafkaRebalanceService rebalanceService;
+
+    @Inject
+    KafkaTopicService topicService;
 
     @Override
     protected Logger getLogger() {
@@ -190,6 +200,14 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
                 : String.format("WARNING: %d active rebalance(s) found — upgrade blocked", activeRebalances.size()));
         DiagnosticHelper.checkCancellation(cancellation);
 
+        List<UpgradePreflightFinding> preflight = gatherPreflightFindings(
+            resolvedNs, name, cluster, operator, version, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            preflight == null ? "Failed to run topic durability and version path checks"
+                : String.format("Pre-flight checks found %d issue(s) (topic durability, unclean election, version path)",
+                    preflight.size()));
+        DiagnosticHelper.checkCancellation(cancellation);
+
         // === Phase 2: Deep investigation ===
         InvestigationAreas areas = investigateAreas(
             sampling, cluster, operator, nodePools, pods,
@@ -251,12 +269,12 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         String analysis = produceAnalysis(sampling, cluster, operator,
             nodePools, pods, replicationMetrics, activeRebalances,
             performanceMetrics, resourceMetrics, drainCleaner,
-            certificates, events, version, cancelled);
+            certificates, events, preflight, version, cancelled);
         DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         return UpgradeReadinessReport.of(cluster, operator, nodePools, pods,
             replicationMetrics, performanceMetrics, resourceMetrics,
-            drainCleaner, certificates, events, activeRebalances, analysis,
+            drainCleaner, certificates, events, activeRebalances, preflight, analysis,
             completed, failed.isEmpty() ? null : failed);
     }
 
@@ -373,6 +391,55 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         }
     }
 
+    @WithSpan("diagnose.upgrade.preflight")
+    List<UpgradePreflightFinding> gatherPreflightFindings(final String namespace,
+                                                           final String clusterName,
+                                                           final KafkaClusterResponse cluster,
+                                                           final StrimziOperatorResponse operator,
+                                                           final String targetVersion,
+                                                           final List<String> completed,
+                                                           final List<String> failed) {
+        try {
+            Map<String, Object> brokerConfig = null;
+            Kafka kafka = kafkaService.findKafkaCluster(namespace, clusterName);
+            if (kafka.getSpec() != null && kafka.getSpec().getKafka() != null) {
+                brokerConfig = kafka.getSpec().getKafka().getConfig();
+            }
+            List<KafkaTopicResponse> topics = topicService.listTopics(
+                namespace, clusterName, null, Integer.MAX_VALUE, null, null).items();
+
+            List<UpgradePreflightFinding> findings = new ArrayList<>(
+                UpgradePreflightChecks.topicFindings(brokerConfig, topics));
+
+            List<String> supported = null;
+            if (UpgradePreflightChecks.parseKafkaTarget(targetVersion) != null) {
+                supported = gatherSupportedKafkaVersions(operator, failed);
+            }
+            findings.addAll(UpgradePreflightChecks.versionFindings(cluster, targetVersion, supported));
+
+            completed.add(STEP_PREFLIGHT);
+            return findings;
+        } catch (Exception e) {
+            LOG.warnf("Failed to run upgrade pre-flight checks: %s", e.getMessage());
+            failed.add(STEP_PREFLIGHT + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    private List<String> gatherSupportedKafkaVersions(final StrimziOperatorResponse operator,
+                                                      final List<String> failed) {
+        try {
+            StrimziOperatorConfigResponse config = operator != null
+                ? operatorService.getOperatorConfig(operator.namespace(), operator.name())
+                : operatorService.getOperatorConfig(null, null);
+            return config.supportedKafkaVersions();
+        } catch (Exception e) {
+            LOG.warnf("Could not read supported Kafka versions from the Strimzi operator: %s", e.getMessage());
+            failed.add("operator_supported_versions: " + e.getMessage());
+            return null;
+        }
+    }
+
     // ---- Phase 2: Deep investigation ----
 
     @WithSpan("diagnose.upgrade.performance_metrics")
@@ -474,7 +541,8 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         Map<String, Object> parsed = performTriage(sampling, TRIAGE_SYSTEM_PROMPT,
             buildPhase1Summary(cluster, operator, nodePools, pods, replicationMetrics, targetVersion),
             cancelled);
-        return parsed != null ? parseInvestigationAreas(parsed) : InvestigationAreas.all();
+        InvestigationAreas areas = parsed != null ? parseInvestigationAreas(parsed) : InvestigationAreas.all();
+        return areas.withFloor(cluster);
     }
 
     @WithSpan("diagnose.upgrade.analysis")
@@ -491,12 +559,13 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
                            final DrainCleanerReadinessResponse drainCleaner,
                            final KafkaCertificateResponse certificates,
                            final StrimziEventsResponse events,
+                           final List<UpgradePreflightFinding> preflight,
                            final String targetVersion,
                            final AtomicBoolean cancelled) {
         return performAnalysisMrtr(sampling, ANALYSIS_SYSTEM_PROMPT,
             buildFullSummary(cluster, operator, nodePools, pods, replicationMetrics,
                 activeRebalances, performanceMetrics, resourceMetrics,
-                drainCleaner, certificates, events, targetVersion),
+                drainCleaner, certificates, events, preflight, targetVersion),
             "analysis", cluster.namespace(), cancelled);
     }
 
@@ -550,6 +619,7 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
                                                   final DrainCleanerReadinessResponse drainCleaner,
                                                   final KafkaCertificateResponse certificates,
                                                   final StrimziEventsResponse events,
+                                                  final List<UpgradePreflightFinding> preflight,
                                                   final String targetVersion) {
         Map<String, Object> data = new LinkedHashMap<>();
         if (targetVersion != null) {
@@ -568,6 +638,9 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         DiagnosticHelper.putIfNotNull(data, STEP_DRAIN_CLEANER, drainCleaner);
         DiagnosticHelper.putIfNotNull(data, STEP_CERTIFICATES, certificates);
         DiagnosticHelper.putIfNotNull(data, STEP_EVENTS, events);
+        if (preflight != null && !preflight.isEmpty()) {
+            data.put("preflight_findings", preflight);
+        }
         return data;
     }
 
@@ -606,6 +679,22 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         }
 
         /**
+         * Apply the areas that are always investigated, whatever the triage answered.
+         *
+         * <p>Certificates and Drain Cleaner are cheap, can block a rolling restart, and are not
+         * visible in the Phase 1 data, so they are never skipped. Events are also gathered when the
+         * cluster is not Ready.</p>
+         *
+         * @param cluster the cluster status from Phase 1
+         * @return the areas with the mandatory ones enabled
+         */
+        InvestigationAreas withFloor(final KafkaClusterResponse cluster) {
+            boolean clusterReady = KubernetesConstants.ResourceStatus.READY.equals(cluster.readiness());
+            return new InvestigationAreas(performanceMetrics, resourceMetrics, true, true,
+                events || !clusterReady);
+        }
+
+        /**
          * Count how many investigation areas are enabled.
          *
          * @return the number of enabled investigation areas
@@ -633,8 +722,7 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         For example, if the cluster is Ready with all replicas up and no replication lag, \
         you may skip performance_metrics and resource_metrics. \
         If the operator is not running or its version is very old, set events to true. \
-        Always set certificates to true if the cluster uses TLS. \
-        Always set drain_cleaner to true if node pools have more than a few replicas. \
+        certificates and drain_cleaner are always investigated by the server regardless of your answer. \
         If there are active rebalances (New, PendingProposal, ProposalReady, Rebalancing), \
         always note this as a hard blocker — upgrades must not proceed while rebalancing is in progress. \
         Stopped is an aborted rebalance and is NOT a blocker; treat it like Ready.\
@@ -647,6 +735,7 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         Structure your response as:
         - Verdict: GO / NO-GO / CONDITIONAL
         - Pre-flight checklist (pass/fail for each area checked):
+          * Topic durability, unclean leader election and version path (preflight_findings)
           * Cluster health
           * Operator readiness
           * Node pool and pod status
@@ -664,6 +753,11 @@ Stopped and Ready are not blockers)
         - Recommendations (prioritized, actionable steps before upgrading)
         - Maintenance window estimate: rolling restart typically takes 3–15+ min per broker \
 (production clusters commonly 5–10+ min) depending on partition count and storage speed
+
+        The data may contain preflight_findings computed deterministically by the server: topics whose \
+        min.insync.replicas is not lower than the replication factor, single-replica topics, unclean \
+        leader election, and the Kafka version path. Every finding with severity BLOCKER means NO-GO; \
+        report every WARNING under recommendations.
 
         Be conservative: flag CONDITIONAL if any area shows degradation, \
         and NO-GO if there are active rebalances (New, PendingProposal, ProposalReady, Rebalancing), \
