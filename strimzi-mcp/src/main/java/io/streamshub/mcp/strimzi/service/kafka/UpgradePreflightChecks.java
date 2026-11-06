@@ -32,12 +32,13 @@ public final class UpgradePreflightChecks {
 
     private static final String MIN_ISR = "min.insync.replicas";
     private static final String DEFAULT_REPLICATION_FACTOR = "default.replication.factor";
+    private static final int KAFKA_DEFAULT_REPLICATION_FACTOR = 1;
     private static final int FIRST_BARE_KAFKA_MAJOR = 2;
     private static final String UNCLEAN = "unclean.leader.election.enable";
     private static final int MAX_LISTED = 10;
     private static final Pattern KAFKA_VERSION =
-        Pattern.compile("^\\s*(kafka)?\\s*v?(\\d+)\\.(\\d+)(?:\\.(\\d+))?\\s*$", Pattern.CASE_INSENSITIVE);
-    private static final Pattern METADATA_VERSION = Pattern.compile("^(\\d+)\\.(\\d+).*$");
+        Pattern.compile("^\\s*(kafka)?\\s*v?(\\d{1,9})\\.(\\d{1,9})(?:\\.(\\d{1,9}))?\\s*$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern METADATA_VERSION = Pattern.compile("^(\\d{1,9})\\.(\\d{1,9}).*$");
 
     private UpgradePreflightChecks() {
     }
@@ -50,8 +51,8 @@ public final class UpgradePreflightChecks {
      * {@code acks=all} producers while a replica is down; a single-replica topic is unavailable
      * while its broker restarts. The effective value is the topic override, else the broker
      * default; when neither is set Kafka's default of 1 applies. A topic without
-     * {@code spec.replicas} uses the broker's {@code default.replication.factor}; it is skipped when
-     * the broker config does not set one.</p>
+     * {@code spec.replicas} uses the broker's {@code default.replication.factor}, else Kafka's
+     * default of 1 (so it is reported as a single-replica topic).</p>
      *
      * @param brokerConfig the {@code spec.kafka.config} map, or null when unavailable
      * @param topics       the KafkaTopic resources of the cluster
@@ -78,9 +79,13 @@ public final class UpgradePreflightChecks {
             if (cfg != null && asBool(cfg.get(UNCLEAN))) {
                 uncleanTopics.add(topic.name());
             }
-            Integer replicas = topic.replicas() != null ? topic.replicas() : brokerReplicationFactor;
-            if (replicas == null) {
-                continue;
+            int replicas;
+            if (topic.replicas() != null) {
+                replicas = topic.replicas();
+            } else if (brokerReplicationFactor != null) {
+                replicas = brokerReplicationFactor;
+            } else {
+                replicas = KAFKA_DEFAULT_REPLICATION_FACTOR;
             }
             if (replicas == 1) {
                 singleReplica.add(topic.name());

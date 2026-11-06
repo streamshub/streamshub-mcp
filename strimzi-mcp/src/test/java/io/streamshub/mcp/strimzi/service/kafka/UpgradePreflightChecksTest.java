@@ -82,12 +82,29 @@ class UpgradePreflightChecksTest {
     }
 
     /**
-     * Verify a topic without spec.replicas is skipped when the broker sets no default.replication.factor.
+     * Verify a topic without spec.replicas falls back to Kafka's default of 1 replica when the broker sets none.
      */
     @Test
-    void testTopicWithoutReplicasAndWithoutBrokerDefaultIsSkipped() {
-        assertTrue(UpgradePreflightChecks.topicFindings(
-            Map.of("min.insync.replicas", 3), List.of(topic("unset", null, null))).isEmpty());
+    void testTopicWithoutReplicasAndWithoutBrokerDefaultIsSingleReplica() {
+        List<UpgradePreflightFinding> findings = UpgradePreflightChecks.topicFindings(
+            Map.of("min.insync.replicas", 3), List.of(topic("unset", null, null)));
+
+        assertEquals(1, findings.size());
+        assertEquals(UpgradePreflightFinding.WARNING, findings.getFirst().severity());
+        assertTrue(findings.getFirst().message().contains("single replica"));
+        assertTrue(findings.getFirst().message().contains("unset"));
+    }
+
+    /**
+     * Verify an oversized version number is treated as unparseable instead of throwing.
+     */
+    @Test
+    void testOversizedVersionNumberIsRejectedWithoutThrowing() {
+        assertNull(UpgradePreflightChecks.parseKafkaTarget("Kafka 40000000000.0"));
+        assertNull(UpgradePreflightChecks.parseKafkaTarget("40000000000.0.0"));
+        assertNull(UpgradePreflightChecks.parseKafkaTarget("Kafka 4.2.99999999999"));
+        assertTrue(UpgradePreflightChecks.versionFindings(
+            cluster("4.2.0", "99999999999.0"), "Kafka 40000000000.0", List.of("4.2.0")).isEmpty());
     }
 
     /**
