@@ -143,6 +143,31 @@ class UpgradeReadinessDiagnosticServiceTest {
     }
 
     @Test
+    void testPreflightKeepsTopicFindingsWhenTargetVersionIsMalformed() {
+        setupKafkaCluster("my-cluster", "kafka");
+        KafkaTopic topic = new KafkaTopicBuilder()
+            .withNewMetadata().withName("orders").withNamespace("kafka")
+                .withLabels(Map.of("strimzi.io/cluster", "my-cluster"))
+            .endMetadata()
+            .withNewSpec().withPartitions(3).withReplicas(3)
+                .withConfig(Map.of("min.insync.replicas", 3))
+            .endSpec()
+            .build();
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(topic));
+
+        UpgradeReadinessReport report = upgradeReadinessDiagnosticService.diagnose(
+            "kafka", "my-cluster", "Kafka 40000000000.0",
+            null, null, null, null);
+
+        assertTrue(report.stepsCompleted().contains("preflight_checks"));
+        assertTrue(report.stepsFailed() == null || report.stepsFailed().stream()
+            .noneMatch(f -> f.startsWith("preflight_checks")));
+        assertTrue(report.preflightFindings().stream().anyMatch(f ->
+            "BLOCKER".equals(f.severity()) && "topic_durability".equals(f.check())
+                && f.message().contains("orders")));
+    }
+
+    @Test
     void testPreflightFindingsReportUnsupportedTargetFromTheDiscoveredOperator() {
         setupKafkaCluster("my-cluster", "kafka");
         // Two operators: the version check must use the one gathered in Phase 1, not re-discover.
