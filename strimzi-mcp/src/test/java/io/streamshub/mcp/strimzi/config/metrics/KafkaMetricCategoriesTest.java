@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -99,6 +100,14 @@ class KafkaMetricCategoriesTest {
         String interpretation = KafkaMetricCategories.interpretation(List.of("replication"));
         assertNotNull(interpretation);
         assertTrue(interpretation.contains("underreplicatedpartitions"));
+    }
+
+    @Test
+    void replicationInterpretationJudgesLagByTrendNotFixedNumbers() {
+        String interpretation = KafkaMetricCategories.interpretation(List.of("replication"));
+        assertTrue(interpretation.contains("trend"), interpretation);
+        assertFalse(interpretation.contains("<1000"), interpretation);
+        assertFalse(interpretation.contains(">10000"), interpretation);
     }
 
     @Test
