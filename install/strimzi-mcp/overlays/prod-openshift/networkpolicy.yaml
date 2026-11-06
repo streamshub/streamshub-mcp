@@ -1,0 +1,29 @@
+# Admits the OpenShift router (needed for the Route) and cluster monitoring (metrics scraping)
+# in addition to the same-namespace policy from the prod overlay.
+# The Route itself is unauthenticated; see the security model documentation.
+# Labels are the OVN-Kubernetes ones documented for OpenShift 4.20 and later.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: streamshub-mcp-strimzi-openshift-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: streamshub-mcp-strimzi
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              policy-group.network.openshift.io/ingress: ""
+      ports:
+        - port: http
+          protocol: TCP
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: monitoring
+      ports:
+        - port: http
+          protocol: TCP

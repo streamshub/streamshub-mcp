@@ -29,10 +29,12 @@ install/strimzi-mcp/
     │   └── route.yaml
     ├── prod/                    # Production (Kubernetes)
     │   ├── kustomization.yaml
-    │   └── deployment-patch.yaml
+    │   ├── deployment-patch.yaml
+    │   └── networkpolicy.yaml
     └── prod-openshift/          # Production (OpenShift)
         ├── kustomization.yaml
-        └── route.yaml
+        ├── route.yaml
+        └── networkpolicy.yaml
 ```
 
 ## Overlays
@@ -68,6 +70,8 @@ For production Kubernetes deployments.
 
 - 2 replicas
 - Higher resource requests and limits
+- Finite rate limits (30 log / 60 metrics / 120 general requests per minute, counted per pod and shared by all clients of that pod) from the generated `strimzi-mcp-defaults` ConfigMap
+- NetworkPolicy admitting only pods in the `streamshub-mcp` namespace (the endpoint has no authentication; add a policy for your clients' namespaces and, if a PodMonitor scrapes the server, for the Prometheus namespace)
 - Optional ConfigMap (`strimzi-mcp-config`) and Secret (`strimzi-mcp-secrets`) for configuration via `envFrom`
 
 ```bash
@@ -80,6 +84,10 @@ Extends the prod overlay with an OpenShift Route for external access.
 
 - Edge-terminated TLS Route
 - Redirects insecure traffic to HTTPS
+- NetworkPolicy admitting the OpenShift router and cluster monitoring (requires OpenShift 4.20 or later, which uses the OVN-Kubernetes `policy-group.network.openshift.io/ingress` namespace label)
+
+> **Warning**: The Route is unauthenticated. Anyone who can reach the router can call every MCP tool.
+> Put an authenticating proxy in front of it or remove the Route in shared environments.
 
 ```bash
 kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/
@@ -110,6 +118,7 @@ data:
 
 ## Customization
 
+The base manifests use `quay.io/streamshub/strimzi-mcp:latest`, which Kubernetes always pulls. Release tags pin the version in `base/kustomization.yaml`.
 Override the container image:
 
 ```bash
@@ -121,7 +130,8 @@ kubectl apply -k ../overlays/prod/
 ## Sensitive RBAC
 
 The sensitive Role grants access to Secrets and `pods/proxy` (for direct metrics scraping).
-These are not included in any overlay by default.
+These are not included in any overlay by default. The default `streamshub-pod-scraping` metrics provider needs `pods/proxy`;
+without this Role, switch to the Prometheus provider (`MCP_METRICS_PROVIDER=streamshub-prometheus`).
 
 To grant sensitive permissions in the namespaces where you need them:
 
