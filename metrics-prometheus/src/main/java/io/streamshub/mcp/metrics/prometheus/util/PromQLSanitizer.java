@@ -51,7 +51,7 @@ public final class PromQLSanitizer {
      * @throws IllegalArgumentException if the name is invalid
      */
     public static String sanitizeLabelName(final String name) {
-        return QueryLiteralSanitizer.validateLabelName(name, "label name");
+        return QueryLiteralSanitizer.validateLabelName(name, "PromQL label name");
     }
 
     /**
