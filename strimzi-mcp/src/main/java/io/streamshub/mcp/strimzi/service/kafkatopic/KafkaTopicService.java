@@ -107,7 +107,7 @@ public class KafkaTopicService {
      * {@code status.topicName}.</p>
      *
      * @param namespace   the namespace, or null for auto-discovery
-     * @param clusterName the cluster name (used for validation and to narrow the search)
+     * @param clusterName the cluster name, or null; when set, only topics of that cluster are matched
      * @param topicName   the Kafka topic name or KafkaTopic resource name (case-sensitive)
      * @return the topic response
      */
@@ -122,7 +122,8 @@ public class KafkaTopicService {
         InputUtils.validateKafkaTopicName(topicNameNormalized, "topic name");
         InputUtils.validateK8sName(ns, "namespace");
 
-        LOG.infof("Getting topic=%s for cluster=%s in namespace=%s", topicNameNormalized, clusterNameNormalized, ns != null ? ns : "auto");
+        LOG.infof("Getting topic=%s for cluster=%s in namespace=%s",
+            topicNameNormalized, clusterNameNormalized, ns != null ? ns : "auto");
 
         KafkaTopic topic = findTopic(ns, clusterNameNormalized, topicNameNormalized);
 
@@ -176,7 +177,8 @@ public class KafkaTopicService {
             : null;
     }
 
-    private static KafkaTopic selectUnique(final List<KafkaTopic> matching, final String cluster, final String topicName) {
+    private static KafkaTopic selectUnique(final List<KafkaTopic> matching, final String cluster,
+                                           final String topicName) {
         if (matching.isEmpty()) {
             return null;
         }
