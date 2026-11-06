@@ -185,7 +185,7 @@ Gathers topic status, related topics (scope detection), cluster health, operator
 
 *Parameters:*
 
-* `topicName` (required) -- Name of the KafkaTopic
+* `topicName` (required) -- Kafka topic name or KafkaTopic resource name
 * `clusterName` (optional) -- Kafka cluster name (auto-discovered from topic labels)
 * `namespace` (optional) -- Kubernetes namespace
 * `symptom` (optional) -- Observed symptom or issue description

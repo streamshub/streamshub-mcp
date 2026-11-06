@@ -561,6 +561,18 @@ Parameters: { "clusterName": "mcp-cluster", "topicName": "nonexistent-topic-xyz"
 **Expected:**
 - [ ] Returns error or empty response indicating topic not found
 
+### T3.5a - Get Topic (Kafka name that is not a Kubernetes name)
+
+```
+Tool: get_kafka_topic
+Parameters: { "clusterName": "mcp-cluster", "topicName": "__consumer_offsets" }
+```
+
+**Expected:**
+- [ ] Not rejected as an invalid name; returns the KafkaTopic managing `__consumer_offsets` if one exists, otherwise "not found"
+- [ ] A topic whose `spec.topicName` contains `_` or uppercase letters is returned when queried by that Kafka name
+- [ ] A topic that exists in two namespaces queried without `namespace` returns an ambiguity error listing both namespaces
+
 ---
 
 ## Phase 4: KafkaNodePool Tools

@@ -638,7 +638,7 @@ public class DiagnosticTools {
     /**
      * Run a composite diagnostic workflow for a KafkaTopic.
      *
-     * @param topicName    the KafkaTopic name
+     * @param topicName    the Kafka topic name or KafkaTopic resource name
      * @param clusterName  optional Kafka cluster name
      * @param namespace    optional namespace
      * @param symptom      optional symptom description
@@ -673,7 +673,7 @@ public class DiagnosticTools {
         output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public KafkaTopicDiagnosticReport diagnoseKafkaTopic(
         @NotBlank @ToolArg(
-            description = "KafkaTopic name (e.g., 'my-topic')."
+            description = "Kafka topic name or KafkaTopic resource name (e.g., 'my-topic')."
         ) final String topicName,
         @ToolArg(
             description = StrimziToolsPrompts.CLUSTER_DESC,
