@@ -55,7 +55,7 @@ public class StrimziEventsTools {
     @Tool(
         name = "get_strimzi_events",
         description = "Get Kubernetes events for a Strimzi resource and all related pods."
-            + " resource_kind is required; for Kafka it also includes PVC and node pool events.",
+            + " resourceKind is required; for Kafka it also includes PVC and node pool events.",
         structuredContent = true,
         annotations = @Tool.Annotations(
             readOnlyHint = true,
@@ -69,7 +69,7 @@ public class StrimziEventsTools {
         output = { LogRedactionGuardrail.class, ResponseSizeLimitGuardrail.class })
     public StrimziEventsResponse getStrimziEvents(
         @NotBlank @ToolArg(
-            description = "Name of the Strimzi resource identified by resource_kind,"
+            description = "Name of the Strimzi resource identified by resourceKind,"
                 + " e.g. 'my-cluster' or 'my-connect'."
         ) final String resourceName,
         @ToolArg(

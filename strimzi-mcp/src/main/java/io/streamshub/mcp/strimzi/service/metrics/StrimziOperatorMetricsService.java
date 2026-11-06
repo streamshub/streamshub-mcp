@@ -103,8 +103,10 @@ public class StrimziOperatorMetricsService {
             cluster != null ? " with entity operator for Kafka cluster '" + cluster + "'" : "",
             metricsQueryService.providerName());
 
-        List<MetricSample> samples = queryByNamespace(
+        QueryResult queryResult = queryByNamespace(
             coPods, eoPods, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
+        List<MetricSample> samples = queryResult.samples();
+        boolean truncated = queryResult.truncated();
 
         List<String> effectiveCategories = effectiveCategories(categories, metricNames);
         String interpretation = MetricNameResolver.alignInterpretation(
@@ -126,8 +128,9 @@ public class StrimziOperatorMetricsService {
         } else {
             level = AggregationLevel.fromString(aggregation);
         }
-        return StrimziOperatorMetricsResponse.of(resolvedName, cluster, resolvedNs,
+        StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(resolvedName, cluster, resolvedNs,
             metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
+        return truncated ? response.withTruncation(metricsQueryService.maxSamples()) : response;
     }
 
     private void validatePodsFound(final List<Pod> coPods, final List<Pod> eoPods, final String namespace) {
@@ -159,13 +162,20 @@ public class StrimziOperatorMetricsService {
     }
 
     /**
+     * Samples from one or two backend queries and whether any of them was cut at the sample limit.
+     * The limit applies to each query on its own, so it cannot be judged from the concatenated list.
+     */
+    private record QueryResult(List<MetricSample> samples, boolean truncated) {
+    }
+
+    /**
      * Queries CO and EO metrics separately to handle different namespaces and
      * avoid label mismatches (operator metrics don't carry strimzi_io_cluster).
      */
-    private List<MetricSample> queryByNamespace(final List<Pod> coPods, final List<Pod> eoPods,
-                                                 final List<String> metricNames,
-                                                 final Integer rangeMinutes, final String startTime,
-                                                 final String endTime, final Integer stepSeconds) {
+    private QueryResult queryByNamespace(final List<Pod> coPods, final List<Pod> eoPods,
+                                         final List<String> metricNames,
+                                         final Integer rangeMinutes, final String startTime,
+                                         final String endTime, final Integer stepSeconds) {
         String coNamespace = !coPods.isEmpty()
             ? coPods.getFirst().getMetadata().getNamespace() : null;
         String eoNamespace = !eoPods.isEmpty()
@@ -178,8 +188,9 @@ public class StrimziOperatorMetricsService {
             List<PodTarget> targets = buildPodTargets(coPods, eoPods);
             Map<String, String> matchers = new LinkedHashMap<>();
             matchers.put("namespace", coNamespace != null ? coNamespace : eoNamespace);
-            return metricsQueryService.queryMetrics(
+            List<MetricSample> samples = metricsQueryService.queryMetrics(
                 targets, matchers, metricNames, rangeMinutes, startTime, endTime, stepSeconds);
+            return new QueryResult(samples, metricsQueryService.reachedSampleLimit(samples));
         }
 
         List<MetricSample> allSamples = new ArrayList<>();
@@ -187,17 +198,20 @@ public class StrimziOperatorMetricsService {
         List<PodTarget> coTargets = buildPodTargets(coPods, List.of());
         Map<String, String> coMatchers = new LinkedHashMap<>();
         coMatchers.put("namespace", coNamespace);
-        allSamples.addAll(metricsQueryService.queryMetrics(
-            coTargets, coMatchers, metricNames, rangeMinutes, startTime, endTime, stepSeconds));
+        List<MetricSample> coSamples = metricsQueryService.queryMetrics(
+            coTargets, coMatchers, metricNames, rangeMinutes, startTime, endTime, stepSeconds);
+        allSamples.addAll(coSamples);
 
         List<PodTarget> eoTargets = buildPodTargets(List.of(), eoPods);
         Map<String, String> eoMatchers = new LinkedHashMap<>();
         eoMatchers.put("namespace", eoNamespace);
         eoMatchers.put("pod", eoPods.getFirst().getMetadata().getName());
-        allSamples.addAll(metricsQueryService.queryMetrics(
-            eoTargets, eoMatchers, metricNames, rangeMinutes, startTime, endTime, stepSeconds));
+        List<MetricSample> eoSamples = metricsQueryService.queryMetrics(
+            eoTargets, eoMatchers, metricNames, rangeMinutes, startTime, endTime, stepSeconds);
+        allSamples.addAll(eoSamples);
 
-        return allSamples;
+        return new QueryResult(allSamples, metricsQueryService.reachedSampleLimit(coSamples)
+            || metricsQueryService.reachedSampleLimit(eoSamples));
     }
 
     /**

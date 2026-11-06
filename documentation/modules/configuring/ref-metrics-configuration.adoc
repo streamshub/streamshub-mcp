@@ -14,7 +14,7 @@ Choose how the server collects metrics from your Kafka cluster.
 
 |`mcp.metrics.provider` |`streamshub-pod-scraping` |Metrics provider: `streamshub-pod-scraping` or `streamshub-prometheus`
 |`mcp.metrics.default-step-seconds` |`60` |Default query resolution in seconds
-|`mcp.metrics.max-samples` |`10000` |Maximum number of metric samples returned per query. Queries exceeding this limit are truncated.
+|`mcp.metrics.max-samples` |`10000` |Maximum number of metric samples returned per query. Queries reaching this limit are truncated, and the response then carries `truncated: true` and a message that the data is incomplete.
 |`mcp.metrics.max-range-minutes` |`10080` |Maximum time range for metrics queries in minutes. Default is 7 days. Queries exceeding this range are rejected with an error.
 |===
 

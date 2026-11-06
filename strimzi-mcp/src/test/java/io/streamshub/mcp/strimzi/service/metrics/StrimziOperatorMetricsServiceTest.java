@@ -352,6 +352,41 @@ class StrimziOperatorMetricsServiceTest {
         assertEquals("cluster", response.aggregation());
     }
 
+    @Test
+    void twoUnderLimitQueriesAreNotFlaggedTruncatedWhenTheirSumReachesTheLimit() {
+        Pod coPod = createPod("strimzi-cluster-operator-abc123", "kafka-system");
+        Pod eoPod = createPod("my-cluster-entity-operator-xyz", "kafka-apps");
+        when(strimziOperatorService.findClusterOperatorPods("kafka-system", null)).thenReturn(List.of(coPod));
+        when(strimziOperatorService.findEntityOperatorPods("kafka-apps", "my-cluster")).thenReturn(List.of(eoPod));
+        // Limit 3: each query returns 2 samples (under the limit), the concatenation has 4.
+        when(metricsQueryService.reachedSampleLimit(anyList()))
+            .thenAnswer(invocation -> ((List<?>) invocation.getArgument(0)).size() >= 3);
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), any(), any(), any(), any()))
+            .thenReturn(List.of(
+                MetricSample.of("strimzi_resources", Map.of("pod", "a"), 1.0),
+                MetricSample.of("strimzi_resources", Map.of("pod", "b"), 2.0)));
+
+        StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
+            "kafka-system", null, "my-cluster", "resources", null, null, null, null, null, null);
+
+        assertNull(response.truncated());
+    }
+
+    @Test
+    void oneQueryAtTheLimitIsFlaggedTruncated() {
+        Pod pod = createPod("strimzi-cluster-operator-abc123", "kafka-system");
+        when(strimziOperatorService.findClusterOperatorPods("kafka-system", null)).thenReturn(List.of(pod));
+        when(metricsQueryService.reachedSampleLimit(anyList())).thenReturn(true);
+        when(metricsQueryService.maxSamples()).thenReturn(3);
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), any(), any(), any(), any()))
+            .thenReturn(List.of(MetricSample.of("strimzi_resources", Map.of("pod", "a"), 1.0)));
+
+        StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
+            "kafka-system", null, null, "resources", null, null, null, null, null, null);
+
+        assertEquals(Boolean.TRUE, response.truncated());
+    }
+
     private Pod createPod(final String name, final String namespace) {
         Pod pod = new Pod();
         ObjectMeta meta = new ObjectMeta();

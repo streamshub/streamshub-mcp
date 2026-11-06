@@ -133,6 +133,7 @@ public class CruiseControlMetricsService {
         // Query metrics via general service
         List<MetricSample> samples = metricsQueryService.queryMetrics(
             podTargets, labelMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
+        boolean truncated = metricsQueryService.reachedSampleLimit(samples);
 
         // Build interpretation from effective categories
         List<String> effectiveCategories = new ArrayList<>(categories);
@@ -155,7 +156,8 @@ public class CruiseControlMetricsService {
         } else {
             level = AggregationLevel.fromString(aggregation);
         }
-        return CruiseControlMetricsResponse.of(name, resolvedNs,
+        CruiseControlMetricsResponse response = CruiseControlMetricsResponse.of(name, resolvedNs,
             metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
+        return truncated ? response.withTruncation(metricsQueryService.maxSamples()) : response;
     }
 }

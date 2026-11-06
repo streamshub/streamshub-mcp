@@ -154,6 +154,7 @@ public class KafkaMetricsService {
         // Query metrics via general service
         List<MetricSample> samples = metricsQueryService.queryMetrics(
             podTargets, labelMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
+        boolean truncated = metricsQueryService.reachedSampleLimit(samples);
 
         samples = filterByKafkaNodePods(samples, pods);
         samples = filterByRequestTypes(samples, requestTypes);
@@ -196,8 +197,9 @@ public class KafkaMetricsService {
         } else {
             level = AggregationLevel.fromString(aggregation);
         }
-        return KafkaMetricsResponse.of(name, resolvedNs,
+        KafkaMetricsResponse response = KafkaMetricsResponse.of(name, resolvedNs,
             metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
+        return truncated ? response.withTruncation(metricsQueryService.maxSamples()) : response;
     }
 
     private static List<MetricSample> filterByKafkaNodePods(final List<MetricSample> samples,

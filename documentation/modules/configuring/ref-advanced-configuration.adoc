@@ -313,7 +313,7 @@ Control default pagination for topic listing.
 |Property |Default |Description
 
 |`mcp.topics.default-page-size` |`100` |Default number of topics per page
-|`mcp.topics.max-list-size` |`5000` |Maximum number of topics returned in a single list request. Limits the total result set regardless of pagination.
+|`mcp.topics.max-list-size` |`5000` |Maximum number of topics returned in a single list request. Only the first this many topics can be paged through. When a cluster has more, the response carries `truncated: true` and `total` still reports the real number of topics.
 |===
 
 Used by the `list_kafka_topics` tool when no explicit limit is provided.

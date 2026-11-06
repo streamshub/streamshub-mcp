@@ -17,6 +17,9 @@ public final class LogQLSanitizer {
     private static final Pattern LABEL_NAME_PATTERN =
         Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
 
+    /** RE2 metacharacters that must be escaped to match text literally. */
+    private static final String REGEX_METACHARACTERS = "\\.+*?()|[]{}^$";
+
     private LogQLSanitizer() {
         // Utility class — no instantiation
     }
@@ -55,5 +58,30 @@ public final class LogQLSanitizer {
             .replace("\\", "\\\\")
             .replace("\"", "\\\"")
             .replace("\n", "\\n");
+    }
+
+    /**
+     * Escapes RE2 metacharacters so a user-supplied keyword is matched literally inside a LogQL
+     * regular expression. Without this a keyword such as {@code a.b}, {@code (} or {@code [} would
+     * be interpreted as a pattern, match unrelated lines or make Loki reject the query.
+     * The result still has to be passed through {@link #sanitizeLabelValue(String)} before it is
+     * placed in a LogQL string literal.
+     *
+     * @param value the literal text to match
+     * @return the text with every regex metacharacter backslash-escaped
+     */
+    public static String escapeRegexLiteral(final String value) {
+        if (value == null) {
+            return "";
+        }
+        StringBuilder escaped = new StringBuilder(value.length() + 8);
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (REGEX_METACHARACTERS.indexOf(c) >= 0) {
+                escaped.append('\\');
+            }
+            escaped.append(c);
+        }
+        return escaped.toString();
     }
 }

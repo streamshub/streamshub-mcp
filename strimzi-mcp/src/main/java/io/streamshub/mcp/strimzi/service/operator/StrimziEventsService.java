@@ -89,7 +89,7 @@ public class StrimziEventsService {
             throw McpErrors.invalidParams("Resource name is required");
         }
         if (kind == null || !SUPPORTED_RESOURCE_KINDS.contains(kind)) {
-            throw McpErrors.invalidParams("resource_kind is required. Supported values: "
+            throw McpErrors.invalidParams("resourceKind is required. Supported values: "
                 + SUPPORTED_RESOURCE_KINDS);
         }
         InputUtils.validateK8sName(name, "resource name");
