@@ -8,12 +8,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkiverse.mcp.server.InputRequiredException;
 import io.quarkiverse.mcp.server.InputResponses;
 import io.quarkiverse.mcp.server.Sampling;
+import io.quarkiverse.mcp.server.SamplingMessage;
 import io.quarkiverse.mcp.server.SamplingRequest;
 import io.quarkiverse.mcp.server.SamplingResponse;
 import io.quarkiverse.mcp.server.TextContent;
 import io.streamshub.mcp.common.guardrail.Redactor;
 import org.jboss.logging.Logger;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -24,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -91,13 +94,13 @@ class BaseDiagnosticServiceMrtrTest {
         when(sampling.inputResponses()).thenReturn(responses);
 
         SamplingRequest.Builder requestBuilder =
-            mock(SamplingRequest.Builder.class, org.mockito.Mockito.RETURNS_SELF);
+            mock(SamplingRequest.Builder.class, RETURNS_SELF);
         SamplingRequest builtRequest = mock(SamplingRequest.class);
         when(requestBuilder.build()).thenReturn(builtRequest);
         when(sampling.requestBuilder()).thenReturn(requestBuilder);
 
         InputRequiredException.Builder exceptionBuilder =
-            mock(InputRequiredException.Builder.class, org.mockito.Mockito.RETURNS_SELF);
+            mock(InputRequiredException.Builder.class, RETURNS_SELF);
         when(exceptionBuilder.build())
             .thenThrow(InputRequiredException.builder().setRequestState("test").build());
         when(sampling.inputRequired()).thenReturn(exceptionBuilder);
@@ -124,7 +127,7 @@ class BaseDiagnosticServiceMrtrTest {
         when(sampling.inputResponses()).thenReturn(responses);
 
         SamplingRequest.Builder requestBuilder =
-            mock(SamplingRequest.Builder.class, org.mockito.Mockito.RETURNS_SELF);
+            mock(SamplingRequest.Builder.class, RETURNS_SELF);
         when(requestBuilder.build()).thenReturn(mock(SamplingRequest.class));
         when(sampling.requestBuilder()).thenReturn(requestBuilder);
 
@@ -184,7 +187,7 @@ class BaseDiagnosticServiceMrtrTest {
         when(sampling.isSupported()).thenReturn(true);
 
         SamplingRequest.Builder requestBuilder =
-            mock(SamplingRequest.Builder.class, org.mockito.Mockito.RETURNS_SELF);
+            mock(SamplingRequest.Builder.class, RETURNS_SELF);
         SamplingRequest builtRequest = mock(SamplingRequest.class);
         when(requestBuilder.build()).thenReturn(builtRequest);
         when(sampling.requestBuilder()).thenReturn(requestBuilder);
@@ -270,7 +273,7 @@ class BaseDiagnosticServiceMrtrTest {
         when(sampling.isSupported()).thenReturn(true);
 
         SamplingRequest.Builder requestBuilder =
-            mock(SamplingRequest.Builder.class, org.mockito.Mockito.RETURNS_SELF);
+            mock(SamplingRequest.Builder.class, RETURNS_SELF);
         SamplingRequest builtRequest = mock(SamplingRequest.class);
         when(requestBuilder.build()).thenReturn(builtRequest);
         when(sampling.requestBuilder()).thenReturn(requestBuilder);
@@ -300,7 +303,7 @@ class BaseDiagnosticServiceMrtrTest {
         when(sampling.isServerInitiatedRequestSupported()).thenReturn(true);
         when(sampling.isSupported()).thenReturn(true);
         SamplingRequest.Builder requestBuilder =
-            mock(SamplingRequest.Builder.class, org.mockito.Mockito.RETURNS_SELF);
+            mock(SamplingRequest.Builder.class, RETURNS_SELF);
         SamplingRequest builtRequest = mock(SamplingRequest.class);
         when(requestBuilder.build()).thenReturn(builtRequest);
         when(builtRequest.sendAndAwait()).thenReturn(null);
@@ -312,8 +315,8 @@ class BaseDiagnosticServiceMrtrTest {
 
         service.performAnalysisMrtr(sampling, "sys", data, "analysis", null, null);
 
-        org.mockito.ArgumentCaptor<io.quarkiverse.mcp.server.SamplingMessage> captor =
-            org.mockito.ArgumentCaptor.forClass(io.quarkiverse.mcp.server.SamplingMessage.class);
+        ArgumentCaptor<SamplingMessage> captor =
+            ArgumentCaptor.forClass(SamplingMessage.class);
         verify(requestBuilder).addMessage(captor.capture());
         String sent = ((TextContent) captor.getValue().content()).text();
         assertFalse(sent.contains("hunter2"), sent);
@@ -336,12 +339,12 @@ class BaseDiagnosticServiceMrtrTest {
         when(sampling.inputResponses()).thenReturn(responses);
 
         SamplingRequest.Builder requestBuilder =
-            mock(SamplingRequest.Builder.class, org.mockito.Mockito.RETURNS_SELF);
+            mock(SamplingRequest.Builder.class, RETURNS_SELF);
         when(requestBuilder.build()).thenReturn(mock(SamplingRequest.class));
         when(sampling.requestBuilder()).thenReturn(requestBuilder);
 
         InputRequiredException.Builder exceptionBuilder =
-            mock(InputRequiredException.Builder.class, org.mockito.Mockito.RETURNS_SELF);
+            mock(InputRequiredException.Builder.class, RETURNS_SELF);
         when(exceptionBuilder.build())
             .thenThrow(InputRequiredException.builder().setRequestState("test").build());
         when(sampling.inputRequired()).thenReturn(exceptionBuilder);
@@ -353,8 +356,8 @@ class BaseDiagnosticServiceMrtrTest {
         assertThrows(InputRequiredException.class,
             () -> service.performAnalysisMrtr(sampling, "sys", data, "analysis", "ns1", null));
 
-        org.mockito.ArgumentCaptor<io.quarkiverse.mcp.server.SamplingMessage> captor =
-            org.mockito.ArgumentCaptor.forClass(io.quarkiverse.mcp.server.SamplingMessage.class);
+        ArgumentCaptor<SamplingMessage> captor =
+            ArgumentCaptor.forClass(SamplingMessage.class);
         verify(requestBuilder).addMessage(captor.capture());
         String sent = ((TextContent) captor.getValue().content()).text();
         assertFalse(sent.contains("hunter2"), sent);
