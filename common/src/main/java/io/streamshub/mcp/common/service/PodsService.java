@@ -9,7 +9,6 @@ import io.fabric8.kubernetes.api.model.ContainerState;
 import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.EnvVar;
-import io.fabric8.kubernetes.api.model.EnvVarSource;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodCondition;
@@ -24,6 +23,7 @@ import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.PodSummaryResponse;
 import io.streamshub.mcp.common.dto.ResourceInfo;
+import io.streamshub.mcp.common.util.EnvVarUtils;
 import io.streamshub.mcp.common.util.InputUtils;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -533,21 +533,7 @@ public class PodsService {
 
     private PodSummaryResponse.EnvVarInfo extractEnvVarInfo(EnvVar env) {
         if (env.getValueFrom() != null) {
-            EnvVarSource source = env.getValueFrom();
-            String valueFrom;
-            if (source.getFieldRef() != null) {
-                valueFrom = "fieldRef:" + source.getFieldRef().getFieldPath();
-            } else if (source.getSecretKeyRef() != null) {
-                valueFrom = "secretKeyRef:" + source.getSecretKeyRef().getName() +
-                    "/" + source.getSecretKeyRef().getKey();
-            } else if (source.getConfigMapKeyRef() != null) {
-                valueFrom = "configMapKeyRef:" + source.getConfigMapKeyRef().getName() +
-                    "/" + source.getConfigMapKeyRef().getKey();
-            } else if (source.getResourceFieldRef() != null) {
-                valueFrom = "resourceFieldRef:" + source.getResourceFieldRef().getResource();
-            } else {
-                valueFrom = KubernetesConstants.ContainerStates.UNKNOWN;
-            }
+            String valueFrom = EnvVarUtils.describeSource(env.getValueFrom());
             return new PodSummaryResponse.EnvVarInfo(env.getName(), null, valueFrom);
         }
         return new PodSummaryResponse.EnvVarInfo(env.getName(), env.getValue(), null);
