@@ -4,8 +4,8 @@
  */
 package io.streamshub.mcp.strimzi.config;
 
+import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
@@ -23,15 +23,15 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 @QuarkusTest
 class CorsConfigTest {
 
-    @ConfigProperty(name = "quarkus.http.test-port")
-    int testPort;
+    @TestHTTPResource("/mcp")
+    URI mcpUri;
 
     CorsConfigTest() {
     }
 
     private String preflight(final String origin) throws Exception {
         try (HttpClient client = HttpClient.newHttpClient()) {
-            HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + testPort + "/mcp"))
+            HttpRequest request = HttpRequest.newBuilder(mcpUri)
                 .header("Origin", origin)
                 .header("Access-Control-Request-Method", "POST")
                 .header("Access-Control-Request-Headers", "content-type")
