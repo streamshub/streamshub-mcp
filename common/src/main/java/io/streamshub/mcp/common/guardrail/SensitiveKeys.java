@@ -56,9 +56,17 @@ public final class SensitiveKeys {
      * maps only, for the same reason as {@link #SECRET_LAST_WORDS}. They catch keys that end in a
      * descriptive word, such as {@code basic.auth.user.info} (Schema Registry credentials in
      * Connect and Debezium configs) or {@code proxy.pass}. Whole-word matching keeps
-     * {@code authentication.type} and {@code oauth.client.id} out.
+     * {@code authentication.type} and {@code oauth.client.id} out. The {@code auth} word does not
+     * count in {@code bearer.auth} when the key ends in one of {@link #AUTH_DESCRIPTOR_SUFFIXES}.
      */
     private static final Set<String> SECRET_CONFIG_WORDS = Set.of("auth", "pass");
+
+    /**
+     * Last words that make a {@code bearer.auth} key a non-secret descriptor, such as
+     * {@code bearer.auth.client.id}, {@code bearer.auth.scope} or {@code bearer.auth.logical.cluster}.
+     * Other secret words still apply, so {@code bearer.auth.client.secret} stays redacted.
+     */
+    private static final Set<String> AUTH_DESCRIPTOR_SUFFIXES = Set.of("id", "scope", "cluster");
 
     /** Words that, directly before a trailing {@code key}, mean a record key rather than a secret. */
     private static final Set<String> DATA_KEY_QUALIFIERS = Set.of(
@@ -128,7 +136,7 @@ public final class SensitiveKeys {
         }
         for (int i = 0; i < words.size(); i++) {
             String word = words.get(i);
-            if (SECRET_WORDS.contains(word) || config && SECRET_CONFIG_WORDS.contains(word)) {
+            if (SECRET_WORDS.contains(word) || config && isSecretConfigWord(words, i, last)) {
                 return true;
             }
             if ("key".equals(word) && i > 0 && SECRET_KEY_QUALIFIERS.contains(words.get(i - 1))) {
@@ -136,6 +144,13 @@ public final class SensitiveKeys {
             }
         }
         return false;
+    }
+
+    private static boolean isSecretConfigWord(final List<String> words, final int i, final String last) {
+        String word = words.get(i);
+        return SECRET_CONFIG_WORDS.contains(word)
+            && !("auth".equals(word) && i > 0 && "bearer".equals(words.get(i - 1))
+                && AUTH_DESCRIPTOR_SUFFIXES.contains(last));
     }
 
     /** {@code ssl.client.auth} is a mode (none, requested, required), not a credential. */
