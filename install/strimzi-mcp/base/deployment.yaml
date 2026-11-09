@@ -20,6 +20,10 @@ spec:
             - name: http
               containerPort: 8080
               protocol: TCP
+            # Health and metrics (/q/*); not exposed by the Service
+            - name: management
+              containerPort: 9000
+              protocol: TCP
           env:
             - name: JAVA_OPTS_APPEND
               value: "-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
@@ -28,14 +32,14 @@ spec:
           livenessProbe:
             httpGet:
               path: /q/health/live
-              port: http
+              port: management
             initialDelaySeconds: 10
             periodSeconds: 30
             timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /q/health/ready
-              port: http
+              port: management
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5

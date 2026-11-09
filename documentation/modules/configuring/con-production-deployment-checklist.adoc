@@ -56,7 +56,7 @@ See xref:cors-configuration-{context}[CORS configuration] for details.
 
 The MCP endpoint is unauthenticated.
 The `prod` overlay ships a NetworkPolicy that admits only pods in the `streamshub-mcp` namespace.
-Add a NetworkPolicy for the namespaces of your MCP clients, gateway, ingress controller, or Prometheus (when a PodMonitor scrapes the server) as needed.
+Add a NetworkPolicy for the namespaces of your MCP clients, gateway, ingress controller, or Prometheus (when a PodMonitor scrapes the server; admit it on port `management` (9000) only) as needed.
 The `prod-openshift` overlay (OpenShift 4.20 or later) additionally admits the OpenShift router and cluster monitoring, which exposes the unauthenticated endpoint through the Route to anyone who can reach the router.
 Put an authenticating front (for example an OAuth proxy) in front of the Route, or remove the Route and use port-forwarding.
 

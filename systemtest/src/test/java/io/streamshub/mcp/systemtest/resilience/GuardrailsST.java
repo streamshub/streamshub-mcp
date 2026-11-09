@@ -17,6 +17,7 @@ import io.skodjob.kubetest4j.wait.Wait;
 import io.streamshub.mcp.systemtest.AbstractST;
 import io.streamshub.mcp.systemtest.Constants;
 import io.streamshub.mcp.systemtest.Environment;
+import io.streamshub.mcp.systemtest.clients.ManagementEndpoint;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
@@ -31,11 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
@@ -301,7 +298,7 @@ class GuardrailsST extends AbstractST {
         Wait.until("mcp.tool.calls to record a rate_limited rejection for the log tool",
             Constants.KAFKA_READY_POLL_MS, Constants.MCP_READY_TIMEOUT_MS, () -> {
                 try {
-                    String scraped = httpGet(mcpBaseUrl + "/q/metrics");
+                    String scraped = managementGet("/q/metrics");
                     lastMetrics.set(scraped);
                     return sumToolCalls(scraped, "get_kafka_cluster_logs", "rate_limited") >= 1.0;
                 } catch (Exception e) {
@@ -352,17 +349,9 @@ class GuardrailsST extends AbstractST {
         return total;
     }
 
-    private static String httpGet(final String url) throws Exception {
-        HttpClient client = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
-        HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .GET()
-            .timeout(Duration.ofSeconds(30))
-            .build();
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        assertEquals(200, response.statusCode(), "HTTP GET " + url + " should return 200");
+    private static String managementGet(final String path) throws Exception {
+        HttpResponse<String> response = ManagementEndpoint.get(mcpNamespace.getMetadata().getName(), path);
+        assertEquals(200, response.statusCode(), "GET " + path + " on the management port should return 200");
         return response.body();
     }
 

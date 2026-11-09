@@ -75,7 +75,7 @@ From the repository root, start the server in Quarkus dev mode:
 
 [source,bash]
 ----
-curl -s http://localhost:8080/q/health/ready
+curl -s http://localhost:9000/q/health/ready
 ----
 
 *Expected output:* `{"status":"UP", ...}`

@@ -13,6 +13,7 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.skodjob.kubetest4j.annotations.ClassNamespace;
 import io.streamshub.mcp.systemtest.AbstractST;
 import io.streamshub.mcp.systemtest.Constants;
+import io.streamshub.mcp.systemtest.clients.ManagementEndpoint;
 import io.streamshub.mcp.systemtest.clients.McpClientFactory;
 import io.streamshub.mcp.systemtest.setup.mcp.ConnectivitySetup;
 import io.streamshub.mcp.systemtest.setup.mcp.McpServerSetup;
@@ -77,7 +78,7 @@ class ServerObservabilityST extends AbstractST {
     @Test
     @Story("Liveness endpoint returns UP")
     void testHealthLiveness() throws Exception {
-        String body = httpGet(mcpBaseUrl + "/q/health/live");
+        String body = managementGet("/q/health/live");
 
         LOGGER.info("Liveness response: {}", body);
         JsonNode root = parseJson(body);
@@ -88,7 +89,7 @@ class ServerObservabilityST extends AbstractST {
     @Test
     @Story("Readiness endpoint returns UP")
     void testHealthReadiness() throws Exception {
-        String body = httpGet(mcpBaseUrl + "/q/health/ready");
+        String body = managementGet("/q/health/ready");
 
         LOGGER.info("Readiness response: {}", body);
         JsonNode root = parseJson(body);
@@ -101,6 +102,14 @@ class ServerObservabilityST extends AbstractST {
     // ---- Prometheus Metrics ----
 
     @Test
+    @Story("Health and metrics are not served on the MCP port")
+    void testManagementEndpointsNotServedOnMcpPort() throws Exception {
+        // NetworkPolicies select by port: a metrics scrape rule must not also admit /mcp.
+        assertEquals(404, mcpPortStatus("/q/metrics"), "/q/metrics must only be on the management port");
+        assertEquals(404, mcpPortStatus("/q/health/ready"), "/q/health must only be on the management port");
+    }
+
+    @Test
     @Story("MCP tool call metrics are recorded after tool invocation")
     void testMcpToolCallMetrics() throws Exception {
         // Make a tool call to generate metrics
@@ -110,7 +119,7 @@ class ServerObservabilityST extends AbstractST {
                     LOGGER.info("Tool call completed (isError={})", response.isError()))
             .thenAssertResults();
 
-        String metrics = httpGet(mcpBaseUrl + "/q/metrics");
+        String metrics = managementGet("/q/metrics");
         LOGGER.info("Prometheus metrics response length={}", metrics.length());
         assertTrue(metrics.contains("mcp_tool_calls"),
             "Metrics should contain mcp_tool_calls counter");
@@ -129,26 +138,27 @@ class ServerObservabilityST extends AbstractST {
                     LOGGER.info("Tool call completed (isError={})", response.isError()))
             .thenAssertResults();
 
-        String metrics = httpGet(mcpBaseUrl + "/q/metrics");
+        String metrics = managementGet("/q/metrics");
         LOGGER.info("Prometheus duration metrics response length={}", metrics.length());
         assertTrue(metrics.contains("mcp_tool_call_duration"),
             "Metrics should contain mcp_tool_call_duration timer");
         assertTrue(metrics.contains("get_kafka_fleet_overview"), "Duration metrics should reference the tool name used");
     }
 
-    private static String httpGet(final String url) throws Exception {
-        HttpClient client = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
-        HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .GET()
-            .timeout(Duration.ofSeconds(30))
-            .build();
-        HttpResponse<String> response = client.send(request,
-            HttpResponse.BodyHandlers.ofString());
-        assertEquals(200, response.statusCode(),
-            "HTTP GET " + url + " should return 200");
+    private static String managementGet(final String path) throws Exception {
+        HttpResponse<String> response = ManagementEndpoint.get(mcpNamespace.getMetadata().getName(), path);
+        assertEquals(200, response.statusCode(), "GET " + path + " on the management port should return 200");
         return response.body();
+    }
+
+    private static int mcpPortStatus(final String path) throws Exception {
+        try (HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build()) {
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(mcpBaseUrl + path))
+                .GET()
+                .timeout(Duration.ofSeconds(30))
+                .build();
+            return client.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
+        }
     }
 }

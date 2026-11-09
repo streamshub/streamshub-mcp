@@ -45,7 +45,7 @@ The *prod* overlay adds:
 * 2 replicas for high availability
 * Higher resource requests and limits
 * Finite rate limits (30 log, 60 metrics, 120 general requests per minute; counted per pod and shared by all clients of that pod) from the generated `strimzi-mcp-defaults` ConfigMap
-* A NetworkPolicy that admits only pods in the `streamshub-mcp` namespace; add policies for your MCP clients' namespaces and, if a PodMonitor scrapes the server, for the Prometheus namespace
+* A NetworkPolicy that admits only pods in the `streamshub-mcp` namespace; add policies for your MCP clients' namespaces and, if a PodMonitor scrapes the server, for the Prometheus namespace on port `management` (9000)
 * Optional ConfigMap and Secret references for configuration via `envFrom`; they override the defaults
 
 The *prod-openshift* overlay extends prod with an edge-terminated TLS Route for external access and a NetworkPolicy admitting the OpenShift router and monitoring.
@@ -102,9 +102,9 @@ kubectl -n streamshub-mcp rollout status deployment/streamshub-mcp-strimzi --tim
 # Check pods are running
 kubectl -n streamshub-mcp get pods
 
-# Check health endpoint (requires port-forward if not exposed)
-kubectl -n streamshub-mcp port-forward svc/streamshub-mcp-strimzi 8080:8080 &
-curl http://localhost:8080/q/health
+# Check health endpoint (served on the management port 9000, which the Service does not expose)
+kubectl -n streamshub-mcp port-forward deployment/streamshub-mcp-strimzi 9000:9000 &
+curl http://localhost:9000/q/health
 ----
 
 To override the image tag or registry:

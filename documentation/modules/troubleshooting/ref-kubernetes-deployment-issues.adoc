@@ -98,9 +98,13 @@ kubectl -n streamshub-mcp get svc streamshub-mcp-strimzi
 # Check endpoints
 kubectl -n streamshub-mcp get endpoints streamshub-mcp-strimzi
 
-# Test from within the Kubernetes cluster
+# Test from within the Kubernetes cluster (the MCP endpoint answers 405 to a plain GET without a session)
 kubectl -n streamshub-mcp run test --rm -it --image=curlimages/curl -- \
-  curl http://streamshub-mcp-strimzi:8080/q/health
+  curl -i http://streamshub-mcp-strimzi:8080/mcp
+
+# Health is on the pod's management port 9000, which the Service does not expose
+kubectl -n streamshub-mcp port-forward deployment/streamshub-mcp-strimzi 9000:9000 &
+curl http://localhost:9000/q/health
 ----
 
 *Solutions:*
