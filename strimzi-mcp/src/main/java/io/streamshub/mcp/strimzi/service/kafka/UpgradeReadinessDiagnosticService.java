@@ -64,6 +64,8 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
     private static final Logger LOG = Logger.getLogger(UpgradeReadinessDiagnosticService.class);
     private static final int PHASE1_STEPS = 6;
     private static final int MAX_PHASE2_STEPS = 5;
+    /** Replication metrics window, matching the prompts' {@code rangeMinutes=15}, so lag can be judged as a trend. */
+    static final int REPLICATION_RANGE_MINUTES = 15;
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
     private static final String STEP_OPERATOR_STATUS = "operator_status";
     private static final String STEP_NODE_POOLS_AND_PODS = "node_pools_and_pods";
@@ -362,7 +364,7 @@ public class UpgradeReadinessDiagnosticService extends BaseDiagnosticService {
         try {
             KafkaMetricsResponse result = metricsService.getKafkaMetrics(
                 namespace, clusterName, "replication",
-                null, null, null, null, null, null, null);
+                null, REPLICATION_RANGE_MINUTES, null, null, null, null, null);
             completed.add(STEP_REPLICATION_METRICS);
             return result;
         } catch (Exception e) {
