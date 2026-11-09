@@ -20,7 +20,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -43,9 +42,11 @@ class LogRedactionGuardrailTest {
         objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
         guardrail = new LogRedactionGuardrail();
         guardrail.mapper = objectMapper;
-        guardrail.enabled = true;
-        guardrail.customPatterns = Optional.empty();
-        guardrail.init();
+        useRedactor(true, null);
+    }
+
+    private void useRedactor(final boolean enabled, final List<String> customPatterns) {
+        guardrail.redactor = new Redactor(enabled, customPatterns);
     }
 
     @Test
@@ -176,7 +177,7 @@ class LogRedactionGuardrailTest {
 
     @Test
     void testDisabledFilterPassesThrough() throws JsonProcessingException {
-        guardrail.enabled = false;
+        useRedactor(false, null);
         LogDto dto = new LogDto("Bearer secrettoken123");
         FakeToolOutputContext ctx = createContext(dto);
         guardrail.apply(ctx);
@@ -199,8 +200,7 @@ class LogRedactionGuardrailTest {
 
     @Test
     void testCustomPatternRedacts() throws JsonProcessingException {
-        guardrail.customPatterns = Optional.of(List.of("(?i)ssn\\s*[=:]\\s*\\d{3}-\\d{2}-\\d{4}"));
-        guardrail.init();
+        useRedactor(true, List.of("(?i)ssn\\s*[=:]\\s*\\d{3}-\\d{2}-\\d{4}"));
 
         LogDto dto = new LogDto("User ssn=123-45-6789 logged in");
         FakeToolOutputContext ctx = createContext(dto);
@@ -214,8 +214,7 @@ class LogRedactionGuardrailTest {
 
     @Test
     void testCustomPatternMergedWithDefaults() throws JsonProcessingException {
-        guardrail.customPatterns = Optional.of(List.of("(?i)internal-id\\s*=\\s*\\S+"));
-        guardrail.init();
+        useRedactor(true, List.of("(?i)internal-id\\s*=\\s*\\S+"));
 
         LogDto dto = new LogDto("Bearer secret123 internal-id=abc-999");
         FakeToolOutputContext ctx = createContext(dto);
@@ -229,8 +228,7 @@ class LogRedactionGuardrailTest {
 
     @Test
     void testInvalidCustomPatternSkipped() throws JsonProcessingException {
-        guardrail.customPatterns = Optional.of(List.of("[invalid", "(?i)valid-pattern=\\S+"));
-        guardrail.init();
+        useRedactor(true, List.of("[invalid", "(?i)valid-pattern=\\S+"));
 
         LogDto dto = new LogDto("password=secret valid-pattern=sensitive");
         FakeToolOutputContext ctx = createContext(dto);
@@ -244,8 +242,7 @@ class LogRedactionGuardrailTest {
 
     @Test
     void testEmptyCustomPatterns() throws JsonProcessingException {
-        guardrail.customPatterns = Optional.of(List.of());
-        guardrail.init();
+        useRedactor(true, List.of());
 
         LogDto dto = new LogDto("password=secret123");
         FakeToolOutputContext ctx = createContext(dto);
@@ -258,12 +255,11 @@ class LogRedactionGuardrailTest {
 
     @Test
     void testMultipleCustomPatterns() throws JsonProcessingException {
-        guardrail.customPatterns = Optional.of(List.of(
+        useRedactor(true, List.of(
             "(?i)x-custom-header:\\s*\\S+",
             "(?i)account-id=\\S+",
             "(?i)session-token=\\S+"
         ));
-        guardrail.init();
 
         LogDto dto = new LogDto("x-custom-header: val1 account-id=A123 session-token=tok456");
         FakeToolOutputContext ctx = createContext(dto);
@@ -382,6 +378,89 @@ class LogRedactionGuardrailTest {
 
         // No modification should occur, so setResponse should not be called
         assertNull(ctx.capturedResponse);
+    }
+
+    @Test
+    void testRedactsValueUnderSensitiveKeyWithoutRecognisableShape() throws JsonProcessingException {
+        FakeToolOutputContext ctx = createJsonContext("{\"password\":\"hunter2\",\"name\":\"my-connector\"}");
+        guardrail.apply(ctx);
+
+        String text = extractTextContent(ctx.capturedResponse);
+        assertFalse(text.contains("hunter2"));
+        assertTrue(text.contains("\"password\":\"[REDACTED]\""));
+        assertTrue(text.contains("my-connector"));
+    }
+
+    @Test
+    void testRedactsNestedSensitiveKeysInConfigMaps() throws JsonProcessingException {
+        FakeToolOutputContext ctx = createJsonContext("{\"config\":{\"database.password\":\"s3cr3t\","
+            + "\"sasl.jaas.config\":\"org.apache.kafka.common.security.plain.PlainLoginModule required "
+            + "username=u password=p;\",\"ssl.key.password\":\"kp\",\"key.converter\":\"org.Json\","
+            + "\"delegation.token.max.lifetime.ms\":\"604800000\",\"tasks.max\":\"1\"}}");
+        guardrail.apply(ctx);
+
+        String text = extractTextContent(ctx.capturedResponse);
+        assertFalse(text.contains("s3cr3t"));
+        assertFalse(text.contains("PlainLoginModule"));
+        assertFalse(text.contains("\"kp\""));
+        assertTrue(text.contains("org.Json"));
+        assertTrue(text.contains("604800000"));
+    }
+
+    @Test
+    void testKeepsSecretReferenceFieldsAndProviderPlaceholders() throws JsonProcessingException {
+        FakeToolOutputContext ctx = createJsonContext("{\"secret_name\":\"my-cluster-user\","
+            + "\"push_secret\":\"registry-creds\",\"config\":{\"db.password\":\"${secrets:ns/db:password}\"}}");
+        guardrail.apply(ctx);
+
+        assertNull(ctx.capturedResponse);
+    }
+
+    @Test
+    void testRedactsBasicAuthorizationHeader() throws JsonProcessingException {
+        LogDto dto = new LogDto("Authorization: Basic dXNlcjpwYXNzd29yZA==");
+        FakeToolOutputContext ctx = createContext(dto);
+        guardrail.apply(ctx);
+
+        String text = extractTextContent(ctx.capturedResponse);
+        assertFalse(text.contains("dXNlcjpwYXNzd29yZA"));
+        assertTrue(text.contains("Basic [REDACTED]"));
+    }
+
+    @Test
+    void testRedactsBareBasicCredentialUnderJsonField() throws JsonProcessingException {
+        FakeToolOutputContext ctx = createJsonContext(
+            "{\"headers\":{\"Authorization\":\"Basic dXNlcjpwYXNzd29yZA==\",\"Accept\":\"application/json\"}}");
+        guardrail.apply(ctx);
+
+        String text = extractTextContent(ctx.capturedResponse);
+        assertFalse(text.contains("dXNlcjpwYXNzd29yZA"));
+        assertTrue(text.contains("Basic [REDACTED]"));
+        assertTrue(text.contains("application/json"));
+    }
+
+    @Test
+    void testKeepsProseThatStartsWithBasic() throws JsonProcessingException {
+        FakeToolOutputContext ctx = createJsonContext(
+            "{\"message\":\"Basic configuration applied\",\"note\":\"Basic\"}");
+        guardrail.apply(ctx);
+
+        assertNull(ctx.capturedResponse);
+    }
+
+    @Test
+    void testKeepsImageDigests() throws JsonProcessingException {
+        LogDto dto = new LogDto("image quay.io/strimzi/kafka@sha256:"
+            + "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        FakeToolOutputContext ctx = createContext(dto);
+        guardrail.apply(ctx);
+
+        assertNull(ctx.capturedResponse);
+    }
+
+    private FakeToolOutputContext createJsonContext(final String json) throws JsonProcessingException {
+        JsonNode tree = objectMapper.readTree(json);
+        return new FakeToolOutputContext(new ToolResponse(false, List.of(new TextContent(json)), tree, null));
     }
 
     /**

@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.ConditionInfo;
 import io.streamshub.mcp.common.dto.ReconciliationInfo;
+import io.streamshub.mcp.common.guardrail.SensitiveKeys;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.ExceptionUtils;
@@ -302,7 +303,7 @@ public class KafkaConnectorService {
     }
 
     private Map<String, Object> extractConfig(final KafkaConnector connector) {
-        return connector.getSpec() != null ? connector.getSpec().getConfig() : null;
+        return connector.getSpec() != null ? SensitiveKeys.redactValues(connector.getSpec().getConfig()) : null;
     }
 
     private List<ConditionInfo> extractConditions(final KafkaConnector connector) {
