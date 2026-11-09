@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Response redaction reuses one JSON tree walk** (#331) -- `Redactor.redactTree` now uses `JsonNodeSanitizer`'s key-aware walk instead of its own copy. Array elements under a sensitive key are still redacted; a `${provider:ref}` placeholder there is now kept (as it already was in an object field), and arrays nested inside a sensitive array are now redacted too.
 - **Upgrade pre-flight `severity` is an enum** (#333) -- `UpgradePreflightFinding.severity` is now a `BLOCKER`/`WARNING` enum instead of a free-form `String`; the serialized values are unchanged.
 - **Metrics responses are built once, including truncation** (#329) -- the six `*MetricsResponse` DTOs take the reached sample limit as an `of(...)` factory parameter instead of copying the response through `withTruncation(int)`. The JSON output is unchanged.
 - **List responses are built via static factories** -- the 11 `*ListResponse` DTOs now expose a static `of(items)` factory that computes the count, and the tool layer calls it instead of invoking the constructor with `items.size()`. Internal only; the serialized `{items, count}` shape is unchanged.

@@ -6,9 +6,6 @@ package io.streamshub.mcp.common.guardrail;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Singleton;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -17,7 +14,6 @@ import org.jboss.logging.Logger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -171,46 +167,8 @@ public class Redactor {
         if (!enabled || node == null) {
             return false;
         }
-        boolean modified = false;
-        if (node.isObject()) {
-            ObjectNode obj = (ObjectNode) node;
-            for (Map.Entry<String, JsonNode> entry : obj.properties()) {
-                JsonNode value = entry.getValue();
-                if (value.isTextual()) {
-                    String original = value.asText();
-                    String transformed = redactText(SensitiveKeys.redactValue(entry.getKey(), original));
-                    if (!original.equals(transformed)) {
-                        obj.set(entry.getKey(), new TextNode(transformed));
-                        modified = true;
-                    }
-                } else if (value.isArray() && SensitiveKeys.isSensitive(entry.getKey())) {
-                    modified |= redactArray((ArrayNode) value, true);
-                } else {
-                    modified |= redactTree(value);
-                }
-            }
-        } else if (node.isArray()) {
-            modified = redactArray((ArrayNode) node, false);
-        }
-        return modified;
-    }
-
-    private boolean redactArray(final ArrayNode arr, final boolean sensitive) {
-        boolean modified = false;
-        for (int i = 0; i < arr.size(); i++) {
-            JsonNode element = arr.get(i);
-            if (element.isTextual()) {
-                String original = element.asText();
-                String transformed = sensitive && !original.isEmpty() ? REDACTED : redactText(original);
-                if (!original.equals(transformed)) {
-                    arr.set(i, new TextNode(transformed));
-                    modified = true;
-                }
-            } else {
-                modified |= redactTree(element);
-            }
-        }
-        return modified;
+        return JsonNodeSanitizer.transformTextNodes(node,
+            (key, value) -> redactText(SensitiveKeys.redactValue(key, value)));
     }
 
     /**
