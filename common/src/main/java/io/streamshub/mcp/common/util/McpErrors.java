@@ -31,9 +31,26 @@ public final class McpErrors {
      */
     public static McpException notFound(final String resourceKind, final String resourceName,
                                         final String namespace) {
+        return notFound(resourceKind, resourceName, namespace, null);
+    }
+
+    /**
+     * Build a resource-not-found error with a hint on what to do next.
+     *
+     * @param resourceKind the resource kind (e.g. {@code Kafka})
+     * @param resourceName the resource name
+     * @param namespace    the namespace searched, or {@code null} if all namespaces were searched
+     * @param hint         a sentence appended to the message, or {@code null} for none
+     * @return an McpException with the RESOURCE_NOT_FOUND code and structured data
+     */
+    public static McpException notFound(final String resourceKind, final String resourceName,
+                                        final String namespace, final String hint) {
         String location = namespace != null ? "namespace " + namespace : "any namespace";
         String named = resourceName != null ? " '" + resourceName + "'" : "";
         String message = resourceKind + named + " not found in " + location;
+        if (hint != null) {
+            message += ". " + hint;
+        }
         McpErrorData data = new McpErrorData(
             McpErrorCategory.RESOURCE_NOT_FOUND, resourceKind, resourceName, namespace, null, null);
         return new McpException(message, JsonRpcErrorCodes.RESOURCE_NOT_FOUND, data);

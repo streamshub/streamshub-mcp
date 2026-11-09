@@ -92,4 +92,12 @@ class McpErrorsTest {
         assertEquals(McpErrorCategory.INVALID_PARAMS, data.category());
         assertEquals("bad name", ex.getMessage());
     }
+
+    @Test
+    void testNotFoundWithHintAppendsIt() {
+        McpException e = McpErrors.notFound("Topic", "orders", "kafka", "It exists in cluster(s) 'a'");
+
+        assertEquals("Topic 'orders' not found in namespace kafka. It exists in cluster(s) 'a'", e.getMessage());
+        assertEquals(McpErrorCategory.RESOURCE_NOT_FOUND, ((McpErrorData) e.getData()).category());
+    }
 }
