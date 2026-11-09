@@ -206,7 +206,7 @@ Checks cluster health, operator status, pod health, replication, topic durabilit
 
 *3-phase workflow:*
 
-. *Phase 1 -- Pre-flight checks*: Cluster health, operator status, node pools and pods, replication metrics, active rebalance check (hard blocker), and deterministic `preflight_findings` (see below).
+. *Phase 1 -- Pre-flight checks*: Cluster health, operator status, node pools and pods, replication metrics over the last 15 minutes (so lag is judged as a trend; the pod-scraping provider returns a single point instead), active rebalance check (hard blocker), and deterministic `preflight_findings` (see below).
 . *Phase 2 -- Safety checks*: Performance metrics (headroom), resource metrics, Drain Cleaner readiness, certificate expiry, events. Certificates and Drain Cleaner are always checked, whatever the triage answers; events are also always gathered when the cluster is not Ready.
 . *Phase 3 -- Verdict*: GO/NO-GO/CONDITIONAL verdict with pre-flight checklist and maintenance window estimate. The estimate states its assumptions; no fixed per-broker restart time is assumed.
 

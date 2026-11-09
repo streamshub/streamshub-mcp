@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Metrics provider that scrapes Prometheus text exposition endpoints directly from pods
@@ -44,6 +45,9 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
     @Inject
     KubernetesClient kubernetesClient;
 
+    /** Range queries are routine (assess_upgrade_readiness asks for one), so warn only once. */
+    private final AtomicBoolean rangeWarningLogged = new AtomicBoolean();
+
     PodScrapingMetricsProvider() {
         // package-private no-arg constructor for CDI
     }
@@ -52,8 +56,7 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
     @SuppressWarnings("checkstyle:NPathComplexity")
     public List<MetricSample> queryMetrics(final MetricsQueryParams params) {
         if (params.isRangeQuery()) {
-            LOG.warn("Pod scraping provider does not support range queries."
-                + " Returning point-in-time data instead.");
+            logRangeQueryUnsupported();
         }
 
         List<PodTarget> targets = params.podTargets();
@@ -176,5 +179,14 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
         }
 
         return DEFAULT_METRICS_PORT;
+    }
+
+    private void logRangeQueryUnsupported() {
+        if (rangeWarningLogged.compareAndSet(false, true)) {
+            LOG.warn("Pod scraping provider does not support range queries."
+                + " Returning point-in-time data instead. Further occurrences are logged at DEBUG.");
+        } else {
+            LOG.debug("Range query served as point-in-time data by the pod scraping provider");
+        }
     }
 }
