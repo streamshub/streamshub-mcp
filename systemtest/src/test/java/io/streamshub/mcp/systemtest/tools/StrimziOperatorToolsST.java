@@ -421,7 +421,7 @@ class StrimziOperatorToolsST extends AbstractST {
             .toolsCall("get_strimzi_events")
             .withArguments(args)
             .withErrorAssert(error -> assertToolProtocolError(error, -32602, "INVALID_PARAMS",
-                "resource_kind", "Supported values"))
+                "resourceKind", "Supported values"))
             .send()
             .thenAssertResults();
     }

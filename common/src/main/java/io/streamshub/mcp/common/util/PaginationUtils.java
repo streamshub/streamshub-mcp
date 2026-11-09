@@ -20,7 +20,9 @@ public final class PaginationUtils {
     }
 
     /**
-     * Paginates a list of items.
+     * Paginates a list of items. When the list exceeds {@code maxListSize}, only the first
+     * {@code maxListSize} items can be paged; the response reports the real total and sets
+     * {@code truncated}.
      *
      * @param allItems        the full list of items to paginate
      * @param offset          zero-based offset, or null for 0
@@ -36,22 +38,24 @@ public final class PaginationUtils {
                                                      final int defaultPageSize,
                                                      final int maxListSize) {
         List<T> items = allItems;
+        int realTotal = allItems.size();
+        boolean truncated = realTotal > maxListSize;
 
-        if (items.size() > maxListSize) {
-            LOG.warnf("List size %d exceeds maximum of %d, truncating", items.size(), maxListSize);
+        if (truncated) {
+            LOG.warnf("List size %d exceeds maximum of %d, truncating", realTotal, maxListSize);
             items = items.subList(0, maxListSize);
         }
 
         int effectiveOffset = offset != null ? Math.max(0, offset) : 0;
         int effectiveLimit = limit != null ? Math.max(1, limit) : defaultPageSize;
 
-        int total = items.size();
-        int fromIndex = Math.min(effectiveOffset, total);
-        int toIndex = (int) Math.min((long) effectiveOffset + effectiveLimit, total);
-        boolean hasMore = toIndex < total;
+        int pageable = items.size();
+        int fromIndex = Math.min(effectiveOffset, pageable);
+        int toIndex = (int) Math.min((long) effectiveOffset + effectiveLimit, pageable);
+        boolean hasMore = toIndex < pageable;
 
         List<T> page = items.subList(fromIndex, toIndex);
 
-        return PaginatedResponse.of(page, total, effectiveOffset, effectiveLimit, hasMore);
+        return PaginatedResponse.of(page, realTotal, effectiveOffset, effectiveLimit, hasMore, truncated);
     }
 }

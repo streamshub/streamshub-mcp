@@ -84,14 +84,35 @@ class PaginationUtilsTest {
     }
 
     @Test
-    void maxListSizeTruncation() {
+    void maxListSizeTruncationReportsRealTotalAndFlag() {
         List<String> items = new ArrayList<>(IntStream.range(0, 200).mapToObj(i -> "item-" + i).toList());
 
         PaginatedResponse<String> result = PaginationUtils.paginate(items, 0, 50, 100, 100);
 
-        assertEquals(100, result.total());
+        assertEquals(200, result.total(), "total must be the real size, not the capped size");
+        assertEquals(Boolean.TRUE, result.truncated());
         assertEquals(50, result.items().size());
         assertTrue(result.hasMore());
+    }
+
+    @Test
+    void lastPageOfTruncatedListHasNoMoreButStaysTruncated() {
+        List<String> items = new ArrayList<>(IntStream.range(0, 200).mapToObj(i -> "item-" + i).toList());
+
+        PaginatedResponse<String> result = PaginationUtils.paginate(items, 50, 50, 100, 100);
+
+        assertEquals(50, result.items().size());
+        assertEquals("item-99", result.items().get(49));
+        assertFalse(result.hasMore());
+        assertEquals(200, result.total());
+        assertEquals(Boolean.TRUE, result.truncated());
+    }
+
+    @Test
+    void untruncatedListOmitsTruncatedFlag() {
+        PaginatedResponse<String> result = PaginationUtils.paginate(List.of("a", "b"), null, null, 100, 5000);
+
+        assertEquals(null, result.truncated());
     }
 
     @Test

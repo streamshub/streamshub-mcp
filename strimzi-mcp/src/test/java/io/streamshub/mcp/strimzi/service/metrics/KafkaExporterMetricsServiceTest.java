@@ -136,6 +136,30 @@ class KafkaExporterMetricsServiceTest {
     }
 
     @Test
+    void truncatedQueryIsFlaggedInResponse() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod exporterPod = createExporterPod("my-cluster-kafka-exporter-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(exporterPod));
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_consumergroup_lag", Map.of("namespace", "kafka"), 42.0));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(samples);
+        when(metricsQueryService.reachedSampleLimit(samples)).thenReturn(true);
+        when(metricsQueryService.maxSamples()).thenReturn(1);
+
+        KafkaExporterMetricsResponse response = kafkaExporterMetricsService.getKafkaExporterMetrics(
+            "kafka", "my-cluster", "consumer_lag", null, null, null, null, null, null);
+
+        assertEquals(Boolean.TRUE, response.truncated());
+        assertTrue(response.message().contains("truncated at 1 samples"), response.message());
+    }
+
+    @Test
     void defaultsToConsumerLagCategory() {
         Kafka kafka = createKafka("my-cluster", "kafka");
         Pod exporterPod = createExporterPod("my-cluster-kafka-exporter-0", "kafka");

@@ -212,6 +212,26 @@ class MetricsQueryServiceTest {
     }
 
     @Test
+    void reachedSampleLimitIsTrueWhenResultFillsTheLimit() throws Exception {
+        setField(metricsQueryService, "maxSamples", 2);
+        List<MetricSample> samples = List.of(
+            MetricSample.of("metric_a", Map.of("pod", "pod-0"), 1.0),
+            MetricSample.of("metric_a", Map.of("pod", "pod-1"), 2.0));
+
+        assertTrue(metricsQueryService.reachedSampleLimit(samples));
+        assertEquals(2, metricsQueryService.maxSamples());
+        assertFalse(metricsQueryService.reachedSampleLimit(samples.subList(0, 1)));
+    }
+
+    @Test
+    void reachedSampleLimitIsFalseWhenUnlimited() throws Exception {
+        setField(metricsQueryService, "maxSamples", 0);
+
+        assertFalse(metricsQueryService.reachedSampleLimit(
+            List.of(MetricSample.of("metric_a", Map.of("pod", "pod-0"), 1.0))));
+    }
+
+    @Test
     void providerNameReturnsConfiguredValue() {
         assertEquals("pod-scraping", metricsQueryService.providerName());
     }

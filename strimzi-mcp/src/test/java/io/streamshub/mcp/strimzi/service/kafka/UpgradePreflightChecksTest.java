@@ -226,4 +226,17 @@ class UpgradePreflightChecksTest {
         assertTrue(UpgradePreflightChecks.versionFindings(
             cluster("4.2.0", "4.2-IV1"), "Kafka 9.9.9", null).isEmpty());
     }
+
+    /**
+     * Verify a capped topic list is reported as a topic-durability warning with the real counts.
+     */
+    @Test
+    void testTruncationFindingWarnsAboutUncheckedTopics() {
+        UpgradePreflightFinding finding = UpgradePreflightChecks.truncationFinding(5000, 7200);
+
+        assertEquals(UpgradePreflightFinding.WARNING, finding.severity());
+        assertEquals(UpgradePreflightChecks.CHECK_TOPIC_DURABILITY, finding.check());
+        assertTrue(finding.message().contains("first 5000 of 7200"), finding.message());
+        assertTrue(finding.message().contains("2200"), finding.message());
+    }
 }

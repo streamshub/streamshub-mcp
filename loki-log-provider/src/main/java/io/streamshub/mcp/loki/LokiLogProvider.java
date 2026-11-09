@@ -137,7 +137,7 @@ public class LokiLogProvider implements LogCollectorProvider {
         if (keywords != null && !keywords.isEmpty()) {
             String keywordPattern = keywords.stream()
                 .filter(k -> k != null && !k.isBlank())
-                .map(k -> LogQLSanitizer.sanitizeLabelValue(k.trim()))
+                .map(k -> LogQLSanitizer.sanitizeLabelValue(LogQLSanitizer.escapeRegexLiteral(k.trim())))
                 .collect(Collectors.joining("|"));
             if (!keywordPattern.isEmpty()) {
                 query.append(" |~ \"(?i)(").append(keywordPattern).append(")\"");

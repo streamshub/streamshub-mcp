@@ -159,6 +159,18 @@ class LokiLogProviderTest {
     }
 
     @Test
+    void testBuildLogQueryEscapesKeywordMetacharacters() {
+        String query = lokiLogCollectorProvider.buildLogQuery(
+            "kafka", "pod-0", null, List.of("a.b", "x|y", "(open"), null);
+
+        // The keyword is escaped for RE2 first and then for the LogQL string literal,
+        // so each regex backslash appears doubled in the query text.
+        assertEquals(
+            "{namespace=\"kafka\", pod=\"pod-0\"} |~ \"(?i)(a\\\\.b|x\\\\|y|\\\\(open)\"",
+            query);
+    }
+
+    @Test
     void testBuildLogQueryWithFilterAndKeywords() {
         String query = lokiLogCollectorProvider.buildLogQuery(
             "kafka", "pod-0", "errors", List.of("OOM"), null);
