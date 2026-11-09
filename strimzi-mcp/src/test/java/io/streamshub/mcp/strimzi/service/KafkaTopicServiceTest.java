@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.AppsAPIGroupDSL;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
@@ -420,6 +421,46 @@ class KafkaTopicServiceTest {
             () -> topicService.getTopic("kafka", "other-cluster", "my-topic"));
 
         assertEquals(McpErrorCategory.RESOURCE_NOT_FOUND, ((McpErrorData) ex.getData()).category());
+        assertTrue(ex.getMessage().contains("Only cluster 'other-cluster' was searched; the topic exists in "
+            + "cluster(s) 'my-cluster' (namespace kafka); retry with that clusterName and namespace"), ex.getMessage());
+    }
+
+    @Test
+    void testGetTopicInOtherClustersAcrossNamespacesListsThemSorted() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topicInCluster("orders", "team-b", "cluster-b", null),
+            topicInCluster("orders", "team-a", "cluster-a", null)));
+
+        McpException ex = assertThrows(McpException.class,
+            () -> topicService.getTopic(null, "cluster-c", "orders"));
+
+        assertEquals(McpErrorCategory.RESOURCE_NOT_FOUND, ((McpErrorData) ex.getData()).category());
+        assertTrue(ex.getMessage().contains(
+            "cluster(s) 'cluster-a' (namespace team-a), 'cluster-b' (namespace team-b)"), ex.getMessage());
+    }
+
+    @Test
+    void testGetTopicMissingEverywhereHasNoClusterHint() {
+        McpException ex = assertThrows(McpException.class,
+            () -> topicService.getTopic("kafka", "my-cluster", "missing"));
+
+        assertFalse(ex.getMessage().contains("cluster(s)"), ex.getMessage());
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void testGetTopicHintLookupFailureStillReportsNotFound() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topicWithKafkaName("my-topic", "kafka", null, null)));
+        // The cluster-scoped lookup uses a label query; only the unfiltered hint lookup fails.
+        NonNamespaceOperation topicsInNamespace = kubernetesClient.resources(KafkaTopic.class).inNamespace("kafka");
+        when(topicsInNamespace.list()).thenThrow(new KubernetesClientException("forbidden"));
+
+        McpException ex = assertThrows(McpException.class,
+            () -> topicService.getTopic("kafka", "other-cluster", "missing"));
+
+        assertEquals(McpErrorCategory.RESOURCE_NOT_FOUND, ((McpErrorData) ex.getData()).category());
+        assertFalse(ex.getMessage().contains("cluster(s)"), ex.getMessage());
     }
 
     @Test

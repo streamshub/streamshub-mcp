@@ -128,10 +128,43 @@ public class KafkaTopicService {
         KafkaTopic topic = findTopic(ns, clusterNameNormalized, topicNameNormalized);
 
         if (topic == null) {
-            throw McpErrors.notFound("Topic", topicNameNormalized, ns);
+            throw McpErrors.notFound("Topic", topicNameNormalized, ns,
+                otherClusterHint(ns, clusterNameNormalized, topicNameNormalized));
         }
 
         return createTopicResponse(topic);
+    }
+
+    /**
+     * When a cluster was requested and the topic exists only under other clusters, name those
+     * clusters and their namespaces so the caller can retry. Only cluster and namespace names are
+     * disclosed, not topic details. A failed lookup only drops the hint, never the not-found error.
+     */
+    private String otherClusterHint(final String ns, final String cluster, final String topicName) {
+        if (cluster == null) {
+            return null;
+        }
+        List<KafkaTopic> all;
+        try {
+            all = ns != null
+                ? k8sService.queryResources(KafkaTopic.class, ns)
+                : k8sService.queryResourcesInAnyNamespace(KafkaTopic.class);
+        } catch (RuntimeException e) {
+            LOG.debugf("Could not look up topic %s in other clusters: %s", topicName, e.getMessage());
+            return null;
+        }
+        List<String> owners = all.stream()
+            .filter(t -> exposesTopicName(t, topicName))
+            .filter(t -> clusterLabel(t) != null)
+            .map(t -> "'" + clusterLabel(t) + "' (namespace " + t.getMetadata().getNamespace() + ")")
+            .distinct()
+            .sorted()
+            .toList();
+        if (owners.isEmpty()) {
+            return null;
+        }
+        return "Only cluster '" + cluster + "' was searched; the topic exists in cluster(s) "
+            + String.join(", ", owners) + "; retry with that clusterName and namespace";
     }
 
     private KafkaTopic findTopic(final String ns, final String cluster, final String topicName) {
