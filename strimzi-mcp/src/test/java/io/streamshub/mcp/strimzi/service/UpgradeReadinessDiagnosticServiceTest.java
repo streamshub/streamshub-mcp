@@ -4,9 +4,11 @@
  */
 package io.streamshub.mcp.strimzi.service;
 
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.AppsAPIGroupDSL;
@@ -24,10 +26,15 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import io.strimzi.api.kafka.model.rebalance.KafkaRebalance;
+import io.strimzi.api.kafka.model.topic.KafkaTopic;
+import io.strimzi.api.kafka.model.topic.KafkaTopicBuilder;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -65,6 +72,7 @@ class UpgradeReadinessDiagnosticServiceTest {
         KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaNodePool.class);
         KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Pod.class);
         KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaRebalance.class);
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaTopic.class);
     }
 
     @Test
@@ -110,7 +118,109 @@ class UpgradeReadinessDiagnosticServiceTest {
         assertTrue(report.stepsCompleted().contains("cluster_status"));
     }
 
+    @Test
+    void testPreflightFindingsReportBlockingTopic() {
+        setupKafkaCluster("my-cluster", "kafka");
+        KafkaTopic topic = new KafkaTopicBuilder()
+            .withNewMetadata().withName("orders").withNamespace("kafka")
+                .withLabels(Map.of("strimzi.io/cluster", "my-cluster"))
+            .endMetadata()
+            .withNewSpec().withPartitions(3).withReplicas(3)
+                .withConfig(Map.of("min.insync.replicas", 3))
+            .endSpec()
+            .build();
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(topic));
+
+        UpgradeReadinessReport report = upgradeReadinessDiagnosticService.diagnose(
+            "kafka", "my-cluster", "Kafka 4.2.0",
+            null, null, null, null);
+
+        assertTrue(report.stepsCompleted().contains("preflight_checks"));
+        assertNotNull(report.preflightFindings());
+        assertTrue(report.preflightFindings().stream().anyMatch(f ->
+            "BLOCKER".equals(f.severity()) && "topic_durability".equals(f.check())
+                && f.message().contains("orders")));
+    }
+
+    @Test
+    void testPreflightKeepsTopicFindingsWhenTargetVersionIsMalformed() {
+        setupKafkaCluster("my-cluster", "kafka");
+        KafkaTopic topic = new KafkaTopicBuilder()
+            .withNewMetadata().withName("orders").withNamespace("kafka")
+                .withLabels(Map.of("strimzi.io/cluster", "my-cluster"))
+            .endMetadata()
+            .withNewSpec().withPartitions(3).withReplicas(3)
+                .withConfig(Map.of("min.insync.replicas", 3))
+            .endSpec()
+            .build();
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(topic));
+
+        UpgradeReadinessReport report = upgradeReadinessDiagnosticService.diagnose(
+            "kafka", "my-cluster", "Kafka 40000000000.0",
+            null, null, null, null);
+
+        assertTrue(report.stepsCompleted().contains("preflight_checks"));
+        assertTrue(report.stepsFailed() == null || report.stepsFailed().stream()
+            .noneMatch(f -> f.startsWith("preflight_checks")));
+        assertTrue(report.preflightFindings().stream().anyMatch(f ->
+            "BLOCKER".equals(f.severity()) && "topic_durability".equals(f.check())
+                && f.message().contains("orders")));
+    }
+
+    @Test
+    void testPreflightFindingsReportUnsupportedTargetFromTheDiscoveredOperator() {
+        setupKafkaCluster("my-cluster", "kafka");
+        // Two operators: the version check must use the one gathered in Phase 1, not re-discover.
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, Deployment.class, List.of(
+            operatorDeployment("strimzi-a", "operators-a", "4.2.0=quay.io/strimzi/kafka:1.3.0-kafka-4.2.0\n"
+                + "4.3.0=quay.io/strimzi/kafka:1.3.0-kafka-4.3.0"),
+            operatorDeployment("strimzi-b", "operators-b", "4.2.0=quay.io/strimzi/kafka:1.3.0-kafka-4.2.0")));
+
+        UpgradeReadinessReport report = upgradeReadinessDiagnosticService.diagnose(
+            "kafka", "my-cluster", "Kafka 4.4.0",
+            null, null, null, null);
+
+        assertTrue(report.stepsCompleted().contains("preflight_checks"));
+        assertTrue(report.stepsFailed() == null || report.stepsFailed().stream()
+            .noneMatch(f -> f.startsWith("operator_supported_versions")));
+        assertTrue(report.preflightFindings().stream().anyMatch(f ->
+            "BLOCKER".equals(f.severity()) && "version_path".equals(f.check())
+                && f.message().contains("4.4.0") && f.message().contains("4.2.0, 4.3.0")));
+    }
+
+    @Test
+    void testPreflightFindingsIgnoreStrimziTarget() {
+        setupKafkaCluster("my-cluster", "kafka");
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, Deployment.class, List.of(
+            operatorDeployment("strimzi-a", "operators-a", "4.2.0=quay.io/strimzi/kafka:1.3.0-kafka-4.2.0")));
+
+        UpgradeReadinessReport report = upgradeReadinessDiagnosticService.diagnose(
+            "kafka", "my-cluster", "1.4.0",
+            null, null, null, null);
+
+        assertTrue(report.stepsCompleted().contains("preflight_checks"));
+        assertTrue(report.preflightFindings() == null || report.preflightFindings().stream()
+            .noneMatch(f -> "version_path".equals(f.check())));
+    }
+
     // ---- Test helpers ----
+
+    private static Deployment operatorDeployment(final String name, final String namespace, final String kafkaImages) {
+        return new DeploymentBuilder()
+            .withNewMetadata().withName(name).withNamespace(namespace)
+                .withLabels(Map.of("app", "strimzi"))
+            .endMetadata()
+            .withNewSpec().withReplicas(1)
+                .withNewTemplate().withNewSpec()
+                    .addNewContainer()
+                        .withName("strimzi-cluster-operator")
+                        .withImage("quay.io/strimzi/operator:1.3.0")
+                        .withEnv(new EnvVarBuilder().withName("STRIMZI_KAFKA_IMAGES").withValue(kafkaImages).build())
+                    .endContainer()
+                .endSpec().endTemplate()
+            .endSpec()
+            .build();
+    }
 
     @SuppressWarnings("unchecked")
     private void setupKafkaCluster(final String name, final String namespace) {

@@ -190,7 +190,8 @@ io.streamshub.mcp.strimzi.
 │   │                    KafkaConfigComparisonService, KafkaClusterOverviewService,
 │   │                    KafkaFleetOverviewService, BootstrapMatcher,
 │   │                    KafkaClusterDiagnosticService, KafkaConnectivityDiagnosticService,
-│   │                    KafkaMetricsDiagnosticService, UpgradeReadinessDiagnosticService
+│   │                    KafkaMetricsDiagnosticService, UpgradeReadinessDiagnosticService,
+│   │                    UpgradePreflightChecks (deterministic topic-durability / version-path findings),
 │   ├── kafkatopic/    → KafkaTopicService, KafkaTopicDiagnosticService
 │   ├── kafkauser/     → KafkaUserService
 │   ├── kafkanodepool/ → KafkaNodePoolService, KafkaNodePoolDiagnosticService

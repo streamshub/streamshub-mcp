@@ -1687,6 +1687,7 @@ Parameters: { "topicName": "mcp-test-topic" }
 - [ ] Returns topic diagnostic for `mcp-test-topic`
 - [ ] Topic CR status, partition config (3 partitions, 3 replicas)
 - [ ] Reconciliation status from topic operator
+- [ ] With `"symptom": "consumers are lagging"` on a Ready topic and cluster, `steps_completed` still contains operator logs, events and exporter metrics
 
 ### T15.8 - Diagnose KafkaConnect
 
@@ -1764,6 +1765,10 @@ Parameters: { "clusterName": "mcp-cluster" }
 - [ ] Checks: certificate validity
 - [ ] If `--drain-cleaner`: Drain Cleaner status included
 - [ ] GO / NO-GO verdict present
+- [ ] `certificates` and `drain_cleaner` are in `steps_completed` (or `steps_failed`), even when the cluster is Ready
+- [ ] `preflight_checks` is in `steps_completed` (or `steps_failed`); a fully successful run completes 11 steps
+- [ ] With `"targetVersion": "Kafka 9.9.9"` a `preflight_findings` entry with severity `BLOCKER` and check `version_path` reports the version as unsupported by the operator
+- [ ] A topic with `min.insync.replicas` equal to its replica count (create one with `min.insync.replicas=3`, `replicas=3`) yields a `BLOCKER` `topic_durability` finding naming that topic
 
 ### T15.12b - Audit Kafka Security
 
