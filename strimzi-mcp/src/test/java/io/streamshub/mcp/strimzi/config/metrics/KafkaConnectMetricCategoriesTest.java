@@ -107,4 +107,14 @@ class KafkaConnectMetricCategoriesTest {
     void maxGranularityUnknownReturnsCluster() {
         assertEquals(AggregationLevel.CLUSTER, KafkaConnectMetricCategories.maxGranularity("nonexistent"));
     }
+
+    @Test
+    void interpretationResourcesIncludesAggregationNote() {
+        String interpretation = KafkaConnectMetricCategories.interpretation(List.of(KafkaConnectMetricCategories.RESOURCES));
+        assertTrue(interpretation.contains("[AGGREGATION]"), interpretation);
+        assertTrue(interpretation.contains("aggregation_fn"), interpretation);
+        // These tools are clamped to CLUSTER, so the note must not offer a per-pod aggregation.
+        assertFalse(interpretation.contains("aggregation=BROKER"), interpretation);
+        assertTrue(interpretation.contains("get_kafka_connect_pods"), interpretation);
+    }
 }

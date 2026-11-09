@@ -172,4 +172,11 @@ class KafkaMetricCategoriesTest {
     void maxGranularityUnknownReturnsBroker() {
         assertEquals(AggregationLevel.BROKER, KafkaMetricCategories.maxGranularity("nonexistent"));
     }
+
+    @Test
+    void interpretationResourcesHasAggregationNoteOnce() {
+        String interpretation = KafkaMetricCategories.interpretation(List.of(KafkaMetricCategories.RESOURCES));
+        assertEquals(1, interpretation.split("\\[AGGREGATION\\]", -1).length - 1, interpretation);
+        assertTrue(interpretation.contains("aggregation=BROKER"), interpretation);
+    }
 }
