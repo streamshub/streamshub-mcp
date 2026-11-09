@@ -18,7 +18,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param image             the container image
  * @param uptimeHours       the uptime in hours
  * @param status            the overall status (e.g., 'HEALTHY', 'DEGRADED')
- * @param mode              the operating mode ('standard' or 'legacy')
+ * @param mode              the operating mode ('standard', 'legacy' or 'unknown')
  * @param webhookConfigured whether the ValidatingWebhookConfiguration exists
  * @param failurePolicy     the webhook failure policy ('Ignore' or 'Fail')
  * @param denyEviction      whether eviction denial is enabled

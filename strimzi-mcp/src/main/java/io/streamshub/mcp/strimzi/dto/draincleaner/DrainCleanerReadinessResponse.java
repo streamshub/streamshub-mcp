@@ -16,8 +16,8 @@ import java.util.List;
  * @param webhookConfigured          whether the ValidatingWebhookConfiguration exists
  * @param failurePolicy              the webhook failure policy
  * @param failurePolicyRecommendation guidance if failure policy is not optimal
- * @param mode                       the operating mode ('standard' or 'legacy')
- * @param modeRecommendation         guidance if operating in legacy mode
+ * @param mode                       the operating mode ('standard', 'legacy' or 'unknown')
+ * @param modeRecommendation         guidance if operating in legacy mode or the mode cannot be verified
  * @param certificateValid           whether the TLS certificate is valid
  * @param certificateDaysUntilExpiry days until the TLS certificate expires
  * @param coveredNamespaces          namespaces covered by the webhook

@@ -130,6 +130,11 @@ public class ResourceSubscriptionManager implements Closeable {
         return lastKnownState.containsKey(uri);
     }
 
+    // Package-private accessor used by tests to inspect the last known state of a resource URI.
+    String getState(final String uri) {
+        return lastKnownState.get(uri);
+    }
+
     void clearState() {
         lastKnownState.clear();
     }

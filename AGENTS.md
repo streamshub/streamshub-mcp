@@ -128,6 +128,7 @@ io.streamshub.mcp.common.
 │                     TimeRangeValidator (validates rangeMinutes vs absolute startTime/endTime),
 │                     CertificateUtils (parse and inspect X.509 certificate metadata),
 │                     ExceptionUtils (extract root-cause message without Java class names),
+│                     EnvVarUtils (describe a valueFrom env var source, e.g. secretKeyRef:name/key),
 │                     GlobMatcher (prefix/glob name matching: '*'/'?', case-sensitive),
 │                     PaginationUtils (offset/limit helpers for paginated list responses)
     └── metrics/    → PrometheusTextParser, MetricLabelFilter,

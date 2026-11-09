@@ -19,6 +19,7 @@ import io.streamshub.mcp.common.service.KubernetesQueryException;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.log.LogCollectionService;
 import io.streamshub.mcp.common.util.CertificateUtils;
+import io.streamshub.mcp.common.util.EnvVarUtils;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
@@ -208,39 +209,67 @@ public class DrainCleanerService {
                 "Failure policy is '" + failurePolicy + "'"));
         }
 
-        String modeStr = extractEnvVar(deployment, StrimziConstants.DrainCleaner.ENV_DENY_EVICTION);
-        boolean denyEviction = modeStr == null || Boolean.parseBoolean(modeStr);
-        String mode = denyEviction
-            ? StrimziConstants.DrainCleaner.MODE_STANDARD
-            : StrimziConstants.DrainCleaner.MODE_LEGACY;
-        String modeRecommendation = null;
-        if (!denyEviction) {
-            modeRecommendation = "Legacy mode is active. Standard mode (deny eviction) is recommended "
-                + "for better control over pod restarts during node drains.";
-        }
-        checks.add(ReadinessCheck.of("Operating mode", denyEviction,
-            denyEviction
-                ? "Standard mode (eviction denial enabled)"
-                : "Legacy mode (evictions allowed, relying on PDB). Standard mode recommended."));
+        OperatingMode operatingMode = checkOperatingMode(deployment, checks);
 
         String resolvedNs = deployment.getMetadata().getNamespace();
         CertificateInfo certInfo = parseTlsCertificate(resolvedNs);
         checks.add(ReadinessCheck.of("TLS certificate", certInfo.valid,
             certInfo.detail));
 
-        String watchedNamespaces = extractEnvVar(deployment,
-            StrimziConstants.DrainCleaner.ENV_DRAIN_NAMESPACES);
-        String coveredNamespaces = watchedNamespaces != null ? watchedNamespaces : "all (no restriction)";
-        checks.add(ReadinessCheck.of("Namespace coverage", true,
+        EnvVar watchedVar = findEnvVar(deployment, StrimziConstants.DrainCleaner.ENV_DRAIN_NAMESPACES);
+        boolean coverageKnown = !isValueFrom(watchedVar);
+        String coveredNamespaces;
+        if (!coverageKnown) {
+            coveredNamespaces = KubernetesConstants.UNKNOWN + " (set via valueFrom: "
+                + EnvVarUtils.describeSource(watchedVar.getValueFrom()) + ")";
+        } else if (watchedVar == null || watchedVar.getValue() == null) {
+            coveredNamespaces = "all (no restriction)";
+        } else {
+            coveredNamespaces = watchedVar.getValue();
+        }
+        checks.add(ReadinessCheck.of("Namespace coverage", coverageKnown,
             "Watching: " + coveredNamespaces));
 
-        boolean overallReady = allReplicasReady && webhookConfigured && certInfo.valid && denyEviction;
+        boolean overallReady = allReplicasReady && webhookConfigured && certInfo.valid
+            && operatingMode.ready && coverageKnown;
 
         return DrainCleanerReadinessResponse.of(true, allReplicasReady,
             webhookConfigured, failurePolicy, failurePolicyRecommendation,
-            mode, modeRecommendation,
+            operatingMode.mode, operatingMode.recommendation,
             certInfo.valid, certInfo.daysUntilExpiry,
             coveredNamespaces, checks, overallReady);
+    }
+
+    /**
+     * Evaluate the operating mode from {@code STRIMZI_DENY_EVICTION}. An unset variable means the
+     * default (standard mode). A variable set via {@code valueFrom} cannot be resolved from the
+     * Deployment, so the mode is reported as unknown and the check does not pass.
+     */
+    private OperatingMode checkOperatingMode(final Deployment deployment, final List<ReadinessCheck> checks) {
+        EnvVar var = findEnvVar(deployment, StrimziConstants.DrainCleaner.ENV_DENY_EVICTION);
+        if (isValueFrom(var)) {
+            String reference = EnvVarUtils.describeSource(var.getValueFrom());
+            String recommendation = "The operating mode is set via valueFrom (" + reference
+                + ") and cannot be verified. Confirm that "
+                + StrimziConstants.DrainCleaner.ENV_DENY_EVICTION + " resolves to 'true' (standard mode).";
+            checks.add(ReadinessCheck.of("Operating mode", false, recommendation));
+            return new OperatingMode(KubernetesConstants.UNKNOWN, recommendation, false);
+        }
+
+        boolean denyEviction = var == null || var.getValue() == null || Boolean.parseBoolean(var.getValue());
+        String mode = denyEviction
+            ? StrimziConstants.DrainCleaner.MODE_STANDARD
+            : StrimziConstants.DrainCleaner.MODE_LEGACY;
+        String recommendation = null;
+        if (!denyEviction) {
+            recommendation = "Legacy mode is active. Standard mode (deny eviction) is recommended "
+                + "for better control over pod restarts during node drains.";
+        }
+        checks.add(ReadinessCheck.of("Operating mode", denyEviction,
+            denyEviction
+                ? "Standard mode (eviction denial enabled)"
+                : "Legacy mode (evictions allowed, relying on PDB). Standard mode recommended."));
+        return new OperatingMode(mode, recommendation, denyEviction);
     }
 
     private boolean checkReplicas(final Deployment deployment, final List<ReadinessCheck> checks) {
@@ -324,18 +353,19 @@ public class DrainCleanerService {
             uptimeHours = String.format("%.1f", uptimeMinutes / MINUTES_PER_HOUR);
         }
 
-        String denyEvictionStr = extractEnvVar(deployment, StrimziConstants.DrainCleaner.ENV_DENY_EVICTION);
-        Boolean denyEviction = denyEvictionStr != null ? Boolean.valueOf(denyEvictionStr) : null;
+        EnvVar denyEvictionVar = findEnvVar(deployment, StrimziConstants.DrainCleaner.ENV_DENY_EVICTION);
+        Boolean denyEviction = booleanValue(denyEvictionVar);
 
         String mode;
-        if (denyEviction == null || denyEviction) {
+        if (isValueFrom(denyEvictionVar)) {
+            mode = KubernetesConstants.UNKNOWN;
+        } else if (denyEviction == null || denyEviction) {
             mode = StrimziConstants.DrainCleaner.MODE_STANDARD;
         } else {
             mode = StrimziConstants.DrainCleaner.MODE_LEGACY;
         }
 
-        String drainKafkaStr = extractEnvVar(deployment, StrimziConstants.DrainCleaner.ENV_DRAIN_KAFKA);
-        Boolean drainKafka = drainKafkaStr != null ? Boolean.valueOf(drainKafkaStr) : null;
+        Boolean drainKafka = booleanValue(findEnvVar(deployment, StrimziConstants.DrainCleaner.ENV_DRAIN_KAFKA));
 
         String watchedNamespaces = extractEnvVar(deployment, StrimziConstants.DrainCleaner.ENV_DRAIN_NAMESPACES);
 
@@ -344,7 +374,22 @@ public class DrainCleanerService {
             webhookConfigured, failurePolicy, denyEviction, drainKafka, watchedNamespaces);
     }
 
+    /**
+     * Value of an environment variable: the literal value, or a description of the {@code valueFrom}
+     * reference when the value is injected from a Secret, ConfigMap or field. Null when unset.
+     */
     private String extractEnvVar(final Deployment deployment, final String varName) {
+        EnvVar var = findEnvVar(deployment, varName);
+        if (var == null) {
+            return null;
+        }
+        if (isValueFrom(var)) {
+            return EnvVarUtils.describeSource(var.getValueFrom());
+        }
+        return var.getValue();
+    }
+
+    private EnvVar findEnvVar(final Deployment deployment, final String varName) {
         if (deployment.getSpec() == null
             || deployment.getSpec().getTemplate() == null
             || deployment.getSpec().getTemplate().getSpec() == null
@@ -360,9 +405,20 @@ public class DrainCleanerService {
 
         return container.getEnv().stream()
             .filter(env -> varName.equals(env.getName()))
-            .map(EnvVar::getValue)
             .findFirst()
             .orElse(null);
+    }
+
+    private static boolean isValueFrom(final EnvVar var) {
+        return var != null && var.getValue() == null && var.getValueFrom() != null;
+    }
+
+    /** Literal boolean value of an env var; null when unset or set via {@code valueFrom}. */
+    private static Boolean booleanValue(final EnvVar var) {
+        if (var == null || var.getValue() == null) {
+            return null;
+        }
+        return Boolean.valueOf(var.getValue());
     }
 
     private String extractFailurePolicy(final ValidatingWebhookConfiguration webhook) {
@@ -414,6 +470,9 @@ public class DrainCleanerService {
 
         return new CertificateInfo(true, daysUntilExpiry,
             "Certificate valid, expires in " + daysUntilExpiry + " days.");
+    }
+
+    private record OperatingMode(String mode, String recommendation, boolean ready) {
     }
 
     private record CertificateInfo(boolean valid, Long daysUntilExpiry, String detail) {
