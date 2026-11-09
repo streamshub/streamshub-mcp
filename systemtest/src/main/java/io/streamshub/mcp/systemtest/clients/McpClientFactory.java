@@ -26,13 +26,15 @@ public final class McpClientFactory {
 
     private static final long READY_TIMEOUT_MS = 60_000L;
     private static final long READY_POLL_MS = 2_000L;
+    /** Status the MCP endpoint returns for a GET without a session (method not allowed). */
+    private static final int MCP_GET_WITHOUT_SESSION_STATUS = 405;
 
     private McpClientFactory() {
     }
 
     /**
      * Create and connect an MCP streamable HTTP test client to the given URL.
-     * Waits for the MCP server health endpoint to respond before connecting.
+     * Waits for the MCP endpoint to respond before connecting.
      *
      * @param mcpUrl the MCP server base URL (e.g. {@code http://localhost:30080})
      * @return a connected MCP streamable HTTP test client
@@ -52,7 +54,10 @@ public final class McpClientFactory {
     }
 
     /**
-     * Poll the MCP server health endpoint until it responds with HTTP 200.
+     * Poll the MCP endpoint until the MCP server answers through the exposed URL. A bare GET without
+     * {@code Mcp-Session-Id} gets 405 from the server; any other status (such as an Ingress default
+     * backend's 404) means traffic does not reach it yet. Pod readiness is already enforced by the
+     * deployment wait; health is served on the management port, which the exposed Service does not carry.
      *
      * @param mcpUrl the MCP server base URL
      */
@@ -61,7 +66,7 @@ public final class McpClientFactory {
             .connectTimeout(Duration.ofSeconds(5))
             .build();
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(mcpUrl + "/q/health/ready"))
+            .uri(URI.create(mcpUrl + "/mcp"))
             .timeout(Duration.ofSeconds(5))
             .GET()
             .build();
@@ -70,14 +75,14 @@ public final class McpClientFactory {
             try {
                 HttpResponse<String> response = client.send(request,
                     HttpResponse.BodyHandlers.ofString());
-                if (response.statusCode() == 200) {
-                    LOGGER.info("MCP server is ready");
+                if (response.statusCode() == MCP_GET_WITHOUT_SESSION_STATUS) {
+                    LOGGER.info("MCP server is reachable");
                     return true;
                 }
-                LOGGER.debug("MCP health check returned {}", response.statusCode());
+                LOGGER.debug("MCP endpoint returned {}", response.statusCode());
                 return false;
             } catch (Exception e) {
-                LOGGER.debug("MCP health check failed: {}", e.getMessage());
+                LOGGER.debug("MCP endpoint not reachable yet: {}", e.getMessage());
                 return false;
             }
         });

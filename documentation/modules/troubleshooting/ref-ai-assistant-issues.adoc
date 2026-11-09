@@ -24,8 +24,8 @@
 
 [source,bash]
 ----
-# Test from your machine
-curl http://localhost:8080/q/health
+# Test from your machine (expect HTTP 405: the MCP endpoint is up and rejects a plain GET without a session)
+curl -i http://localhost:8080/mcp
 ----
 
 *4. Check client-specific configuration*

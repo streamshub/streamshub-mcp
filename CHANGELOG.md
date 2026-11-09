@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING: health and metrics moved to the management port 9000** (#335) -- `/q/health` and `/q/metrics` are now served on the Quarkus management interface (container port `management`, 9000) instead of the MCP port 8080, which now returns 404 for `/q/*`. NetworkPolicies select by port, so the OpenShift monitoring rule now admits only port 9000 and no longer exposes the unauthenticated `/mcp` endpoint. The shipped Deployment probes, PodMonitor and NetworkPolicies are updated; custom probes, Prometheus scrape configs and NetworkPolicies must target port 9000. The Service still exposes only port 8080.
 - **Response redaction reuses one JSON tree walk** (#331) -- `Redactor.redactTree` now uses `JsonNodeSanitizer`'s key-aware walk instead of its own copy. Array elements under a sensitive key are still redacted; a `${provider:ref}` placeholder there is now kept (as it already was in an object field), and arrays nested inside a sensitive array are now redacted too.
 - **Upgrade pre-flight `severity` is an enum** (#333) -- `UpgradePreflightFinding.severity` is now a `BLOCKER`/`WARNING` enum instead of a free-form `String`; the serialized values are unchanged.
 - **Metrics responses are built once, including truncation** (#329) -- the six `*MetricsResponse` DTOs take the reached sample limit as an `of(...)` factory parameter instead of copying the response through `withTruncation(int)`. The JSON output is unchanged.

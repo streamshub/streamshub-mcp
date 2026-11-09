@@ -71,7 +71,7 @@ For production Kubernetes deployments.
 - 2 replicas
 - Higher resource requests and limits
 - Finite rate limits (30 log / 60 metrics / 120 general requests per minute, counted per pod and shared by all clients of that pod) from the generated `strimzi-mcp-defaults` ConfigMap
-- NetworkPolicy admitting only pods in the `streamshub-mcp` namespace (the endpoint has no authentication; add a policy for your clients' namespaces and, if a PodMonitor scrapes the server, for the Prometheus namespace)
+- NetworkPolicy admitting only pods in the `streamshub-mcp` namespace (the endpoint has no authentication; add a policy for your clients' namespaces and, if a PodMonitor scrapes the server, for the Prometheus namespace on port `management` only)
 - Optional ConfigMap (`strimzi-mcp-config`) and Secret (`strimzi-mcp-secrets`) for configuration via `envFrom`
 
 ```bash
@@ -84,7 +84,7 @@ Extends the prod overlay with an OpenShift Route for external access.
 
 - Edge-terminated TLS Route
 - Redirects insecure traffic to HTTPS
-- NetworkPolicy admitting the OpenShift router and cluster monitoring (requires OpenShift 4.20 or later, which uses the OVN-Kubernetes `policy-group.network.openshift.io/ingress` namespace label)
+- NetworkPolicy admitting the OpenShift router (MCP port) and cluster monitoring (management port only) (requires OpenShift 4.20 or later, which uses the OVN-Kubernetes `policy-group.network.openshift.io/ingress` namespace label)
 
 > **Warning**: The Route is unauthenticated. Anyone who can reach the router can call every MCP tool.
 > Put an authenticating proxy in front of it or remove the Route in shared environments.
@@ -182,7 +182,8 @@ Without this, Loki queries will return `403 Forbidden` with the message "You don
 
 ## Metrics monitoring
 
-The MCP server exposes Prometheus metrics at `/q/metrics`. To enable scraping, apply the optional PodMonitor
+The MCP server exposes Prometheus metrics at `/q/metrics` on the management port 9000 (container port `management`,
+not exposed by the Service; `/q/health` is there too). To enable scraping, apply the optional PodMonitor
 (requires the Prometheus Operator CRD to be installed):
 
 ```bash
@@ -190,6 +191,7 @@ kubectl apply -f install/strimzi-mcp/optional/podmonitor.yaml -n streamshub-mcp
 ```
 
 This creates a PodMonitor that scrapes `mcp.tool.calls` and `mcp.tool.call.duration` metrics from the MCP server pods.
+If you use a ServiceMonitor instead, add a `management` port (9000) to the Service in your own overlay.
 
 ## Verification
 

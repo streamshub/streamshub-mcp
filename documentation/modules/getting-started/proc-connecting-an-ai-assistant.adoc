@@ -58,6 +58,6 @@ Add to your `.vscode/mcp.json`:
 
 [NOTE]
 ====
-If your AI client does not detect the tools, verify the MCP server is running (`curl http://localhost:8080/q/health`) and that the URL is correct.
+If your AI client does not detect the tools, verify the MCP server is reachable (`curl -i http://localhost:8080/mcp` should return HTTP 405) and that the URL is correct.
 See xref:ref-ai-assistant-issues-troubleshooting[the troubleshooting section] for more details.
 ====

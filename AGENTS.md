@@ -69,6 +69,8 @@ Documentation updates are mandatory and must be completed before the task is con
 ./mvnw quarkus:dev -pl strimzi-mcp  # dev mode on http://localhost:8080/mcp
 ```
 
+`/q/health` and `/q/metrics` are on the Quarkus management interface (port 9000, 9001 in tests; `quarkus.management.enabled`, build time), not on the MCP port. In `@QuarkusTest`, use `@TestHTTPResource(value = "/metrics", management = true)` (the `/q` root is added for you).
+
 Checkstyle runs during compile phase. Fix all violations before committing.
 
 ## Architecture

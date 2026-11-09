@@ -11,7 +11,7 @@
 #
 # Then run the container using:
 #
-# docker run -i --rm -p 8080:8080 quarkus/strimzi-mcp
+# docker run -i --rm -p 8080:8080 -p 9000:9000 quarkus/strimzi-mcp
 #
 # The ` registry.access.redhat.com/ubi9/ubi-minimal:9.7` base image is based on UBI 9.
 # To use UBI 8, switch to `quay.io/ubi8/ubi-minimal:8.10`.
@@ -23,7 +23,7 @@ RUN chown 1001 /work \
     && chown 1001:root /work
 COPY --chown=1001:root --chmod=0755 target/*-runner /work/application
 
-EXPOSE 8080
+EXPOSE 8080 9000
 USER 1001
 
 ENTRYPOINT ["./application", "-Dquarkus.http.host=0.0.0.0"]

@@ -10,4 +10,4 @@ spec:
       app.kubernetes.io/name: streamshub-mcp-strimzi
   podMetricsEndpoints:
     - path: /q/metrics
-      port: http
+      port: management
