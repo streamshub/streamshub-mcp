@@ -20,6 +20,7 @@ import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.streamshub.mcp.strimzi.dto.kafka.UpgradePreflightFinding;
 import io.streamshub.mcp.strimzi.dto.kafka.UpgradeReadinessReport;
 import io.streamshub.mcp.strimzi.service.kafka.UpgradeReadinessDiagnosticService;
 import io.strimzi.api.kafka.model.kafka.Kafka;
@@ -138,7 +139,7 @@ class UpgradeReadinessDiagnosticServiceTest {
         assertTrue(report.stepsCompleted().contains("preflight_checks"));
         assertNotNull(report.preflightFindings());
         assertTrue(report.preflightFindings().stream().anyMatch(f ->
-            "BLOCKER".equals(f.severity()) && "topic_durability".equals(f.check())
+            f.severity() == UpgradePreflightFinding.Severity.BLOCKER && "topic_durability".equals(f.check())
                 && f.message().contains("orders")));
     }
 
@@ -163,7 +164,7 @@ class UpgradeReadinessDiagnosticServiceTest {
         assertTrue(report.stepsFailed() == null || report.stepsFailed().stream()
             .noneMatch(f -> f.startsWith("preflight_checks")));
         assertTrue(report.preflightFindings().stream().anyMatch(f ->
-            "BLOCKER".equals(f.severity()) && "topic_durability".equals(f.check())
+            f.severity() == UpgradePreflightFinding.Severity.BLOCKER && "topic_durability".equals(f.check())
                 && f.message().contains("orders")));
     }
 
@@ -184,7 +185,7 @@ class UpgradeReadinessDiagnosticServiceTest {
         assertTrue(report.stepsFailed() == null || report.stepsFailed().stream()
             .noneMatch(f -> f.startsWith("operator_supported_versions")));
         assertTrue(report.preflightFindings().stream().anyMatch(f ->
-            "BLOCKER".equals(f.severity()) && "version_path".equals(f.check())
+            f.severity() == UpgradePreflightFinding.Severity.BLOCKER && "version_path".equals(f.check())
                 && f.message().contains("4.4.0") && f.message().contains("4.2.0, 4.3.0")));
     }
 
