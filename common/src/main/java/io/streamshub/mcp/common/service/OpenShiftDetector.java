@@ -39,7 +39,8 @@ public class OpenShiftDetector {
      * so later calls are served from the cache. A probe that fails (for example
      * a transient discovery error) is treated as {@code false} for that call but
      * is <em>not</em> memoized, so a later call retries rather than being stuck
-     * on the wrong answer for the server's lifetime.
+     * on the wrong answer for the server's lifetime. Concurrent first calls may each probe;
+     * the probe runs outside any lock so it never pins a virtual thread.
      *
      * @return {@code true} if the cluster is OpenShift, {@code false} otherwise
      */
@@ -48,19 +49,14 @@ public class OpenShiftDetector {
         if (result != null) {
             return result;
         }
-        synchronized (this) {
-            if (cached != null) {
-                return cached;
-            }
-            Boolean probed = probeOpenShiftApi();
-            if (probed != null) {
-                cached = probed;
-                return probed;
-            }
-            // Probe failed transiently: assume vanilla Kubernetes for this call but do not
-            // memoize, so a later call retries once the discovery API recovers.
-            return false;
+        // No monitor around the probe: a blocking HTTP call inside synchronized pins virtual
+        // threads on JDK 21. The probe is idempotent, so concurrent first calls may each probe.
+        Boolean probed = probeOpenShiftApi();
+        if (probed != null) {
+            cached = probed;
         }
+        // A failed probe (null) means vanilla Kubernetes for this call, not memoized so a later call retries.
+        return Boolean.TRUE.equals(probed);
     }
 
     private Boolean probeOpenShiftApi() {

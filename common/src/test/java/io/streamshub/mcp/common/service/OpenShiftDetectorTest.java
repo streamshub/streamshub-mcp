@@ -11,6 +11,11 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.times;
@@ -68,5 +73,32 @@ class OpenShiftDetectorTest {
         assertTrue(detector.isOpenShift());  // retry succeeds and is memoized
         assertTrue(detector.isOpenShift());  // served from cache, no further probe
         verify(kubernetesClient, times(2)).supports("build.openshift.io/v1", "Build");
+    }
+
+    /**
+     * A caller must not wait for another thread's slow discovery probe: the probe runs outside
+     * any monitor, so it cannot pin a carrier thread of a waiting virtual thread.
+     */
+    @Test
+    void testCallerDoesNotWaitForAnotherThreadsProbe() throws Exception {
+        CountDownLatch probeStarted = new CountDownLatch(1);
+        CountDownLatch releaseProbe = new CountDownLatch(1);
+        AtomicBoolean first = new AtomicBoolean(true);
+        when(kubernetesClient.supports("build.openshift.io/v1", "Build")).thenAnswer(invocation -> {
+            if (first.getAndSet(false)) {
+                probeStarted.countDown();
+                releaseProbe.await(10, TimeUnit.SECONDS);
+            }
+            return true;
+        });
+
+        CompletableFuture<Boolean> slow = CompletableFuture.supplyAsync(detector::isOpenShift);
+        try {
+            assertTrue(probeStarted.await(5, TimeUnit.SECONDS));
+            assertTrue(CompletableFuture.supplyAsync(detector::isOpenShift).get(2, TimeUnit.SECONDS));
+        } finally {
+            releaseProbe.countDown();
+        }
+        assertTrue(slow.get(5, TimeUnit.SECONDS));
     }
 }
