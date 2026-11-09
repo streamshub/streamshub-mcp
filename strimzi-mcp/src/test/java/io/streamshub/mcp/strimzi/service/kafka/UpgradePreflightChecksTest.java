@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.service.kafka;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.UpgradePreflightFinding;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
@@ -38,7 +39,7 @@ class UpgradePreflightChecksTest {
     }
 
     private static List<UpgradePreflightFinding> blockers(final List<UpgradePreflightFinding> findings) {
-        return findings.stream().filter(f -> UpgradePreflightFinding.BLOCKER.equals(f.severity())).toList();
+        return findings.stream().filter(f -> f.severity() == UpgradePreflightFinding.Severity.BLOCKER).toList();
     }
 
     /**
@@ -90,7 +91,7 @@ class UpgradePreflightChecksTest {
             Map.of("min.insync.replicas", 3), List.of(topic("unset", null, null)));
 
         assertEquals(1, findings.size());
-        assertEquals(UpgradePreflightFinding.WARNING, findings.getFirst().severity());
+        assertEquals(UpgradePreflightFinding.Severity.WARNING, findings.getFirst().severity());
         assertTrue(findings.getFirst().message().contains("single replica"));
         assertTrue(findings.getFirst().message().contains("unset"));
     }
@@ -234,9 +235,16 @@ class UpgradePreflightChecksTest {
     void testTruncationFindingWarnsAboutUncheckedTopics() {
         UpgradePreflightFinding finding = UpgradePreflightChecks.truncationFinding(5000, 7200);
 
-        assertEquals(UpgradePreflightFinding.WARNING, finding.severity());
+        assertEquals(UpgradePreflightFinding.Severity.WARNING, finding.severity());
         assertEquals(UpgradePreflightChecks.CHECK_TOPIC_DURABILITY, finding.check());
         assertTrue(finding.message().contains("first 5000 of 7200"), finding.message());
         assertTrue(finding.message().contains("2200"), finding.message());
+    }
+
+    @Test
+    void testSeveritySerializesAsName() throws Exception {
+        String json = new ObjectMapper().writeValueAsString(UpgradePreflightFinding.blocker("c", "m"));
+
+        assertTrue(json.contains("\"severity\":\"BLOCKER\""), json);
     }
 }

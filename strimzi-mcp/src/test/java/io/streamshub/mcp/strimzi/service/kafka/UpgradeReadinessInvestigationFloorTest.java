@@ -85,7 +85,7 @@ class UpgradeReadinessInvestigationFloorTest {
         List<UpgradePreflightFinding> findings = service.gatherPreflightFindings(
             "kafka", "c", cluster("Ready"), null, null, new ArrayList<>(), new ArrayList<>());
 
-        assertTrue(findings.stream().anyMatch(f -> UpgradePreflightFinding.WARNING.equals(f.severity())
+        assertTrue(findings.stream().anyMatch(f -> f.severity() == UpgradePreflightFinding.Severity.WARNING
             && UpgradePreflightChecks.CHECK_TOPIC_DURABILITY.equals(f.check())
             && f.message().contains("7200")), findings.toString());
     }

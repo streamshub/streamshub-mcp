@@ -15,26 +15,30 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record UpgradePreflightFinding(
-    @JsonProperty("severity") String severity,
+    @JsonProperty("severity") Severity severity,
     @JsonProperty("check") String check,
     @JsonProperty("message") String message
 ) {
 
-    /** Severity of a finding that blocks the upgrade. */
-    public static final String BLOCKER = "BLOCKER";
-
-    /** Severity of a finding that needs attention but does not block by itself. */
-    public static final String WARNING = "WARNING";
+    /**
+     * Severity of a pre-flight finding, serialized by name.
+     */
+    public enum Severity {
+        /** The upgrade must not proceed. */
+        BLOCKER,
+        /** Needs attention but does not block the upgrade by itself. */
+        WARNING
+    }
 
     /**
      * Creates a blocking finding.
      *
      * @param check   the check name
      * @param message the description
-     * @return a new finding with severity {@link #BLOCKER}
+     * @return a new finding with severity {@link Severity#BLOCKER}
      */
     public static UpgradePreflightFinding blocker(final String check, final String message) {
-        return new UpgradePreflightFinding(BLOCKER, check, message);
+        return new UpgradePreflightFinding(Severity.BLOCKER, check, message);
     }
 
     /**
@@ -42,9 +46,9 @@ public record UpgradePreflightFinding(
      *
      * @param check   the check name
      * @param message the description
-     * @return a new finding with severity {@link #WARNING}
+     * @return a new finding with severity {@link Severity#WARNING}
      */
     public static UpgradePreflightFinding warning(final String check, final String message) {
-        return new UpgradePreflightFinding(WARNING, check, message);
+        return new UpgradePreflightFinding(Severity.WARNING, check, message);
     }
 }
