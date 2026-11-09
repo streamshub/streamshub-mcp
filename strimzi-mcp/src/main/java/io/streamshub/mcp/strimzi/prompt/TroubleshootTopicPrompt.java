@@ -29,7 +29,7 @@ public class TroubleshootTopicPrompt {
     /**
      * Generate a topic troubleshooting prompt.
      *
-     * @param topicName   the KafkaTopic name
+     * @param topicName   the Kafka topic name or KafkaTopic resource name
      * @param clusterName optional Kafka cluster name
      * @param namespace   optional Kubernetes namespace
      * @param symptom     optional observed symptom
@@ -44,7 +44,7 @@ public class TroubleshootTopicPrompt {
     public PromptResponse troubleshootTopic(
         @PromptArg(
             name = "topic_name",
-            description = "Name of the KafkaTopic to troubleshoot."
+            description = "Kafka topic name or KafkaTopic resource name to troubleshoot."
         ) final String topicName,
         @PromptArg(
             name = "cluster_name",

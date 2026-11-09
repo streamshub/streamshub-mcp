@@ -14,6 +14,7 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import org.mockito.Mockito;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -65,8 +66,9 @@ public final class KubernetesMockHelper {
 
     /**
      * Set up mock Kubernetes client chain that returns the given items for a resource type.
-     * List, labelled-list and by-name lookups all resolve against the same item list, so a
-     * {@code getResource(type, ns, name)} call returns the item whose metadata name matches.
+     * List and by-name lookups resolve against the item list ({@code getResource(type, ns, name)}
+     * returns the item whose metadata name matches), and labelled lookups return only the items
+     * carrying all of the requested label key/value pairs.
      *
      * @param <T>              the resource type
      * @param kubernetesClient the mocked Kubernetes client
@@ -83,21 +85,43 @@ public final class KubernetesMockHelper {
         Mockito.lenient().when(resourceOp.inNamespace(anyString())).thenReturn(nsOp);
         Mockito.lenient().when(resourceOp.inAnyNamespace()).thenReturn(nsOp);
 
-        FilterWatchListDeletable labeledOp = Mockito.mock(FilterWatchListDeletable.class);
-        Mockito.lenient().when(nsOp.withLabel(anyString(), anyString())).thenReturn(labeledOp);
-        Mockito.lenient().when(nsOp.withLabels(any())).thenReturn(labeledOp);
-        Mockito.lenient().when(resourceOp.withLabel(anyString(), anyString())).thenReturn(labeledOp);
+        Mockito.lenient().when(nsOp.withLabel(anyString(), anyString()))
+            .thenAnswer(invocation -> labeledOp(items, invocation.getArgument(0), invocation.getArgument(1)));
+        Mockito.lenient().when(nsOp.withLabels(any())).thenAnswer(invocation -> {
+            Map<String, String> labels = invocation.getArgument(0);
+            return labeledOp(items, labels);
+        });
+        Mockito.lenient().when(resourceOp.withLabel(anyString(), anyString()))
+            .thenAnswer(invocation -> labeledOp(items, invocation.getArgument(0), invocation.getArgument(1)));
 
         KubernetesResourceList itemList = Mockito.mock(KubernetesResourceList.class);
         Mockito.lenient().when(itemList.getItems()).thenReturn(items);
         Mockito.lenient().when(nsOp.list()).thenReturn(itemList);
-        Mockito.lenient().when(labeledOp.list()).thenReturn(itemList);
         Mockito.lenient().when(resourceOp.list()).thenReturn(itemList);
 
         Mockito.lenient().when(nsOp.withName(anyString()))
             .thenAnswer(invocation -> namedResource(items, invocation.getArgument(0)));
         Mockito.lenient().when(resourceOp.withName(anyString()))
             .thenAnswer(invocation -> namedResource(items, invocation.getArgument(0)));
+    }
+
+    private static <T extends HasMetadata> FilterWatchListDeletable<?, ?, ?> labeledOp(
+            final List<T> items, final String key, final String value) {
+        return labeledOp(items, Map.of(key, value));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends HasMetadata> FilterWatchListDeletable<?, ?, ?> labeledOp(
+            final List<T> items, final Map<String, String> labels) {
+        List<T> filtered = items.stream()
+            .filter(i -> i.getMetadata() != null && i.getMetadata().getLabels() != null
+                && i.getMetadata().getLabels().entrySet().containsAll(labels.entrySet()))
+            .toList();
+        FilterWatchListDeletable labeledOp = Mockito.mock(FilterWatchListDeletable.class);
+        KubernetesResourceList filteredList = Mockito.mock(KubernetesResourceList.class);
+        Mockito.lenient().when(filteredList.getItems()).thenReturn(filtered);
+        Mockito.lenient().when(labeledOp.list()).thenReturn(filteredList);
+        return labeledOp;
     }
 
     @SuppressWarnings("unchecked")
