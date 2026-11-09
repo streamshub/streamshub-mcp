@@ -29,4 +29,25 @@ public final class MetricTruncation {
             + " Narrow the query (fewer categories or metricNames; for Prometheus range queries also"
             + " a shorter rangeMinutes or a larger stepSeconds) or raise the limit.";
     }
+
+    /**
+     * Value of a response's {@code truncated} flag.
+     *
+     * @param truncatedAtLimit the sample limit that was reached, or null when the result is complete
+     * @return {@code Boolean.TRUE} when truncated, otherwise null so the flag is omitted
+     */
+    public static Boolean flag(final Integer truncatedAtLimit) {
+        return truncatedAtLimit != null ? Boolean.TRUE : null;
+    }
+
+    /**
+     * Appends the truncation note to a response message when the result was truncated.
+     *
+     * @param message          the response message
+     * @param truncatedAtLimit the sample limit that was reached, or null when the result is complete
+     * @return the message, followed by {@link #note(int)} when truncated
+     */
+    public static String appendNote(final String message, final Integer truncatedAtLimit) {
+        return truncatedAtLimit != null ? message + " " + note(truncatedAtLimit) : message;
+    }
 }

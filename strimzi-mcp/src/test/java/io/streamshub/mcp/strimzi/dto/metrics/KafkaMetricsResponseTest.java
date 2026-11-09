@@ -34,7 +34,7 @@ class KafkaMetricsResponseTest {
 
         KafkaMetricsResponse response = KafkaMetricsResponse.of(
             "my-cluster", "kafka", "pod-scraping", List.of("replication"),
-            samples, null, AggregationLevel.BROKER);
+            samples, null, AggregationLevel.BROKER, null);
 
         assertNotNull(response.timeSeries());
         assertEquals(2, response.sampleCount());
@@ -52,7 +52,7 @@ class KafkaMetricsResponseTest {
 
         KafkaMetricsResponse response = KafkaMetricsResponse.of(
             "my-cluster", "kafka", "prometheus", List.of("throughput"),
-            samples, null, AggregationLevel.BROKER);
+            samples, null, AggregationLevel.BROKER, null);
 
         assertNotNull(response.timeSeries());
         assertEquals(1, response.timeSeries().size());
@@ -63,7 +63,7 @@ class KafkaMetricsResponseTest {
     void ofWithEmptySamplesReturnsEmptyTimeSeries() {
         KafkaMetricsResponse response = KafkaMetricsResponse.of(
             "my-cluster", "kafka", "pod-scraping", List.of("replication"),
-            List.of(), null, AggregationLevel.BROKER);
+            List.of(), null, AggregationLevel.BROKER, null);
 
         assertNotNull(response.timeSeries());
         assertTrue(response.timeSeries().isEmpty());
@@ -84,7 +84,7 @@ class KafkaMetricsResponseTest {
 
         KafkaMetricsResponse response = KafkaMetricsResponse.of(
             "my-cluster", "kafka", "pod-scraping", List.of(),
-            samples, null, AggregationLevel.BROKER);
+            samples, null, AggregationLevel.BROKER, null);
 
         assertEquals(2, response.metricCount());
         assertEquals(3, response.sampleCount());
@@ -94,7 +94,7 @@ class KafkaMetricsResponseTest {
     void ofPassesThroughInterpretation() {
         KafkaMetricsResponse response = KafkaMetricsResponse.of(
             "my-cluster", "kafka", "pod-scraping", List.of(),
-            List.of(), "test interpretation", AggregationLevel.BROKER);
+            List.of(), "test interpretation", AggregationLevel.BROKER, null);
 
         assertEquals("test interpretation", response.interpretation());
     }
@@ -124,7 +124,7 @@ class KafkaMetricsResponseTest {
 
         KafkaMetricsResponse response = KafkaMetricsResponse.ofTimeSeries(
             "my-cluster", "kafka", "prometheus", List.of("replication"),
-            series, "guide");
+            series, "guide", null);
 
         assertNotNull(response.timeSeries());
         assertEquals(1, response.timeSeries().size());

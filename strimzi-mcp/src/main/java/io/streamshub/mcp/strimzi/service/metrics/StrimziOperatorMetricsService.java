@@ -128,9 +128,9 @@ public class StrimziOperatorMetricsService {
         } else {
             level = AggregationLevel.fromString(aggregation);
         }
-        StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(resolvedName, cluster, resolvedNs,
-            metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
-        return truncated ? response.withTruncation(metricsQueryService.maxSamples()) : response;
+        return StrimziOperatorMetricsResponse.of(resolvedName, cluster, resolvedNs,
+            metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level,
+            truncated ? metricsQueryService.maxSamples() : null);
     }
 
     private void validatePodsFound(final List<Pod> coPods, final List<Pod> eoPods, final String namespace) {

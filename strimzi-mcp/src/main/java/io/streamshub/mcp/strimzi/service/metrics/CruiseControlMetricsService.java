@@ -156,8 +156,8 @@ public class CruiseControlMetricsService {
         } else {
             level = AggregationLevel.fromString(aggregation);
         }
-        CruiseControlMetricsResponse response = CruiseControlMetricsResponse.of(name, resolvedNs,
-            metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
-        return truncated ? response.withTruncation(metricsQueryService.maxSamples()) : response;
+        return CruiseControlMetricsResponse.of(name, resolvedNs,
+            metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level,
+            truncated ? metricsQueryService.maxSamples() : null);
     }
 }
