@@ -280,10 +280,8 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
             KafkaMetricsResponse categoryResponse = KafkaMetricsResponse.ofTimeSeries(
                 allMetrics.clusterName(), allMetrics.namespace(),
                 allMetrics.provider(), List.of(category),
-                categorySeries, interpretation);
-            if (Boolean.TRUE.equals(allMetrics.truncated())) {
-                categoryResponse = categoryResponse.withTruncation(metricsQueryService.maxSamples());
-            }
+                categorySeries, interpretation,
+                Boolean.TRUE.equals(allMetrics.truncated()) ? metricsQueryService.maxSamples() : null);
             results.put(category, categoryResponse);
             completed.add(categoryStepName(category));
         }

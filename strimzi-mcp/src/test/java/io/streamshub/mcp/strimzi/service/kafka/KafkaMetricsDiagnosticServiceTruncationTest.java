@@ -46,8 +46,9 @@ class KafkaMetricsDiagnosticServiceTruncationTest {
             null, null, null, null, new ArrayList<>(), new ArrayList<>());
     }
 
-    private static KafkaMetricsResponse scrape() {
-        return KafkaMetricsResponse.ofTimeSeries("my-cluster", "kafka", "pod-scraping", List.of(), List.of(), "guide");
+    private static KafkaMetricsResponse scrape(final Integer truncatedAtLimit) {
+        return KafkaMetricsResponse.ofTimeSeries("my-cluster", "kafka", "pod-scraping", List.of(), List.of(), "guide",
+            truncatedAtLimit);
     }
 
     /**
@@ -55,7 +56,7 @@ class KafkaMetricsDiagnosticServiceTruncationTest {
      */
     @Test
     void testTruncatedScrapeFlagsEveryCategory() {
-        Map<String, KafkaMetricsResponse> results = gather(scrape().withTruncation(10000), 10000);
+        Map<String, KafkaMetricsResponse> results = gather(scrape(10000), 10000);
 
         assertEquals(4, results.size());
         results.forEach((category, response) -> {
@@ -69,7 +70,7 @@ class KafkaMetricsDiagnosticServiceTruncationTest {
      */
     @Test
     void testCompleteScrapeLeavesCategoriesUnflagged() {
-        Map<String, KafkaMetricsResponse> results = gather(scrape(), 10000);
+        Map<String, KafkaMetricsResponse> results = gather(scrape(null), 10000);
 
         assertEquals(4, results.size());
         results.values().forEach(response -> assertNull(response.truncated()));
