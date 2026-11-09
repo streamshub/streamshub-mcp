@@ -26,7 +26,7 @@ The deployment manifests use https://kustomize.io/[Kustomize] with a base and en
 
 |`overlays/prod`
 |`kubectl apply -k install/strimzi-mcp/overlays/prod/`
-|Production Kubernetes. Adds 2 replicas, higher resource limits, ConfigMap/Secret references.
+|Production Kubernetes. Adds 2 replicas, higher resource limits, finite rate limits, a NetworkPolicy, and ConfigMap/Secret references.
 
 |`overlays/prod-openshift`
 |`kubectl apply -k install/strimzi-mcp/overlays/prod-openshift/`
@@ -44,9 +44,21 @@ The *prod* overlay adds:
 
 * 2 replicas for high availability
 * Higher resource requests and limits
-* Optional ConfigMap and Secret references for configuration via `envFrom`
+* Finite rate limits (30 log, 60 metrics, 120 general requests per minute; counted per pod and shared by all clients of that pod) from the generated `strimzi-mcp-defaults` ConfigMap
+* A NetworkPolicy that admits only pods in the `streamshub-mcp` namespace; add policies for your MCP clients' namespaces and, if a PodMonitor scrapes the server, for the Prometheus namespace
+* Optional ConfigMap and Secret references for configuration via `envFrom`; they override the defaults
 
-The *prod-openshift* overlay extends prod with an edge-terminated TLS Route for external access.
+The *prod-openshift* overlay extends prod with an edge-terminated TLS Route for external access and a NetworkPolicy admitting the OpenShift router and monitoring.
+It requires OpenShift 4.20 or later: the router is admitted through the OVN-Kubernetes `policy-group.network.openshift.io/ingress` namespace label.
+
+[WARNING]
+====
+The Route exposes the unauthenticated MCP endpoint to everyone who can reach the router.
+Put an authenticating proxy in front of it or remove the Route before using it in a shared environment.
+====
+
+The base manifests use the floating `latest` image tag, which Kubernetes always pulls.
+Release tags pin the tag in `base/kustomization.yaml`.
 
 The *dev-openshift* overlay extends dev with the same Route configuration, for local development on OpenShift (CRC, Red Hat OpenShift Local). It is deployed automatically by `dev-deploy.sh --ocp`.
 

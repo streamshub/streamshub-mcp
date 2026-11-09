@@ -100,6 +100,7 @@ MCP_GUARDRAIL_MAX_RESPONSE_BYTES=1000000  # 1MB
 == Rate limiting
 
 Control request rates per tool category to prevent resource exhaustion.
+The limits are counted per server pod and shared by all clients of that pod; with several replicas the effective cluster-wide limit is the configured value multiplied by the number of pods.
 
 [cols="2,1,3",options="header"]
 |===

@@ -25,7 +25,9 @@ See xref:loki-authentication-{context}[Loki authentication] and xref:prometheus-
 
 == Rate limiting
 
-All rate limits default to `0` (unlimited).
+All rate limits default to `0` (unlimited) in the server itself.
+The `prod` and `prod-openshift` overlays set finite limits (30 log, 60 metrics and 120 general requests per minute, counted per pod and shared by all clients of that pod) through the `strimzi-mcp-defaults` ConfigMap.
+Override them in the optional `strimzi-mcp-config` ConfigMap, which takes precedence.
 The server uses three categories: `log` (log collection tools), `metrics` (metrics tools), and `general` (all other tools).
 Set per-category limits to prevent resource exhaustion:
 
@@ -40,7 +42,7 @@ See xref:rate-limiting-{context}[Rate limiting] for category definitions and def
 
 == CORS origins
 
-The default allows `localhost` origins only.
+The default allows `localhost` and `127.0.0.1` origins on any port.
 Override with your actual domain:
 
 [source,bash]
@@ -49,6 +51,28 @@ QUARKUS_HTTP_CORS_ORIGINS=https://your-domain.com
 ----
 
 See xref:cors-configuration-{context}[CORS configuration] for details.
+
+== Network access and image tag
+
+The MCP endpoint is unauthenticated.
+The `prod` overlay ships a NetworkPolicy that admits only pods in the `streamshub-mcp` namespace.
+Add a NetworkPolicy for the namespaces of your MCP clients, gateway, ingress controller, or Prometheus (when a PodMonitor scrapes the server) as needed.
+The `prod-openshift` overlay (OpenShift 4.20 or later) additionally admits the OpenShift router and cluster monitoring, which exposes the unauthenticated endpoint through the Route to anyone who can reach the router.
+Put an authenticating front (for example an OAuth proxy) in front of the Route, or remove the Route and use port-forwarding.
+
+The base manifests reference `quay.io/streamshub/strimzi-mcp:latest`, which Kubernetes pulls on every pod start.
+Release tags set the image tag to the release version in `base/kustomization.yaml`; when deploying from a clone, pin the tag yourself:
+
+[source,bash]
+----
+cd install/strimzi-mcp/base
+kustomize edit set image quay.io/streamshub/strimzi-mcp=quay.io/streamshub/strimzi-mcp:<version>
+----
+
+== Metrics provider permissions
+
+The default `streamshub-pod-scraping` metrics provider needs `pods/proxy` access, which is not part of the base ClusterRole.
+Either apply the optional sensitive Role in each Kafka namespace (see xref:proc-configuring-rbac-installing[Configuring RBAC]) or switch to the Prometheus provider.
 
 == TLS for external services
 

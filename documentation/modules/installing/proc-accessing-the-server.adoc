@@ -17,7 +17,9 @@ Configure your MCP client to use `http://localhost:8080/mcp`.
 
 == OpenShift route
 
-The `prod-openshift` and `dev-openshift` overlays include an edge-terminated Route automatically:
+The `prod-openshift` and `dev-openshift` overlays include an edge-terminated Route automatically.
+
+WARNING: The Route does not authenticate callers. Anyone who can reach the router can call every MCP tool. Put an authenticating proxy in front of it or remove the Route in shared environments.
 
 [source,bash]
 ----
