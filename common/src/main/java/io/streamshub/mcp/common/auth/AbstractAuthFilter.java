@@ -87,8 +87,10 @@ public abstract class AbstractAuthFilter implements ClientRequestFilter {
                         .putSingle("Authorization", authScheme + " " + token));
                 break;
             case AuthHelper.AUTH_MODE_BASIC:
+                // Credentials are configured on the Quarkus REST client itself, not by this filter.
                 break;
             case AuthHelper.AUTH_MODE_NONE:
+                // Intentionally send no Authorization header.
                 break;
             default:
                 LOG.warnf("Unknown %s auth mode: '%s'. No authentication applied.",

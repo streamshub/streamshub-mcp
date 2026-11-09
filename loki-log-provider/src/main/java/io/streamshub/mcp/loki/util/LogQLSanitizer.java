@@ -4,7 +4,7 @@
  */
 package io.streamshub.mcp.loki.util;
 
-import java.util.regex.Pattern;
+import io.streamshub.mcp.common.util.QueryLiteralSanitizer;
 
 /**
  * Sanitizes user-supplied values before interpolating them into LogQL queries.
@@ -12,10 +12,6 @@ import java.util.regex.Pattern;
  * specification and escaping special characters in label values.
  */
 public final class LogQLSanitizer {
-
-    /** Valid LogQL label name pattern: starts with letter or underscore. */
-    private static final Pattern LABEL_NAME_PATTERN =
-        Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
 
     /** RE2 metacharacters that must be escaped to match text literally. */
     private static final String REGEX_METACHARACTERS = "\\.+*?()|[]{}^$";
@@ -32,15 +28,7 @@ public final class LogQLSanitizer {
      * @throws IllegalArgumentException if the name is invalid
      */
     public static String sanitizeLabelName(final String name) {
-        if (name == null || name.isEmpty()) {
-            throw new IllegalArgumentException("Label name must not be null or empty");
-        }
-        if (!LABEL_NAME_PATTERN.matcher(name).matches()) {
-            throw new IllegalArgumentException(
-                String.format("Invalid LogQL label name '%s'. Must match pattern: %s",
-                    name, LABEL_NAME_PATTERN.pattern()));
-        }
-        return name;
+        return QueryLiteralSanitizer.validateLabelName(name, "LogQL label name");
     }
 
     /**
@@ -51,13 +39,7 @@ public final class LogQLSanitizer {
      * @return the escaped label value safe for use in LogQL
      */
     public static String sanitizeLabelValue(final String value) {
-        if (value == null) {
-            return "";
-        }
-        return value
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n");
+        return QueryLiteralSanitizer.escapeStringLiteral(value);
     }
 
     /**
