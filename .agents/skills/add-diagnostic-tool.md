@@ -163,6 +163,7 @@ Follow the pattern `diagnose.{domain}.{step}`:
 Add the tool method to `strimzi-mcp/src/main/java/io/streamshub/mcp/strimzi/tool/diagnostic/DiagnosticTools.java`:
 
 ```java
+@RunOnVirtualThread
 @WithSpan("tool.diagnose_xxx")
 @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.DIAGNOSE)
 @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.XXX)

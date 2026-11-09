@@ -68,6 +68,7 @@ public class StrimziOperatorTools {
      * @param namespace optional namespace filter
      * @return list of operator responses
      */
+    @RunOnVirtualThread
     @WithSpan("tool.list_strimzi_operators")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.LIST)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)
@@ -103,6 +104,7 @@ public class StrimziOperatorTools {
      * @param namespace    optional namespace
      * @return the operator response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_strimzi_operator")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)
@@ -140,6 +142,7 @@ public class StrimziOperatorTools {
      * @param namespace    optional namespace
      * @return the operator configuration response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_strimzi_operator_config")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)
@@ -279,6 +282,7 @@ public class StrimziOperatorTools {
      * @param sections  optional detail sections
      * @return the pod summary response
      */
+    @RunOnVirtualThread
     @WithSpan("tool.get_strimzi_operator_pod")
     @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
     @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.STRIMZI_OPERATOR)

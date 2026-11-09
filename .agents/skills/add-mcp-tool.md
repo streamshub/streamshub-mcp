@@ -89,6 +89,7 @@ Add to the appropriate tools class in the domain sub-package under `strimzi-mcp/
 `tool/kafkabridge/`, `tool/operator/`, `tool/metrics/`, `tool/diagnostic/`):
 
 ```java
+@RunOnVirtualThread
 @WithSpan("tool.verb_noun")
 @MetaField(name = ToolMetaFields.TYPE, value = ToolMetaFields.Types.GET)
 @MetaField(name = ToolMetaFields.RESOURCE, value = StrimziToolResources.XXX)
@@ -116,6 +117,7 @@ public XxxResponse verbNoun(
 ```
 
 Rules:
+- `@RunOnVirtualThread` is required on every `@Tool` method (all tools do blocking I/O); `ToolGuardrailsEnforcementTest` fails the build without it
 - `@WithSpan` span name must match `@Tool(name = ...)`
 - Include `@MetaField` for type and resource
 - `@Tool.Annotations` is nested inside `@Tool(... annotations = @Tool.Annotations(...))`
