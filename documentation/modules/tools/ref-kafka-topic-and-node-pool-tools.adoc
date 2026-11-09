@@ -41,6 +41,8 @@ Get detailed information for a specific Kafka topic including configuration, par
 * `topicName` (required) -- Kafka topic name or KafkaTopic resource name (case-sensitive). Kafka names that are not valid Kubernetes names, such as `my_topic` or `__consumer_offsets`, are resolved through `spec.topicName` or `status.topicName`.
 * `namespace` (optional) -- Kubernetes namespace. When omitted and the topic exists in several namespaces, the call fails with an ambiguity error that lists the candidate namespaces.
 
+When the topic is not found under the requested cluster but exists under other clusters, the not-found error names those clusters and their namespaces (for example, `Only cluster 'my-cluster' was searched; the topic exists in cluster(s) 'other-cluster' (namespace kafka); retry with that clusterName and namespace`) without returning any topic details.
+
 *Returns:* Detailed topic information including:
 
 * *Core* -- `name`, `namespace`, `cluster`, `partitions`, `replicas`, `status`
