@@ -130,4 +130,26 @@ class SensitiveKeysTest {
         assertNull(SensitiveKeys.redactValues(null));
         assertTrue(SensitiveKeys.redactValues(Map.of()).isEmpty());
     }
+
+    @Test
+    void testNonSecretBearerAuthConfigKeysAreKept() {
+        for (String key : new String[] {
+            "bearer.auth.client.id", "bearer.auth.scope", "bearer.auth.logical.cluster",
+            "schema.registry.bearer.auth.client.id", "value.converter.bearer.auth.scope"}) {
+            assertFalse(SensitiveKeys.isSensitiveConfigKey(key), key);
+        }
+    }
+
+    @Test
+    void testSecretAuthConfigKeysStayRedacted() {
+        for (String key : new String[] {
+            "bearer.auth.token", "bearer.auth.client.secret", "basic.auth.user.info", "secret.id",
+            "basic.auth.session.id", "sasl.auth.scope"}) {
+            assertTrue(SensitiveKeys.isSensitiveConfigKey(key), key);
+        }
+        Map<String, Object> redacted = SensitiveKeys.redactValues(
+            Map.of("bearer.auth.client.id", "my-client", "bearer.auth.token", "t"));
+        assertEquals("my-client", redacted.get("bearer.auth.client.id"));
+        assertEquals(SensitiveKeys.REDACTED, redacted.get("bearer.auth.token"));
+    }
 }
