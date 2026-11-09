@@ -1,6 +1,7 @@
 # Restricts ingress to the MCP server. The MCP endpoint has no authentication, so only pods in the
 # same namespace can reach it by default. Add a further NetworkPolicy (or edit this one) to admit
-# the namespaces of your MCP clients, gateway or ingress controller. Egress is not restricted
+# the namespaces of your MCP clients, gateway or ingress controller (port http). A Prometheus that
+# scrapes /q/metrics needs a rule for port management (9000) only. Egress is not restricted
 # because the server needs the Kubernetes API and any configured Prometheus/Loki/OpenSearch.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

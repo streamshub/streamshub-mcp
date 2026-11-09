@@ -40,7 +40,7 @@ kubectl get clusterrolebinding | grep streamshub-mcp
 
 If your AI assistant cannot connect:
 
-. Verify the server is running: `curl http://localhost:8080/q/health`
+. Verify the server is reachable on the MCP port: `curl -i http://localhost:8080/mcp` should return HTTP 405 (a plain GET without a session)
 . Check firewall rules allow connections on port 8080
 . Verify your MCP client configuration has the correct URL
 . Check server logs for connection attempts

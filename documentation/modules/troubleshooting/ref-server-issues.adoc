@@ -92,7 +92,7 @@ curl -X POST http://localhost:8080/mcp \
 
 *If connection refused:*
 
-* Check server is running: `curl http://localhost:8080/q/health`
+* Check server is running: `curl http://localhost:9000/q/health` (management port) when running locally, or `kubectl -n streamshub-mcp get pods` on Kubernetes, where port 9000 is not exposed through the Service
 * Verify port forwarding (if using Kubernetes)
 * Check firewall rules
 

@@ -86,11 +86,12 @@ kubectl -n streamshub-mcp port-forward svc/streamshub-mcp-strimzi 8080:8080
 
 Leave this running in a terminal. The MCP endpoint is now available at `http://localhost:8080/mcp`.
 
-*Verify it is healthy:*
+*Verify it is healthy.* Health is served on the management port 9000, which the Service does not expose, so forward it from the Deployment in a second terminal:
 
 [source,bash]
 ----
-curl -s http://localhost:8080/q/health/ready
+kubectl -n streamshub-mcp port-forward deployment/streamshub-mcp-strimzi 9000:9000
+curl -s http://localhost:9000/q/health/ready
 ----
 
 *Expected output:* `{"status":"UP", ...}`

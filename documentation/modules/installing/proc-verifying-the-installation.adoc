@@ -6,18 +6,19 @@
 
 == Health checks
 
-Verify the server is healthy:
+Verify the server is healthy.
+Health endpoints are served on the management port 9000, not on the MCP port 8080:
 
 [source,bash]
 ----
 # Liveness probe
-curl http://localhost:8080/q/health/live
+curl http://localhost:9000/q/health/live
 
 # Readiness probe
-curl http://localhost:8080/q/health/ready
+curl http://localhost:9000/q/health/ready
 
 # Full health check
-curl http://localhost:8080/q/health
+curl http://localhost:9000/q/health
 ----
 
 == Test MCP endpoint

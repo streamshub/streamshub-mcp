@@ -1,4 +1,5 @@
-# Admits the OpenShift router (needed for the Route) and cluster monitoring (metrics scraping)
+# Admits the OpenShift router (needed for the Route, MCP port only) and cluster monitoring
+# (metrics scraping, management port only, so monitoring cannot reach /mcp)
 # in addition to the same-namespace policy from the prod overlay.
 # The Route itself is unauthenticated; see the security model documentation.
 # Labels are the OVN-Kubernetes ones documented for OpenShift 4.20 and later.
@@ -25,5 +26,5 @@ spec:
             matchLabels:
               network.openshift.io/policy-group: monitoring
       ports:
-        - port: http
+        - port: management
           protocol: TCP
