@@ -85,4 +85,13 @@ class RedactorTest {
         assertTrue(redactor.redactTree(node));
         assertEquals("{\"secrets\":[[\"[REDACTED]\"]]}", node.toString());
     }
+
+    @Test
+    void redactTreeRedactsSecretKeysInTopicConfiguration() throws Exception {
+        JsonNode node = tree("{\"configuration\":{\"retention.ms\":60000,\"custom.api.key\":\"abc123\"}}");
+
+        assertTrue(redactor.redactTree(node));
+        assertEquals("[REDACTED]", node.get("configuration").get("custom.api.key").asText());
+        assertEquals(60000, node.get("configuration").get("retention.ms").asInt());
+    }
 }
