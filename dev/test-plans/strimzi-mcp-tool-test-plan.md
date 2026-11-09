@@ -1021,6 +1021,7 @@ Parameters: {}
 **Expected:**
 - [ ] Returns 1 entry: `strimzi-drain-cleaner` in namespace `strimzi-drain-cleaner`
 - [ ] Entry shows ready status
+- [ ] A setting supplied through `valueFrom` or a matching `envFrom` ConfigMap/Secret shows `unknown (...)` naming the source, not a value
 
 ### T9.2 - Get Drain Cleaner
 
@@ -1034,6 +1035,7 @@ Parameters: { "drainCleanerName": "strimzi-drain-cleaner" }
 - [ ] Deployment is ready
 - [ ] Webhook configuration present (`ValidatingWebhookConfiguration`)
 - [ ] Environment variables visible: `STRIMZI_DENY_EVICTION`, `STRIMZI_DRAIN_KAFKA`
+- [ ] `STRIMZI_DENY_EVICTION` set through `valueFrom` or a matching `envFrom` source shows `unknown (...)` naming the source; a literal `env` entry wins over `envFrom`
 
 ### T9.3 - Check Drain Cleaner Readiness
 
@@ -1047,6 +1049,7 @@ Parameters: {}
 - [ ] Webhook: configured
 - [ ] Certificates: valid
 - [ ] Overall verdict: ready
+- [ ] When `STRIMZI_DENY_EVICTION` comes from `valueFrom` or a matching `envFrom` source, the Operating mode check fails with a recommendation naming the source
 
 ### T9.4 - Get Drain Cleaner Logs
 
