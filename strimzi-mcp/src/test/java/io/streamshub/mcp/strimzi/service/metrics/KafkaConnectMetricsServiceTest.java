@@ -144,6 +144,31 @@ class KafkaConnectMetricsServiceTest {
         assertEquals(1, response.metricCount());
     }
 
+    @Test
+    void truncatedQueryIsFlaggedInResponse() {
+        KafkaConnect connect = createConnect("my-connect", "kafka");
+        Pod connectPod = createConnectPod("my-connect-connect-0", "kafka", "my-connect");
+
+        when(kafkaConnectService.findKafkaConnect("kafka", "my-connect"))
+            .thenReturn(connect);
+        when(k8sService.queryResourcesByLabels(eq(Pod.class), eq("kafka"), anyMap()))
+            .thenReturn(List.of(connectPod));
+
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_connect_worker_connector_count",
+                Map.of("namespace", "kafka"), 2.0));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(samples);
+        when(metricsQueryService.reachedSampleLimit(samples)).thenReturn(true);
+        when(metricsQueryService.maxSamples()).thenReturn(1);
+
+        KafkaConnectMetricsResponse response = kafkaConnectMetricsService.getKafkaConnectMetrics(
+            "kafka", "my-connect", "worker", null, null, null, null, null, null);
+
+        assertEquals(Boolean.TRUE, response.truncated());
+        assertTrue(response.message().contains("truncated at 1 samples"), response.message());
+    }
+
     /**
      * Verify defaults to worker category.
      */

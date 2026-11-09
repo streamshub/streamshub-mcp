@@ -151,6 +151,34 @@ class CruiseControlMetricsServiceTest {
     }
 
     @Test
+    void truncatedQueryIsFlaggedInResponse() {
+        Kafka kafka = createKafka("my-cluster", "kafka");
+        Pod ccPod = createCruiseControlPod("my-cluster-cruise-control-0", "kafka");
+
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(kafka);
+        Map<String, String> podLabels = Map.of(
+            ResourceLabels.STRIMZI_CLUSTER_LABEL, "my-cluster",
+            ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL, StrimziConstants.ComponentTypes.KAFKA_CRUISE_CONTROL);
+        when(k8sService.queryResourcesByLabels(eq(Pod.class), eq("kafka"), eq(podLabels)))
+            .thenReturn(List.of(ccPod));
+
+        List<MetricSample> samples = List.of(
+            MetricSample.of("kafka_cruisecontrol_loadmonitor_monitored_partitions_percentage_value",
+                Map.of("namespace", "kafka"), 0.99));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(samples);
+        when(metricsQueryService.reachedSampleLimit(samples)).thenReturn(true);
+        when(metricsQueryService.maxSamples()).thenReturn(1);
+
+        CruiseControlMetricsResponse response = cruiseControlMetricsService.getCruiseControlMetrics(
+            "kafka", "my-cluster", "sampling", null, null, null, null, null, null);
+
+        assertEquals(Boolean.TRUE, response.truncated());
+        assertTrue(response.message().contains("truncated at 1 samples"), response.message());
+    }
+
+    @Test
     void defaultsToSamplingCategory() {
         Kafka kafka = createKafka("my-cluster", "kafka");
         Pod ccPod = createCruiseControlPod("my-cluster-cruise-control-0", "kafka");

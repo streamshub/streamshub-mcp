@@ -146,6 +146,32 @@ class KafkaBridgeMetricsServiceTest {
         assertEquals(1, response.metricCount());
     }
 
+    @Test
+    void truncatedQueryIsFlaggedInResponse() {
+        KafkaBridge bridge = createBridge("my-bridge", "kafka");
+        Pod bridgePod = createBridgePod("my-bridge-bridge-0", "kafka");
+
+        when(kafkaBridgeService.findKafkaBridge("kafka", "my-bridge"))
+            .thenReturn(bridge);
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-bridge")))
+            .thenReturn(List.of(bridgePod));
+
+        List<MetricSample> samples = List.of(
+            MetricSample.of("strimzi_bridge_http_server_requestCount_total",
+                Map.of("namespace", "kafka"), 42.0));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+            .thenReturn(samples);
+        when(metricsQueryService.reachedSampleLimit(samples)).thenReturn(true);
+        when(metricsQueryService.maxSamples()).thenReturn(1);
+
+        KafkaBridgeMetricsResponse response = kafkaBridgeMetricsService.getKafkaBridgeMetrics(
+            "kafka", "my-bridge", "http", null, null, null, null, null, null);
+
+        assertEquals(Boolean.TRUE, response.truncated());
+        assertTrue(response.message().contains("truncated at 1 samples"), response.message());
+    }
+
     /**
      * Verify defaults to HTTP category.
      */
