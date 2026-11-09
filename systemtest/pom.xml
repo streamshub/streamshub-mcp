@@ -15,7 +15,7 @@
     <properties>
         <kubetest4j.version>1.4.0</kubetest4j.version>
         <strimzi.test-clients.version>0.15.0</strimzi.test-clients.version>
-        <allure.junit.version>3.0.1</allure.junit.version>
+        <allure.junit.version>3.1.1</allure.junit.version>
         <allure.report.version>2.39.0</allure.report.version>
         <allure.maven.version>3.1.0</allure.maven.version>
         <log4j.version>2.26.1</log4j.version>
