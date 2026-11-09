@@ -573,6 +573,19 @@ Parameters: { "clusterName": "mcp-cluster", "topicName": "__consumer_offsets" }
 - [ ] A topic whose `spec.topicName` contains `_` or uppercase letters is returned when queried by that Kafka name
 - [ ] A topic that exists in two namespaces queried without `namespace` returns an ambiguity error listing both namespaces
 
+### T3.5b - Get Topic (wrong cluster)
+
+> Requires: `--test-clients`
+
+```
+Tool: get_kafka_topic
+Parameters: { "clusterName": "mcp-cluster-mirror", "topicName": "mcp-test-topic" }
+```
+
+**Expected:**
+- [ ] Not-found error whose message contains `Only cluster 'mcp-cluster-mirror' was searched; the topic exists in cluster(s) 'mcp-cluster' (namespace ...)`
+- [ ] No topic details (partitions, config) in the error
+
 ---
 
 ## Phase 4: KafkaNodePool Tools
