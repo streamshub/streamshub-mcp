@@ -127,4 +127,14 @@ class StrimziOperatorMetricCategoriesTest {
     void maxGranularityUnknownReturnsCluster() {
         assertEquals(AggregationLevel.CLUSTER, StrimziOperatorMetricCategories.maxGranularity("nonexistent"));
     }
+
+    @Test
+    void interpretationJvmIncludesAggregationNote() {
+        String interpretation = StrimziOperatorMetricCategories.interpretation(List.of(StrimziOperatorMetricCategories.JVM));
+        assertTrue(interpretation.contains("[AGGREGATION]"), interpretation);
+        assertTrue(interpretation.contains("aggregation_fn"), interpretation);
+        // These tools are clamped to CLUSTER, so the note must not offer a per-pod aggregation.
+        assertFalse(interpretation.contains("aggregation=BROKER"), interpretation);
+        assertTrue(interpretation.contains("get_strimzi_operator_pod"), interpretation);
+    }
 }

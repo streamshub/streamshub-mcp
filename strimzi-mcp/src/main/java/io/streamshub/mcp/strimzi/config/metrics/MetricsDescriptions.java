@@ -21,9 +21,12 @@ final class MetricsDescriptions {
      *                           (e.g. {@code get_kafka_cluster_pods} or {@code get_strimzi_operator_pod})
      * @param correlationContext what symptoms to correlate with GC pressure
      *                           (e.g. {@code "performance degradation or pod restarts"})
+     * @param perPodAggregation  whether the tool supports {@code aggregation=BROKER} (per pod);
+     *                           false for tools always clamped to {@code CLUSTER}
      * @return the formatted JVM interpretation text
      */
-    static String jvmDescription(final String podCheckTool, final String correlationContext) {
+    static String jvmDescription(final String podCheckTool, final String correlationContext,
+                                 final boolean perPodAggregation) {
         return "**[MEDIUM - JVM HEALTH]**\n\n"
             + "jvm_memory_used_bytes: Current JVM heap/non-heap memory usage. "
             + "**IMPORTANT**: Java normally uses most of its allocated heap — high usage alone is NOT a problem. "
@@ -43,7 +46,8 @@ final class MetricsDescriptions {
             + "**[LOW - THREAD HEALTH]**\n\n"
             + "jvm_threads_current: Active JVM thread count. "
             + "Sudden increases may indicate thread leaks or excessive concurrency. "
-            + "**BASELINE**: Stable count is normal, rapid growth (>50% in <5 min) needs investigation.";
+            + "**BASELINE**: Stable count is normal, rapid growth (>50% in <5 min) needs investigation.\n\n"
+            + jvmAggregationNote("heap use, file descriptors, threads and CPU", podCheckTool, perPodAggregation);
     }
 
     /**
@@ -81,7 +85,8 @@ final class MetricsDescriptions {
             + "**[LOW - THREAD HEALTH]**\n\n"
             + "jvm_threads_live_threads: Live JVM thread count. "
             + "Sudden increases may indicate thread leaks or excessive concurrency. "
-            + "**BASELINE**: Stable count is normal, rapid growth (>50% in <5 min) needs investigation.";
+            + "**BASELINE**: Stable count is normal, rapid growth (>50% in <5 min) needs investigation.\n\n"
+            + jvmAggregationNote("heap use, threads and CPU", podCheckTool, false);
     }
 
     /**
@@ -105,4 +110,23 @@ final class MetricsDescriptions {
             + "**BASELINE**: Stable count is normal; rapid growth (>50% in <5 min) needs investigation.";
     }
 
+    /**
+     * Explains how JVM series are combined at the default aggregation level. The combining
+     * function is chosen per metric name ({@code MetricAggregation}), so it is the same for
+     * every component; only the way to get a per-pod view differs.
+     */
+    private static String jvmAggregationNote(final String maxedMetrics, final String podCheckTool,
+                                             final boolean perPodAggregation) {
+        String perPod;
+        if (perPodAggregation) {
+            perPod = "Request aggregation=BROKER to see which pod, and to read each pod's GC sum/count ratio on its own.";
+        } else {
+            perPod = "This tool always aggregates at cluster level, so it has no per-pod view: use "
+                + podCheckTool + " to check each pod's restarts and resource limits.";
+        }
+        return "**[AGGREGATION]** At the default level " + maxedMetrics + " are the worst pod, not the mean "
+            + "— each series carries `aggregation_fn` = \"max\" — so one leaking or CPU-bound pod is not "
+            + "diluted by healthy peers. GC counts and times, and `jvm_memory_max_bytes`, are means across "
+            + "pods (GC counters are cumulative since JVM start). " + perPod;
+    }
 }

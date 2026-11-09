@@ -123,7 +123,7 @@ public final class KafkaConnectMetricCategories {
                 + "A stall indicates commit failures — check Kafka broker connectivity.",
         RESOURCES,
             MetricsDescriptions.jvmDescription("get_kafka_connect_pods",
-                "connector task failures or slow processing")
+                "connector task failures or slow processing", false)
     );
 
     private KafkaConnectMetricCategories() {
