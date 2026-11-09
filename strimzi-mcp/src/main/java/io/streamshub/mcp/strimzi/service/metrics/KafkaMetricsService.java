@@ -197,9 +197,9 @@ public class KafkaMetricsService {
         } else {
             level = AggregationLevel.fromString(aggregation);
         }
-        KafkaMetricsResponse response = KafkaMetricsResponse.of(name, resolvedNs,
-            metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
-        return truncated ? response.withTruncation(metricsQueryService.maxSamples()) : response;
+        return KafkaMetricsResponse.of(name, resolvedNs,
+            metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level,
+            truncated ? metricsQueryService.maxSamples() : null);
     }
 
     private static List<MetricSample> filterByKafkaNodePods(final List<MetricSample> samples,

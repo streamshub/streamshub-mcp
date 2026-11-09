@@ -64,13 +64,15 @@ public record CruiseControlMetricsResponse(
      * @param samples        the metric samples
      * @param interpretation brief guide for interpreting the returned metrics
      * @param level          the aggregation level
+     * @param truncatedAtLimit the sample limit that was reached, or null when the result is complete
      * @return a response with the aggregated metric data
      */
     public static CruiseControlMetricsResponse of(final String clusterName, final String namespace,
                                                   final String provider, final List<String> categories,
                                                   final List<MetricSample> samples,
                                                   final String interpretation,
-                                                  final AggregationLevel level) {
+                                                  final AggregationLevel level,
+                                                  final Integer truncatedAtLimit) {
         long metricCount = samples.stream()
             .map(MetricSample::name)
             .distinct()
@@ -87,19 +89,8 @@ public record CruiseControlMetricsResponse(
 
         return new CruiseControlMetricsResponse(clusterName, namespace, provider, categories,
             metricCount, samples.size(), level.name().toLowerCase(Locale.ROOT),
-            common, extracted.strippedSeries(), interpretation, null, Instant.now(), msg);
-    }
-
-    /**
-     * Returns a copy flagged as truncated, with a note appended to the message.
-     *
-     * @param limit the sample limit that was reached
-     * @return a copy with {@code truncated=true} and an explanatory message
-     */
-    public CruiseControlMetricsResponse withTruncation(final int limit) {
-        return new CruiseControlMetricsResponse(clusterName, namespace, provider, categories,
-            metricCount, sampleCount, aggregation, commonLabels, timeSeries, interpretation,
-            Boolean.TRUE, timestamp, message + " " + MetricTruncation.note(limit));
+            common, extracted.strippedSeries(), interpretation, MetricTruncation.flag(truncatedAtLimit), Instant.now(),
+            MetricTruncation.appendNote(msg, truncatedAtLimit));
     }
 
     /**

@@ -164,8 +164,8 @@ public class KafkaExporterMetricsService {
         } else {
             level = AggregationLevel.fromString(aggregation);
         }
-        KafkaExporterMetricsResponse response = KafkaExporterMetricsResponse.of(name, resolvedNs,
-            metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
-        return truncated ? response.withTruncation(metricsQueryService.maxSamples()) : response;
+        return KafkaExporterMetricsResponse.of(name, resolvedNs,
+            metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level,
+            truncated ? metricsQueryService.maxSamples() : null);
     }
 }

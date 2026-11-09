@@ -158,8 +158,8 @@ public class KafkaBridgeMetricsService {
         } else {
             level = AggregationLevel.fromString(aggregation);
         }
-        KafkaBridgeMetricsResponse response = KafkaBridgeMetricsResponse.of(name, resolvedNs,
-            metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level);
-        return truncated ? response.withTruncation(metricsQueryService.maxSamples()) : response;
+        return KafkaBridgeMetricsResponse.of(name, resolvedNs,
+            metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level,
+            truncated ? metricsQueryService.maxSamples() : null);
     }
 }

@@ -434,7 +434,7 @@ class MetricsToolsTest {
         when(kafkaMetricsService.getKafkaMetrics(null, "my-cluster", null, null, null, null, null, null, null, null))
             .thenReturn(KafkaMetricsResponse.of("my-cluster", "kafka", "pod-scraping",
                 List.of("replication"), List.of(), null,
-                io.streamshub.mcp.common.dto.metrics.AggregationLevel.BROKER));
+                io.streamshub.mcp.common.dto.metrics.AggregationLevel.BROKER, null));
 
         client.when()
             .toolsCall("get_kafka_metrics", Map.of("clusterName", "my-cluster"), response -> {
@@ -454,7 +454,7 @@ class MetricsToolsTest {
         when(kafkaBridgeMetricsService.getKafkaBridgeMetrics(null, "my-bridge", null, null, null, null, null, null, null))
             .thenReturn(KafkaBridgeMetricsResponse.of("my-bridge", "kafka", "pod-scraping",
                 List.of("http"), List.of(), null,
-                io.streamshub.mcp.common.dto.metrics.AggregationLevel.BROKER));
+                io.streamshub.mcp.common.dto.metrics.AggregationLevel.BROKER, null));
 
         client.when()
             .toolsCall("get_kafka_bridge_metrics", Map.of("bridgeName", "my-bridge"), response -> {
@@ -471,7 +471,7 @@ class MetricsToolsTest {
         when(strimziOperatorMetricsService.getOperatorMetrics(null, null, null, null, null, null, null, null, null, null))
             .thenReturn(StrimziOperatorMetricsResponse.of("cluster-operator", null, "kafka-system",
                 "pod-scraping", List.of("reconciliation"), List.of(), null,
-                io.streamshub.mcp.common.dto.metrics.AggregationLevel.BROKER));
+                io.streamshub.mcp.common.dto.metrics.AggregationLevel.BROKER, null));
 
         client.when()
             .toolsCall("get_strimzi_operator_metrics", Map.of(), response -> {

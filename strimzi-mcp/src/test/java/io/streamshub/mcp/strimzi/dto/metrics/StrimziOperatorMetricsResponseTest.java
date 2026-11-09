@@ -32,7 +32,7 @@ class StrimziOperatorMetricsResponseTest {
 
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
             "cluster-operator", null, "strimzi", "pod-scraping",
-            List.of("reconciliation"), samples, null, AggregationLevel.BROKER);
+            List.of("reconciliation"), samples, null, AggregationLevel.BROKER, null);
 
         assertNotNull(response.timeSeries());
         assertEquals(1, response.timeSeries().size());
@@ -51,7 +51,7 @@ class StrimziOperatorMetricsResponseTest {
 
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
             "cluster-operator", null, "strimzi", "prometheus",
-            List.of("reconciliation"), samples, null, AggregationLevel.BROKER);
+            List.of("reconciliation"), samples, null, AggregationLevel.BROKER, null);
 
         assertNotNull(response.timeSeries());
         assertEquals(1, response.timeSeries().size());
@@ -62,7 +62,7 @@ class StrimziOperatorMetricsResponseTest {
     void ofWithEmptySamplesReturnsEmptyTimeSeries() {
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
             "cluster-operator", null, "strimzi", "pod-scraping",
-            List.of(), List.of(), null, AggregationLevel.BROKER);
+            List.of(), List.of(), null, AggregationLevel.BROKER, null);
 
         assertNotNull(response.timeSeries());
         assertTrue(response.timeSeries().isEmpty());
@@ -73,7 +73,7 @@ class StrimziOperatorMetricsResponseTest {
     void ofPassesThroughInterpretation() {
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
             "cluster-operator", null, "strimzi", "pod-scraping",
-            List.of(), List.of(), "test interpretation", AggregationLevel.BROKER);
+            List.of(), List.of(), "test interpretation", AggregationLevel.BROKER, null);
 
         assertEquals("test interpretation", response.interpretation());
     }
@@ -82,7 +82,7 @@ class StrimziOperatorMetricsResponseTest {
     void ofWithClusterNameIncludesClusterInResponse() {
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
             "cluster-operator", "my-cluster", "strimzi", "pod-scraping",
-            List.of(), List.of(), null, AggregationLevel.BROKER);
+            List.of(), List.of(), null, AggregationLevel.BROKER, null);
 
         assertEquals("my-cluster", response.clusterName());
         assertTrue(response.message().contains("my-cluster"));
@@ -92,7 +92,7 @@ class StrimziOperatorMetricsResponseTest {
     void ofWithoutClusterNameExcludesClusterFromMessage() {
         StrimziOperatorMetricsResponse response = StrimziOperatorMetricsResponse.of(
             "cluster-operator", null, "strimzi", "pod-scraping",
-            List.of(), List.of(), null, AggregationLevel.BROKER);
+            List.of(), List.of(), null, AggregationLevel.BROKER, null);
 
         assertNull(response.clusterName());
         assertTrue(response.message().contains("operator 'cluster-operator'"));
