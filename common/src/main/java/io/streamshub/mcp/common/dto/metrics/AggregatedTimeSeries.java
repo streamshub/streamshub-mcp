@@ -63,7 +63,8 @@ public record AggregatedTimeSeries(
     /**
      * Groups and aggregates metric samples by name and labels at the given
      * aggregation level. Samples that share the same name and aggregated labels
-     * have their values averaged per timestamp.
+     * are combined per timestamp with the metric's {@link MetricAggregation}
+     * function: the mean by default, or sum, max or min where the mean misleads.
      *
      * @param samples the metric samples to aggregate
      * @param level   the aggregation level controlling which labels are stripped
@@ -96,7 +97,7 @@ public record AggregatedTimeSeries(
             // Sub-group by timestamp, combine values at each timestamp.
             // NOTE: samples are bucketed on getEpochSecond(), so two pods scraped on
             // opposite sides of a second boundary land in different buckets. For AVG
-            // this produces at most a one-second temporal jitter; for SUM/MAX it can
+            // this produces at most a one-second temporal jitter; for SUM/MAX/MIN it can
             // emit two partial aggregates instead of one. The effect is small under
             // normal scrape alignment but worth knowing when interpreting cluster totals.
             Map<Long, List<Double>> byTimestamp = new TreeMap<>();
