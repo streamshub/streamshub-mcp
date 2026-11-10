@@ -583,8 +583,9 @@ Parameters: { "clusterName": "mcp-cluster-mirror", "topicName": "mcp-test-topic"
 ```
 
 **Expected:**
-- [ ] Not-found error whose message contains `Only cluster 'mcp-cluster-mirror' was searched; the topic exists in cluster(s) 'mcp-cluster' (namespace ...)`
-- [ ] No topic details (partitions, config) in the error
+- [ ] Not-found error whose message contains `Only cluster 'mcp-cluster-mirror' was searched; the topic exists in cluster(s) 'mcp-cluster' (namespace ...)` with no topic details (partitions, config) in the error
+- [ ] When the topic exists in more than five clusters, the message lists five and an `and N more` tail
+- [ ] On an estate with more than 2000 KafkaTopics, the plain not-found error is returned without the cluster hint
 
 ---
 
