@@ -56,13 +56,13 @@ public record KafkaConnectMetricsResponse(
     /**
      * Creates a response with aggregated metric data.
      *
-     * @param connectName    the KafkaConnect cluster name
-     * @param namespace      the Kubernetes namespace
-     * @param provider       the metrics provider name
-     * @param categories     the requested categories
-     * @param samples        the metric samples
-     * @param interpretation brief guide for interpreting the returned metrics
-     * @param level          the aggregation level
+     * @param connectName      the KafkaConnect cluster name
+     * @param namespace        the Kubernetes namespace
+     * @param provider         the metrics provider name
+     * @param categories       the requested categories
+     * @param samples          the metric samples
+     * @param interpretation   brief guide for interpreting the returned metrics
+     * @param level            the aggregation level
      * @param truncatedAtLimit the sample limit that was reached, or null when the result is complete
      * @return a response with the aggregated metric data
      */
