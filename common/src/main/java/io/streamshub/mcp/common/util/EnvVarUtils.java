@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.api.model.EnvVarSource;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -49,7 +50,8 @@ public final class EnvVarUtils {
      * @param sources the container's {@code envFrom} sources (may be null)
      * @param varName the variable name
      * @return a comma-separated reference such as {@code configMapRef:name, secretRef:name},
-     *         or null when no source could supply the variable
+     *         or null when no source could supply the variable; a source with neither a
+     *         ConfigMap nor a Secret reference supplies nothing and is skipped
      */
     public static String describeEnvFrom(final List<EnvFromSource> sources, final String varName) {
         if (sources == null) {
@@ -58,6 +60,7 @@ public final class EnvVarUtils {
         String described = sources.stream()
             .filter(s -> s.getPrefix() == null || varName.startsWith(s.getPrefix()))
             .map(EnvVarUtils::describeEnvFromSource)
+            .filter(Objects::nonNull)
             .collect(Collectors.joining(", "));
         return described.isEmpty() ? null : described;
     }
@@ -69,7 +72,9 @@ public final class EnvVarUtils {
         } else if (source.getSecretRef() != null) {
             ref = "secretRef:" + source.getSecretRef().getName();
         } else {
-            ref = KubernetesConstants.UNKNOWN;
+            // A source with neither reference supplies nothing, so it is skipped rather than
+            // rendered as a confusing "unknown" entry in the joined list.
+            return null;
         }
         if (source.getPrefix() != null && !source.getPrefix().isEmpty()) {
             ref += " (prefix " + source.getPrefix() + ")";

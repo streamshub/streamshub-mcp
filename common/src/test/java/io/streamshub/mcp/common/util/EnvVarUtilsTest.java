@@ -86,4 +86,15 @@ class EnvVarUtilsTest {
     void testDescribeEnvFromSkipsNonMatchingPrefix() {
         assertNull(EnvVarUtils.describeEnvFrom(List.of(configMap("a", "OTHER_")), "VAR"));
     }
+
+    @Test
+    void testDescribeEnvFromSkipsSourceWithNoReference() {
+        assertNull(EnvVarUtils.describeEnvFrom(List.of(new EnvFromSource()), "VAR"));
+    }
+
+    @Test
+    void testDescribeEnvFromSkipsReferencelessSourceInMixedList() {
+        assertEquals("configMapRef:a",
+            EnvVarUtils.describeEnvFrom(List.of(new EnvFromSource(), configMap("a", null)), "VAR"));
+    }
 }
