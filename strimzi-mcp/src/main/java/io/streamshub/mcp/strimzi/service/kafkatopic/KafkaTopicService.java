@@ -8,6 +8,7 @@ import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
 import io.streamshub.mcp.common.dto.ReconciliationInfo;
 import io.streamshub.mcp.common.guardrail.SensitiveKeys;
+import io.streamshub.mcp.common.service.KubernetesQueryException;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.GlobMatcher;
 import io.streamshub.mcp.common.util.InputUtils;
@@ -138,7 +139,9 @@ public class KafkaTopicService {
     /**
      * When a cluster was requested and the topic exists only under other clusters, name those
      * clusters and their namespaces so the caller can retry. Only cluster and namespace names are
-     * disclosed, not topic details. A failed lookup only drops the hint, never the not-found error.
+     * disclosed, not topic details. A failed lookup only drops the hint, never the not-found error:
+     * {@link KubernetesQueryException} carries Kubernetes API failures (including RBAC denials),
+     * so only those are tolerated — anything else propagates.
      */
     private String otherClusterHint(final String ns, final String cluster, final String topicName) {
         if (cluster == null) {
@@ -149,7 +152,7 @@ public class KafkaTopicService {
             all = ns != null
                 ? k8sService.queryResources(KafkaTopic.class, ns)
                 : k8sService.queryResourcesInAnyNamespace(KafkaTopic.class);
-        } catch (RuntimeException e) {
+        } catch (KubernetesQueryException e) {
             LOG.debugf("Could not look up topic %s in other clusters: %s", topicName, e.getMessage());
             return null;
         }
