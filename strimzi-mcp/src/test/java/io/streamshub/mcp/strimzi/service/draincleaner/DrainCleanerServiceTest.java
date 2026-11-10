@@ -417,9 +417,12 @@ class DrainCleanerServiceTest {
 
         assertEquals("unknown", result.mode());
         assertFalse(check(result, "Operating mode").passed());
-        assertTrue(check(result, "Operating mode").detail().startsWith(
+        String detail = check(result, "Operating mode").detail();
+        assertTrue(detail.startsWith(
                 "The operating mode cannot be verified (STRIMZI_DENY_EVICTION may be set via envFrom: configMapRef:drain-config"),
-            check(result, "Operating mode").detail());
+            detail);
+        assertTrue(detail.contains("Confirm the source does not define STRIMZI_DENY_EVICTION"), detail);
+        assertTrue(detail.contains("an unset variable means the default, standard mode"), detail);
         assertFalse(result.overallReady());
     }
 

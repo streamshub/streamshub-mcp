@@ -248,9 +248,18 @@ public class DrainCleanerService {
     private OperatingMode checkOperatingMode(final Deployment deployment, final List<ReadinessCheck> checks) {
         EnvSetting var = envSetting(deployment, StrimziConstants.DrainCleaner.ENV_DENY_EVICTION);
         if (var.unknown()) {
+            String confirm;
+            if (var.fromEnvFrom()) {
+                confirm = "Confirm the source does not define "
+                    + StrimziConstants.DrainCleaner.ENV_DENY_EVICTION
+                    + " (an unset variable means the default, standard mode),"
+                    + " or that it resolves to 'true' (standard mode).";
+            } else {
+                confirm = "Confirm that " + StrimziConstants.DrainCleaner.ENV_DENY_EVICTION
+                    + " resolves to 'true' (standard mode).";
+            }
             String recommendation = "The operating mode cannot be verified ("
-                + StrimziConstants.DrainCleaner.ENV_DENY_EVICTION + " " + var.unknownReason() + "). Confirm that "
-                + StrimziConstants.DrainCleaner.ENV_DENY_EVICTION + " resolves to 'true' (standard mode).";
+                + StrimziConstants.DrainCleaner.ENV_DENY_EVICTION + " " + var.unknownReason() + "). " + confirm;
             checks.add(ReadinessCheck.of("Operating mode", false, recommendation));
             return new OperatingMode(KubernetesConstants.UNKNOWN, recommendation, false);
         }
@@ -386,7 +395,7 @@ public class DrainCleanerService {
             || deployment.getSpec().getTemplate().getSpec() == null
             || deployment.getSpec().getTemplate().getSpec().getContainers() == null
             || deployment.getSpec().getTemplate().getSpec().getContainers().isEmpty()) {
-            return new EnvSetting(null, null);
+            return new EnvSetting(null, null, false);
         }
 
         Container container = deployment.getSpec().getTemplate().getSpec().getContainers().getFirst();
@@ -396,13 +405,13 @@ public class DrainCleanerService {
             .orElse(null);
 
         if (var != null && var.getValue() == null && var.getValueFrom() != null) {
-            return new EnvSetting(null, "set via valueFrom: " + EnvVarUtils.describeSource(var.getValueFrom()));
+            return new EnvSetting(null, "set via valueFrom: " + EnvVarUtils.describeSource(var.getValueFrom()), false);
         }
         if (var != null) {
-            return new EnvSetting(var.getValue(), null);
+            return new EnvSetting(var.getValue(), null, false);
         }
         String envFrom = EnvVarUtils.describeEnvFrom(container.getEnvFrom(), varName);
-        return new EnvSetting(null, envFrom != null ? "may be set via envFrom: " + envFrom : null);
+        return new EnvSetting(null, envFrom != null ? "may be set via envFrom: " + envFrom : null, envFrom != null);
     }
 
     /** Literal boolean value of an env var; null when unset or unresolvable. */
@@ -466,8 +475,11 @@ public class DrainCleanerService {
      *
      * @param value         the literal value, or null when unset or unresolvable
      * @param unknownReason why the value cannot be read, or null when it is literal or unset
+     * @param fromEnvFrom   true when the unknown comes from an {@code envFrom} source that may
+     *                      or may not actually define the variable (as opposed to a definite
+     *                      {@code valueFrom} reference)
      */
-    private record EnvSetting(String value, String unknownReason) {
+    private record EnvSetting(String value, String unknownReason, boolean fromEnvFrom) {
 
         boolean unknown() {
             return unknownReason != null;

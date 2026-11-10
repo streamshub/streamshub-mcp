@@ -19,7 +19,7 @@ The drain cleaner operates in two modes:
 The server reads the mode and the watched namespaces from the Deployment environment. The server does not resolve values that the Deployment does not hold literally:
 
 * When `STRIMZI_DENY_EVICTION` or `STRIMZI_DRAIN_NAMESPACES` is injected through `valueFrom` (ConfigMap, Secret, or field reference), the value is reported as `unknown (set via valueFrom: configMapKeyRef:name/key)`.
-* When the variable is missing from `env` but the container loads `envFrom` sources that could supply it, the value is reported as `unknown (may be set via envFrom: configMapRef:name)`. A source with a `prefix` is only considered for variables that start with that prefix.
+* When the variable is missing from `env` but the container loads `envFrom` sources that could supply it, the value is reported as `unknown (may be set via envFrom: configMapRef:name)`. A source with a `prefix` is only considered for variables that start with that prefix. Because the source may or may not actually define the variable, the readiness recommendation names the source to inspect and notes that an unset variable means the default (standard mode).
 
 In both cases the mode is `unknown`, the readiness check does not pass, and `list_drain_cleaners`, `get_drain_cleaner` and `check_drain_cleaner_readiness` all show the watched namespaces in the same `unknown (...)` form.
 

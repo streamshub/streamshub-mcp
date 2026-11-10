@@ -1049,7 +1049,7 @@ Parameters: {}
 - [ ] Webhook: configured
 - [ ] Certificates: valid
 - [ ] Overall verdict: ready
-- [ ] When `STRIMZI_DENY_EVICTION` comes from `valueFrom` or a matching `envFrom` source, the Operating mode check fails with a recommendation naming the source
+- [ ] When `STRIMZI_DENY_EVICTION` comes from `valueFrom` or a matching `envFrom` source, the Operating mode check fails with a recommendation naming the source; the `envFrom` case also notes that an unset variable means the default (standard mode)
 
 ### T9.4 - Get Drain Cleaner Logs
 
