@@ -16,6 +16,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Set;
 
 /**
  * Factory for creating MCP streamable HTTP test clients.
@@ -28,6 +29,13 @@ public final class McpClientFactory {
     private static final long READY_POLL_MS = 2_000L;
     /** Status the MCP endpoint returns for a GET without a session (method not allowed). */
     private static final int MCP_GET_WITHOUT_SESSION_STATUS = 405;
+    /**
+     * Statuses that still mean the request reached the MCP server (or something acting for it):
+     * 405 is the bare-GET rejection, 400 a proxied or framework-variant rejection of the same,
+     * 401 an authenticating front that will produce a clearer client error later.
+     */
+    private static final Set<Integer> REACHED_STATUSES = Set.of(
+        MCP_GET_WITHOUT_SESSION_STATUS, 400, 401);
 
     private McpClientFactory() {
     }
@@ -55,8 +63,9 @@ public final class McpClientFactory {
 
     /**
      * Poll the MCP endpoint until the MCP server answers through the exposed URL. A bare GET without
-     * {@code Mcp-Session-Id} gets 405 from the server; any other status (such as an Ingress default
-     * backend's 404) means traffic does not reach it yet. Pod readiness is already enforced by the
+     * {@code Mcp-Session-Id} gets 405 from the server (400 or 401 from a proxy in front of it);
+     * any other status (such as an Ingress default backend's 404, or a gateway's 502/503/504)
+     * means traffic does not reach it yet. Pod readiness is already enforced by the
      * deployment wait; health is served on the management port, which the exposed Service does not carry.
      *
      * @param mcpUrl the MCP server base URL
@@ -75,8 +84,8 @@ public final class McpClientFactory {
             try {
                 HttpResponse<String> response = client.send(request,
                     HttpResponse.BodyHandlers.ofString());
-                if (response.statusCode() == MCP_GET_WITHOUT_SESSION_STATUS) {
-                    LOGGER.info("MCP server is reachable");
+                if (REACHED_STATUSES.contains(response.statusCode())) {
+                    LOGGER.info("MCP server is reachable (GET /mcp returned {})", response.statusCode());
                     return true;
                 }
                 LOGGER.debug("MCP endpoint returned {}", response.statusCode());
