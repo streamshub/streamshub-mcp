@@ -71,6 +71,7 @@ class ServerObservabilityST extends AbstractST {
         if (mcpClient != null) {
             mcpClient.disconnect();
         }
+        ManagementEndpoint.close();
     }
 
     // ---- Health Endpoints ----
