@@ -66,7 +66,7 @@ SKIP_STRIMZI_INSTALL=true ./mvnw verify -Psystemtest
 | `KAFKA_CLUSTER_NAME` | Kafka cluster name | `mcp-cluster` |
 | `KAFKA_NAMESPACE` | Kafka namespace | `strimzi-kafka` |
 
-Health and metrics (`/q/health`, `/q/metrics`) are served on the management port 9000, which the Service and the connectivity setup do not expose. System tests read them through `ManagementEndpoint.get(namespace, path)`, which port-forwards to a ready MCP pod.
+Health and metrics (`/q/health`, `/q/metrics`) are served on the management port 9000, which the Service and the connectivity setup do not expose. System tests read them through `ManagementEndpoint.get(namespace, path)`, which port-forwards to a ready MCP pod. The port-forward is cached for the JVM and re-established automatically when it goes stale (for example after a pod restart); call `ManagementEndpoint.close()` when a test class is done with it.
 
 ### Writing system tests
 
