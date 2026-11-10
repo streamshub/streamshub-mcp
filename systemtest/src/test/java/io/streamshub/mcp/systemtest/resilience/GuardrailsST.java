@@ -119,6 +119,7 @@ class GuardrailsST extends AbstractST {
         if (mcpClient != null) {
             mcpClient.disconnect();
         }
+        ManagementEndpoint.close();
     }
 
     // ---- Response Size Truncation ----
