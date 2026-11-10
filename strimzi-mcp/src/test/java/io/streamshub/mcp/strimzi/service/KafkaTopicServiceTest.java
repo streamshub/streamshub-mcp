@@ -33,6 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -444,6 +445,42 @@ class KafkaTopicServiceTest {
         McpException ex = assertThrows(McpException.class,
             () -> topicService.getTopic("kafka", "my-cluster", "missing"));
 
+        assertFalse(ex.getMessage().contains("cluster(s)"), ex.getMessage());
+    }
+
+    @Test
+    void testGetTopicHintListsAtMostFiveOwners() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topicInCluster("orders", "team-a", "cluster-a", null),
+            topicInCluster("orders", "team-b", "cluster-b", null),
+            topicInCluster("orders", "team-c", "cluster-c", null),
+            topicInCluster("orders", "team-d", "cluster-d", null),
+            topicInCluster("orders", "team-e", "cluster-e", null),
+            topicInCluster("orders", "team-f", "cluster-f", null)));
+
+        McpException ex = assertThrows(McpException.class,
+            () -> topicService.getTopic(null, "cluster-zz", "orders"));
+
+        assertEquals(McpErrorCategory.RESOURCE_NOT_FOUND, ((McpErrorData) ex.getData()).category());
+        assertTrue(ex.getMessage().contains("cluster(s) 'cluster-a' (namespace team-a),"
+            + " 'cluster-b' (namespace team-b), 'cluster-c' (namespace team-c),"
+            + " 'cluster-d' (namespace team-d), 'cluster-e' (namespace team-e); and 1 more"), ex.getMessage());
+        assertFalse(ex.getMessage().contains("cluster-f"), ex.getMessage());
+    }
+
+    @Test
+    void testGetTopicHintSkippedOnLargeTopicEstate() {
+        // One more than KafkaTopicService.MAX_HINT_CANDIDATES (2000): the hint scan is skipped.
+        List<KafkaTopic> estate = new ArrayList<>();
+        for (int i = 0; i < 2001; i++) {
+            estate.add(topicInCluster("orders", "team-" + i, "cluster-" + i, null));
+        }
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, estate);
+
+        McpException ex = assertThrows(McpException.class,
+            () -> topicService.getTopic(null, "cluster-zz", "orders"));
+
+        assertEquals(McpErrorCategory.RESOURCE_NOT_FOUND, ((McpErrorData) ex.getData()).category());
         assertFalse(ex.getMessage().contains("cluster(s)"), ex.getMessage());
     }
 

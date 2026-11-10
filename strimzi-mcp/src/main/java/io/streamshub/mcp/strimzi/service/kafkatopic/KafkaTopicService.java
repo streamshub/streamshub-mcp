@@ -37,6 +37,11 @@ public class KafkaTopicService {
 
     private static final Logger LOG = Logger.getLogger(KafkaTopicService.class);
 
+    /** KafkaTopics above which the other-cluster not-found hint is skipped: scanning more is not worth the delay. */
+    private static final int MAX_HINT_CANDIDATES = 2000;
+    /** Clusters listed in the other-cluster not-found hint before an "and N more" tail. */
+    private static final int MAX_LISTED_OWNERS = 5;
+
     @Inject
     KubernetesResourceService k8sService;
 
@@ -139,7 +144,10 @@ public class KafkaTopicService {
     /**
      * When a cluster was requested and the topic exists only under other clusters, name those
      * clusters and their namespaces so the caller can retry. Only cluster and namespace names are
-     * disclosed, not topic details. A failed lookup only drops the hint, never the not-found error:
+     * disclosed, not topic details. At most {@link #MAX_LISTED_OWNERS} clusters are listed (then an
+     * "and N more" tail), and the hint is skipped entirely when the estate holds more than
+     * {@link #MAX_HINT_CANDIDATES} KafkaTopics, so a not-found error is not delayed by an unbounded
+     * scan. A failed lookup only drops the hint, never the not-found error:
      * {@link KubernetesQueryException} carries Kubernetes API failures (including RBAC denials),
      * so only those are tolerated — anything else propagates.
      */
@@ -156,6 +164,11 @@ public class KafkaTopicService {
             LOG.debugf("Could not look up topic %s in other clusters: %s", topicName, e.getMessage());
             return null;
         }
+        if (all.size() > MAX_HINT_CANDIDATES) {
+            LOG.debugf("Skipping other-cluster hint for topic %s: %d KafkaTopics exceed the scan cap",
+                topicName, all.size());
+            return null;
+        }
         List<String> owners = all.stream()
             .filter(t -> exposesTopicName(t, topicName))
             .filter(t -> clusterLabel(t) != null)
@@ -166,8 +179,12 @@ public class KafkaTopicService {
         if (owners.isEmpty()) {
             return null;
         }
+        String listed = String.join(", ", owners.subList(0, Math.min(owners.size(), MAX_LISTED_OWNERS)));
+        if (owners.size() > MAX_LISTED_OWNERS) {
+            listed += "; and " + (owners.size() - MAX_LISTED_OWNERS) + " more";
+        }
         return "Only cluster '" + cluster + "' was searched; the topic exists in cluster(s) "
-            + String.join(", ", owners) + "; retry with that clusterName and namespace";
+            + listed + "; retry with that clusterName and namespace";
     }
 
     private KafkaTopic findTopic(final String ns, final String cluster, final String topicName) {
