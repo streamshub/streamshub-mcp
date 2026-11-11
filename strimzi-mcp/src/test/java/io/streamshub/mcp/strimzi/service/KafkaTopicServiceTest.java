@@ -142,6 +142,29 @@ class KafkaTopicServiceTest {
         assertEquals("[REDACTED]", config.get("custom.api.key"));
     }
 
+    /**
+     * Pins the source-level redaction with a key that only the strict configuration-map rules treat
+     * as secret: {@code basic.auth.user.info} is redacted because of the {@code auth} config word,
+     * but the lenient JSON-key rules used by the response guardrail leave it visible. The test calls
+     * the service directly (no guardrail), so a redacted value proves the source redaction in
+     * {@code createTopicResponse}, which also covers the resource template and its notifications.
+     */
+    @Test
+    void testGetTopicRedactsConfigStrictOnlyKeyAtSource() {
+        setupKafkaTopic(new KafkaTopicBuilder()
+            .withNewMetadata().withName("my-topic").withNamespace("kafka")
+                .withLabels(Map.of("strimzi.io/cluster", "my-cluster"))
+            .endMetadata()
+            .withNewSpec().withPartitions(3).withReplicas(3)
+                .withConfig(Map.of("basic.auth.user.info", "user:secret"))
+            .endSpec()
+            .build());
+
+        Map<String, Object> config = topicService.getTopic("kafka", "my-cluster", "my-topic").configuration();
+
+        assertEquals("[REDACTED]", config.get("basic.auth.user.info"));
+    }
+
     @Test
     void testGetTopicTopicIdAbsentWhenStatusMissing() {
         setupKafkaTopic(new KafkaTopicBuilder()
