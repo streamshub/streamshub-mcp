@@ -21,9 +21,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param mode              the operating mode ('standard', 'legacy' or 'unknown')
  * @param webhookConfigured whether the ValidatingWebhookConfiguration exists
  * @param failurePolicy     the webhook failure policy ('Ignore' or 'Fail')
- * @param denyEviction      whether eviction denial is enabled
+ * @param denyEviction      whether eviction denial is enabled; null when unset or not resolvable
  * @param drainKafka        whether Kafka pod draining is enabled
- * @param watchedNamespaces the namespaces monitored by the drain cleaner
+ * @param watchedNamespaces the namespaces monitored by the drain cleaner, or
+ *                          {@code unknown (...)} when set via {@code valueFrom} or possibly {@code envFrom}
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record DrainCleanerResponse(
@@ -60,7 +61,9 @@ public record DrainCleanerResponse(
      * @param webhookConfigured whether the webhook is configured
      * @param failurePolicy     the webhook failure policy
      * @param denyEviction      whether eviction denial is enabled
-     * @param drainKafka        whether Kafka pod draining is enabled
+     * @param drainKafka        whether Kafka pod draining is enabled; null when the Deployment does
+     *                          not hold the value literally (unset, or from {@code valueFrom} or a
+     *                          possible {@code envFrom} source)
      * @param watchedNamespaces the watched namespaces
      * @return a new DrainCleanerResponse
      */

@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.service.draincleaner;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.admissionregistration.v1.ValidatingWebhookConfiguration;
@@ -108,6 +109,16 @@ class DrainCleanerServiceTest {
                 .endEnv();
         }
         return deploymentWith(NS, 1, 1, container.build());
+    }
+
+    private static Deployment deploymentWithEnvFrom(final String prefix, final EnvVar... env) {
+        Container container = new ContainerBuilder()
+            .withName("drain-cleaner")
+            .withImage("quay.io/strimzi/drain-cleaner:1.4.0")
+            .addNewEnvFrom().withPrefix(prefix).withNewConfigMapRef("drain-config", false).endEnvFrom()
+            .withEnv(env)
+            .build();
+        return deploymentWith(NS, 1, 1, container);
     }
 
     private static Deployment deploymentWith(final String namespace, final Integer replicas,
@@ -227,7 +238,8 @@ class DrainCleanerServiceTest {
         assertEquals("unknown", response.mode());
         assertNull(response.denyEviction());
         assertNull(response.drainKafka());
-        assertEquals("configMapKeyRef:drain-config/key-STRIMZI_DRAIN_NAMESPACES", response.watchedNamespaces());
+        assertEquals("unknown (set via valueFrom: configMapKeyRef:drain-config/key-STRIMZI_DRAIN_NAMESPACES)",
+            response.watchedNamespaces());
     }
 
     @Test
@@ -394,5 +406,74 @@ class DrainCleanerServiceTest {
         assertFalse(result.overallReady());
         assertFalse(result.checks().isEmpty());
         assertFalse(result.checks().getFirst().passed());
+    }
+
+    @Test
+    void testDenyEvictionFromEnvFromIsUnknownAndNotOverallReady() {
+        givenDeployment(deploymentWithEnvFrom(null));
+        givenWebhookAndSecret(webhook(), tlsSecret(Map.of("tls.crt", VALID_CERT_B64)));
+
+        DrainCleanerReadinessResponse result = service.checkReadiness(NS);
+
+        assertEquals("unknown", result.mode());
+        assertFalse(check(result, "Operating mode").passed());
+        String detail = check(result, "Operating mode").detail();
+        assertTrue(detail.startsWith(
+                "The operating mode cannot be verified (STRIMZI_DENY_EVICTION may be set via envFrom: configMapRef:drain-config"),
+            detail);
+        assertTrue(detail.contains("Confirm the source does not define STRIMZI_DENY_EVICTION"), detail);
+        assertTrue(detail.contains("an unset variable means the default, standard mode"), detail);
+        assertFalse(result.overallReady());
+    }
+
+    @Test
+    void testWatchedNamespacesFromEnvFromIsUnknown() {
+        givenDeployment(deploymentWithEnvFrom(null, new EnvVar("STRIMZI_DENY_EVICTION", "true", null)));
+        givenWebhookAndSecret(webhook(), tlsSecret(Map.of("tls.crt", VALID_CERT_B64)));
+
+        DrainCleanerReadinessResponse result = service.checkReadiness(NS);
+
+        assertTrue(result.coveredNamespaces().startsWith("unknown (may be set via envFrom: configMapRef:drain-config"),
+            result.coveredNamespaces());
+        assertFalse(check(result, "Namespace coverage").passed());
+        assertFalse(result.overallReady());
+    }
+
+    @Test
+    void testEnvFromWithNonMatchingPrefixIsIgnored() {
+        givenDeployment(deploymentWithEnvFrom("OTHER_"));
+        givenWebhookAndSecret(webhook(), tlsSecret(Map.of("tls.crt", VALID_CERT_B64)));
+
+        DrainCleanerReadinessResponse result = service.checkReadiness(NS);
+
+        assertEquals("standard", result.mode());
+        assertEquals("all (no restriction)", result.coveredNamespaces());
+        assertTrue(result.overallReady());
+    }
+
+    @Test
+    void testLiteralEnvWinsOverEnvFrom() {
+        givenDeployment(deploymentWithEnvFrom(null,
+            new EnvVar("STRIMZI_DENY_EVICTION", "true", null),
+            new EnvVar("STRIMZI_DRAIN_NAMESPACES", "kafka", null)));
+        givenWebhookAndSecret(webhook(), tlsSecret(Map.of("tls.crt", VALID_CERT_B64)));
+
+        DrainCleanerReadinessResponse result = service.checkReadiness(NS);
+
+        assertEquals("standard", result.mode());
+        assertEquals("kafka", result.coveredNamespaces());
+        assertTrue(result.overallReady());
+    }
+
+    @Test
+    void testListDrainCleanersWithEnvFromReportsUnknown() {
+        givenDeployment(deploymentWithEnvFrom(null));
+
+        DrainCleanerResponse response = service.listDrainCleaners(NS).getFirst();
+
+        assertEquals("unknown", response.mode());
+        assertNull(response.denyEviction());
+        assertTrue(response.watchedNamespaces().startsWith("unknown (may be set via envFrom:"),
+            response.watchedNamespaces());
     }
 }
