@@ -41,11 +41,11 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests the readiness decision logic of {@link DrainCleanerService}: replicas, webhook,
- * operating mode and TLS certificate evaluation, plus namespace ambiguity handling.
+ * Tests {@link DrainCleanerService}: listing, logs, and the readiness decision logic (replicas, webhook,
+ * operating mode and TLS certificate evaluation), plus namespace ambiguity handling.
  */
 @QuarkusTest
-class DrainCleanerReadinessTest {
+class DrainCleanerServiceTest {
 
     private static final String NS = "drain-cleaner";
     private static final String NAME = "strimzi-drain-cleaner";
@@ -76,7 +76,7 @@ class DrainCleanerReadinessTest {
     @Inject
     DrainCleanerService service;
 
-    DrainCleanerReadinessTest() {
+    DrainCleanerServiceTest() {
     }
 
     @BeforeEach
@@ -364,5 +364,35 @@ class DrainCleanerReadinessTest {
 
         assertNotNull(result.message());
         assertTrue(result.message().contains("No Strimzi Drain Cleaner pods found"));
+    }
+
+    @Test
+    void testListDrainCleanersReturnsEmptyWhenNoneExist() {
+        assertTrue(service.listDrainCleaners(NS).isEmpty());
+    }
+
+    @Test
+    void testListDrainCleanersReturnsEmptyForAllNamespaces() {
+        assertTrue(service.listDrainCleaners(null).isEmpty());
+    }
+
+    @Test
+    void testGetDrainCleanerLogsReturnsNotFoundWhenNoPodsExist() {
+        DrainCleanerLogsResponse result = service.getDrainCleanerLogs(
+            NS, null, LogCollectionParams.of(null, null, 200, null));
+
+        assertEquals(NS, result.namespace());
+        assertNotNull(result.message());
+        assertTrue(result.message().contains("No Strimzi Drain Cleaner pods found"));
+    }
+
+    @Test
+    void testCheckReadinessWhenNotDeployed() {
+        DrainCleanerReadinessResponse result = service.checkReadiness(NS);
+
+        assertFalse(result.deployed());
+        assertFalse(result.overallReady());
+        assertFalse(result.checks().isEmpty());
+        assertFalse(result.checks().getFirst().passed());
     }
 }
