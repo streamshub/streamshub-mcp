@@ -60,6 +60,8 @@ Add a NetworkPolicy for the namespaces of your MCP clients, gateway, ingress con
 The `prod-openshift` overlay (OpenShift 4.20 or later) additionally admits the OpenShift router and cluster monitoring, which exposes the unauthenticated endpoint through the Route to anyone who can reach the router.
 Put an authenticating front (for example an OAuth proxy) in front of the Route, or remove the Route and use port-forwarding.
 
+When upgrading an existing deployment across the 0.3.0 boundary, apply the new manifests and the new image together: the updated probes target the `management` container port (9000), which only the new image opens, and the new image no longer serves `/q/*` on the `http` port (8080), so a mixed state — old image with new manifests, or new image with old probes — never becomes ready.
+
 The base manifests reference `quay.io/streamshub/strimzi-mcp:latest`, which Kubernetes pulls on every pod start.
 Release tags set the image tag to the release version in `base/kustomization.yaml`; when deploying from a clone, pin the tag yourself:
 

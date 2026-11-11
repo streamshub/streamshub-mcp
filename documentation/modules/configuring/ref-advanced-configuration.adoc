@@ -47,7 +47,38 @@ See xref:ref-diagnostic-tools-tools[the diagnostic tools reference] for more inf
 The Prometheus scrape endpoint at `/q/metrics` is provided by the `quarkus-micrometer-registry-prometheus` dependency.
 It is served on the management interface (port 9000), together with `/q/health`, not on the MCP port 8080, so a NetworkPolicy can admit a metrics scraper without exposing `/mcp`.
 The Service exposes only port 8080; scrape the pods directly, for example with the optional PodMonitor (`port: management`).
-If you use a ServiceMonitor instead, add a `management` port (9000) to the Service in your own overlay.
+If you use a ServiceMonitor instead, it selects a Service port, so add a `management` port (9000) to the Service in your own overlay:
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamshub-mcp-strimzi
+spec:
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+    - name: management
+      port: 9000
+      targetPort: management
+----
+
+[source,yaml]
+----
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: streamshub-mcp
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: streamshub-mcp-strimzi
+  endpoints:
+    - port: management
+      path: /q/metrics
+----
 
 *Application-level metrics* are recorded by the `@MeasuredTool` interceptor (`ToolMetricsInterceptor` / `ToolCallMetricsRecorder`) whenever Micrometer is on the classpath:
 
