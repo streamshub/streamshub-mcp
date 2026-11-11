@@ -31,7 +31,7 @@ import java.util.regex.PatternSyntaxException;
  *   and long base64-like strings. Container image digests ({@code sha256:...}) are kept.</li>
  *   <li><b>Key-name rules</b> on JSON objects: a text value stored under a key that names a
  *   secret (see {@link SensitiveKeys}) is replaced even when the value itself has no
- *   recognisable shape, e.g. {@code {"password":"hunter2"}}.</li>
+ *   recognisable shape, e.g. {@code {"password":"hunter2"}}.</li> // HashiCorpIgnore
  * </ul>
  *
  * <p>Custom patterns come from {@code mcp.guardrail.log-redaction.custom-patterns[N]};
