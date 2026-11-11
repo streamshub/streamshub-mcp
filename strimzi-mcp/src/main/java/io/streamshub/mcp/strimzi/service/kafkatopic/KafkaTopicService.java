@@ -231,6 +231,9 @@ public class KafkaTopicService {
         if (topic.getSpec() != null) {
             partitions = topic.getSpec().getPartitions();
             replicas = topic.getSpec().getReplicas();
+            // Redact at the source, not only in the response guardrail: the kafka-topic-status
+            // resource template and its subscription notifications serialize spec.config directly,
+            // bypassing the tool-output guardrails.
             Map<String, Object> specConfig = SensitiveKeys.redactValues(topic.getSpec().getConfig());
             config = (specConfig != null && !specConfig.isEmpty()) ? specConfig : null;
         }
