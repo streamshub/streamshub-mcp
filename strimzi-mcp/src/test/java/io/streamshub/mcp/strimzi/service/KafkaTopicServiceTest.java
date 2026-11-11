@@ -438,6 +438,8 @@ class KafkaTopicServiceTest {
         assertEquals(McpErrorCategory.RESOURCE_NOT_FOUND, ((McpErrorData) ex.getData()).category());
         assertTrue(ex.getMessage().contains(
             "cluster(s) 'cluster-a' (namespace team-a), 'cluster-b' (namespace team-b)"), ex.getMessage());
+        assertEquals("Retry with the clusterName and namespace of an owning cluster.",
+            ((McpErrorData) ex.getData()).remediation(), ex.getMessage());
     }
 
     @Test
