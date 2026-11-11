@@ -191,7 +191,7 @@ kubectl apply -f install/strimzi-mcp/optional/podmonitor.yaml -n streamshub-mcp
 ```
 
 This creates a PodMonitor that scrapes `mcp.tool.calls` and `mcp.tool.call.duration` metrics from the MCP server pods.
-If you use a ServiceMonitor instead, add a `management` port (9000) to the Service in your own overlay.
+If you use a ServiceMonitor instead, add a `management` port (9000) to the Service in your own overlay and point the ServiceMonitor endpoint at that port and `/q/metrics` (see the advanced configuration documentation for a full snippet).
 
 ## Verification
 
