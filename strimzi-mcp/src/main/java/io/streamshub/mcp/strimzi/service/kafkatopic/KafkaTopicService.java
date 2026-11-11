@@ -37,7 +37,10 @@ public class KafkaTopicService {
 
     private static final Logger LOG = Logger.getLogger(KafkaTopicService.class);
 
-    /** KafkaTopics above which the other-cluster not-found hint is skipped: scanning more is not worth the delay. */
+    /**
+     * KafkaTopics above which the other-cluster not-found hint is skipped: the list query is paid
+     * either way, and over a larger estate the client-side scan and message are not worth it.
+     */
     private static final int MAX_HINT_CANDIDATES = 2000;
     /** Clusters listed in the other-cluster not-found hint before an "and N more" tail. */
     private static final int MAX_LISTED_OWNERS = 5;
@@ -134,8 +137,9 @@ public class KafkaTopicService {
         KafkaTopic topic = findTopic(ns, clusterNameNormalized, topicNameNormalized);
 
         if (topic == null) {
-            throw McpErrors.notFound("Topic", topicNameNormalized, ns,
-                otherClusterHint(ns, clusterNameNormalized, topicNameNormalized));
+            String hint = otherClusterHint(ns, clusterNameNormalized, topicNameNormalized);
+            throw McpErrors.notFound("Topic", topicNameNormalized, ns, hint,
+                hint != null ? "Retry with the clusterName and namespace of an owning cluster." : null);
         }
 
         return createTopicResponse(topic);
@@ -145,9 +149,10 @@ public class KafkaTopicService {
      * When a cluster was requested and the topic exists only under other clusters, name those
      * clusters and their namespaces so the caller can retry. Only cluster and namespace names are
      * disclosed, not topic details. At most {@link #MAX_LISTED_OWNERS} clusters are listed (then an
-     * "and N more" tail), and the hint is skipped entirely when the estate holds more than
-     * {@link #MAX_HINT_CANDIDATES} KafkaTopics, so a not-found error is not delayed by an unbounded
-     * scan. A failed lookup only drops the hint, never the not-found error:
+     * "and N more" tail), and the hint is skipped when the estate holds more than
+     * {@link #MAX_HINT_CANDIDATES} KafkaTopics so the error message stays bounded. The candidate
+     * topics are still fetched by one list query — that fetch is the fixed cost of the hint and is
+     * not avoided by the cap. A failed lookup only drops the hint, never the not-found error:
      * {@link KubernetesQueryException} carries Kubernetes API failures (including RBAC denials),
      * so only those are tolerated — anything else propagates.
      */

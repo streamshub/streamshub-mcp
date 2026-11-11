@@ -99,5 +99,16 @@ class McpErrorsTest {
 
         assertEquals("Topic 'orders' not found in namespace kafka. It exists in cluster(s) 'a'", e.getMessage());
         assertEquals(McpErrorCategory.RESOURCE_NOT_FOUND, ((McpErrorData) e.getData()).category());
+        assertNull(((McpErrorData) e.getData()).remediation());
+    }
+
+    @Test
+    void testNotFoundWithRemediationCarriesItInData() {
+        McpException e = McpErrors.notFound("Topic", "orders", "kafka",
+            "It exists in cluster(s) 'a'", "Retry with that clusterName and namespace.");
+
+        assertEquals("Topic 'orders' not found in namespace kafka. It exists in cluster(s) 'a'", e.getMessage());
+        assertEquals("Retry with that clusterName and namespace.", ((McpErrorData) e.getData()).remediation());
+        assertEquals(McpErrorCategory.RESOURCE_NOT_FOUND, ((McpErrorData) e.getData()).category());
     }
 }
