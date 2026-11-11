@@ -1765,6 +1765,7 @@ Parameters: { "clusterName": "mcp-cluster" }
 **Expected:**
 - [ ] Returns upgrade readiness report
 - [ ] Checks: cluster health, replication (RF=3 with min ISR=2), operator readiness
+- [ ] The replication check gathers metrics over the last 15 minutes (`rangeMinutes=15`) so lag is judged as a trend; without Prometheus the pod-scraping provider returns a single point instead
 - [ ] Checks: certificate validity
 - [ ] If `--drain-cleaner`: Drain Cleaner status included
 - [ ] GO / NO-GO verdict present
