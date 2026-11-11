@@ -61,7 +61,9 @@ public record DrainCleanerResponse(
      * @param webhookConfigured whether the webhook is configured
      * @param failurePolicy     the webhook failure policy
      * @param denyEviction      whether eviction denial is enabled
-     * @param drainKafka        whether Kafka pod draining is enabled
+     * @param drainKafka        whether Kafka pod draining is enabled; null when the Deployment does
+     *                          not hold the value literally (unset, or from {@code valueFrom} or a
+     *                          possible {@code envFrom} source)
      * @param watchedNamespaces the watched namespaces
      * @return a new DrainCleanerResponse
      */
