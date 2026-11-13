@@ -140,6 +140,10 @@ kubectl apply -f install/strimzi-mcp/optional/role-sensitive.yaml -n <kafka-name
 kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n <kafka-namespace>
 ```
 
+> **Note**: For the dev environment, `dev-deploy.sh --sensitive` applies this Role and RoleBinding in
+> `strimzi-kafka`, `strimzi-kafka-mirror` and `strimzi-drain-cleaner` (override with `SENSITIVE_NAMESPACES`).
+> Without it, certificate checks and the Drain Cleaner TLS check return `403 Forbidden`.
+
 ## OpenSearch
 
 When using the OpenSearch log provider (`MCP_LOG_PROVIDER=streamshub-opensearch`), no special Kubernetes RBAC is required.
