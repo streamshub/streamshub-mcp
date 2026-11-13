@@ -19,6 +19,24 @@ The dev environment is deployed via:
   --test-clients --jaeger
 ```
 
+The Kafka version used throughout this plan is the one pinned in
+`dev/manifests/strimzi/kafka/010-Kafka.yaml` (currently `4.3.1`, metadata version `4.3-IV0`).
+Update the expected versions below when the manifests are bumped.
+
+### Sensitive RBAC prerequisite
+
+Certificate checks (T2.6, T2.7, T9.3, T15.3, T15.12, T15.12b, E2E-3, E2E-6) read Secrets, which needs the
+optional sensitive Role. It is not part of any overlay, so grant it in the Strimzi namespaces before running the plan:
+
+```bash
+for ns in strimzi-kafka strimzi-kafka-mirror strimzi-drain-cleaner; do
+  kubectl apply -n "$ns" -f install/strimzi-mcp/optional/role-sensitive.yaml
+  kubectl apply -n "$ns" -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml
+done
+```
+
+Without it, these checks return `403 Forbidden` entries in `errors` and the Drain Cleaner TLS check cannot pass.
+
 ### Namespaces
 
 | Namespace               | Contents                                      |
@@ -35,7 +53,7 @@ The dev environment is deployed via:
 
 | Kind           | Name                | Namespace       | Details                                           |
 |----------------|---------------------|-----------------|---------------------------------------------------|
-| Kafka          | `mcp-cluster`       | `strimzi-kafka` | v4.2.0, 4 listeners (plain/tls/route/console), Cruise Control, Kafka Exporter |
+| Kafka          | `mcp-cluster`       | `strimzi-kafka` | v4.3.1, 4 listeners (plain/tls/route/console), Cruise Control, Kafka Exporter |
 | KafkaNodePool  | `controller-np`     | `strimzi-kafka` | 3 replicas, role: controller                      |
 | KafkaNodePool  | `broker-np1`        | `strimzi-kafka` | 3 replicas, role: broker, 2x50Gi JBOD             |
 | KafkaNodePool  | `broker-np2`        | `strimzi-kafka` | 3 replicas, role: broker, 2x50Gi JBOD             |
@@ -72,7 +90,7 @@ The dev environment is deployed via:
 
 | Kind              | Name                  | Namespace               | Details                                  |
 |-------------------|-----------------------|-------------------------|------------------------------------------|
-| Kafka             | `mcp-cluster-mirror`  | `strimzi-kafka-mirror`  | v4.2.0, 1 combined node, plain listener only, RF=1 |
+| Kafka             | `mcp-cluster-mirror`  | `strimzi-kafka-mirror`  | v4.3.1, 1 combined node, plain listener only, RF=1 |
 | KafkaNodePool     | `mirror-combined`     | `strimzi-kafka-mirror`  | 1 replica, roles: controller+broker       |
 | KafkaMirrorMaker2 | `mcp-mirror-maker`    | `strimzi-mirror-maker`  | 1 replica, source: mcp-cluster, target: mcp-cluster-mirror |
 | KafkaUser         | `mm2-user`            | `strimzi-kafka`         | SCRAM-SHA-512, cluster admin for MM2      |
@@ -99,6 +117,15 @@ For each test case:
 3. Record: PASS / FAIL / SKIP (with reason)
 4. If FAIL, capture the error message or unexpected response
 
+Client capability notes:
+
+- **Error codes:** some clients (e.g. Claude Code) show only the error message text, not the JSON-RPC
+  `code` or `error.data`. When a test expects a specific code or `error.data` field and only the text is
+  visible, record PARTIAL with the text you saw.
+- **Sampling:** `analysis` fields, GO/NO-GO verdicts and "highlighted" differences are produced by LLM
+  Sampling. With a client that does not advertise Sampling, diagnostics gather all areas and return raw
+  data only; judge those tests on the raw data.
+
 Tests are organized into phases. Phases 1-8 test core resources (always available).
 Phases 9-13 require optional components (marked with `[requires: --flag]`).
 Phase 14+ are cross-cutting.
@@ -117,9 +144,9 @@ Parameters: {}
 **Expected:**
 - [ ] Response lists at least 1 Kafka cluster (`mcp-cluster` in `strimzi-kafka`)
 - [ ] If `--mirror-maker` deployed: also lists `mcp-cluster-mirror` in `strimzi-kafka-mirror`
-- [ ] Each cluster entry includes: name, namespace, status, broker count
+- [ ] Each cluster entry includes: name, namespace, `readiness`, broker count
 - [ ] `mcp-cluster` shows 6 brokers (broker-np1: 3 + broker-np2: 3)
-- [ ] Status values are one of: Ready, NotReady, Unknown
+- [ ] `readiness` values are one of: Ready, NotReady, Unknown
 
 ### T1.2 - Fleet Overview (namespace-scoped)
 
@@ -142,9 +169,10 @@ Parameters: {}
 **Expected:**
 - [ ] Returns array containing `mcp-cluster` (namespace: `strimzi-kafka`)
 - [ ] If `--mirror-maker` deployed: also contains `mcp-cluster-mirror` (namespace: `strimzi-kafka-mirror`)
-- [ ] Each object has: name, namespace, status, version (`4.2.0`), listeners
+- [ ] Each object has: name, namespace, `readiness`, `kafka_version` (`4.3.1`), listeners
 - [ ] Each entry includes: `running_kafka_version`, `kafka_metadata_version`, `operator_last_successful_version`, `cluster_id`
-- [ ] Each entry includes: `auto_rebalance` (state, modes), `cluster_security` (encryption, authentication)
+- [ ] Each entry includes: `cluster_security` (encryption, authentication)
+- [ ] `auto_rebalance` is absent (Strimzi only sets `status.autoRebalance` when `spec.cruiseControl.autoRebalance` is configured, which the dev cluster does not do)
 - [ ] Each entry includes: `reconciliation` (generation, observed_generation, up_to_date)
 
 ### T1.4 - List Kafka Clusters (namespace-scoped)
@@ -197,20 +225,20 @@ Parameters: { "clusterName": "mcp-cluster" }
 
 **Expected:**
 - [ ] Name: `mcp-cluster`, namespace: `strimzi-kafka`
-- [ ] Kafka version: `4.2.0`
-- [ ] 4 listeners returned:
-  - `plain`: port 9092, internal, tls=false
-  - `tls`: port 9093, internal, tls=true, auth=tls
-  - `route`: port 9666, route type, tls=true, auth=tls
-  - `console`: port 9777, internal, tls=true, auth=scram-sha-512
-- [ ] Authorization type: `simple`
+- [ ] Kafka version: `4.3.1`
+- [ ] 4 listeners returned, each with `name`, `type` and `bootstrap_address` (port, TLS and auth details are checked in T2.6 and T2.9):
+  - `plain`: internal, `...-kafka-bootstrap.strimzi-kafka.svc:9092`
+  - `tls`: internal, `...-kafka-bootstrap.strimzi-kafka.svc:9093`
+  - `route`: route, `<route host>:443`
+  - `console`: internal, `...-kafka-bootstrap.strimzi-kafka.svc:9777`
+- [ ] `authorization_enabled` is `true` (the authorization type `simple` is checked in T2.9)
 - [ ] Conditions section shows Ready condition
-- [ ] `running_kafka_version` present and matches `4.2.0` (or a patch thereof)
-- [ ] `kafka_metadata_version` present (non-null string)
+- [ ] `running_kafka_version` present and matches `4.3.1` (or a patch thereof)
+- [ ] `kafka_metadata_version` present (non-null string, `4.3-IV0`)
 - [ ] `operator_last_successful_version` present
 - [ ] `cluster_id` present and non-empty
-- [ ] `auto_rebalance` present: `state` is `Idle` (no active rebalance on dev cluster), `modes` list present
-- [ ] `cluster_security` present: `encryption` and `authentication` fields populated
+- [ ] `auto_rebalance` absent (autoRebalance is not configured on the dev cluster)
+- [ ] `cluster_security` present: `encryption` (`strimzi-tls`) and `authentication` (`strimzi-mtls`) fields populated
 - [ ] `reconciliation` present: `generation` and `observed_generation` are equal, `up_to_date` is `true`
 
 ### T2.2 - Get Kafka Cluster (with explicit namespace)
@@ -257,7 +285,7 @@ Parameters: { "clusterName": "mcp-cluster" }
 - [ ] `plain` listener: `mcp-cluster-kafka-bootstrap.strimzi-kafka.svc:9092`
 - [ ] `tls` listener: `mcp-cluster-kafka-bootstrap.strimzi-kafka.svc:9093`
 - [ ] `console` listener: `mcp-cluster-kafka-bootstrap.strimzi-kafka.svc:9777`
-- [ ] `route` listener: external route address on port 9666
+- [ ] `route` listener: external route address on port 443 (OpenShift route; 9666 is the listener's internal port)
 
 ### T2.6 - Get Cluster Certificates (all)
 
@@ -338,11 +366,10 @@ Parameters: { "clusterName": "mcp-cluster" }
 - [ ] All pods are in Running status
 - [ ] All pods are Ready
 - [ ] Kafka node pods follow naming pattern `mcp-cluster-<pool>-<id>`
-- [ ] Each Kafka node pod entry includes `revision` (non-null string from `strimzi.io/revision` annotation)
-- [ ] Each Kafka node pod entry includes `cluster_ca_cert_generation` (integer, e.g. `0`)
-- [ ] Each Kafka node pod entry includes `clients_ca_cert_generation` (integer, e.g. `0`)
-- [ ] Each Kafka node pod entry includes `server_cert_hash` (non-null hash string from `strimzi.io/server-cert-hash` annotation)
-- [ ] Non-Kafka pods (EO, CC, KE) may have these fields null/absent (annotation-based, present only on Kafka node pods)
+- [ ] Each Kafka node pod's `annotations` map includes `strimzi.io/revision` (non-null string)
+- [ ] Each Kafka node pod's `annotations` map includes `strimzi.io/cluster-ca-cert-generation` and `strimzi.io/clients-ca-cert-generation` (e.g. `"0"`)
+- [ ] Each Kafka node pod's `annotations` map includes `strimzi.io/server-cert-hash` with a real hash value (not `[REDACTED]`; a hash is not a secret)
+- [ ] Non-Kafka pods (EO, CC, KE) carry their own Strimzi annotations; the CA generation / revision keys above are only guaranteed on Kafka node pods
 
 ### T2.9 - Get Cluster Config
 
@@ -359,6 +386,12 @@ Parameters: { "clusterName": "mcp-cluster" }
   - `log.retention.hours`: -1
   - `log.retention.bytes`: 128000000
   - `log.segment.bytes`: 64000000
+- [ ] `authorization.type` is `simple`
+- [ ] `listeners[]` carries per-listener details:
+  - `plain`: port 9092, internal, tls=false, no auth
+  - `tls`: port 9093, internal, tls=true, `auth_type`=tls
+  - `route`: port 9666, route, tls=true, `auth_type`=tls
+  - `console`: port 9777, internal, tls=true, `auth_type`=scram-sha-512
 - [ ] `tiered_storage` field present (null or a `TieredStorageInfo` object — dev cluster does not use tiered storage, so it should be null/absent)
 - [ ] `quotas` field present (null or a `QuotasInfo` object — dev cluster has no cluster-level quotas plugin configured, so it should be null/absent)
 
@@ -472,7 +505,7 @@ Parameters: { "clusterName": "mcp-cluster" }
 - [ ] Contains `mcp-test-topic` (if test-clients deployed)
 - [ ] Each topic has: name, partitions, replicas, status
 - [ ] Internal Kafka topics managed by Connect/MM2 may also appear (e.g., `mcp-connect-offsets`)
-- [ ] Each topic entry includes: `topic_id` (non-null UUID string), `topic_name` (actual Kafka topic name)
+- [ ] Each topic entry includes: `topic_id` (non-null Kafka topic ID: a UUID in Kafka's 22-character base64 form, e.g. `QOmFlRZ5Rn6wyWgelqDVew`, matching `status.topicId`), `topic_name` (actual Kafka topic name)
 - [ ] Each topic entry includes: `conditions` list and `reconciliation` (generation, observed_generation, up_to_date)
 - [ ] Each topic entry includes: `managed` flag (`false` only when annotated `strimzi.io/managed=false`)
 - [ ] `replicas_change` is null/absent for topics not currently undergoing a replication factor change
@@ -622,7 +655,7 @@ Parameters: { "clusterName": "mcp-cluster", "nodePoolName": "controller-np" }
 - [ ] `status_replicas` is 3
 - [ ] `status_roles` is `[controller]`
 - [ ] `ready` is `true`
-- [ ] `conditions` list present with a Ready condition
+- [ ] `conditions` list present (Strimzi sets no Ready condition on KafkaNodePool, so it is empty or holds warnings only)
 - [ ] `reconciliation.up_to_date` is `true`
 
 ### T4.3 - Get Node Pool (broker)
@@ -640,7 +673,7 @@ Parameters: { "clusterName": "mcp-cluster", "nodePoolName": "broker-np1" }
 - [ ] `status_replicas` is 3
 - [ ] `status_roles` is `[broker]`
 - [ ] `ready` is `true`
-- [ ] `conditions` list present with a Ready condition
+- [ ] `conditions` list present (empty or warnings only, as for T4.2)
 - [ ] `reconciliation.up_to_date` is `true`
 
 ### T4.4 - Get Node Pool Pods
@@ -654,7 +687,7 @@ Parameters: { "clusterName": "mcp-cluster", "nodePoolName": "broker-np1" }
 - [ ] Returns exactly 3 pods
 - [ ] All pods are Running and Ready
 - [ ] Pod names contain `broker-np1`
-- [ ] Each pod entry includes `revision`, `cluster_ca_cert_generation`, `clients_ca_cert_generation`, `server_cert_hash` (all non-null — these are Kafka broker pods)
+- [ ] Each pod's `annotations` map includes `strimzi.io/revision`, `strimzi.io/cluster-ca-cert-generation`, `strimzi.io/clients-ca-cert-generation` and `strimzi.io/server-cert-hash` (all non-null, the hash not `[REDACTED]`; these are Kafka broker pods)
 
 ### T4.5 - Get Node Pool (nonexistent)
 
@@ -784,9 +817,9 @@ Parameters: { "clusterName": "mcp-cluster" }
 
 **Expected:**
 - [ ] `resource_type` defaults to `topic`
-- [ ] `matrix` has a `*` entry aggregating the admin and TLS users' wildcard topic grants
+- [ ] `matrix` has a `*` entry aggregating the admin and TLS users' wildcard topic grants (plus `mm2-user` with `All` when `--mirror-maker` is deployed)
 - [ ] `matrix` has a `test-`/`orders-`-prefixed entry rendered with a trailing `*` (prefix pattern)
-- [ ] `broad_grants` flags the admin user's `*` grant as `"wildcard resource, All operations"` and the TLS user's `*` grant as `"wildcard resource"`
+- [ ] `broad_grants` flags the admin user's `*` grant as `"wildcard resource, All operations"` and the TLS user's `*` grant as `"wildcard resource"`; with `--mirror-maker`, `mm2-user`'s `*` grant is also flagged as `"wildcard resource, All operations"`
 - [ ] `resource_count`, `principal_count`, and `message` are consistent with the matrix contents
 
 ### T5.8 - Get User ACLs Matrix (invalid resourceType)
@@ -872,15 +905,17 @@ Parameters: { "container": "strimzi-cluster-operator", "tailLines": 50 }
 
 ### T6.6 - Get Operator Pod
 
-> Note: get actual pod name from T6.2 results (e.g., `strimzi-cluster-operator-<suffix>`)
+> Note: `get_strimzi_operator` (T6.2) does not return the pod name. Take it from `operator_pods` in the
+> `get_strimzi_operator_logs` result (T6.4), or from `kubectl get pods -n strimzi`
+> (e.g., `strimzi-cluster-operator-<suffix>`).
 
 ```
 Tool: get_strimzi_operator_pod
-Parameters: { "namespace": "strimzi", "podName": "<pod-name-from-T6.2>" }
+Parameters: { "namespace": "strimzi", "podName": "<operator-pod-name>", "sections": "full" }
 ```
 
 **Expected:**
-- [ ] Returns detailed pod info: containers, volumes, conditions
+- [ ] Returns detailed pod info: containers, volumes, conditions (without `sections` the tool returns a summary only)
 
 ---
 
@@ -892,7 +927,8 @@ Parameters: { "operatorName": "strimzi-cluster-operator", "namespace": "strimzi"
 ```
 
 **Expected:**
-- [ ] Returns `feature_gates`, `watched_namespaces` / `watches_all_namespaces`, `operation_timeout_ms`, `full_reconciliation_interval_ms`, `leader_election_enabled`
+- [ ] Returns `watched_namespaces` / `watches_all_namespaces`, `operation_timeout_ms`, `full_reconciliation_interval_ms`, `leader_election_enabled`
+- [ ] `feature_gates` is present only when `STRIMZI_FEATURE_GATES` is set (empty on the dev operator, so absent)
 - [ ] `supported_kafka_versions` is a non-empty list parsed from `STRIMZI_KAFKA_IMAGES`
 - [ ] `config` contains operator environment variables, with `valueFrom` entries encoded as descriptive reference strings
 - [ ] Omitting `operatorName` auto-discovers the operator and returns the same result
@@ -922,7 +958,7 @@ Parameters: { "resourceName": "mcp-cluster", "resourceKind": "Kafka" }
 
 **Expected:**
 - [ ] Returns Kubernetes events related to `mcp-cluster`
-- [ ] Events grouped by resource (Kafka CR, pods, PVCs)
+- [ ] Events grouped by resource: pods and PVCs (a Kafka CR group appears only if the CR itself has events; Strimzi usually emits none)
 - [ ] Each event has: timestamp, reason, message, type (Normal/Warning)
 
 ### T7.2 - Get Events (time-scoped)
@@ -1035,7 +1071,7 @@ Parameters: {}
 **Expected:**
 - [ ] Returns 1 entry: `strimzi-drain-cleaner` in namespace `strimzi-drain-cleaner`
 - [ ] Entry shows ready status
-- [ ] A setting supplied through `valueFrom` or a matching `envFrom` ConfigMap/Secret shows `unknown (...)` naming the source, not a value
+- [ ] *(Only with a Drain Cleaner that sets env via `valueFrom`/`envFrom`; the dev manifests use literal values, so SKIP otherwise)* A setting supplied through `valueFrom` or a matching `envFrom` ConfigMap/Secret shows `unknown (...)` naming the source, not a value
 
 ### T9.2 - Get Drain Cleaner
 
@@ -1049,7 +1085,7 @@ Parameters: { "drainCleanerName": "strimzi-drain-cleaner" }
 - [ ] Deployment is ready
 - [ ] Webhook configuration present (`ValidatingWebhookConfiguration`)
 - [ ] Environment variables visible: `STRIMZI_DENY_EVICTION`, `STRIMZI_DRAIN_KAFKA`
-- [ ] `STRIMZI_DENY_EVICTION` set through `valueFrom` or a matching `envFrom` source shows `unknown (...)` naming the source; a literal `env` entry wins over `envFrom`
+- [ ] *(Only with `valueFrom`/`envFrom` env, SKIP on the dev manifests)* `STRIMZI_DENY_EVICTION` set through `valueFrom` or a matching `envFrom` source shows `unknown (...)` naming the source; a literal `env` entry wins over `envFrom`
 
 ### T9.3 - Check Drain Cleaner Readiness
 
@@ -1058,12 +1094,14 @@ Tool: check_drain_cleaner_readiness
 Parameters: {}
 ```
 
+> Requires the sensitive RBAC prerequisite in `strimzi-drain-cleaner` (the TLS check reads the `strimzi-drain-cleaner` Secret).
+
 **Expected:**
 - [ ] Deployment: healthy
 - [ ] Webhook: configured
 - [ ] Certificates: valid
 - [ ] Overall verdict: ready
-- [ ] When `STRIMZI_DENY_EVICTION` comes from `valueFrom` or a matching `envFrom` source, the Operating mode check fails with a recommendation naming the source; the `envFrom` case also notes that an unset variable means the default (standard mode)
+- [ ] *(Only with `valueFrom`/`envFrom` env, SKIP on the dev manifests)* When `STRIMZI_DENY_EVICTION` comes from `valueFrom` or a matching `envFrom` source, the Operating mode check fails with a recommendation naming the source; the `envFrom` case also notes that an unset variable means the default (standard mode)
 
 ### T9.4 - Get Drain Cleaner Logs
 
@@ -1113,7 +1151,7 @@ Parameters: { "connectName": "mcp-connect" }
 - [ ] Name: `mcp-connect`, namespace: `strimzi-kafka`
 - [ ] Bootstrap: `mcp-cluster-kafka-bootstrap:9093`
 - [ ] Replicas: 1
-- [ ] TLS + client cert authentication configured
+- [ ] Bootstrap on the TLS port (9093). The response has no authentication/TLS fields; the spec's `authentication.type: tls` is not surfaced
 - [ ] Build plugins include: `camel-timer-source` (v4.18.0)
 - [ ] Status conditions present
 - [ ] `build` object present (dev cluster uses `spec.build`):
@@ -1121,7 +1159,7 @@ Parameters: { "connectName": "mcp-connect" }
   - [ ] `build.output_type` is `docker` or `imagestream`
   - [ ] `build.build_mechanism` is `KubernetesPod` or `OpenShiftBuild`
   - [ ] `build.plugins` array contains at least one plugin with `name` and `artifacts`
-  - [ ] `build.plugins[0].artifacts` contains at least one artifact with `type` and `source`
+  - [ ] `build.plugins[0].artifacts` contains at least one artifact with `type` and `source`; `source` is the full Maven URL, unaltered (`https://repo.maven.apache.org/maven2/org/apache/camel/kafkaconnector/...`)
   - [ ] `build.build_logs` is null/absent (dev cluster build is healthy)
   - [ ] `build.builder` is absent on Kubernetes once the operator deletes the builder pod; on OpenShift it may be present with `phase=Complete` (the Build object persists)
   - [ ] `build.message` indicates build state (e.g., "Build completed" or "Build configured")
@@ -1146,17 +1184,19 @@ Parameters: { "connectName": "mcp-connect", "tailLines": 50 }
 
 **Expected:**
 - [ ] Returns Connect worker logs
-- [ ] Should show connector activity (timer source emitting messages)
+- [ ] Should show connector activity. The tail is mostly REST access logs, so confirm with
+  `{ "connectName": "mcp-connect", "keywords": ["WorkerSourceTask"], "tailLines": 5 }`, which shows
+  `WorkerSourceTask{id=mcp-timer-source-0} Committing offsets ...`
 
 ### T10.4a - Get Connect Logs (single container)
 
 ```
 Tool: get_kafka_connect_logs
-Parameters: { "connectName": "mcp-connect", "container": "kafka-connect", "tailLines": 50 }
+Parameters: { "connectName": "mcp-connect", "container": "mcp-connect-connect", "tailLines": 50 }
 ```
 
 **Expected:**
-- [ ] Returns log lines only from the 'kafka-connect' container
+- [ ] Returns log lines only from the `mcp-connect-connect` container (Strimzi names the container `<connect-name>-connect`)
 - [ ] At most 50 lines returned
 
 ### T10.5 - Get Events for KafkaConnect
@@ -1210,12 +1250,16 @@ Parameters: { "connectorName": "mcp-timer-source" }
 - [ ] Config includes: `topics: mcp-connect-timer-topic`, `camel.kamelet.timer-source.period: 60000`
 - [ ] Task status: Running
 - [ ] `offsets.config_map_name`: `mcp-timer-source-offsets`
-- [ ] Values of secret-named config keys (for example `*.password`, `*.secret`, `sasl.jaas.config`) are `[REDACTED]`; non-secret keys such as `key.converter` are returned unchanged
+- [ ] Non-secret config keys (e.g. `topics`, `camel.kamelet.timer-source.period`) are returned unchanged
+- [ ] *(Only when the connector config has secret-named keys, e.g. `*.password`, `*.secret`, `sasl.jaas.config`; the dev connector has none, so SKIP)* their values are `[REDACTED]`. Converter settings such as `key.converter` live in the KafkaConnect `spec.config`, not in the connector
 
 ### T11.4 - Get Connector Offsets
 
 The dev connector declares `spec.listOffsets.toConfigMap: mcp-timer-source-offsets`, but the operator only
 publishes offsets on request.
+
+> On a re-run the ConfigMap from the previous run still exists, so the "before" step shows `available: true`.
+> Delete it first (`kubectl delete configmap mcp-timer-source-offsets -n strimzi-kafka`) or skip the "before" checks.
 
 ```
 Tool: get_kafka_connector
@@ -1295,11 +1339,11 @@ Parameters: { "bridgeName": "mcp-bridge", "tailLines": 50 }
 
 ```
 Tool: get_kafka_bridge_logs
-Parameters: { "bridgeName": "mcp-bridge", "container": "kafka-bridge", "tailLines": 50 }
+Parameters: { "bridgeName": "mcp-bridge", "container": "mcp-bridge-bridge", "tailLines": 50 }
 ```
 
 **Expected:**
-- [ ] Returns log lines only from the 'kafka-bridge' container
+- [ ] Returns log lines only from the `mcp-bridge-bridge` container (Strimzi names the container `<bridge-name>-bridge`)
 - [ ] At most 50 lines returned
 
 ### T12.5 - Get Events for KafkaBridge
@@ -1364,7 +1408,7 @@ Parameters: { "mirrorMakerName": "mcp-mirror-maker" }
 
 **Expected:**
 - [ ] Name: `mcp-mirror-maker`, namespace: `strimzi-mirror-maker`
-- [ ] Version: 4.2.0, replicas: 1
+- [ ] Version: 4.3.1, replicas: 1
 - [ ] Source cluster alias: `mcp-cluster` (bootstrap: `mcp-cluster-kafka-bootstrap.strimzi-kafka.svc:9777`)
 - [ ] Target cluster alias: `mcp-cluster-mirror` (bootstrap: `mcp-cluster-mirror-kafka-bootstrap.strimzi-kafka-mirror.svc:9092`)
 - [ ] Topics pattern: `.*`, excludes: `__.*`
@@ -1396,11 +1440,11 @@ Parameters: { "mirrorMakerName": "mcp-mirror-maker", "tailLines": 50 }
 
 ```
 Tool: get_kafka_mirror_maker_logs
-Parameters: { "mirrorMakerName": "mcp-mirror-maker", "container": "kafka-mirrormaker", "tailLines": 50 }
+Parameters: { "mirrorMakerName": "mcp-mirror-maker", "container": "mcp-mirror-maker-mirrormaker2", "tailLines": 50 }
 ```
 
 **Expected:**
-- [ ] Returns log lines only from the 'kafka-mirrormaker' container
+- [ ] Returns log lines only from the `mcp-mirror-maker-mirrormaker2` container (Strimzi names the container `<mm2-name>-mirrormaker2`)
 - [ ] At most 50 lines returned
 
 ### T13.5 - Get Events for MirrorMaker2
@@ -1422,13 +1466,13 @@ Parameters: { "clusterName": "mcp-cluster-mirror" }
 
 **Expected:**
 - [ ] Name: `mcp-cluster-mirror`, namespace: `strimzi-kafka-mirror`
-- [ ] Version: 4.2.0
-- [ ] Only 1 listener: `plain` on port 9092, no TLS
-- [ ] No authorization configured
+- [ ] Version: 4.3.1
+- [ ] Only 1 listener: `plain`, bootstrap address `mcp-cluster-mirror-kafka-bootstrap.strimzi-kafka-mirror.svc:9092` (TLS details are in `get_kafka_cluster_config`)
+- [ ] No authorization configured (`authorization_enabled: false`)
 - [ ] `running_kafka_version` present
 - [ ] `cluster_id` present and non-empty
 - [ ] `reconciliation.up_to_date` is `true`
-- [ ] `cluster_security` present (may show no encryption/auth for a plain, unauthenticated cluster)
+- [ ] `cluster_security` present: `encryption` `strimzi-tls`, `authentication` `strimzi-mtls` (this is Strimzi's internal inter-component security from `status.clusterSecurity`, not the plain client listener)
 
 ### T13.7 - List Mirror Cluster Node Pools
 
@@ -1454,7 +1498,7 @@ Parameters: { "clusterName": "mcp-cluster-mirror" }
 > Metrics require either Prometheus (`--prometheus`) or pod-scraping (default).
 > Pod-scraping works without Prometheus but returns point-in-time values only.
 
-### T14.1 - Get Kafka Metrics (all categories)
+### T14.1 - Get Kafka Metrics (default category, then each category)
 
 ```
 Tool: get_kafka_metrics
@@ -1462,8 +1506,8 @@ Parameters: { "clusterName": "mcp-cluster" }
 ```
 
 **Expected:**
-- [ ] Returns broker metrics from `mcp-cluster`
-- [ ] Includes categories: replication, throughput, performance, resources
+- [ ] Returns broker metrics from `mcp-cluster`; without `category` the tool returns the `replication` category only (there is no "all categories" mode)
+- [ ] Repeating the call with `"category"` set to `throughput`, `performance` and `resources` returns data for each
 - [ ] Each metric has interpretation hints
 
 ### T14.2 - Get Kafka Metrics (replication)
@@ -1477,21 +1521,27 @@ Parameters: { "clusterName": "mcp-cluster", "category": "replication" }
 - [ ] Returns replication metrics only
 - [ ] Includes: `kafka_controller_kafkacontroller_offlinepartitionscount` (should be 0 on healthy cluster — controller pods now retained after B2a filter fix), `kafka_server_replicamanager_underreplicatedpartitions`, `kafka_server_replicamanager_leadercount`
 
-### T14.3 - Get Kafka Metrics (performance — requesthandler idle)
+### T14.3 - Get Kafka Metrics (performance — idle ratio, min aggregation)
+
+The dev Kafka cluster exports metrics with the Strimzi Metrics Reporter (`strimziMetricsReporter` in
+`010-Kafka.yaml`). On SMR, `kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent` is unmapped
+by design (`KafkaMetricCategories`), so this test uses the network processor idle ratio instead. Pass
+`metricNames` without `category`.
 
 ```
 Tool: get_kafka_metrics
 Parameters: {
   "clusterName": "mcp-cluster",
-  "category": "performance",
-  "metricNames": "kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent"
+  "metricNames": "kafka_network_socketserver_networkprocessoravgidle_percent"
 }
 ```
 
 **Expected:**
-- [ ] `requesthandleravgidle_percent` returns data (was broken — queried `brokerrequesthandleravgidle_percent` which does not exist in the JMX exporter output; fixed in B1)
+- [ ] The network processor idle ratio returns data (one value close to 1.0 on an idle dev cluster)
 - [ ] At the default level the series carries `aggregation_fn` = `min` (the most saturated broker, not the mean across brokers)
 - [ ] Repeating the call with `"aggregation": "BROKER"` returns one series per broker pod, and the default value equals the lowest of them
+- [ ] *(JMX exporter clusters only)* the same checks pass for `kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent`
+- [ ] `{ "clusterName": "mcp-cluster", "category": "performance" }` returns the request metrics (`requestqueuetimems`, `totaltimems`, ... with p50 and p99) **and** the network processor idle ratio, and is not truncated
 
 ### T14.3b - Get Kafka Metrics (time range)
 
@@ -1519,8 +1569,9 @@ Parameters: { "clusterName": "mcp-cluster" }
 
 **Expected:**
 - [ ] Returns Kafka Exporter metrics (Kafka Exporter is enabled on `mcp-cluster` with `topicRegex: ".*"`)
-- [ ] Consumer lag and topic-level stats present
-- [ ] Resources category returns Go process metrics: `process_cpu_seconds_total`, `process_resident_memory_bytes`, `process_open_fds`, `go_goroutines` (kafka_exporter is a Go binary — no `jvm_*` metrics)
+- [ ] Default category (`consumer_lag`) returns consumer group lag
+- [ ] `"category": "partitions"` with `"aggregation": "TOPIC"` returns topic-level stats (the default level for `partitions` is per partition and very large)
+- [ ] `"category": "resources"` returns Go process metrics from the Kafka Exporter pod only: `process_cpu_seconds_rate_per_second` (the Prometheus provider converts `process_cpu_seconds_total` to a rate), `process_resident_memory_bytes`, `process_open_fds`, `go_goroutines` (kafka_exporter is a Go binary — no `jvm_*` metrics)
 
 ### T14.5 - Get Bridge Metrics
 
@@ -1569,9 +1620,10 @@ Parameters: { "clusterName": "mcp-cluster", "category": "reconciliation" }
 ```
 
 **Expected:**
-- [ ] Returns reconciliation metrics for `mcp-cluster`
-- [ ] Includes: `strimzi_reconciliations_total`, `strimzi_reconciliations_failed_total`
-- [ ] Includes: `strimzi_reconciliations_locked_total` (lock contention), `strimzi_reconciliations_periodical_total` (timer-triggered)
+- [ ] Returns cluster operator reconciliation metrics (these cover every namespace the operator watches, not only `mcp-cluster`) plus entity operator metrics for `mcp-cluster` (`kind` = `KafkaTopic` / `KafkaUser`)
+- [ ] Includes: `strimzi_reconciliations`, `strimzi_reconciliations_failed` (the Prometheus provider returns counters as `<name>_rate_per_second`, e.g. `strimzi_reconciliations_rate_per_second`)
+- [ ] Includes: `strimzi_reconciliations_locked` (lock contention), `strimzi_reconciliations_periodical` (timer-triggered), with the same `_rate_per_second` suffix
+- [ ] Entity operator series are present (requires the entity-operator PodMonitor to scrape the `healthcheck-to` / `healthcheck-uo` ports)
 
 ### T14.9 - Get Cruise Control Metrics
 
@@ -1610,7 +1662,7 @@ Parameters: { "clusterName": "mcp-cluster" }
 - [ ] Returns multi-section diagnostic report
 - [ ] Sections include: cluster status, node pool health (3 pools), pod health (12 pods), operator status
 - [ ] Includes: log analysis, event analysis, metrics summary
-- [ ] Steps completed/failed list present
+- [ ] `steps_completed` present (`steps_failed` may be omitted when no step failed)
 - [ ] Completes within 120 seconds
 
 ### T15.2 - Diagnose Kafka Cluster (with symptom)
@@ -1625,8 +1677,9 @@ Parameters: {
 ```
 
 **Expected:**
-- [ ] Diagnosis focuses on latency-related metrics and logs
-- [ ] Time window matches `sinceMinutes: 60`
+- [ ] With a Sampling-capable client: the triage narrows the gathered areas to latency-related metrics and logs
+- [ ] Without Sampling: the symptom is accepted, all areas are gathered and metrics use the `replication` category (for latency metrics use `diagnose_kafka_metrics` with `concern`)
+- [ ] Time window matches `sinceMinutes: 60` (metrics range 3600 s, logs and events from the last 60 minutes)
 
 ### T15.2b - Diagnose Kafka Storage
 
@@ -1763,11 +1816,12 @@ Parameters: {
 ```
 
 **Expected:**
-- [ ] Returns side-by-side comparison highlighting significant differences:
+- [ ] Returns both cluster configs side by side, showing the differences:
   - `mcp-cluster`: 6 brokers + 3 controllers, 4 listeners, TLS, authorization, RF=3
   - `mcp-cluster-mirror`: 1 combined node, 1 listener (plain), no auth, RF=1
-- [ ] Listener configuration differences clearly shown
-- [ ] Replication factor / min ISR differences highlighted
+- [ ] Listener configuration differences visible in the data
+- [ ] Replication factor / min ISR values visible (3 / 2 vs 1 / 1)
+- [ ] With a Sampling-capable client: `analysis` highlights the significant differences (there is no server-side diff without Sampling)
 
 ### T15.12 - Assess Upgrade Readiness
 
@@ -1778,15 +1832,15 @@ Parameters: { "clusterName": "mcp-cluster" }
 
 **Expected:**
 - [ ] Returns upgrade readiness report
-- [ ] Checks: cluster health, replication (RF=3 with min ISR=2), operator readiness
+- [ ] Checks: cluster health, replication, operator readiness (RF=3 / min ISR=2 topics are checked inside `preflight_checks`, which reports nothing when they are fine: expect no `topic_durability` finding for them)
 - [ ] The replication check gathers metrics over the last 15 minutes (`rangeMinutes=15`) so lag is judged as a trend; without Prometheus the pod-scraping provider returns a single point instead
-- [ ] Checks: certificate validity
+- [ ] Checks: certificate validity (requires the sensitive RBAC prerequisite)
 - [ ] If `--drain-cleaner`: Drain Cleaner status included
-- [ ] GO / NO-GO verdict present
+- [ ] With a Sampling-capable client: GO / NO-GO verdict present in `analysis`; without Sampling the raw data and `preflight_findings` are returned and there is no verdict
 - [ ] `certificates` and `drain_cleaner` are in `steps_completed` (or `steps_failed`), even when the cluster is Ready
 - [ ] `preflight_checks` is in `steps_completed` (or `steps_failed`); a fully successful run completes 11 steps
 - [ ] With `"targetVersion": "Kafka 9.9.9"` a `preflight_findings` entry with severity `BLOCKER` and check `version_path` reports the version as unsupported by the operator
-- [ ] A topic with `min.insync.replicas` equal to its replica count (create one with `min.insync.replicas=3`, `replicas=3`) yields a `BLOCKER` `topic_durability` finding naming that topic
+- [ ] *(Optional, changes the cluster)* A topic with `min.insync.replicas` equal to its replica count (create one with `min.insync.replicas=3`, `replicas=3`, delete it afterwards) yields a `BLOCKER` `topic_durability` finding naming that topic
 
 ### T15.12b - Audit Kafka Security
 
@@ -1798,10 +1852,11 @@ Parameters: { "clusterName": "mcp-cluster" }
 **Expected:**
 - [ ] Returns security audit report
 - [ ] Report includes: `cluster` (listeners, authentication), `authorization_type`, `certificates` (CA and client cert expiry), `users` (KafkaUser inventory)
-- [ ] Report includes: `acl_matrices` (topic, group, transactionalId, cluster) with `broad_grants` flagged (wildcard resource, `All` operation, cluster-level access)
+- [ ] Report includes: `acl_matrices`, one per resource type that has at least one ACL (topic, group and cluster on the dev cluster; transactionalId only if such ACLs exist), with `broad_grants` flagged (wildcard resource, `All` operation, cluster-level access: on the dev cluster `mm2-user`'s `Alter`/`Create`/`Describe` on the cluster is flagged)
+- [ ] `certificates` lists the cluster and clients CA (requires the sensitive RBAC prerequisite)
 - [ ] `steps_completed` includes: `cluster_security`, `certificates`, `users`, `acls`
 - [ ] If Sampling supported: `analysis` contains structured findings (HIGH/MEDIUM/INFORMATIONAL) and recommendations
-- [ ] If Sampling not supported: `analysis` is `null`, raw data returned
+- [ ] If Sampling not supported: `analysis` is absent, raw data returned
 - [ ] If no KafkaUsers: ACL audit skipped, report still completes with `users: []`
 - [ ] `message` and `timestamp` present
 
@@ -1818,7 +1873,9 @@ Parameters: { "clusterName": "nonexistent-cluster-xyz" }
 
 ### T15.14 - Stateless Client MRTR - Diagnose Cluster
 
-> **Note:** This test requires a stateless MCP client (streamable HTTP, protocol `2026-07-28`).
+> **Note:** This test requires a stateless MCP client (streamable HTTP, protocol `2026-07-28`) **that advertises
+> Sampling**. A stateless client without Sampling (e.g. Claude Code) gets the full raw report with no
+> `input_required`; record SKIP in that case.
 
 ```
 Tool: diagnose_kafka_cluster
@@ -1925,9 +1982,12 @@ Parameters: { "clusterName": "mcp-cluster", "tailLines": 1000 }
 **Expected:**
 - [ ] Returns within reasonable time
 - [ ] Response respects `mcp.guardrail.max-response-bytes` (default 500KB)
+- [ ] When truncated, `logs` still holds content close to the size limit (whole log lines, not a ~100-character stub), and the response says it was truncated
+- [ ] Asking for more lines never returns less log content than asking for fewer (compare `tailLines` 100, 200 and 1000)
 - [ ] Sensitive data is redacted if `mcp.guardrail.log-redaction.enabled` is true
 - [ ] Values stored under secret-named JSON fields or config keys are redacted even when the value has no `key=value` shape
-- [ ] Container image digests (`sha256:...`) in responses are not altered
+- [ ] Container image references are not altered: the digest (`sha256:...`) **and** the image name before it are kept (check a digest-pinned image such as the OpenShift-built Connect image)
+- [ ] Log messages containing `@` (e.g. Java `Object@1a2b3c`) keep their text
 
 ---
 
@@ -1965,13 +2025,13 @@ sequentially and verify cross-tool consistency.
 
 1. `get_kafka_cluster` for `mcp-cluster` - note 4 listeners
 2. `get_kafka_bootstrap_servers` for `mcp-cluster` - note 4 addresses
-3. `get_kafka_cluster_certificates` for `mcp-cluster` - note cert expiry for TLS listeners
+3. `get_kafka_cluster_certificates` for `mcp-cluster` - note CA expiry and listener authentication (requires the sensitive RBAC prerequisite)
 4. `list_kafka_users` for `mcp-cluster` - note auth types (SCRAM + TLS users)
 5. `diagnose_kafka_connectivity` for `mcp-cluster` - verify all above data referenced
 
 **Expected:**
 - [ ] Bootstrap addresses match listener config (4 listeners, 4 bootstrap entries)
-- [ ] Certificates present for `tls`, `route`, `console` listeners
+- [ ] Cluster CA and clients CA certificates present; `listener_authentication` shows `tls`, `route`, `console` with TLS enabled
 - [ ] Diagnostic references listeners, certs, and users
 
 ### E2E-4: Operator Health
@@ -1992,7 +2052,7 @@ sequentially and verify cross-tool consistency.
 > Requires: `--connect`
 
 1. `list_kafka_connects` - find `mcp-connect` in `strimzi-kafka`
-2. `get_kafka_connect` for `mcp-connect` - verify 1 replica, TLS auth
+2. `get_kafka_connect` for `mcp-connect` - verify 1 replica and the bootstrap address on the TLS port 9093 (the response has no authentication field)
 3. `get_kafka_connect_pods` for `mcp-connect` - verify 1 pod Running
 4. `list_kafka_connectors` for `mcp-connect` - find `mcp-timer-source`
 5. `get_kafka_connector` for `mcp-timer-source` - verify Camel Timer Source, 1 task Running
@@ -2006,16 +2066,16 @@ sequentially and verify cross-tool consistency.
 
 ### E2E-6: Upgrade Readiness Assessment
 
-1. `get_kafka_cluster` for `mcp-cluster` - note version 4.2.0
+1. `get_kafka_cluster` for `mcp-cluster` - note version 4.3.1
 2. `get_kafka_cluster_pods` for `mcp-cluster` - verify all 12 pods healthy
 3. `get_kafka_metrics` with category `replication` - verify 0 offline partitions
-4. If `--drain-cleaner`: `check_drain_cleaner_readiness` - verify ready
-5. `get_kafka_cluster_certificates` for `mcp-cluster` - verify certs not expired
+4. If `--drain-cleaner`: `check_drain_cleaner_readiness` - verify ready (requires the sensitive RBAC prerequisite)
+5. `get_kafka_cluster_certificates` for `mcp-cluster` - verify certs not expired (requires the sensitive RBAC prerequisite)
 6. `assess_upgrade_readiness` for `mcp-cluster` - comprehensive assessment
 
 **Expected:**
 - [ ] All individual checks pass on a healthy dev cluster
-- [ ] Assessment gives GO verdict
+- [ ] With a Sampling-capable client: assessment gives a GO verdict; without Sampling: no `preflight_findings` with severity `BLOCKER` and no failed checks in the raw data
 - [ ] All data points from individual tools are referenced in assessment
 
 ### E2E-7: Cross-Cluster Comparison (main vs mirror)
@@ -2029,8 +2089,8 @@ sequentially and verify cross-tool consistency.
 5. `compare_kafka_clusters` - verify differences match
 
 **Expected:**
-- [ ] Comparison highlights the large differences between production-like and minimal mirror cluster
-- [ ] Config differences (replication.factor, min.insync.replicas, listeners) are all flagged
+- [ ] The configs returned by `compare_kafka_clusters` match `get_kafka_cluster_config` for both clusters
+- [ ] Config differences (replication.factor, min.insync.replicas, listeners) are visible in the data; with a Sampling-capable client, `analysis` highlights and flags them all
 - [ ] No false equivalences reported
 
 ---
@@ -2318,7 +2378,8 @@ This phase tests all three server-side error handling patterns under RBAC restri
 | 13    | T13.7   | list_kafka_node_pools (mirror) | --mirror-maker | | |
 | 14    | T14.1   | get_kafka_metrics | core | | |
 | 14    | T14.2   | get_kafka_metrics (replication) | core | | |
-| 14    | T14.3   | get_kafka_metrics (time range) | core | | |
+| 14    | T14.3   | get_kafka_metrics (performance, min aggregation) | core | | |
+| 14    | T14.3b  | get_kafka_metrics (time range) | core | | |
 | 14    | T14.4   | get_kafka_exporter_metrics | core | | |
 | 14    | T14.5   | get_kafka_bridge_metrics | --bridge | | |
 | 14    | T14.6   | get_kafka_connect_metrics | --connect | | |
