@@ -68,6 +68,9 @@ Build the container image and deploy to a local cluster:
 ./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:dev --ocp
 ./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:dev --ocp --loki --prometheus
 
+# Add --sensitive to grant Secret access (certificate and Drain Cleaner TLS checks)
+./dev/scripts/dev-deploy.sh quay.io/streamshub/strimzi-mcp:dev --ocp --loki --prometheus --sensitive
+
 # Or build and push to a custom registry, then deploy
 ./mvnw package -pl strimzi-mcp -am -DskipTests \
   -Dquarkus.container-image.build=true \

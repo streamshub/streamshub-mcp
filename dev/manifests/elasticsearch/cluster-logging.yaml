@@ -14,7 +14,7 @@ metadata:
   name: cluster-logging
   namespace: elasticsearch-logging
 spec:
-  channel: stable-6.6
+  channel: stable-6.7
   name: cluster-logging
   source: redhat-operators
   sourceNamespace: openshift-marketplace

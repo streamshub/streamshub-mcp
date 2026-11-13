@@ -11,7 +11,12 @@ LOKI=false
 ELASTICSEARCH=false
 PROMETHEUS=false
 OTEL=false
+SENSITIVE=false
 LOADER=""
+
+# Namespaces that receive the optional sensitive Role (Secrets + pods/proxy) with --sensitive.
+# Defaults match the namespaces created by setup-strimzi.sh; missing namespaces are skipped.
+SENSITIVE_NAMESPACES="${SENSITIVE_NAMESPACES:-strimzi-kafka strimzi-kafka-mirror strimzi-drain-cleaner}"
 
 usage() {
     echo "Usage: $0 <image> [--kind | --minikube | --k3d] [--ocp]"
@@ -34,6 +39,10 @@ usage() {
     echo "                 (OCP: Thanos Querier with sa-token auth)"
     echo "  --otel         Enable OpenTelemetry tracing"
     echo "                 (defaults to Jaeger in observability namespace)"
+    echo "  --sensitive    Grant the optional sensitive Role (Secrets, pods/proxy) in the Strimzi"
+    echo "                 namespaces: enables certificate checks and Drain Cleaner TLS checks"
+    echo "                 (namespaces: \$SENSITIVE_NAMESPACES, default:"
+    echo "                  strimzi-kafka strimzi-kafka-mirror strimzi-drain-cleaner)"
     echo ""
     echo "Examples:"
     echo "  $0 quay.io/streamshub/strimzi-mcp:latest"
@@ -42,8 +51,12 @@ usage() {
     echo "  $0 quay.io/streamshub/strimzi-mcp:latest --ocp"
     echo "  $0 quay.io/streamshub/strimzi-mcp:latest --ocp --loki --prometheus"
     echo "  $0 quay.io/streamshub/strimzi-mcp:latest --kind --elasticsearch"
+    echo "  $0 quay.io/streamshub/strimzi-mcp:latest --ocp --loki --prometheus --sensitive"
     echo ""
     echo "Override defaults with environment variables:"
+    echo "  SENSITIVE_NAMESPACES=\"my-kafka my-other-kafka\" \\"
+    echo "    $0 <image> --sensitive"
+    echo ""
     echo "  QUARKUS_REST_CLIENT_LOKI_URL=https://custom:3100 \\"
     echo "    $0 <image> --ocp --loki"
     echo ""
@@ -97,6 +110,7 @@ for arg in "$@"; do
         --elasticsearch) ELASTICSEARCH=true ;;
         --prometheus) PROMETHEUS=true ;;
         --otel)     OTEL=true ;;
+        --sensitive) SENSITIVE=true ;;
         *)
             echo "Unknown option: $arg"
             usage
@@ -155,6 +169,20 @@ if [ "$LOKI" = true ]; then
         MCP_LOG_LOKI_LABEL_NAMESPACE="${MCP_LOG_LOKI_LABEL_NAMESPACE:-kubernetes_namespace_name}" \
         MCP_LOG_LOKI_LABEL_POD="${MCP_LOG_LOKI_LABEL_POD:-kubernetes_pod_name}" \
         QUARKUS_TLS_TRUST_ALL="${QUARKUS_TLS_TRUST_ALL:-true}"
+fi
+
+SENSITIVE_GRANTED=""
+if [ "$SENSITIVE" = true ]; then
+    echo "==> Granting sensitive RBAC (Secrets, pods/proxy) to service account $SA_NAME"
+    for ns in $SENSITIVE_NAMESPACES; do
+        if ! kubectl get namespace "$ns" > /dev/null 2>&1; then
+            echo "    Skipping namespace '$ns' (not found)"
+            continue
+        fi
+        kubectl apply -n "$ns" -f "$OPTIONAL_DIR/role-sensitive.yaml"
+        kubectl apply -n "$ns" -f "$OPTIONAL_DIR/rolebinding-sensitive.yaml"
+        SENSITIVE_GRANTED="$SENSITIVE_GRANTED $ns"
+    done
 fi
 
 if [ "$ELASTICSEARCH" = true ]; then
@@ -218,5 +246,12 @@ if [ "$PROMETHEUS" = true ]; then
 fi
 if [ "$OTEL" = true ]; then
     echo "  OpenTelemetry tracing: enabled"
+fi
+if [ "$SENSITIVE" = true ]; then
+    if [ -n "$SENSITIVE_GRANTED" ]; then
+        echo "  Sensitive RBAC: granted in${SENSITIVE_GRANTED}"
+    else
+        echo "  Sensitive RBAC: no namespace found (checked: $SENSITIVE_NAMESPACES)"
+    fi
 fi
 echo "Watch rollout: kubectl -n $DEPLOY_NS rollout status $DEPLOY_TARGET"
