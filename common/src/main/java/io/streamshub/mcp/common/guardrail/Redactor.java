@@ -27,8 +27,11 @@ import java.util.regex.PatternSyntaxException;
  * <ul>
  *   <li><b>Pattern rules</b> on every text value: bearer tokens, {@code Authorization: Basic}
  *   (also when the value is a bare {@code Basic <credentials>}),
- *   password/API-key/secret/token assignments, credentials embedded in URLs, PEM private keys
- *   and long base64-like strings. Container image digests ({@code sha256:...}) are kept.</li>
+ *   password/API-key/secret/token assignments (an upper-case enum such as {@code apiKey=FETCH} is kept),
+ *   credentials embedded in URLs
+ *   ({@code scheme://user:pass@host}, without crossing whitespace, double quotes or {@code /}), PEM private keys
+ *   and long base64-like strings. Hex strings (hashes, container IDs, image digests) and runs that start
+ *   like a slash-separated path (such as {@code org/apache/...} in a JVM class name or a URL path) are kept.</li>
  *   <li><b>Key-name rules</b> on JSON objects: a text value stored under a key that names a
  *   secret (see {@link SensitiveKeys}) is replaced even when the value itself has no
  *   recognisable shape, e.g. {@code {"password":"hunter2"}}.</li> // HashiCorpIgnore
@@ -60,21 +63,35 @@ public class Redactor {
         new RedactionRule("password",
             Pattern.compile("(?i)(password|passwd|pwd)\\s*[=:]\\s*\\S+"),
             "$1=" + REDACTED),
+        // A value made only of upper-case letters and underscores, followed by a value terminator, is a
+        // protocol enum such as the Kafka request type in RequestHeader(apiKey=BROKER_HEARTBEAT, ...), not
+        // a key. The possessive quantifier keeps the check linear.
         new RedactionRule("api-key",
-            Pattern.compile("(?i)(api[_\\-]?key|apikey)\\s*[=:]\\s*\\S+"),
+            Pattern.compile("(?i)(api[_\\-]?key|apikey)\\s*[=:]\\s*"
+                + "(?!(?-i:[A-Z][A-Z_]*+)(?=[\\s,;)\\]}\"'\\\\]|$))\\S+"),
             "$1=" + REDACTED),
         new RedactionRule("secret-key",
             Pattern.compile("(?i)(secret[_\\-]?key|secret|token)\\s*[=:]\\s*\\S+"),
             "$1=" + REDACTED),
+        // The user and password may not contain whitespace, double quotes or URL delimiters, so a match
+        // cannot run across JSON fields of a one-line log record or into a URL path. The user may
+        // contain '@' (email-style usernames such as alice@example.com).
         new RedactionRule("connection-string",
-            Pattern.compile("(?i)://[^:\\r\\n]+:[^@\\r\\n]+@"),
+            Pattern.compile("://[^\\s:/?#\\[\\]\"]+:[^\\s/?#\\[\\]@\"]+@"),
             "://" + REDACTED + "@"),
         new RedactionRule("private-key-block",
             Pattern.compile("(?is)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----"),
             REDACTED),
         new RedactionRule("base64-token",
-            Pattern.compile("(?<!sha256:)(?<!sha512:)(?<!sha384:)(?<![a-zA-Z0-9/+])"
-                + "[A-Za-z0-9+/]{40,}={0,2}(?![a-zA-Z0-9/+=])"),
+            // Start of a run only, and not right after an image digest prefix. The run-boundary
+            // lookbehind must stay first: it rejects positions inside a run before the lookaheads
+            // below scan to its end, which keeps matching linear on long runs.
+            Pattern.compile("(?<![A-Za-z0-9+/])(?<!sha256:)(?<!sha384:)(?<!sha512:)"
+                // Not a slash-separated path (URLs, JVM class names).
+                + "(?!/?(?:[a-z0-9]+/){2})"
+                // Must mix upper case, lower case and digits, so hex hashes and IDs are kept.
+                + "(?=[A-Za-z0-9+/]*[A-Z])(?=[A-Za-z0-9+/]*[a-z])(?=[A-Za-z0-9+/]*[0-9])"
+                + "[A-Za-z0-9+/]{40,}={0,2}(?![A-Za-z0-9+/=])"),
             REDACTED)
     );
 

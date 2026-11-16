@@ -422,6 +422,8 @@ Parameters: {
 **Expected:**
 - [ ] Only ERROR-level log lines returned (or empty if healthy cluster)
 - [ ] Logs are from the last 60 minutes only
+- [ ] Lines that contain `@` (for example a Java identity hash such as `DefaultKafkaPrincipalBuilder@6a38a832`) keep their full text; `://[REDACTED]@` appears only where the original line held `user:password@` credentials
+- [ ] `RequestHeader(apiKey=...)` in broker or controller errors keeps the request type (for example `apiKey=BROKER_HEARTBEAT`), not `apiKey=[REDACTED]`
 
 ### T2.12 - Get Cluster Logs (keyword search)
 

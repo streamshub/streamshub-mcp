@@ -29,11 +29,14 @@ Resource configuration maps that tools return (Kafka, Cruise Control, tiered sto
 
 * Bearer tokens (`Bearer <token>`) and basic credentials (`Authorization: Basic <credentials>`)
 * Passwords in various formats (`password=...`, `pwd:...`)
-* API keys (`apikey=...`, `api_key=...`)
+* API keys (`apikey=...`, `api_key=...`). A value that starts with upper-case letters and underscores followed by whitespace, `,`, `;`, a closing bracket, a quote, a backslash or the end of the text, such as the Kafka request type in `RequestHeader(apiKey=BROKER_HEARTBEAT, ...)`, is not redacted, and neither is any text after that separator
 * Secrets and tokens (`secret=...`, `secret_key=...`, `token=...`)
-* Connection strings with embedded credentials (`scheme://user:pass@host`)
+* Connection strings with embedded credentials (`scheme://user:pass@host`). The password may not contain whitespace, double quotes, `/`, `?`, `#`, `[`, `]` or `@`, and the user may not contain whitespace, double quotes, `:`, `/`, `?`, `#`, `[` or `]` (URLs require these characters percent-encoded), so log lines that contain a URL and a later `@` are left intact
 * PEM private key blocks (`-----BEGIN ... PRIVATE KEY-----` ... `-----END ... PRIVATE KEY-----`)
-* High-entropy base64 tokens (40+ characters); container image digests such as `sha256:<hex>` are kept
+* High-entropy base64 tokens: runs of 40+ base64 characters that mix upper-case letters, lower-case letters and digits. Hex strings (hashes such as `strimzi.io/server-cert-hash`, container IDs, image digests) and runs that start like a slash-separated path (URLs, Java class names) are kept
+
+The patterns above do not match these values by shape: hex-encoded secrets, base64 values without a digit or without both upper-case and lower-case letters, a token inside a run that starts with two path segments (`api/v1/<token>` in a URL, or the token at the end of a Slack incoming-webhook URL `hooks.slack.com/services/...`), and URL passwords that contain an unencoded `/`, `?`, `#`, `[`, `]` or double quote (a password with an unencoded `@` is redacted up to that `@`).
+Key-name redaction below still applies to them, and a custom pattern can cover them.
 
 *Built-in redaction by key name:*
 
