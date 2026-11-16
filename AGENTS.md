@@ -113,7 +113,7 @@ io.streamshub.mcp.common.
 │   │                 DiagnosticHelper (shared MCP framework utilities for diagnostic tools),
 │   │                 BaseDiagnosticService (abstract base for all diagnostic services;
 │   │                   injects ObjectMapper + token/log config; provides performSampling/Analysis/Triage),
-│   │                 KubernetesEventsService (query Kubernetes events by resource name and kind),
+│   │                 KubernetesEventsService (query core/v1 events by resource name and kind; time = last observation, works for events.k8s.io-created events),
 │   │                 KubernetesQueryException (typed exception for Kubernetes API failures),
 │   │                 OpenShiftDetector (cached build.openshift.io probe),
 │   │                 ImageBuildInspectionService (generic builder-pod / OpenShift Build

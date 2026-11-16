@@ -19,8 +19,12 @@ import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import io.strimzi.api.ResourceLabels;
+import io.strimzi.api.kafka.model.bridge.KafkaBridge;
+import io.strimzi.api.kafka.model.connect.KafkaConnect;
 import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.mirrormaker2.KafkaMirrorMaker2;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
+import io.strimzi.api.kafka.model.rebalance.KafkaRebalance;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -30,23 +34,27 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 /**
  * Service for gathering Kubernetes events across Strimzi resources.
  * Supports Kafka clusters (with PVC and node pool events),
- * KafkaConnect, KafkaMirrorMaker2, KafkaBridge (CR and pod events),
+ * KafkaConnect, KafkaMirrorMaker2, KafkaBridge, KafkaRebalance (CR and pod events),
  * and StrimziOperator and DrainCleaner deployments.
  *
  * <p>Delegates generic event querying to {@link KubernetesEventsService}
  * and adds Strimzi-specific orchestration: resolving the resource,
  * finding related pods by appropriate labels.</p>
+ *
+ * <p>The namespace is auto-discovered for every kind when omitted. For Kafka and the custom
+ * resource kinds (KafkaConnect, KafkaBridge, KafkaMirrorMaker2, KafkaRebalance) a name that exists
+ * in several namespaces raises the structured AMBIGUOUS error listing them; StrimziOperator and
+ * DrainCleaner use the first matching deployment.</p>
  */
 @ApplicationScoped
 public class StrimziEventsService {
 
     private static final Logger LOG = Logger.getLogger(StrimziEventsService.class);
     private static final int SECONDS_PER_MINUTE = 60;
-    private static final Set<String> SUPPORTED_RESOURCE_KINDS = Set.of(
+    private static final List<String> SUPPORTED_RESOURCE_KINDS = List.of(
         StrimziConstants.KindValues.KAFKA,
         StrimziConstants.KindValues.KAFKA_CONNECT,
         StrimziConstants.KindValues.KAFKA_MIRROR_MAKER_2,
@@ -54,6 +62,11 @@ public class StrimziEventsService {
         StrimziConstants.KindValues.STRIMZI_OPERATOR,
         StrimziConstants.KindValues.DRAIN_CLEANER,
         StrimziConstants.KindValues.KAFKA_REBALANCE);
+    private static final Map<String, Class<? extends HasMetadata>> CR_CLASSES = Map.of(
+        StrimziConstants.KindValues.KAFKA_CONNECT, KafkaConnect.class,
+        StrimziConstants.KindValues.KAFKA_BRIDGE, KafkaBridge.class,
+        StrimziConstants.KindValues.KAFKA_MIRROR_MAKER_2, KafkaMirrorMaker2.class,
+        StrimziConstants.KindValues.KAFKA_REBALANCE, KafkaRebalance.class);
 
     @Inject
     KafkaService kafkaService;
@@ -76,22 +89,17 @@ public class StrimziEventsService {
      * @param namespace    the namespace, or null for auto-discovery
      * @param resourceName the Strimzi resource name
      * @param resourceKind the Strimzi kind (required)
-     * @param sinceMinutes only return events newer than this many minutes, or null for all
+     * @param sinceMinutes only return events last observed within this many minutes, or null for all
      * @return events grouped by resource
      */
     public StrimziEventsResponse getEvents(final String namespace, final String resourceName,
                                             final String resourceKind, final Integer sinceMinutes) {
         String ns = InputUtils.normalizeInput(namespace);
         String name = InputUtils.normalizeInput(resourceName);
-        String kind = resourceKind != null ? resourceKind.trim() : null;
-
         if (name == null) {
             throw McpErrors.invalidParams("Resource name is required");
         }
-        if (kind == null || !SUPPORTED_RESOURCE_KINDS.contains(kind)) {
-            throw McpErrors.invalidParams("resourceKind is required. Supported values: "
-                + SUPPORTED_RESOURCE_KINDS);
-        }
+        String kind = canonicalKind(resourceKind);
         InputUtils.validateK8sName(name, "resource name");
         InputUtils.validateK8sName(ns, "namespace");
 
@@ -120,6 +128,26 @@ public class StrimziEventsService {
         };
     }
 
+    /**
+     * Resolve a {@code resourceKind} argument to its canonical spelling, ignoring case and
+     * surrounding whitespace.
+     *
+     * @param resourceKind the kind as given by the caller
+     * @return the canonical kind, e.g. {@code KafkaBridge} for {@code kafkabridge}
+     */
+    private static String canonicalKind(final String resourceKind) {
+        if (resourceKind == null || resourceKind.isBlank()) {
+            throw McpErrors.invalidParams("resourceKind is required. Supported values: "
+                + SUPPORTED_RESOURCE_KINDS);
+        }
+        String trimmed = resourceKind.trim();
+        return SUPPORTED_RESOURCE_KINDS.stream()
+            .filter(kind -> kind.equalsIgnoreCase(trimmed))
+            .findFirst()
+            .orElseThrow(() -> McpErrors.invalidParams("Unsupported resourceKind '" + trimmed
+                + "'. Supported values: " + SUPPORTED_RESOURCE_KINDS));
+    }
+
     // ---- Resource-specific collectors ----
 
     private StrimziEventsResponse collectKafkaEvents(final String namespace, final String name,
@@ -141,18 +169,44 @@ public class StrimziEventsService {
 
     private StrimziEventsResponse collectStrimziCREvents(final String namespace, final String name,
                                                           final String kind, final Instant sinceTime) {
-        if (namespace == null) {
-            throw McpErrors.invalidParams("Namespace is required for " + kind + " events");
-        }
+        String resolvedNs = resolveCustomResourceNamespace(namespace, name, kind);
 
         List<ResourceEventsResult> results = new ArrayList<>();
-        results.add(eventsService.getEventsForResource(namespace, name, kind, sinceTime));
-        collectPods(namespace,
+        results.add(eventsService.getEventsForResource(resolvedNs, name, kind, sinceTime));
+        collectPods(resolvedNs,
             Map.of(ResourceLabels.STRIMZI_CLUSTER_LABEL, name,
                    ResourceLabels.STRIMZI_KIND_LABEL, kind),
             results, sinceTime);
 
-        return buildResponse(name, namespace, results);
+        return buildResponse(name, resolvedNs, results);
+    }
+
+    /**
+     * Use the given namespace, or find the one namespace that holds a custom resource of this
+     * kind and name. Query failures (RBAC, missing CRD) propagate as-is.
+     */
+    private String resolveCustomResourceNamespace(final String namespace, final String name,
+                                                  final String kind) {
+        if (namespace != null) {
+            return namespace;
+        }
+        Class<? extends HasMetadata> resourceClass = CR_CLASSES.get(kind);
+        if (resourceClass == null) {
+            throw new IllegalStateException("No custom resource class registered for kind " + kind);
+        }
+        List<String> namespaces = k8sService.queryResourcesInAnyNamespace(resourceClass).stream()
+            .filter(resource -> name.equals(resource.getMetadata().getName()))
+            .map(resource -> resource.getMetadata().getNamespace())
+            .distinct()
+            .sorted()
+            .toList();
+        if (namespaces.isEmpty()) {
+            throw McpErrors.notFound(kind, name, null);
+        }
+        if (namespaces.size() > 1) {
+            throw McpErrors.ambiguous(kind, name, namespaces);
+        }
+        return namespaces.getFirst();
     }
 
     private StrimziEventsResponse collectDeploymentEvents(final String namespace, final String name,

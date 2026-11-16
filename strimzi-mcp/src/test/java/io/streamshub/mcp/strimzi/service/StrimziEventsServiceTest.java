@@ -23,11 +23,22 @@ import io.fabric8.kubernetes.client.dsl.V1APIGroupDSL;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.streamshub.mcp.common.dto.error.McpErrorCategory;
+import io.streamshub.mcp.common.dto.error.McpErrorData;
+import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
 import io.streamshub.mcp.strimzi.service.operator.StrimziEventsService;
+import io.strimzi.api.kafka.model.bridge.KafkaBridge;
+import io.strimzi.api.kafka.model.bridge.KafkaBridgeBuilder;
+import io.strimzi.api.kafka.model.connect.KafkaConnect;
+import io.strimzi.api.kafka.model.connect.KafkaConnectBuilder;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
+import io.strimzi.api.kafka.model.mirrormaker2.KafkaMirrorMaker2;
+import io.strimzi.api.kafka.model.mirrormaker2.KafkaMirrorMaker2Builder;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
+import io.strimzi.api.kafka.model.rebalance.KafkaRebalance;
+import io.strimzi.api.kafka.model.rebalance.KafkaRebalanceBuilder;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +48,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -175,7 +187,8 @@ class StrimziEventsServiceTest {
     }
 
     @SuppressWarnings("unchecked")
-    private void setupEventsResponse(final List<Event> events) {
+    private FilterWatchListDeletable<Event, EventList, Resource<Event>> setupEventsResponse(
+            final List<Event> events) {
         V1APIGroupDSL v1 = Mockito.mock(V1APIGroupDSL.class);
         when(kubernetesClient.v1()).thenReturn(v1);
 
@@ -194,6 +207,7 @@ class StrimziEventsServiceTest {
         EventList eventList = new EventList();
         eventList.setItems(events);
         when(fieldEventOp.list()).thenReturn(eventList);
+        return fieldEventOp;
     }
 
     // ---- Tests for getEvents() with resource kind ----
@@ -205,9 +219,80 @@ class StrimziEventsServiceTest {
     }
 
     @Test
-    void testGetResourceEventsThrowsWhenNamespaceMissing() {
-        assertThrows(McpException.class, () ->
+    void testBridgeEventsWithoutNamespaceAutoDiscovers() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaBridge.class,
+            List.of(new KafkaBridgeBuilder().withNewMetadata().withName("mcp-bridge")
+                .withNamespace("strimzi-kafka").endMetadata().build()));
+        setupEventsResponse(List.of(new EventBuilder()
+            .withNewMetadata().withName("event-1").withNamespace("strimzi-kafka").endMetadata()
+            .withType("Normal").withReason("Created").withMessage("Created KafkaBridge")
+            .withLastTimestamp(Instant.now().toString())
+            .withInvolvedObject(new ObjectReferenceBuilder().withName("mcp-bridge").withKind("KafkaBridge").build())
+            .build()));
+
+        StrimziEventsResponse result = eventsService.getEvents(null, "mcp-bridge", "KafkaBridge", null);
+
+        assertEquals("strimzi-kafka", result.namespace());
+        assertEquals(1, result.totalEvents());
+    }
+
+    @Test
+    void testRebalanceEventsWithoutNamespaceAutoDiscovers() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaRebalance.class,
+            List.of(new KafkaRebalanceBuilder().withNewMetadata().withName("my-rebalance")
+                .withNamespace("kafka").endMetadata().build()));
+        setupEventsResponse(List.of());
+
+        StrimziEventsResponse result = eventsService.getEvents(null, "my-rebalance", "KafkaRebalance", null);
+
+        assertEquals("kafka", result.namespace());
+    }
+
+    @Test
+    void testConnectEventsWithoutNamespaceAmbiguous() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaConnect.class, List.of(
+            new KafkaConnectBuilder().withNewMetadata().withName("my-connect").withNamespace("kafka-b").endMetadata().build(),
+            new KafkaConnectBuilder().withNewMetadata().withName("my-connect").withNamespace("kafka-a").endMetadata().build()));
+
+        McpException ex = assertThrows(McpException.class, () ->
             eventsService.getEvents(null, "my-connect", "KafkaConnect", null));
+
+        assertTrue(NamespaceElicitationHelper.isMultipleNamespacesError(ex), ex.getMessage());
+        assertEquals(List.of("kafka-a", "kafka-b"), ((McpErrorData) ex.getData()).candidates());
+    }
+
+    @Test
+    void testMirrorMakerEventsWithoutNamespaceNotFound() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaMirrorMaker2.class, List.of());
+
+        McpException ex = assertThrows(McpException.class, () ->
+            eventsService.getEvents(null, "missing-mm2", "KafkaMirrorMaker2", null));
+
+        assertEquals("KafkaMirrorMaker2 'missing-mm2' not found in any namespace", ex.getMessage());
+        assertEquals(McpErrorCategory.RESOURCE_NOT_FOUND, ((McpErrorData) ex.getData()).category());
+    }
+
+    @Test
+    void testLowercaseKindWithoutNamespaceResolves() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaMirrorMaker2.class,
+            List.of(new KafkaMirrorMaker2Builder().withNewMetadata().withName("mcp-mirror-maker")
+                .withNamespace("strimzi-kafka").endMetadata().build()));
+        FilterWatchListDeletable<Event, EventList, Resource<Event>> fieldEventOp = setupEventsResponse(List.of());
+
+        StrimziEventsResponse result = eventsService.getEvents(null, "mcp-mirror-maker", "kafkamirrormaker2", null);
+
+        assertEquals("strimzi-kafka", result.namespace());
+        Mockito.verify(fieldEventOp).withField("involvedObject.kind", "KafkaMirrorMaker2");
+    }
+
+    @Test
+    void testExplicitNamespaceSkipsDiscovery() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaConnect.class, List.of());
+        setupEventsResponse(List.of());
+
+        StrimziEventsResponse result = eventsService.getEvents("kafka", "my-connect", "KafkaConnect", null);
+
+        assertEquals("kafka", result.namespace());
     }
 
     @Test
@@ -216,6 +301,50 @@ class StrimziEventsServiceTest {
             eventsService.getEvents("kafka", "my-cluster", "InvalidKind", null));
         assertTrue(ex.getMessage().contains("Supported values"),
             "error message should list supported kinds");
+        assertTrue(ex.getMessage().contains("Unsupported resourceKind 'InvalidKind'"), ex.getMessage());
+        assertFalse(ex.getMessage().contains("required"), ex.getMessage());
+    }
+
+    @Test
+    void testThrowsWhenResourceKindBlank() {
+        McpException ex = assertThrows(McpException.class, () ->
+            eventsService.getEvents("kafka", "my-cluster", "  ", null));
+        assertTrue(ex.getMessage().startsWith("resourceKind is required"), ex.getMessage());
+    }
+
+    @Test
+    void testSupportedKindsListedInStableOrder() {
+        McpException ex = assertThrows(McpException.class, () ->
+            eventsService.getEvents("kafka", "my-cluster", "Bogus", null));
+        assertTrue(ex.getMessage().contains(
+            "[Kafka, KafkaConnect, KafkaMirrorMaker2, KafkaBridge, StrimziOperator, DrainCleaner, KafkaRebalance]"),
+            ex.getMessage());
+    }
+
+    @Test
+    void testKindMatchIsCaseInsensitive() {
+        Event event = new EventBuilder()
+            .withNewMetadata().withName("event-1").withNamespace("kafka").endMetadata()
+            .withType("Normal")
+            .withReason("Created")
+            .withMessage("Created KafkaBridge")
+            .withLastTimestamp(Instant.now().toString())
+            .withInvolvedObject(new ObjectReferenceBuilder()
+                .withName("my-bridge").withKind("KafkaBridge").build())
+            .build();
+        FilterWatchListDeletable<Event, EventList, Resource<Event>> fieldEventOp =
+            setupEventsResponse(List.of(event));
+
+        StrimziEventsResponse bridge = eventsService.getEvents("kafka", "my-bridge", " kafkabridge ", null);
+
+        assertEquals("KafkaBridge", bridge.resources().getFirst().resourceKind());
+        Mockito.verify(fieldEventOp).withField("involvedObject.kind", "KafkaBridge");
+
+        setupDeploymentLookup("strimzi-cluster-operator", "strimzi-operator");
+        StrimziEventsResponse operator = eventsService.getEvents(
+            "strimzi-operator", "strimzi-cluster-operator", "strimzioperator", null);
+
+        assertEquals("strimzi-cluster-operator", operator.resourceName());
     }
 
     @Test

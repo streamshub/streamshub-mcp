@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.common.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.EventBuilder;
 import io.fabric8.kubernetes.api.model.EventList;
@@ -22,7 +23,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -41,6 +46,12 @@ class KubernetesEventsServiceTest {
 
     @Inject
     KubernetesEventsService eventsService;
+
+    @Inject
+    ObjectMapper objectMapper;
+
+    private static final DateTimeFormatter MICRO =
+        DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'").withZone(ZoneOffset.UTC);
 
     KubernetesEventsServiceTest() {
     }
@@ -166,6 +177,179 @@ class KubernetesEventsServiceTest {
             "kafka", "my-pod", "Pod", null);
 
         assertEquals(1, result.events().size());
+        assertEquals(1, eventsService.getEventsForResource(
+            "kafka", "my-pod", "Pod", Instant.now().minusSeconds(300)).events().size());
+    }
+
+    @Test
+    void testEventTimeOnlyEventIsFilteredBySinceTime() throws Exception {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        setupEventsResponse("kafka", List.of(
+            newStyle("FailedScheduling", now.minus(58, ChronoUnit.MINUTES), 6, now.minus(55, ChronoUnit.MINUTES))));
+
+        ResourceEventsResult result = eventsService.getEventsForResource(
+            "kafka", "my-pod", "Pod", now.minus(5, ChronoUnit.MINUTES));
+
+        assertTrue(result.events().isEmpty());
+    }
+
+    @Test
+    void testEventTimeOnlyEventFieldsAreMapped() throws Exception {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        Instant eventTime = now.minus(58, ChronoUnit.MINUTES);
+        Instant lastObserved = now.minus(55, ChronoUnit.MINUTES);
+        setupEventsResponse("kafka", List.of(newStyle("FailedScheduling", eventTime, 6, lastObserved)));
+
+        ResourceEventsResult.EventInfo info = eventsService.getEventsForResource(
+            "kafka", "my-pod", "Pod", null).events().getFirst();
+
+        assertEquals(6, info.count());
+        assertEquals("default-scheduler", info.source());
+        assertEquals(lastObserved.toString(), info.lastTime());
+        assertEquals(eventTime.toString(), info.firstTime());
+    }
+
+    @Test
+    void testSingletonNewStyleEventCountsOnce() throws Exception {
+        Instant eventTime = Instant.now().truncatedTo(ChronoUnit.MICROS).minus(1, ChronoUnit.MINUTES);
+        setupEventsResponse("kafka", List.of(newStyle("Scheduled", eventTime, null, null)));
+
+        ResourceEventsResult.EventInfo info = eventsService.getEventsForResource(
+            "kafka", "my-pod", "Pod", null).events().getFirst();
+
+        assertEquals(1, info.count());
+        assertEquals(eventTime.toString(), info.lastTime());
+        assertEquals(eventTime.toString(), info.firstTime());
+    }
+
+    @Test
+    void testSeriesEventKeptWhenLastObservedIsRecent() throws Exception {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        Instant lastObserved = now.minus(2, ChronoUnit.MINUTES);
+        setupEventsResponse("kafka", List.of(
+            newStyle("FailedScheduling", now.minus(58, ChronoUnit.MINUTES), 6, lastObserved)));
+
+        ResourceEventsResult result = eventsService.getEventsForResource(
+            "kafka", "my-pod", "Pod", now.minus(5, ChronoUnit.MINUTES));
+
+        assertEquals(1, result.events().size());
+        assertEquals(lastObserved.toString(), result.events().getFirst().lastTime());
+    }
+
+    @Test
+    void testMixedStylesSortByLastObservation() throws Exception {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        Instant pulled = now.minus(10, ChronoUnit.MINUTES);
+        setupEventsResponse("kafka", List.of(
+            parseEvent("Untimed", null, "\"source\": {}"),
+            oldStyle("Pulled", pulled, pulled, 1),
+            newStyle("Scheduled", now.minus(1, ChronoUnit.MINUTES), null, null),
+            newStyle("FailedScheduling", now.minus(58, ChronoUnit.MINUTES), 6, now.minus(30, ChronoUnit.MINUTES))));
+
+        List<String> reasons = eventsService.getEventsForResource("kafka", "my-pod", "Pod", null)
+            .events().stream().map(ResourceEventsResult.EventInfo::reason).toList();
+
+        assertEquals(List.of("Scheduled", "Pulled", "FailedScheduling", "Untimed"), reasons);
+    }
+
+    @Test
+    void testCoreV1EventKeepsSourceComponent() throws Exception {
+        Instant now = Instant.now();
+        setupEventsResponse("kafka", List.of(oldStyle("Pulled", now.minusSeconds(120), now.minusSeconds(60), 1)));
+
+        ResourceEventsResult.EventInfo info = eventsService.getEventsForResource(
+            "kafka", "my-pod", "Pod", null).events().getFirst();
+
+        assertEquals("kubelet", info.source());
+        assertEquals(1, info.count());
+    }
+
+    @Test
+    void testLastTimestampWinsOverEventTime() throws Exception {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        Instant hourAgo = now.minus(1, ChronoUnit.HOURS);
+        setupEventsResponse("kafka", List.of(parseEvent("Killing", hourAgo,
+            "\"lastTimestamp\": \"" + hourAgo.truncatedTo(ChronoUnit.SECONDS) + "\", "
+                + "\"eventTime\": \"" + MICRO.format(now.minus(1, ChronoUnit.MINUTES)) + "\", "
+                + "\"reportingComponent\": \"kubelet\", \"source\": {}")));
+
+        ResourceEventsResult result = eventsService.getEventsForResource(
+            "kafka", "my-pod", "Pod", now.minus(5, ChronoUnit.MINUTES));
+
+        assertTrue(result.events().isEmpty());
+    }
+
+    @Test
+    void testUnparseableLastTimestampFallsThrough() throws Exception {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        Instant eventTime = now.minus(1, ChronoUnit.MINUTES);
+        setupEventsResponse("kafka", List.of(parseEvent("Killing", null,
+            "\"lastTimestamp\": \"not-a-time\", \"eventTime\": \"" + MICRO.format(eventTime) + "\"")));
+
+        ResourceEventsResult result = eventsService.getEventsForResource(
+            "kafka", "my-pod", "Pod", now.minus(5, ChronoUnit.MINUTES));
+
+        assertEquals(1, result.events().size());
+        assertEquals(eventTime.toString(), result.events().getFirst().lastTime());
+    }
+
+    @Test
+    void testCreationTimestampIsLastResort() throws Exception {
+        Instant now = Instant.now();
+        setupEventsResponse("kafka", List.of(parseEvent("Created", now.minus(2, ChronoUnit.HOURS),
+            "\"source\": {}")));
+
+        ResourceEventsResult result = eventsService.getEventsForResource(
+            "kafka", "my-pod", "Pod", now.minus(5, ChronoUnit.MINUTES));
+
+        assertTrue(result.events().isEmpty());
+    }
+
+    /**
+     * Deserialises a core/v1 Event as the API server returns it.
+     *
+     * @param reason  the event reason
+     * @param created the metadata creation timestamp, or null to omit it
+     * @param fields  the remaining top-level fields as a JSON fragment (times, source, series, count)
+     * @return the event
+     * @throws Exception if the JSON cannot be parsed
+     */
+    private Event parseEvent(final String reason, final Instant created, final String fields) throws Exception {
+        String createdJson = created == null
+            ? "" : ", \"creationTimestamp\": \"" + created.truncatedTo(ChronoUnit.SECONDS) + "\"";
+        String json = """
+            {"apiVersion": "v1", "kind": "Event",
+             "metadata": {"name": "my-pod.%s", "namespace": "kafka"%s},
+             "involvedObject": {"apiVersion": "v1", "kind": "Pod", "name": "my-pod", "namespace": "kafka"},
+             "type": "Warning", "reason": "%s", "message": "Event %s",
+             %s}
+            """.formatted(reason.toLowerCase(Locale.ROOT), createdJson, reason, reason, fields);
+        return objectMapper.readValue(json, Event.class);
+    }
+
+    /**
+     * An events.k8s.io-style event (scheduler): only {@code eventTime}, optional {@code series},
+     * {@code reportingComponent}, empty {@code source}, null first/last timestamps.
+     */
+    private Event newStyle(final String reason, final Instant eventTime, final Integer seriesCount,
+                           final Instant lastObserved) throws Exception {
+        String series = seriesCount == null ? ""
+            : "\"series\": {\"count\": " + seriesCount + ", \"lastObservedTime\": \"" + MICRO.format(lastObserved) + "\"}, ";
+        return parseEvent(reason, eventTime, "\"eventTime\": \"" + MICRO.format(eventTime) + "\", " + series
+            + "\"reportingComponent\": \"default-scheduler\", \"reportingInstance\": \"default-scheduler-master-0\", "
+            + "\"action\": \"Scheduling\", \"source\": {}, \"firstTimestamp\": null, \"lastTimestamp\": null");
+    }
+
+    /**
+     * An old-style core/v1 event (kubelet): first/last timestamps, count, {@code source.component},
+     * null {@code eventTime} and blank {@code reportingComponent}.
+     */
+    private Event oldStyle(final String reason, final Instant first, final Instant last, final int count)
+        throws Exception {
+        return parseEvent(reason, first, "\"source\": {\"component\": \"kubelet\", \"host\": \"worker-1\"}, "
+            + "\"firstTimestamp\": \"" + first.truncatedTo(ChronoUnit.SECONDS) + "\", "
+            + "\"lastTimestamp\": \"" + last.truncatedTo(ChronoUnit.SECONDS) + "\", \"count\": " + count + ", "
+            + "\"eventTime\": null, \"reportingComponent\": \"\", \"reportingInstance\": \"\"");
     }
 
     @SuppressWarnings("unchecked")

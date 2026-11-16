@@ -355,15 +355,16 @@ class PromptTemplateValidationTest {
     }
 
     @Test
-    void testTroubleshootKafkaRebalanceInstructsNamespaceForEvents() {
-        // Unlike the Kafka events path, get_strimzi_events for a KafkaRebalance does NOT
-        // auto-discover the namespace -- StrimziEventsService throws invalidParams when it is
-        // null. The prompt must tell the client to carry the namespace from Step 1 for events.
+    void testTroubleshootKafkaRebalanceCarriesNamespaceForEvents() {
+        // get_strimzi_events auto-discovers the KafkaRebalance namespace, but carrying the one
+        // from Step 1 skips the cluster-wide lookup. The prompt must not claim it is required.
         TroubleshootKafkaRebalancePrompt prompt = new TroubleshootKafkaRebalancePrompt();
         PromptResponse response = prompt.troubleshootKafkaRebalance("my-rebalance", null, null);
         String content = extractContent(response);
-        assertTrue(content.contains("KafkaRebalance events require a namespace"),
-            "events step must warn that a namespace is required and carried from Step 1");
+        assertTrue(content.contains("pass the one reported by `get_kafka_rebalance`"),
+            "events step must tell the client to carry the namespace from Step 1");
+        assertFalse(content.contains("require a namespace"),
+            "events step must not claim KafkaRebalance events require a namespace");
     }
 
     private static String extractContent(PromptResponse response) {

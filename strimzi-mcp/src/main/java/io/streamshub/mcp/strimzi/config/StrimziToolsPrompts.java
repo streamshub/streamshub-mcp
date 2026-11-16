@@ -183,14 +183,14 @@ public final class StrimziToolsPrompts {
      * Since minutes parameter description for events.
      */
     public static final String SINCE_MINUTES_EVENTS_DESC =
-        "Only return events newer than this many minutes."
+        "Only return events last observed within this many minutes."
             + " Omit for all available events.";
 
     /**
      * Resource kind parameter description for events tool.
      */
     public static final String RESOURCE_KIND_DESC =
-        "Required. Strimzi resource kind. Supported values: 'Kafka', 'KafkaConnect',"
+        "Required. Strimzi resource kind (case-insensitive). Supported values: 'Kafka', 'KafkaConnect',"
             + " 'KafkaMirrorMaker2', 'KafkaBridge', 'StrimziOperator', 'DrainCleaner', 'KafkaRebalance'.";
 
     /**
