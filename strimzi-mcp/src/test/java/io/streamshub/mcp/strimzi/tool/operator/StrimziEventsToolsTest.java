@@ -98,7 +98,7 @@ class StrimziEventsToolsTest {
     @Test
     void testGetStrimziEventsServiceValidationErrorIsAProtocolError() {
         when(eventsService.getEvents(null, "my-cluster", "Bogus", null)).thenThrow(
-            McpErrors.invalidParams("resourceKind is required. Supported values: [Kafka]"));
+            McpErrors.invalidParams("Unsupported resourceKind 'Bogus'. Supported values: [Kafka]"));
 
         client.when()
             .toolsCall("get_strimzi_events")

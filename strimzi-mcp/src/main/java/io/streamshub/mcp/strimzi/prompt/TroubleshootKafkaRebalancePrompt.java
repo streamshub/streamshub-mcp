@@ -142,8 +142,8 @@ remove the annotation to resume
             Use `get_strimzi_events(resourceName='%s'%s, resourceKind='KafkaRebalance')` to \
             look for warnings the operator emitted while reconciling the rebalance.
             If you did not supply a `namespace`, pass the one reported by `get_kafka_rebalance` \
-            in Step 1 -- KafkaRebalance events require a namespace (this step does not \
-            auto-discover it the way the cluster-scoped steps above do).
+            in Step 1 -- this skips a cluster-wide lookup and avoids an ambiguity error when \
+            the same name exists in several namespaces.
 
             ## Step 8: Remediation for common stuck states
             - **PendingProposal** -- Cruise Control is not ready, has too few metric samples, \

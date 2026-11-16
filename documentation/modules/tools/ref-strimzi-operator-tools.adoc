@@ -103,16 +103,16 @@ Get Strimzi operator logs with ERROR level for the last 30 minutes
 
 === get_strimzi_events
 
-Get Kubernetes events for a Strimzi resource and all related pods. For Kafka clusters (default), also includes PVC and node pool events. For KafkaConnect, KafkaMirrorMaker2, or KafkaBridge, pass the `resourceKind` parameter to query events for the correct resource type.
+Get Kubernetes events for a Strimzi resource and all related pods. The `resourceKind` parameter selects the resource type. For Kafka clusters, the result also includes PVC and node pool events; for StrimziOperator and DrainCleaner, the deployment and its pods.
 
 *Parameters:*
 
 * `resourceName` (required) -- Name of the Strimzi resource
-* `namespace` (optional) -- Kubernetes namespace. Auto-discovered for Kafka, StrimziOperator, and DrainCleaner
-* `sinceMinutes` (optional) -- Time window in minutes (omit for all available events)
-* `resourceKind` (required) -- Strimzi resource kind: `Kafka`, `KafkaConnect`, `KafkaMirrorMaker2`, `KafkaBridge`, `StrimziOperator`, or `DrainCleaner`
+* `namespace` (optional) -- Kubernetes namespace. Auto-discovered for every kind. For Kafka, KafkaConnect, KafkaBridge, KafkaMirrorMaker2 and KafkaRebalance, a name found in several namespaces fails with an AMBIGUOUS error listing them; StrimziOperator and DrainCleaner use the first matching deployment
+* `sinceMinutes` (optional) -- Time window in minutes (omit for all available events). The window applies to each event's last observation: `lastTimestamp`, else `series.lastObservedTime`, `eventTime`, `firstTimestamp`, then the creation time
+* `resourceKind` (required) -- Strimzi resource kind, case-insensitive: `Kafka`, `KafkaConnect`, `KafkaMirrorMaker2`, `KafkaBridge`, `StrimziOperator`, `DrainCleaner`, or `KafkaRebalance`
 
-*Returns:* Events grouped by resource type showing scheduling, restarts, volume issues, and operator reconciliation events
+*Returns:* Events grouped by resource type showing scheduling, restarts, volume issues, and operator reconciliation events. Each event carries `last_time`, `count` and `source`, including events from the `events.k8s.io` API such as scheduler events
 
 .Examples
 ----

@@ -961,7 +961,7 @@ Parameters: { "resourceName": "mcp-cluster", "resourceKind": "Kafka" }
 **Expected:**
 - [ ] Returns Kubernetes events related to `mcp-cluster`
 - [ ] Events grouped by resource: pods and PVCs (a Kafka CR group appears only if the CR itself has events; Strimzi usually emits none)
-- [ ] Each event has: timestamp, reason, message, type (Normal/Warning)
+- [ ] Each event has: `last_time`, reason, message, type (Normal/Warning), including scheduler `Scheduled`/`FailedScheduling` events
 
 ### T7.2 - Get Events (time-scoped)
 
@@ -976,6 +976,7 @@ Parameters: {
 
 **Expected:**
 - [ ] Only events from the last 60 minutes
+- [ ] Scheduler `Scheduled`/`FailedScheduling` events older than the window are absent
 
 ### T7.3 - Get Events for Operator
 
@@ -1006,7 +1007,8 @@ Parameters: { "resourceName": "mcp-cluster", "resourceKind": "InvalidKind" }
 ```
 
 **Expected:**
-- [ ] Returns validation error about unsupported resource kind
+- [ ] Returns validation error `Unsupported resourceKind 'InvalidKind'` listing the supported kinds (not "resourceKind is required")
+- [ ] `"resourceKind": "kafka"` works (kinds are case-insensitive)
 
 ---
 
@@ -1356,7 +1358,7 @@ Parameters: { "resourceName": "mcp-bridge", "resourceKind": "KafkaBridge" }
 ```
 
 **Expected:**
-- [ ] Returns events for `mcp-bridge`
+- [ ] Returns events for `mcp-bridge` without a namespace (auto-discovered as `strimzi-kafka`)
 
 ### T12.6 - Diagnose Bridge
 
@@ -1457,7 +1459,7 @@ Parameters: { "resourceName": "mcp-mirror-maker", "resourceKind": "KafkaMirrorMa
 ```
 
 **Expected:**
-- [ ] Returns events for `mcp-mirror-maker`
+- [ ] Returns events for `mcp-mirror-maker` without a namespace (auto-discovered as `strimzi-mirror-maker`)
 
 ### T13.6 - Get Mirror Cluster Details
 

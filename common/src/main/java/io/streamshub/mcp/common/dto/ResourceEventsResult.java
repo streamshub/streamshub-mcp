@@ -29,10 +29,13 @@ public record ResourceEventsResult(
      * @param type      the event type (Normal, Warning)
      * @param reason    the short reason string (e.g., Scheduled, FailedMount)
      * @param message   the human-readable event message
-     * @param count     the number of times this event occurred
-     * @param firstTime when the event was first observed
-     * @param lastTime  when the event was last observed
-     * @param source    the component that generated the event
+     * @param count     the number of times this event occurred ({@code count}, else {@code series.count};
+     *                  1 for a new-style event without a series)
+     * @param firstTime when the event was first observed ({@code firstTimestamp}, else {@code eventTime})
+     * @param lastTime  when the event was last observed ({@code lastTimestamp}, else
+     *                  {@code series.lastObservedTime}, {@code eventTime}, {@code firstTimestamp}, creation time)
+     * @param source    the component that generated the event ({@code source.component}, else
+     *                  {@code reportingComponent})
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record EventInfo(
