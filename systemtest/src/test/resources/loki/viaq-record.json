@@ -1,0 +1,9 @@
+{"@timestamp":"2026-11-13T11:15:59.607345973Z","hostname":"worker-2",
+ "kubernetes":{"annotations":{"k8s.ovn.org/pod-networks":"{\"default\":{\"ip_addresses\":[\"10.128.2.41/23\"],\"role\":\"primary\"}}","openshift.io/scc":"restricted-v2"},
+  "container_id":"cri-o://4f1c2d3e4b5a69788796a5b4c3d2e1f00112233445566778899aabbccddeeff",
+  "container_image":"quay.io/strimzi/kafka:1.2.0-kafka-4.3.1","container_iostream":"stdout","container_name":"kafka",
+  "labels":{"strimzi.io/cluster":"mcp-cluster","strimzi.io/kind":"Kafka"},
+  "namespace_labels":{"kubernetes.io/metadata.name":"strimzi-kafka","pod-security.kubernetes.io/audit":"restricted","pod-security.kubernetes.io/warn":"restricted"},
+  "namespace_name":"strimzi-kafka","pod_name":"mcp-cluster-broker-np1-0","pod_owner":"StrimziPodSet/mcp-cluster-broker-np1"},
+ "level":"default","log_source":"container","log_type":"application","message":"",
+ "openshift":{"cluster_id":"5a3e9f0c-2b1d-4c6e-8f7a-9b0c1d2e3f4a","sequence":1763032559607345973}}

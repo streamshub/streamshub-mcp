@@ -5,9 +5,13 @@
 package io.streamshub.mcp.systemtest.logs;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.LocalPortForward;
 import io.qameta.allure.Epic;
 import io.qameta.allure.Feature;
 import io.qameta.allure.Story;
@@ -32,11 +36,23 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
+import java.util.regex.Pattern;
 
 import static io.streamshub.mcp.systemtest.TestTags.ACCEPTANCE;
 import static io.streamshub.mcp.systemtest.TestTags.LOGS;
@@ -45,6 +61,7 @@ import static io.streamshub.mcp.systemtest.TestTags.REGRESSION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * System tests for Loki-backed log collection MCP tools.
@@ -62,6 +79,19 @@ class LogsLokiToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LogsLokiToolsST.class);
 
+    /**
+     * Local copy of {@code LogFilterUtils.WARNINGS_REGEX} from the common module
+     * (the systemtest module does not depend on common). Keep the two in sync.
+     */
+    private static final Pattern WARNINGS = Pattern.compile(
+        "(?i:\\b(?:ERROR|FATAL|WARN|WARNING)\\b)|\\b\\w*(?:Exception|Error)\\b");
+
+    private static final String POD_HEADER = "=== Pod:";
+    /** Start of the note that a filtered Loki search without a time range covered only filter-lookback. */
+    private static final String SCOPE_NOTE_PREFIX = "Loki searched only the last ";
+    private static final String STANDALONE_LOKI_URL = "http://loki.logging.svc.cluster.local:3100";
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     @InjectResourceManager
     KubeResourceManager krm;
 
@@ -75,9 +105,10 @@ class LogsLokiToolsST extends AbstractST {
     static Namespace kafkaNamespace;
 
     private static McpAssured.McpStreamableTestClient mcpClient;
+    private static LokiConfig lokiConfig;
 
     private record LokiConfig(String url, String authMode, boolean trustAll,
-                              String namespaceLabel, String podLabel) {
+                              String namespaceLabel, String podLabel, String containerLabel) {
     }
 
     LogsLokiToolsST() {
@@ -100,7 +131,7 @@ class LogsLokiToolsST extends AbstractST {
                 KafkaTemplates.kafka(kafkaNs, Constants.KAFKA_CLUSTER_NAME, 1).build());
         }
 
-        LokiConfig lokiConfig = discoverLoki();
+        lokiConfig = discoverLoki();
         LOGGER.info("Using Loki: url={}, auth={}, trustAll={}", lokiConfig.url(), lokiConfig.authMode(), lokiConfig.trustAll());
 
         if ("sa-token".equals(lokiConfig.authMode())) {
@@ -112,7 +143,8 @@ class LogsLokiToolsST extends AbstractST {
             .withEnv("QUARKUS_REST_CLIENT_LOKI_URL", lokiConfig.url())
             .withEnv("MCP_LOG_LOKI_AUTH_MODE", lokiConfig.authMode())
             .withEnv("MCP_LOG_LOKI_LABEL_NAMESPACE", lokiConfig.namespaceLabel())
-            .withEnv("MCP_LOG_LOKI_LABEL_POD", lokiConfig.podLabel());
+            .withEnv("MCP_LOG_LOKI_LABEL_POD", lokiConfig.podLabel())
+            .withEnv("MCP_LOG_LOKI_LABEL_CONTAINER", lokiConfig.containerLabel());
 
         if (lokiConfig.trustAll()) {
             builder.withEnv("QUARKUS_TLS_TRUST_ALL", "true");
@@ -156,6 +188,15 @@ class LogsLokiToolsST extends AbstractST {
                             assertTrue(root.path("has_more").asBoolean(), "Should indicate more logs are available");
                             assertFalse(root.path("logs").asText("").isEmpty(), "logs content should not be empty");
                             assertTrue(root.path("logs").asText("").contains("=== Pod:"), "logs should contain pod log sections");
+                            List<String> lines = logLines(root);
+                            lines.forEach(line -> {
+                                assertFalse(line.startsWith("{\""),
+                                    "Loki lines should be log messages, not JSON records: " + line);
+                                assertFalse(line.contains("<no value>"),
+                                    "Plain-text lines must pass the unwrap stage unchanged: " + line);
+                            });
+                            assertTrue(lines.stream().anyMatch(line -> !line.isBlank()),
+                                "At least one returned log line should be non-blank");
                         })
                         .thenAssertResults();
                     return true;
@@ -187,6 +228,8 @@ class LogsLokiToolsST extends AbstractST {
                             assertTrue(root.path("log_lines").asInt() > 0, "Should have log lines from the 'kafka' container");
                             assertFalse(root.path("logs").asText("").isEmpty(), "logs content should not be empty");
                             assertTrue(root.path("logs").asText("").contains("=== Pod:"), "logs should contain pod log sections");
+                            assertTrue(root.path("warnings").isMissingNode() || root.path("warnings").isEmpty(),
+                                "A container filter that returns lines should not add a warning: " + root.path("warnings"));
                         })
                         .thenAssertResults();
                     return true;
@@ -220,6 +263,8 @@ class LogsLokiToolsST extends AbstractST {
                     "error_count (" + errorCount + ") should not exceed log_lines (" + logLines + ")");
                 assertEquals(root.path("has_errors").asBoolean(), errorCount > 0,
                     "has_errors should be consistent with error_count");
+                assertTrue(warnings(root).stream().noneMatch(w -> w.startsWith(SCOPE_NOTE_PREFIX)),
+                    "A filtered search with sinceMinutes should not add the search scope note: " + root.path("warnings"));
             })
             .thenAssertResults();
     }
@@ -248,6 +293,68 @@ class LogsLokiToolsST extends AbstractST {
                     assertFalse(root.path("has_errors").asBoolean(), "Should have no errors when no lines");
                     assertEquals(0, errorCount, "Error count should be 0 when no lines");
                 }
+                logLines(root).forEach(line -> assertTrue(WARNINGS.matcher(line).find(),
+                    "warnings filter returned a line without a warning or error: " + line));
+            })
+            .thenAssertResults();
+    }
+
+    @Test
+    @Story("Loki reduces ViaQ JSON records to their message before filtering")
+    void testViaqRecordIsUnwrappedBeforeFiltering() throws IOException {
+        assumeTrue(STANDALONE_LOKI_URL.equals(lokiConfig.url()),
+            "Needs the standalone Loki from setup-loki-kind.sh (the LokiStack gateway needs write credentials)");
+
+        String kafkaNs = kafkaNamespace.getMetadata().getName();
+        KubernetesClient client = KubeResourceManager.get().kubeClient().getClient();
+        String podName = client.pods().inNamespace(kafkaNs)
+            .withLabel("strimzi.io/cluster", Constants.KAFKA_CLUSTER_NAME)
+            .list().getItems().stream()
+            .map(pod -> pod.getMetadata().getName())
+            .filter(name -> name.contains("broker"))
+            .findFirst()
+            .orElseThrow(() -> new IllegalStateException("No broker pod for " + Constants.KAFKA_CLUSTER_NAME));
+
+        String marker = "mcp-st-" + UUID.randomUUID();
+        String warnMessage = "2026-11-13 11:20:00,000 WARN [" + marker
+            + "] Disk usage above 90% (kafka.log.LogManager) [kafka-scheduler-1]";
+        String infoMessage = "2026-11-13 11:20:00,000 INFO [" + marker
+            + "] Rolled new log segment (kafka.log.LogManager) [kafka-scheduler-1]";
+        // The middle record has an empty message (a blank log line). It must not come back as the
+        // whole JSON record, which carries the marker in a pod label and the
+        // pod-security.kubernetes.io/warn namespace label.
+        pushViaqRecords(kafkaNs, podName, marker, List.of(warnMessage, "", infoMessage));
+
+        Map<String, Object> args = new HashMap<>(Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "podNames", List.of(podName),
+            "keywords", List.of(marker),
+            "sinceMinutes", 10,
+            "tailLines", 10));
+
+        Wait.until("Loki to return the pushed ViaQ records as messages",
+            Constants.KAFKA_READY_POLL_MS, Constants.KAFKA_READY_TIMEOUT_MS, () -> {
+                try {
+                    mcpClient.when()
+                        .toolsCall("get_kafka_cluster_logs", args, response -> {
+                            JsonNode root = assertToolSuccess(response);
+                            assertEquals(List.of(warnMessage, infoMessage), logLines(root),
+                                "ViaQ records should come back as their message only");
+                        })
+                        .thenAssertResults();
+                    return true;
+                } catch (Exception | AssertionError ignored) {
+                    LOGGER.info("Loki doesn't return the pushed records yet, retrying...");
+                    return false;
+                }
+            });
+
+        args.put("filter", "warnings");
+        mcpClient.when()
+            .toolsCall("get_kafka_cluster_logs", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+                assertEquals(List.of(warnMessage), logLines(root),
+                    "warnings filter should match the message, not the pod-security.kubernetes.io/warn label");
             })
             .thenAssertResults();
     }
@@ -276,6 +383,9 @@ class LogsLokiToolsST extends AbstractST {
                 String logsLower = root.path("logs").asText().toLowerCase(Locale.ROOT);
                 assertTrue(logsLower.contains("partition") || logsLower.contains("leader"),
                     "Logs should contain keyword 'partition' or 'leader' (case-insensitive)");
+                assertEquals(1, warnings(root).stream().filter(w -> w.startsWith(SCOPE_NOTE_PREFIX)).count(),
+                    "A keywords search without a time range should state its search window once: "
+                        + root.path("warnings"));
             })
             .thenAssertResults();
     }
@@ -452,13 +562,93 @@ class LogsLokiToolsST extends AbstractST {
             .thenAssertResults();
     }
 
+    // ---- Helpers ----
+
+    /**
+     * The returned log lines without the {@code === Pod:} section headers.
+     *
+     * @param root the tool response
+     * @return the log lines
+     */
+    private static List<String> logLines(final JsonNode root) {
+        return Arrays.stream(root.path("logs").asText("").split("\n"))
+            .filter(line -> !line.startsWith(POD_HEADER))
+            .filter(line -> !line.isEmpty())
+            .toList();
+    }
+
+    private static List<String> warnings(final JsonNode root) {
+        List<String> warnings = new ArrayList<>();
+        root.path("warnings").forEach(warning -> warnings.add(warning.asText()));
+        return warnings;
+    }
+
+    /**
+     * Push OpenShift Logging (ViaQ) shaped records, one per message, into the standalone Loki
+     * through a port-forward to {@code svc/loki} in the {@code logging} namespace.
+     *
+     * @param namespace the Kubernetes namespace of the pod
+     * @param podName   the pod the records belong to
+     * @param marker    value of the {@code mcp-st-marker} pod label in every record
+     * @param messages  the log messages, oldest first (an empty string is a blank log line)
+     * @throws IOException when the fixture, the port-forward or the push fails
+     */
+    private static void pushViaqRecords(final String namespace, final String podName, final String marker,
+                                        final List<String> messages) throws IOException {
+        JsonNode template;
+        try (InputStream in = LogsLokiToolsST.class.getClassLoader().getResourceAsStream("loki/viaq-record.json")) {
+            if (in == null) {
+                throw new IllegalStateException("Missing test resource loki/viaq-record.json");
+            }
+            template = MAPPER.readTree(in);
+        }
+
+        ObjectNode body = MAPPER.createObjectNode();
+        ObjectNode stream = body.putArray("streams").addObject();
+        stream.putObject("stream")
+            .put("namespace", namespace)
+            .put("pod", podName)
+            .put("container", "kafka");
+        ArrayNode values = stream.putArray("values");
+        Instant now = Instant.now();
+        for (int i = 0; i < messages.size(); i++) {
+            Instant timestamp = now.plusMillis(i);
+            ObjectNode record = template.deepCopy();
+            record.put("message", messages.get(i));
+            record.put("@timestamp", timestamp.toString());
+            ObjectNode kubernetes = (ObjectNode) record.path("kubernetes");
+            kubernetes.put("namespace_name", namespace);
+            kubernetes.put("pod_name", podName);
+            ((ObjectNode) kubernetes.path("labels")).put("mcp-st-marker", marker);
+            values.addArray()
+                .add(String.valueOf(timestamp.getEpochSecond() * 1_000_000_000L + timestamp.getNano()))
+                .add(MAPPER.writeValueAsString(record));
+        }
+
+        KubernetesClient client = KubeResourceManager.get().kubeClient().getClient();
+        try (LocalPortForward forward = client.services().inNamespace("logging").withName("loki").portForward(3100)) {
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + forward.getLocalPort() + "/loki/api/v1/push"))
+                .timeout(Duration.ofSeconds(30))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(body)))
+                .build();
+            HttpResponse<String> response = HttpClient.newHttpClient()
+                .send(request, HttpResponse.BodyHandlers.ofString());
+            assertEquals(204, response.statusCode(), "Loki push failed: " + response.body());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while pushing records to Loki", e);
+        }
+    }
+
     // ---- Loki Discovery ----
 
     private static LokiConfig discoverLoki() {
         if (Environment.LOKI_URL != null && !Environment.LOKI_URL.isBlank()) {
             String authMode = Environment.LOKI_AUTH_MODE != null ? Environment.LOKI_AUTH_MODE : "none";
             LOGGER.info("Using LOKI_URL override: {}", Environment.LOKI_URL);
-            return new LokiConfig(Environment.LOKI_URL, authMode, false, "namespace", "pod");
+            return new LokiConfig(Environment.LOKI_URL, authMode, false, "namespace", "pod", "container");
         }
 
         KubernetesClient client = KubeResourceManager.get().kubeClient().getClient();
@@ -472,7 +662,7 @@ class LogsLokiToolsST extends AbstractST {
             LOGGER.info("Discovered OpenShift Logging LokiStack gateway in openshift-logging namespace");
             return new LokiConfig(
                 "https://logging-loki-gateway-http.openshift-logging.svc:8080/api/logs/v1/application",
-                authMode, true, "kubernetes_namespace_name", "kubernetes_pod_name");
+                authMode, true, "kubernetes_namespace_name", "kubernetes_pod_name", "kubernetes_container_name");
         }
 
         Service loki = client.services()
@@ -482,8 +672,7 @@ class LogsLokiToolsST extends AbstractST {
         if (loki != null) {
             String authMode = Environment.LOKI_AUTH_MODE != null ? Environment.LOKI_AUTH_MODE : "none";
             LOGGER.info("Discovered standalone Loki service in logging namespace");
-            return new LokiConfig(
-                "http://loki.logging.svc.cluster.local:3100", authMode, false, "namespace", "pod");
+            return new LokiConfig(STANDALONE_LOKI_URL, authMode, false, "namespace", "pod", "container");
         }
 
         throw new IllegalStateException(

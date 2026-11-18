@@ -21,7 +21,7 @@ import java.util.List;
  * @param logLines     the number of log lines retrieved
  * @param hasMore      whether more log lines are available beyond the requested tail limit
  * @param logs         the raw log content
- * @param warnings     per-pod failure details (omitted when empty)
+ * @param warnings     per-pod failure details and log provider notes (omitted when empty)
  * @param timestamp    the time this result was generated
  * @param message      a human-readable message describing the result
  */
@@ -51,7 +51,7 @@ public record StrimziOperatorLogsResponse(
      * @param failedPods the number of pods whose log fetch failed
      * @param logLines   the number of log lines retrieved
      * @param hasMore    whether more log lines are available
-     * @param warnings   per-pod failure details
+     * @param warnings   per-pod failure details and log provider notes
      * @return a StrimziOperatorLogsResponse with the log data
      */
     @SuppressWarnings("checkstyle:ParameterNumber")

@@ -34,9 +34,12 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static io.streamshub.mcp.systemtest.TestTags.ACCEPTANCE;
 import static io.streamshub.mcp.systemtest.TestTags.LOGS;
@@ -61,6 +64,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class LogsOpenSearchToolsST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LogsOpenSearchToolsST.class);
+    /**
+     * The shared errors rule (LogFilterUtils.ERRORS_REGEX) in any case: OpenSearch matches the
+     * shortcuts against lowercased terms, so every line it returns for {@code filter=errors} matches this.
+     */
+    private static final Pattern ERRORS_ANY_CASE =
+        Pattern.compile("(?i)\\b(?:ERROR|FATAL)\\b|\\b\\w*(?:Exception|Error)\\b");
+    /** The shared warnings rule (LogFilterUtils.WARNINGS_REGEX) in any case. */
+    private static final Pattern WARNINGS_ANY_CASE =
+        Pattern.compile("(?i)\\b(?:ERROR|FATAL|WARN|WARNING)\\b|\\b\\w*(?:Exception|Error)\\b");
+    private static final String POD_HEADER = "=== Pod:";
 
     @InjectResourceManager
     KubeResourceManager krm;
@@ -180,6 +193,8 @@ class LogsOpenSearchToolsST extends AbstractST {
                             assertTrue(root.path("log_lines").asInt() > 0, "Should have log lines from the 'kafka' container");
                             assertFalse(root.path("logs").asText("").isEmpty(), "logs content should not be empty");
                             assertTrue(root.path("logs").asText("").contains("=== Pod:"), "logs should contain pod log sections");
+                            assertTrue(warnings(root).isEmpty(),
+                                "A container filter that returns lines should not add a warning: " + root.path("warnings"));
                         })
                         .thenAssertResults();
                     return true;
@@ -189,6 +204,28 @@ class LogsOpenSearchToolsST extends AbstractST {
                 }
             }
         );
+    }
+
+    @Test
+    @Story("get_kafka_cluster_logs hints at the container field mapping when a container returns nothing via OpenSearch")
+    void testGetKafkaClusterLogsUnknownContainerHintViaOpenSearch() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "container", "no-such-container",
+            "tailLines", 10);
+
+        mcpClient.when()
+            .toolsCall("get_kafka_cluster_logs", args, response -> {
+                JsonNode root = assertToolSuccess(response);
+                assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
+                assertEquals(0, root.path("log_lines").asInt(), "An unknown container should return no lines");
+                assertEquals(1, warnings(root).stream()
+                        .filter(w -> w.startsWith("No log lines were returned for container 'no-such-container'"))
+                        .filter(w -> w.contains("mcp.log.opensearch.field.container"))
+                        .count(),
+                    "An empty container result should carry one field-mapping hint: " + root.path("warnings"));
+            })
+            .thenAssertResults();
     }
 
     @Test
@@ -213,6 +250,8 @@ class LogsOpenSearchToolsST extends AbstractST {
                     "error_count (" + errorCount + ") should not exceed log_lines (" + logLines + ")");
                 assertEquals(root.path("has_errors").asBoolean(), errorCount > 0,
                     "has_errors should be consistent with error_count");
+                logLines(root).forEach(line -> assertTrue(ERRORS_ANY_CASE.matcher(line).find(),
+                    "errors filter returned a line without an error level or exception: " + line));
             })
             .thenAssertResults();
     }
@@ -241,6 +280,8 @@ class LogsOpenSearchToolsST extends AbstractST {
                     assertFalse(root.path("has_errors").asBoolean(), "Should have no errors when no lines");
                     assertEquals(0, errorCount, "Error count should be 0 when no lines");
                 }
+                logLines(root).forEach(line -> assertTrue(WARNINGS_ANY_CASE.matcher(line).find(),
+                    "warnings filter returned a line without a warning or error: " + line));
             })
             .thenAssertResults();
     }
@@ -443,6 +484,19 @@ class LogsOpenSearchToolsST extends AbstractST {
             })
             .send()
             .thenAssertResults();
+    }
+
+    private static List<String> logLines(final JsonNode root) {
+        return Arrays.stream(root.path("logs").asText("").split("\n"))
+            .filter(line -> !line.startsWith(POD_HEADER))
+            .filter(line -> !line.isEmpty())
+            .toList();
+    }
+
+    private static List<String> warnings(final JsonNode root) {
+        List<String> warnings = new ArrayList<>();
+        root.path("warnings").forEach(warning -> warnings.add(warning.asText()));
+        return warnings;
     }
 
     // ---- OpenSearch Discovery ----

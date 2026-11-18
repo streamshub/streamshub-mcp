@@ -7,6 +7,7 @@ package io.streamshub.mcp.opensearch;
 import io.quarkus.arc.lookup.LookupIfProperty;
 import io.streamshub.mcp.common.dto.LogFetchRequest;
 import io.streamshub.mcp.common.service.log.LogCollectorProvider;
+import io.streamshub.mcp.common.service.log.LogFilterUtils;
 import io.streamshub.mcp.common.service.log.LogQueryException;
 import io.streamshub.mcp.common.util.ExceptionUtils;
 import io.streamshub.mcp.opensearch.config.OpenSearchConfig;
@@ -31,13 +32,42 @@ import java.util.stream.Collectors;
  * <p>Activated when {@code mcp.log.provider=streamshub-opensearch}.
  * Queries OpenSearch for logs matching Kubernetes namespace and pod name,
  * supports time-based filtering, regex patterns, and keyword search.</p>
+ *
+ * <p>The {@code filter} runs as a {@code regexp} query on the message field, which
+ * OpenSearch matches against each analyzed term (word), not against the whole line.
+ * The {@code errors}/{@code warnings} shortcuts therefore use term patterns
+ * ({@link #ERRORS_TERM_REGEXP}, {@link #WARNINGS_TERM_REGEXP}) that follow the shared
+ * rule of {@link LogFilterUtils#ERRORS_REGEX} and {@link LogFilterUtils#WARNINGS_REGEX}.</p>
  */
 @ApplicationScoped
 @LookupIfProperty(name = "mcp.log.provider", stringValue = "streamshub-opensearch")
 public class OpenSearchLogProvider implements LogCollectorProvider {
 
     private static final Logger LOG = Logger.getLogger(OpenSearchLogProvider.class);
-    private static final int DEFAULT_SINCE_SECONDS = 3600;
+
+    /**
+     * Term pattern for {@code filter=errors}: a {@code fatal} word, or a word that ends with
+     * {@code error} or {@code exception}. The standard analyzer lowercases words and keeps a dotted
+     * class name such as {@code org.apache.kafka.common.errors.TimeoutException} as one term, so this
+     * matches an {@code ERROR}/{@code FATAL} level and exception/error class names, while a config key
+     * such as {@code errors.tolerance} does not match. The query sets {@code case_insensitive}.
+     */
+    static final String ERRORS_TERM_REGEXP = "fatal|.*(error|exception)";
+
+    /**
+     * Term pattern for {@code filter=warnings}: {@link #ERRORS_TERM_REGEXP} plus a {@code warn}
+     * or {@code warning} word.
+     */
+    static final String WARNINGS_TERM_REGEXP = "fatal|warn|warning|.*(error|exception)";
+
+    /**
+     * Hint for a {@code container} filter that returned no lines from any pod while the indices
+     * hold no document at all for that pod and container: usually a wrong container field mapping.
+     * Arguments: the container, the configured container field.
+     */
+    static final String CONTAINER_NO_LINES_WARNING = "No log lines were returned for container '%s' from any pod."
+        + " If the container exists, check the container name and mcp.log.opensearch.field.container"
+        + " (currently '%s', matched on its .keyword sub-field).";
 
     @Inject
     OpenSearchConfig config;
@@ -88,23 +118,10 @@ public class OpenSearchLogProvider implements LogCollectorProvider {
                             int tailLines, Integer sinceSeconds,
                             String filter, List<String> keywords,
                             String startTime, String endTime, String container) {
-        String nsField = OpenSearchQuerySanitizer.sanitizeFieldName(config.field().namespace());
-        String podField = OpenSearchQuerySanitizer.sanitizeFieldName(config.field().pod());
         String msgField = OpenSearchQuerySanitizer.sanitizeFieldName(config.field().message());
         String tsField = OpenSearchQuerySanitizer.sanitizeFieldName(config.field().timestamp());
 
-        List<String> filterClauses = new ArrayList<>();
-
-        filterClauses.add(String.format("{\"term\":{\"%s.keyword\":\"%s\"}}",
-            nsField, OpenSearchQuerySanitizer.sanitizeValue(namespace)));
-        filterClauses.add(String.format("{\"term\":{\"%s.keyword\":\"%s\"}}",
-            podField, OpenSearchQuerySanitizer.sanitizeValue(podName)));
-
-        if (container != null && !container.isBlank()) {
-            String containerField = OpenSearchQuerySanitizer.sanitizeFieldName(config.field().container());
-            filterClauses.add(String.format("{\"term\":{\"%s.keyword\":\"%s\"}}",
-                containerField, OpenSearchQuerySanitizer.sanitizeValue(container.trim())));
-        }
+        List<String> filterClauses = selectorClauses(namespace, podName, container);
 
         String timeRangeClause = buildTimeRangeClause(tsField, sinceSeconds, startTime, endTime);
         if (timeRangeClause != null) {
@@ -138,6 +155,75 @@ public class OpenSearchLogProvider implements LogCollectorProvider {
             tailLines + 1);
     }
 
+    /**
+     * Build the probe for {@link #emptyContainerHint(LogFetchRequest)}: the namespace, pod and
+     * container term filters only, with no time range and no text filters, returning at most one
+     * hit without its source.
+     *
+     * @param namespace the Kubernetes namespace
+     * @param podName   the pod name
+     * @param container the container name
+     * @return the probe query body
+     */
+    String buildContainerProbeQuery(final String namespace, final String podName, final String container) {
+        return String.format("{\"query\":{\"bool\":{\"filter\":[%s]}},\"size\":1,\"_source\":false,"
+                + "\"terminate_after\":1}",
+            String.join(",", selectorClauses(namespace, podName, container)));
+    }
+
+    /**
+     * Hint at a wrong container field mapping when a {@code container} request returned no lines.
+     * One probe of the same namespace, pod and container, without a time range or text filters
+     * (indexed, size 1), tells a wrong mapping (no document at all) from a time window or filter
+     * that matched nothing.
+     *
+     * @param request the fetch request of the first pod
+     * @return the hint, or null when there is no container, the probe found a document, or the probe failed
+     */
+    @Override
+    public String emptyContainerHint(final LogFetchRequest request) {
+        String container = request.container();
+        if (container == null || container.isBlank()) {
+            return null;
+        }
+        if (containerHasDocuments(request)) {
+            return null;
+        }
+        return String.format(CONTAINER_NO_LINES_WARNING, container.trim(), config.field().container());
+    }
+
+    private boolean containerHasDocuments(final LogFetchRequest request) {
+        String probe = buildContainerProbeQuery(request.namespace(), request.podName(), request.container());
+        try {
+            OpenSearchResponse response = opensearchClient.get().search(config.indexPattern(), probe);
+            return response != null && response.hits() != null && response.hits().hits() != null
+                && !response.hits().hits().isEmpty();
+        } catch (Exception e) {
+            LOG.debugf("OpenSearch container probe failed for pod %s/%s: %s",
+                request.namespace(), request.podName(), e.getMessage());
+            // Cannot tell a wrong mapping from an empty search: give no hint.
+            return true;
+        }
+    }
+
+    private List<String> selectorClauses(final String namespace, final String podName, final String container) {
+        String nsField = OpenSearchQuerySanitizer.sanitizeFieldName(config.field().namespace());
+        String podField = OpenSearchQuerySanitizer.sanitizeFieldName(config.field().pod());
+
+        List<String> clauses = new ArrayList<>();
+        clauses.add(String.format("{\"term\":{\"%s.keyword\":\"%s\"}}",
+            nsField, OpenSearchQuerySanitizer.sanitizeValue(namespace)));
+        clauses.add(String.format("{\"term\":{\"%s.keyword\":\"%s\"}}",
+            podField, OpenSearchQuerySanitizer.sanitizeValue(podName)));
+
+        if (container != null && !container.isBlank()) {
+            String containerField = OpenSearchQuerySanitizer.sanitizeFieldName(config.field().container());
+            clauses.add(String.format("{\"term\":{\"%s.keyword\":\"%s\"}}",
+                containerField, OpenSearchQuerySanitizer.sanitizeValue(container.trim())));
+        }
+        return clauses;
+    }
+
     String extractLogLines(OpenSearchResponse response) {
         if (response == null || response.hits() == null || response.hits().hits() == null) {
             return null;
@@ -156,6 +242,17 @@ public class OpenSearchLogProvider implements LogCollectorProvider {
         return lines.isEmpty() ? null : String.join("\n", lines) + "\n";
     }
 
+    /**
+     * Build the time range filter clause. Without {@code startTime} or {@code sinceSeconds}
+     * there is no range: the search is indexed, so the newest {@code tailLines} matches are
+     * returned regardless of age.
+     *
+     * @param tsField      the timestamp field
+     * @param sinceSeconds optional relative window in seconds
+     * @param startTime    optional absolute start (ISO 8601)
+     * @param endTime      optional absolute end (ISO 8601), used only with {@code startTime}
+     * @return the range clause, or null for no time restriction
+     */
     private String buildTimeRangeClause(String tsField, Integer sinceSeconds,
                                          String startTime, String endTime) {
         if (startTime != null && endTime != null) {
@@ -164,10 +261,16 @@ public class OpenSearchLogProvider implements LogCollectorProvider {
                 OpenSearchQuerySanitizer.sanitizeValue(startTime),
                 OpenSearchQuerySanitizer.sanitizeValue(endTime));
         }
-        int effectiveSince = sinceSeconds != null ? sinceSeconds : DEFAULT_SINCE_SECONDS;
-        Instant since = Instant.now().minusSeconds(effectiveSince);
-        return String.format("{\"range\":{\"%s\":{\"gte\":\"%s\"}}}",
-            tsField, since.toString());
+        if (startTime != null) {
+            return String.format("{\"range\":{\"%s\":{\"gte\":\"%s\"}}}",
+                tsField, OpenSearchQuerySanitizer.sanitizeValue(startTime));
+        }
+        if (sinceSeconds != null) {
+            Instant since = Instant.now().minusSeconds(sinceSeconds);
+            return String.format("{\"range\":{\"%s\":{\"gte\":\"%s\"}}}",
+                tsField, since.toString());
+        }
+        return null;
     }
 
     private String resolveFilterRegex(String filter) {
@@ -176,10 +279,10 @@ public class OpenSearchLogProvider implements LogCollectorProvider {
         }
         String normalized = filter.trim().toLowerCase(Locale.ROOT);
         if ("errors".equals(normalized)) {
-            return "(ERROR|EXCEPTION)";
+            return ERRORS_TERM_REGEXP;
         }
         if ("warnings".equals(normalized)) {
-            return "(ERROR|EXCEPTION|WARN)";
+            return WARNINGS_TERM_REGEXP;
         }
         return filter.trim();
     }

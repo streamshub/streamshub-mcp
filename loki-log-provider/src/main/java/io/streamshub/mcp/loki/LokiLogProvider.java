@@ -7,6 +7,7 @@ package io.streamshub.mcp.loki;
 import io.quarkus.arc.lookup.LookupIfProperty;
 import io.streamshub.mcp.common.dto.LogFetchRequest;
 import io.streamshub.mcp.common.service.log.LogCollectorProvider;
+import io.streamshub.mcp.common.service.log.LogFilterUtils;
 import io.streamshub.mcp.common.service.log.LogQueryException;
 import io.streamshub.mcp.common.util.ExceptionUtils;
 import io.streamshub.mcp.loki.config.LokiConfig;
@@ -18,10 +19,10 @@ import jakarta.inject.Inject;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Collectors;
 
 /**
@@ -31,6 +32,14 @@ import java.util.stream.Collectors;
  * <p>Active when {@code mcp.log.provider=streamshub-loki} is set. Requires Loki
  * connection configuration via {@code quarkus.rest-client.loki.*} properties
  * and label mapping via {@code mcp.log.loki.*} properties.</p>
+ *
+ * <p>By default ({@code mcp.log.loki.unwrap-json=true}) the query reduces JSON log
+ * records, such as the OpenShift Logging ViaQ records, to their message field
+ * ({@code mcp.log.loki.json-message-field}, default {@code message}) with a
+ * {@code json | line_format | drop} stage right after the stream selector. Line
+ * filters then match only the message, and only the message is returned. Plain-text
+ * lines (Promtail, Grafana Alloy) fall back to their original text. Set
+ * {@code unwrap-json=false} to return raw lines.</p>
  *
  * <p>The {@code previous} parameter is ignored because Loki stores all
  * container logs (current and previous) in the same stream. Use a
@@ -42,7 +51,15 @@ public class LokiLogProvider implements LogCollectorProvider {
 
     private static final Logger LOG = Logger.getLogger(LokiLogProvider.class);
     private static final long NANOS_PER_SECOND = 1_000_000_000L;
-    private static final int DEFAULT_SINCE_SECONDS = 3600;
+
+    /**
+     * Hint for a {@code container} filter that returned no lines from any pod while the
+     * container's stream also has no line within {@code mcp.log.loki.max-lookback}: usually a
+     * wrong container label mapping. Arguments: the container, the configured container label.
+     */
+    static final String CONTAINER_NO_LINES_WARNING = "No log lines were returned for container '%s' from any pod."
+        + " If the container exists, check the container name and mcp.log.loki.label.container"
+        + " (currently '%s'; OpenShift Logging uses kubernetes_container_name).";
 
     @Inject
     LokiConfig config;
@@ -59,12 +76,9 @@ public class LokiLogProvider implements LogCollectorProvider {
         final String namespace = request.namespace();
         final String podName = request.podName();
         final int tailLines = request.tailLines();
-        final Integer sinceSeconds = request.sinceSeconds();
         final Boolean previous = request.previous();
         final String filter = request.filter();
         final List<String> keywords = request.keywords();
-        final String startTime = request.startTime();
-        final String endTime = request.endTime();
 
         if (Boolean.TRUE.equals(previous)) {
             LOG.debugf("Loki does not distinguish previous container logs; "
@@ -73,16 +87,9 @@ public class LokiLogProvider implements LogCollectorProvider {
 
         String query = buildLogQuery(namespace, podName, filter, keywords, request.container());
 
-        Instant start;
-        Instant end;
-        if (startTime != null && endTime != null) {
-            start = Instant.parse(startTime);
-            end = Instant.parse(endTime);
-        } else {
-            int effectiveSince = sinceSeconds != null ? sinceSeconds : DEFAULT_SINCE_SECONDS;
-            end = Instant.now();
-            start = end.minusSeconds(effectiveSince);
-        }
+        QueryWindow window = resolveWindow(request, Instant.now());
+        Instant start = window.start();
+        Instant end = window.end();
 
         LOG.debugf("Querying Loki: query=%s, start=%s, end=%s", query, start, end);
 
@@ -103,7 +110,8 @@ public class LokiLogProvider implements LogCollectorProvider {
     }
 
     /**
-     * Build a LogQL query with stream selector and optional line filters.
+     * Build a LogQL query with stream selector, the JSON message unwrap stage when
+     * {@code mcp.log.loki.unwrap-json} is enabled, and optional line filters.
      *
      * @param namespace the Kubernetes namespace
      * @param podName   the pod name
@@ -115,6 +123,34 @@ public class LokiLogProvider implements LogCollectorProvider {
     String buildLogQuery(final String namespace, final String podName,
                          final String filter, final List<String> keywords,
                          final String container) {
+        return buildLogQuery(namespace, podName, filter, keywords, container,
+            config.unwrapJson() ? config.jsonMessageField() : null);
+    }
+
+    /**
+     * Build a LogQL query with stream selector, an optional JSON message unwrap stage
+     * and optional line filters.
+     *
+     * <p>When {@code messageField} is set, the stage
+     * {@code | json mcp_message="<field>" | line_format "{{if .mcp_message}}{{.mcp_message}}{{else}}{{__line__}}{{end}}"}
+     * follows the selector, then a {@code !~} line filter that drops lines that are still a
+     * JSON record with an empty message field (blank log lines, which would otherwise come
+     * back as the whole record), then {@code | drop mcp_message, __error__, __error_details__}.
+     * The line filters and the returned lines see only the message. Lines that are not JSON,
+     * or have no such field, keep their original text.</p>
+     *
+     * @param namespace    the Kubernetes namespace
+     * @param podName      the pod name
+     * @param filter       optional filter: "errors", "warnings", or a regex pattern
+     * @param keywords     optional list of keywords for line matching
+     * @param container    optional container name to filter logs
+     * @param messageField JSON field holding the message, or null to keep raw lines
+     * @return the LogQL query string
+     * @throws IllegalArgumentException if {@code messageField} is not a valid JSON field path
+     */
+    String buildLogQuery(final String namespace, final String podName,
+                         final String filter, final List<String> keywords,
+                         final String container, final String messageField) {
         StringBuilder query = new StringBuilder();
         query.append(String.format("{%s=\"%s\", %s=\"%s\"",
             LogQLSanitizer.sanitizeLabelName(config.label().namespace()),
@@ -129,7 +165,25 @@ public class LokiLogProvider implements LogCollectorProvider {
         }
         query.append("}");
 
-        String filterRegex = resolveFilterRegex(filter);
+        if (messageField != null) {
+            String field = LogQLSanitizer.sanitizeJsonField(messageField);
+            String lastSegment = field.substring(field.lastIndexOf('.') + 1);
+            // A record whose message is empty falls back to the whole JSON record in line_format
+            // (Loki renders a missing and an empty field the same), so drop such records before
+            // the line filters. The filter sits before "| drop": after a drop label list, "!~"
+            // would parse as a conditional-drop matcher, not a line filter.
+            // The regex is a text heuristic, not a JSON check. It assumes compact JSON (no space
+            // around ':'), as Vector emits for ViaQ, so "message":null and pretty-printed records
+            // still come back whole. It matches the field's last segment at any depth, so a record
+            // with a non-empty message but another empty field of that name is dropped too.
+            String emptyMessageRegex = "^\\{.*\"" + lastSegment + "\":\"\"";
+            query.append(" | json mcp_message=\"").append(field)
+                .append("\" | line_format \"{{if .mcp_message}}{{.mcp_message}}{{else}}{{__line__}}{{end}}\"")
+                .append(" !~ \"").append(LogQLSanitizer.sanitizeLabelValue(emptyMessageRegex)).append("\"")
+                .append(" | drop mcp_message, __error__, __error_details__");
+        }
+
+        String filterRegex = LogFilterUtils.resolveFilterRegex(filter);
         if (filterRegex != null) {
             query.append(" |~ \"").append(LogQLSanitizer.sanitizeLabelValue(filterRegex)).append("\"");
         }
@@ -148,23 +202,115 @@ public class LokiLogProvider implements LogCollectorProvider {
     }
 
     /**
-     * Resolve a filter shortcut or custom regex into a LogQL regex pattern.
+     * Resolve the time window of a query.
      *
-     * @param filter the filter string
-     * @return the regex pattern, or null if no filter
+     * <ol>
+     *   <li>{@code startTime} set: from {@code startTime} to {@code endTime}, or to now</li>
+     *   <li>{@code sinceSeconds} set: the last {@code sinceSeconds}</li>
+     *   <li>a filter or a non-blank keyword: the last {@code mcp.log.loki.filter-lookback}
+     *       (capped at {@code max-lookback})</li>
+     *   <li>otherwise: the last {@code mcp.log.loki.max-lookback}</li>
+     * </ol>
+     *
+     * @param request the fetch request
+     * @param now     the current instant
+     * @return the query window
      */
-    private String resolveFilterRegex(final String filter) {
-        if (filter == null || filter.isBlank()) {
+    QueryWindow resolveWindow(final LogFetchRequest request, final Instant now) {
+        if (request.startTime() != null) {
+            Instant end = request.endTime() != null ? Instant.parse(request.endTime()) : now;
+            return new QueryWindow(Instant.parse(request.startTime()), end);
+        }
+        if (request.sinceSeconds() != null) {
+            return new QueryWindow(now.minusSeconds(request.sinceSeconds()), now);
+        }
+        if (hasLineFilters(request)) {
+            return new QueryWindow(now.minus(effectiveFilterLookback()), now);
+        }
+        return new QueryWindow(now.minus(config.maxLookback()), now);
+    }
+
+    /**
+     * Report the bounded window of a filtered query without a time range, so the caller
+     * knows older matches were not searched.
+     *
+     * @param request the fetch request
+     * @return the note, or null when the request has a time range or no line filters
+     */
+    @Override
+    public String searchScopeNote(final LogFetchRequest request) {
+        if (request.startTime() != null || request.sinceSeconds() != null || !hasLineFilters(request)) {
             return null;
         }
-        String normalized = filter.trim().toLowerCase(Locale.ENGLISH);
-        if ("errors".equals(normalized)) {
-            return "(?i)(ERROR|EXCEPTION)";
+        return String.format("Loki searched only the last %d minutes for lines matching the filter or keywords,"
+            + " because no sinceMinutes or startTime/endTime was given. Pass sinceMinutes to search further back.",
+            effectiveFilterLookback().toMinutes());
+    }
+
+    /**
+     * Hint at a wrong container label mapping when a {@code container} request returned no lines.
+     * The hint is given only when the container's stream has no line at all within
+     * {@code mcp.log.loki.max-lookback}. An unfiltered request without a time range already searched
+     * that window, so its empty result is the answer. Otherwise one probe of the same selector over
+     * {@code max-lookback}, without line filters and with limit 1, tells a wrong mapping (still empty)
+     * from a filtered search that matched nothing, or from a short {@code sinceMinutes} window in which
+     * a correctly mapped container logged nothing.
+     *
+     * @param request the fetch request of the first pod
+     * @return the hint, or null when there is no container, the probe found lines, or the probe failed
+     */
+    @Override
+    public String emptyContainerHint(final LogFetchRequest request) {
+        String container = request.container();
+        if (container == null || container.isBlank()) {
+            return null;
         }
-        if ("warnings".equals(normalized)) {
-            return "(?i)(ERROR|EXCEPTION|WARN)";
+        if (!searchedMaxLookbackUnfiltered(request) && containerStreamHasLines(request)) {
+            return null;
         }
-        return filter.trim();
+        return String.format(CONTAINER_NO_LINES_WARNING, container.trim(), config.label().container());
+    }
+
+    private static boolean searchedMaxLookbackUnfiltered(final LogFetchRequest request) {
+        return request.startTime() == null && request.sinceSeconds() == null && !hasLineFilters(request);
+    }
+
+    private boolean containerStreamHasLines(final LogFetchRequest request) {
+        String probe = buildLogQuery(request.namespace(), request.podName(), null, null, request.container(), null);
+        Instant now = Instant.now();
+        try {
+            LokiResponse response = lokiClient.get().queryRange(
+                probe, toEpochNanos(now.minus(config.maxLookback())), toEpochNanos(now), 1, "backward");
+            return extractLogLines(response) != null;
+        } catch (Exception e) {
+            LOG.debugf("Loki container probe failed for pod %s/%s: %s",
+                request.namespace(), request.podName(), e.getMessage());
+            // Cannot tell a wrong mapping from an empty search: give no hint.
+            return true;
+        }
+    }
+
+    private Duration effectiveFilterLookback() {
+        Duration filterLookback = config.filterLookback();
+        Duration maxLookback = config.maxLookback();
+        return filterLookback.compareTo(maxLookback) <= 0 ? filterLookback : maxLookback;
+    }
+
+    private static boolean hasLineFilters(final LogFetchRequest request) {
+        if (LogFilterUtils.resolveFilterRegex(request.filter()) != null) {
+            return true;
+        }
+        return request.keywords() != null
+            && request.keywords().stream().anyMatch(k -> k != null && !k.isBlank());
+    }
+
+    /**
+     * Time window of a Loki query.
+     *
+     * @param start the inclusive start
+     * @param end   the end
+     */
+    record QueryWindow(Instant start, Instant end) {
     }
 
     /**

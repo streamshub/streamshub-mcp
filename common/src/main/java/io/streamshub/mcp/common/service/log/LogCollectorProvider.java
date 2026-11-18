@@ -22,11 +22,11 @@ import io.streamshub.mcp.common.dto.LogFetchRequest;
  *   <li>Set {@code mcp.log.provider=my-provider} in configuration</li>
  * </ol>
  *
- * <p>The {@code filter} and {@code keywords} parameters are filtering hints.
- * Providers that support server-side filtering (e.g., Loki via LogQL) should
- * use them to reduce data transfer. Providers that do not support server-side
- * filtering (e.g., Kubernetes pod logs) should ignore them —
- * {@link LogCollectionService} applies client-side filtering as a fallback.</p>
+ * <p>Providers apply the {@code filter} and {@code keywords} parameters themselves:
+ * providers with server-side filtering (e.g., Loki via LogQL, OpenSearch) put them in
+ * the backend query, and providers without it (e.g., Kubernetes pod logs) filter the
+ * fetched lines with {@link LogFilterUtils}. {@link LogCollectionService} does not
+ * filter again; it counts errors, deduplicates and aggregates the returned lines.</p>
  */
 public interface LogCollectorProvider {
 
@@ -43,4 +43,33 @@ public interface LogCollectorProvider {
      * @return the log string (possibly pre-filtered), or null if no logs are available
      */
     String fetchLogs(LogFetchRequest request);
+
+    /**
+     * Describe a limit the provider applied that the request did not ask for (for example a
+     * default time window), or null. {@link LogCollectionService} adds a non-null note to the
+     * {@code warnings} of the result, so the caller knows what was not searched.
+     *
+     * @param request a fetch request of the collection (namespace, filters and time range)
+     * @return a short note for the response warnings, or null when the request was honoured as given
+     */
+    default String searchScopeNote(final LogFetchRequest request) {
+        return null;
+    }
+
+    /**
+     * Explain an empty result for a request that named a {@code container}, or return null.
+     * {@link LogCollectionService} calls this at most once per collection, only when the
+     * request has a container and no pod returned any line, and adds a non-null hint to the
+     * {@code warnings} of the result. Providers that map the container through a configurable
+     * label or field (for example Loki) can use it to point at a wrong mapping, and may run a
+     * cheap probe query to tell a wrong mapping from a filtered search or a short time window
+     * that genuinely matched nothing.
+     * Providers without such a mapping return null (the default).
+     *
+     * @param request a fetch request of the collection (namespace, first pod, container, filters, time range)
+     * @return a short hint for the response warnings, or null
+     */
+    default String emptyContainerHint(final LogFetchRequest request) {
+        return null;
+    }
 }

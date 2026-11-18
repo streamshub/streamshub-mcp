@@ -27,16 +27,43 @@ public final class StrimziToolsPrompts {
      * Log filter parameter description.
      */
     public static final String LOG_FILTER_DESC =
-        "Filter log lines: 'errors' for ERROR/EXCEPTION only,"
-            + " 'warnings' for ERROR/EXCEPTION/WARN,"
+        "Filter log lines: 'errors' for lines with an ERROR/FATAL level or an exception/error"
+            + " class name (e.g. IOException, OutOfMemoryError), 'warnings' adds WARN/WARNING,"
             + " or a regex pattern. Omit for all lines.";
 
     /**
-     * Since minutes parameter description.
+     * Since minutes parameter description for the {@code get_*_logs} tools.
      */
     public static final String SINCE_MINUTES_DESC =
         "Only return logs newer than this many minutes."
-            + " Omit for no time restriction.";
+            + " Omit for the most recent lines regardless of age; on Loki, a filter or keywords"
+            + " without a time range search only the last 60 minutes by default, and the response warns about it.";
+
+    /**
+     * Since minutes parameter description for diagnostics that collect logs and events
+     * (Connect, connector, MirrorMaker 2, Bridge, node pool, rebalance).
+     */
+    public static final String SINCE_MINUTES_DIAGNOSTIC_DESC =
+        "Only include logs and events newer than this many minutes."
+            + " Omit for all available events and the most recent error log lines"
+            + " (on Loki, the last 60 minutes by default).";
+
+    /**
+     * Since minutes parameter description for {@code diagnose_kafka_cluster}.
+     */
+    public static final String SINCE_MINUTES_CLUSTER_DIAGNOSTIC_DESC =
+        "Time window in minutes for logs, events and metrics."
+            + " Omit to use the window recommended by triage, or 30 minutes."
+            + " When no error logs are found, the log window is widened once, also when this is given:"
+            + " a relative window is doubled up to 60 minutes, an absolute triage window grows by"
+            + " 30 minutes on each side. Clients that support elicitation are then asked whether to widen it further.";
+
+    /**
+     * Since minutes parameter description for {@code diagnose_kafka_storage}.
+     */
+    public static final String SINCE_MINUTES_STORAGE_DESC =
+        "Time window in minutes for events and disk metrics."
+            + " Omit for all available events and current metric values.";
 
     /**
      * Tail lines parameter description.

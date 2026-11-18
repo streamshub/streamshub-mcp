@@ -69,7 +69,7 @@ Get logs from KafkaMirrorMaker2 pods with error analysis. Supports filtering, ti
 * `namespace` (optional) -- Kubernetes namespace
 * `filter` (optional) -- Log filter ("errors", "warnings", or regex)
 * `keywords` (optional) -- Keywords to search for
-* `sinceMinutes` (optional) -- Time window in minutes
+* `sinceMinutes` (optional) -- Only return logs newer than this many minutes; omit for the most recent lines regardless of age (Loki: a `filter` or `keywords` without a time range searches only the last 60 minutes and adds a note to `warnings`)
 * `startTime` (optional) -- Absolute start time (ISO 8601)
 * `endTime` (optional) -- Absolute end time (ISO 8601)
 * `tailLines` (optional) -- Number of lines per pod

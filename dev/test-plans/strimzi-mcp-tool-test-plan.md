@@ -406,6 +406,7 @@ Parameters: { "clusterName": "mcp-cluster", "tailLines": 20 }
 - [ ] Returns log lines from broker pods
 - [ ] Logs are grouped by pod name
 - [ ] At most 20 lines per pod
+- [ ] With the Loki provider (including OpenShift Logging), lines are log messages, not JSON records (no line starts with `{"@timestamp"`)
 
 ### T2.11 - Get Cluster Logs (filtered for errors)
 
@@ -424,6 +425,7 @@ Parameters: {
 - [ ] Logs are from the last 60 minutes only
 - [ ] Lines that contain `@` (for example a Java identity hash such as `DefaultKafkaPrincipalBuilder@6a38a832`) keep their full text; `://[REDACTED]@` appears only where the original line held `user:password@` credentials
 - [ ] `RequestHeader(apiKey=...)` in broker or controller errors keeps the request type (for example `apiKey=BROKER_HEARTBEAT`), not `apiKey=[REDACTED]`
+- [ ] With the Loki provider (including OpenShift Logging), lines are log messages, not JSON records, and every line contains `ERROR` in the message itself (not only in pod metadata)
 
 ### T2.12 - Get Cluster Logs (keyword search)
 
@@ -485,6 +487,8 @@ Parameters: {
 - [ ] No logs from other containers (e.g., init containers)
 - [ ] Logs are grouped by pod name
 - [ ] At most 20 lines per pod
+- [ ] With the Loki provider on OpenShift Logging (`dev-deploy.sh --ocp --loki`, which sets `MCP_LOG_LOKI_LABEL_CONTAINER=kubernetes_container_name`), log lines are returned, not `log_lines: 0`
+- [ ] No `warnings` entry starting with `No log lines were returned for container` (the Loki and OpenSearch providers give that hint only when the container has no logs at all: none within `mcp.log.loki.max-lookback` for Loki, no document for OpenSearch)
 
 **System test coverage:**
 - Kubernetes provider: `KafkaClusterToolsST.testGetKafkaClusterLogsContainerSelector()`
@@ -1116,6 +1120,18 @@ Parameters: { "tailLines": 50 }
 
 **Expected:**
 - [ ] Returns logs from drain cleaner pod(s)
+- [ ] Returns the startup lines even when the newest is older than 60 minutes (Drain Cleaner logs mostly at startup; with Loki the unfiltered query reaches back up to `mcp.log.loki.max-lookback`)
+
+### T9.4b - Get Drain Cleaner Logs (filter without time range)
+
+```
+Tool: get_drain_cleaner_logs
+Parameters: { "filter": "errors", "tailLines": 50 }
+```
+
+**Expected:**
+- [ ] With the Loki provider, `warnings` contains a note starting with `Loki searched only the last 60 minutes`, so an empty result does not read as an all-clear
+- [ ] With the Kubernetes provider, no such note (the filter applies to the last `tailLines` lines)
 
 ### T9.5 - Get Events for Drain Cleaner
 
@@ -2356,6 +2372,7 @@ This phase tests all three server-side error handling patterns under RBAC restri
 | 9     | T9.2    | get_drain_cleaner | --drain-cleaner | | |
 | 9     | T9.3    | check_drain_cleaner_readiness | --drain-cleaner | | |
 | 9     | T9.4    | get_drain_cleaner_logs | --drain-cleaner | | |
+| 9     | T9.4b   | get_drain_cleaner_logs (filter, no time range) | --drain-cleaner | | |
 | 9     | T9.5    | get_strimzi_events (DrainCleaner) | --drain-cleaner | | |
 | 10    | T10.1   | list_kafka_connects | --connect | | |
 | 10    | T10.2   | get_kafka_connect | --connect | | |

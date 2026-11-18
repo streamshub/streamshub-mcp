@@ -26,6 +26,10 @@ Benefits:
 |`mcp.log.loki.auth-mode` |`none` |Authentication mode: `none`, `basic`, `bearer-token`, or `sa-token`
 |`mcp.log.loki.sa-token-path` |`/var/run/secrets/kubernetes.io/serviceaccount/token` |Path to ServiceAccount token
 |`mcp.log.loki.tenant-id` |- |Tenant ID for multi-tenant Loki deployments. When set, the server sends this value as the `X-Scope-OrgID` header with every Loki request. Required when Loki runs in multi-tenant mode.
+|`mcp.log.loki.unwrap-json` |`true` |Reduce JSON log records (for example OpenShift Logging ViaQ records) to their message field before filtering and before returning them. See <<loki-log-line-format-{context}>>.
+|`mcp.log.loki.json-message-field` |`message` |JSON field that holds the log message when `unwrap-json` is enabled. Accepts a dotted path, for example `log.message`.
+|`mcp.log.loki.max-lookback` |`720h` |How far back a query without a time range and without `filter` or `keywords` reaches. Keep it at or below the backend's `max_query_length`. Must be at least `1m`. See <<loki-time-range-{context}>>.
+|`mcp.log.loki.filter-lookback` |`1h` |How far back a query with `filter` or `keywords` but without a time range reaches. Capped at `max-lookback`. Must be at least `1m`.
 |===
 
 == Setup Loki
@@ -120,7 +124,50 @@ For OpenShift Logging (ClusterLogForwarder):
 ----
 mcp.log.loki.label.namespace=kubernetes_namespace_name
 mcp.log.loki.label.pod=kubernetes_pod_name
+mcp.log.loki.label.container=kubernetes_container_name
 ----
+
+Without the container mapping, a `container` filter on the log tools matches no Loki stream and returns no lines.
+In that case the response carries a hint in `warnings` that names this property.
+The hint appears only when the container's stream has no lines at all within `mcp.log.loki.max-lookback`: when a `filter` or `keywords` search, or a call with `sinceMinutes` or `startTime`/`endTime`, returns nothing, the server first probes the same pod and container over `max-lookback` without the line filters, and adds no hint if the probe finds lines.
+
+[id='loki-log-line-format-{context}']
+== Log line format
+
+Some log collectors store each log line in Loki as a JSON record.
+OpenShift Logging (ClusterLogForwarder with the default ViaQ data model) stores the log message in the `message` field, next to pod annotations, labels, namespace labels and cluster metadata.
+
+By default (`mcp.log.loki.unwrap-json=true`), the MCP server reduces each record to its message inside the LogQL query, before the `filter` and `keywords` line filters run:
+
+* The `filter` and `keywords` parameters match only the log message, not the record metadata. For example, `filter: "warnings"` no longer matches every line in a namespace labelled `pod-security.kubernetes.io/warn`.
+* The tools return the log message, not the whole JSON record.
+* Records with an empty message field (blank log lines) are dropped, because they would otherwise come back as the whole JSON record.
+* Plain-text lines, as shipped by Promtail and Grafana Alloy, are returned unchanged, so the same setting works with every collector.
+
+The unwrap applies to every JSON line, not only ViaQ records.
+If your applications log JSON themselves and your collector ships those lines as they are, the tools return only their `message` field.
+The `filter: "errors"` shortcut and the `error_count` then no longer see a log level that lives only in another JSON field, for example `{"level":"ERROR","message":"Connection lost"}`.
+Set `mcp.log.loki.unwrap-json=false` in that case, or when you need the other fields of each record.
+If your collector stores the message in a different field, set `mcp.log.loki.json-message-field`.
+
+The unwrap pipeline uses the LogQL `drop` stage, which needs Loki 2.7 or later.
+On older Loki versions, set `mcp.log.loki.unwrap-json=false`.
+
+[id='loki-time-range-{context}']
+== Time range
+
+Loki queries always cover a time window.
+When a log tool call gives no `sinceMinutes` and no `startTime`/`endTime`, the window depends on the line filters:
+
+* *No `filter` and no `keywords`*: the query reaches back up to `mcp.log.loki.max-lookback` (default 30 days) and returns the newest `tailLines` lines, however old they are.
+Loki stops reading once the line limit is filled, so a quiet component, such as the Drain Cleaner that logs only at startup, still returns its lines.
+Keep `max-lookback` at or below the backend's `max_query_length` limit (Loki default `721h`), or Loki rejects the query.
+Both `max-lookback` and `filter-lookback` must be at least one minute; the server does not start otherwise.
+* *With `filter` or `keywords`*: the query covers only `mcp.log.loki.filter-lookback` (default 1 hour).
+Loki has no index on line content, so a filtered search reads every line in the window, and a 30-day window would time out on busy clusters.
+The response adds a note to `warnings` that says only that window was searched, so an empty result does not read as an all-clear.
+
+With `sinceMinutes` or `startTime`/`endTime`, Loki searches the whole requested window.
 
 [id='loki-tls-configuration-{context}']
 == Loki TLS configuration
@@ -154,7 +201,7 @@ kubectl apply -f install/strimzi-mcp/optional/clusterrolebinding-loki-applicatio
 ----
 
 Without this, Loki queries will return `403 Forbidden`.
-The `dev-deploy.sh --loki` script creates this ClusterRole automatically if it is missing.
+The `dev-deploy.sh --ocp --loki` script creates this ClusterRole automatically if it is missing.
 
 == Verify integration
 

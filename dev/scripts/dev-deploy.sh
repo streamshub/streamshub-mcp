@@ -158,17 +158,26 @@ if [ "$LOKI" = true ] || [ "$PROMETHEUS" = true ]; then
 fi
 
 if [ "$LOKI" = true ]; then
-    echo "==> Granting Loki RBAC to service account $SA_NAME"
-    kubectl apply -f "$OPTIONAL_DIR/clusterrole-loki-application-view.yaml"
-    kubectl apply -f "$OPTIONAL_DIR/clusterrolebinding-loki-application-view.yaml"
-    echo "==> Configuring Loki log provider"
-    kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
-        MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-loki}" \
-        MCP_LOG_LOKI_AUTH_MODE="${MCP_LOG_LOKI_AUTH_MODE:-sa-token}" \
-        QUARKUS_REST_CLIENT_LOKI_URL="${QUARKUS_REST_CLIENT_LOKI_URL:-https://logging-loki-gateway-http.openshift-logging.svc:8080/api/logs/v1/application}" \
-        MCP_LOG_LOKI_LABEL_NAMESPACE="${MCP_LOG_LOKI_LABEL_NAMESPACE:-kubernetes_namespace_name}" \
-        MCP_LOG_LOKI_LABEL_POD="${MCP_LOG_LOKI_LABEL_POD:-kubernetes_pod_name}" \
-        QUARKUS_TLS_TRUST_ALL="${QUARKUS_TLS_TRUST_ALL:-true}"
+    if [ "$OCP" = true ]; then
+        echo "==> Granting Loki RBAC to service account $SA_NAME"
+        kubectl apply -f "$OPTIONAL_DIR/clusterrole-loki-application-view.yaml"
+        kubectl apply -f "$OPTIONAL_DIR/clusterrolebinding-loki-application-view.yaml"
+        echo "==> Configuring Loki log provider (OpenShift Logging LokiStack, ViaQ labels)"
+        kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
+            MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-loki}" \
+            MCP_LOG_LOKI_AUTH_MODE="${MCP_LOG_LOKI_AUTH_MODE:-sa-token}" \
+            QUARKUS_REST_CLIENT_LOKI_URL="${QUARKUS_REST_CLIENT_LOKI_URL:-https://logging-loki-gateway-http.openshift-logging.svc:8080/api/logs/v1/application}" \
+            MCP_LOG_LOKI_LABEL_NAMESPACE="${MCP_LOG_LOKI_LABEL_NAMESPACE:-kubernetes_namespace_name}" \
+            MCP_LOG_LOKI_LABEL_POD="${MCP_LOG_LOKI_LABEL_POD:-kubernetes_pod_name}" \
+            MCP_LOG_LOKI_LABEL_CONTAINER="${MCP_LOG_LOKI_LABEL_CONTAINER:-kubernetes_container_name}" \
+            QUARKUS_TLS_TRUST_ALL="${QUARKUS_TLS_TRUST_ALL:-true}"
+    else
+        echo "==> Configuring Loki log provider (standalone Loki from setup-loki-kind.sh)"
+        kubectl -n "$DEPLOY_NS" set env "$DEPLOY_TARGET" \
+            MCP_LOG_PROVIDER="${MCP_LOG_PROVIDER:-streamshub-loki}" \
+            MCP_LOG_LOKI_AUTH_MODE="${MCP_LOG_LOKI_AUTH_MODE:-none}" \
+            QUARKUS_REST_CLIENT_LOKI_URL="${QUARKUS_REST_CLIENT_LOKI_URL:-http://loki.logging.svc.cluster.local:3100}"
+    fi
 fi
 
 SENSITIVE_GRANTED=""

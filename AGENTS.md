@@ -122,7 +122,12 @@ io.streamshub.mcp.common.
 │   │                 LogFilterUtils (shared keyword/regex log line filtering),
 │   │                 LogQueryException (typed exception for log collection failures).
 │   │                 LogCollectorProvider.fetchLogs takes a single LogFetchRequest (namespace,
-│   │                 pod, filtering fields, and optional container selector).
+│   │                 pod, filtering fields, and optional container selector);
+│   │                 LogCollectorProvider.searchScopeNote (default null) reports a limit the
+│   │                 provider applied (e.g. Loki's filter-lookback), added once to warnings;
+│   │                 LogCollectorProvider.emptyContainerHint (default null) explains an empty
+│   │                 container-filtered result (Loki: label mapping, with a limit-1 probe
+│   │                 over max-lookback; OpenSearch: field mapping, with a size-1 probe).
 │   └── metrics/    → MetricsProvider (interface), PodScrapingMetricsProvider, MetricsQueryService,
 │                     MetricsQueryException (typed exception for metrics query failures)
 └── util/           → InputUtils,
@@ -153,7 +158,8 @@ io.streamshub.mcp.metrics.prometheus.
 
 ```
 io.streamshub.mcp.loki.
-├── config/    → LokiConfig (label mapping, auth mode)
+├── config/    → LokiConfig (label mapping, auth mode, JSON message unwrap, lookbacks;
+│                 @DurationMin constraints checked at startup via quarkus-hibernate-validator)
 ├── service/   → LokiClient, LokiAuthFilter
 ├── util/      → LogQLSanitizer
 └── LokiLogProvider (implements LogCollectorProvider)

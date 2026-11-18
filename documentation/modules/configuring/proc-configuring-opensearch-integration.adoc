@@ -176,6 +176,15 @@ kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
   MCP_LOG_OPENSEARCH_FIELD_CONTAINER=k8s_container
 ----
 
+The provider matches the namespace, pod and container fields on their `.keyword` sub-field, as the default dynamic mapping creates.
+If a `container` filter returns no lines from any pod, the server runs one probe for the same pod and container, without a time range or text filters.
+When that probe finds no document either, the response carries a hint in `warnings` that names `mcp.log.opensearch.field.container`, instead of a bare "no errors found".
+
+== Time range
+
+The OpenSearch search is indexed, so the provider applies no default time window.
+Without `sinceMinutes` or `startTime`/`endTime`, log tools return the newest `tailLines` matching lines regardless of their age.
+
 == Elasticsearch compatibility
 
 The same provider works with Elasticsearch -- both expose the same `_search` API.

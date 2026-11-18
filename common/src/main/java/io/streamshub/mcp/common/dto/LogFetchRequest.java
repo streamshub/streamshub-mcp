@@ -16,12 +16,16 @@ import java.util.List;
  * @param namespace    the Kubernetes namespace of the pod
  * @param podName      the name of the pod
  * @param tailLines    the number of lines to tail per container
- * @param sinceSeconds optional relative time range in seconds; null for no time restriction
+ * @param sinceSeconds optional relative time range in seconds; null to let the provider choose
+ *                     (Kubernetes and OpenSearch: no restriction; Loki: a configured lookback,
+ *                     reported through {@code LogCollectorProvider.searchScopeNote} when it limits a search)
  * @param previous     if true, retrieve logs from the previous container instance
  * @param filter       optional filter: "errors", "warnings", or a regex pattern
  * @param keywords     optional list of keywords for line matching (case-insensitive)
  * @param startTime    optional absolute start time in ISO 8601 format (use with endTime)
- * @param endTime      optional absolute end time in ISO 8601 format (use with startTime)
+ * @param endTime      optional absolute end time in ISO 8601 format (use with startTime). The log tools
+ *                     always pass both ({@code TimeRangeValidator} rejects one without the other);
+ *                     providers treat a missing endTime as now for internal callers only
  * @param container    optional container name to narrow collection to a single container;
  *                     null or blank means all containers
  */
