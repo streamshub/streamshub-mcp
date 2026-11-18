@@ -121,6 +121,24 @@ When a `filter` or `keywords` search, or a call with `sinceMinutes` or `startTim
 If that probe finds lines, the container mapping is fine and the call simply matched nothing in its window, so no hint is added.
 The hint can still appear for a container that exists but has logged nothing within `max-lookback`.
 
+== Loki returns JSON records, or filters match pod metadata
+
+*Symptom:* With OpenShift Logging, the log tools return each line as a JSON record with pod annotations and labels, and `filter` or `keywords` match lines whose message does not contain the text.
+For example, `filter: "warnings"` returns every line from a namespace labelled `pod-security.kubernetes.io/warn`.
+
+*Cause:* OpenShift Logging stores each log line in Loki as a ViaQ JSON record.
+The Loki provider returns and filters the whole record unless `mcp.log.loki.unwrap-json` is enabled, which is off by default.
+
+*Solution:* Enable the unwrap, so the provider filters and returns only the `message` field:
+
+[source,bash]
+----
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  MCP_LOG_LOKI_UNWRAP_JSON=true
+----
+
+Do not enable it when your applications log JSON themselves and the collector ships those lines unchanged: the unwrap keeps only their `message` field, so a level in another field, such as `"level":"ERROR"`, no longer counts for `filter: "errors"` or `error_count`.
+
 == Container filter returns no lines from OpenSearch
 
 *Symptom:* A log tool called with `container` returns no log lines, while the same call without `container` returns data.

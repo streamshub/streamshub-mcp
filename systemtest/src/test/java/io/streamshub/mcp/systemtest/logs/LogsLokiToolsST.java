@@ -144,7 +144,10 @@ class LogsLokiToolsST extends AbstractST {
             .withEnv("MCP_LOG_LOKI_AUTH_MODE", lokiConfig.authMode())
             .withEnv("MCP_LOG_LOKI_LABEL_NAMESPACE", lokiConfig.namespaceLabel())
             .withEnv("MCP_LOG_LOKI_LABEL_POD", lokiConfig.podLabel())
-            .withEnv("MCP_LOG_LOKI_LABEL_CONTAINER", lokiConfig.containerLabel());
+            .withEnv("MCP_LOG_LOKI_LABEL_CONTAINER", lokiConfig.containerLabel())
+            // OpenShift Logging needs the unwrap; on the standalone Loki the pushed ViaQ records need it,
+            // and the plain-text lines from the collector must pass through it unchanged.
+            .withEnv("MCP_LOG_LOKI_UNWRAP_JSON", "true");
 
         if (lokiConfig.trustAll()) {
             builder.withEnv("QUARKUS_TLS_TRUST_ALL", "true");

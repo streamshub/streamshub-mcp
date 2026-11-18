@@ -53,7 +53,8 @@ class LokiLogProviderTest {
         String query = lokiLogCollectorProvider.buildLogQuery(
             "kafka-prod", "my-cluster-kafka-0", null, null, null);
 
-        assertEquals("{namespace=\"kafka-prod\", pod=\"my-cluster-kafka-0\"}" + UNWRAP, query);
+        // unwrap-json is off by default: raw lines, so JSON application logs keep their level field.
+        assertEquals("{namespace=\"kafka-prod\", pod=\"my-cluster-kafka-0\"}", query);
     }
 
     @Test
@@ -135,7 +136,7 @@ class LokiLogProviderTest {
         String query = lokiLogCollectorProvider.buildLogQuery(
             "ns\"} | logfmt", "pod-0", null, null, null);
 
-        assertEquals("{namespace=\"ns\\\"} | logfmt\", pod=\"pod-0\"}" + UNWRAP, query);
+        assertEquals("{namespace=\"ns\\\"} | logfmt\", pod=\"pod-0\"}", query);
     }
 
     @Test
@@ -143,7 +144,7 @@ class LokiLogProviderTest {
         String query = lokiLogCollectorProvider.buildLogQuery(
             "kafka", "pod-0", "errors", null, null);
 
-        assertEquals("{namespace=\"kafka\", pod=\"pod-0\"}" + UNWRAP + ERRORS_FILTER, query);
+        assertEquals("{namespace=\"kafka\", pod=\"pod-0\"}" + ERRORS_FILTER, query);
         // The regex backslashes are doubled once for the LogQL string literal.
         assertTrue(query.contains("\\\\b(?:ERROR|FATAL)\\\\b"), query);
     }
@@ -153,7 +154,7 @@ class LokiLogProviderTest {
         String query = lokiLogCollectorProvider.buildLogQuery(
             "kafka", "pod-0", "warnings", null, null);
 
-        assertEquals("{namespace=\"kafka\", pod=\"pod-0\"}" + UNWRAP + WARNINGS_FILTER, query);
+        assertEquals("{namespace=\"kafka\", pod=\"pod-0\"}" + WARNINGS_FILTER, query);
     }
 
     @Test
@@ -162,7 +163,7 @@ class LokiLogProviderTest {
             "kafka", "pod-0", "OOM|timeout", null, null);
 
         assertEquals(
-            "{namespace=\"kafka\", pod=\"pod-0\"}" + UNWRAP + " |~ \"OOM|timeout\"",
+            "{namespace=\"kafka\", pod=\"pod-0\"} |~ \"OOM|timeout\"",
             query);
     }
 
@@ -172,7 +173,7 @@ class LokiLogProviderTest {
             "kafka", "pod-0", null, List.of("OOM", "timeout"), null);
 
         assertEquals(
-            "{namespace=\"kafka\", pod=\"pod-0\"}" + UNWRAP + " |~ \"(?i)(OOM|timeout)\"",
+            "{namespace=\"kafka\", pod=\"pod-0\"} |~ \"(?i)(OOM|timeout)\"",
             query);
     }
 
@@ -184,7 +185,7 @@ class LokiLogProviderTest {
         // The keyword is escaped for RE2 first and then for the LogQL string literal,
         // so each regex backslash appears doubled in the query text.
         assertEquals(
-            "{namespace=\"kafka\", pod=\"pod-0\"}" + UNWRAP + " |~ \"(?i)(a\\\\.b|x\\\\|y|\\\\(open)\"",
+            "{namespace=\"kafka\", pod=\"pod-0\"} |~ \"(?i)(a\\\\.b|x\\\\|y|\\\\(open)\"",
             query);
     }
 
@@ -194,7 +195,7 @@ class LokiLogProviderTest {
             "kafka", "pod-0", "errors", List.of("OOM"), null);
 
         assertEquals(
-            "{namespace=\"kafka\", pod=\"pod-0\"}" + UNWRAP + ERRORS_FILTER + " |~ \"(?i)(OOM)\"",
+            "{namespace=\"kafka\", pod=\"pod-0\"}" + ERRORS_FILTER + " |~ \"(?i)(OOM)\"",
             query);
     }
 
@@ -221,7 +222,7 @@ class LokiLogProviderTest {
         String query = lokiLogCollectorProvider.buildLogQuery(
             "kafka-prod", "my-cluster-kafka-0", null, null, "kafka");
 
-        assertEquals("{namespace=\"kafka-prod\", pod=\"my-cluster-kafka-0\", container=\"kafka\"}" + UNWRAP, query);
+        assertEquals("{namespace=\"kafka-prod\", pod=\"my-cluster-kafka-0\", container=\"kafka\"}", query);
     }
 
     @Test
@@ -229,16 +230,25 @@ class LokiLogProviderTest {
         String query = lokiLogCollectorProvider.buildLogQuery(
             "kafka-prod", "my-cluster-kafka-0", null, null, "  ");
 
-        assertEquals("{namespace=\"kafka-prod\", pod=\"my-cluster-kafka-0\"}" + UNWRAP, query);
+        assertEquals("{namespace=\"kafka-prod\", pod=\"my-cluster-kafka-0\"}", query);
     }
 
     @Test
     void testLineFiltersRunAfterUnwrap() {
         String query = lokiLogCollectorProvider.buildLogQuery(
-            "kafka", "pod-0", "errors", List.of("OOM"), null);
+            "kafka", "pod-0", "errors", List.of("OOM"), null, "message");
 
-        assertTrue(query.indexOf("| drop ") >= 0, query);
-        assertTrue(query.indexOf("| drop ") < query.indexOf(" |~ "), query);
+        assertEquals(
+            "{namespace=\"kafka\", pod=\"pod-0\"}" + UNWRAP + ERRORS_FILTER + " |~ \"(?i)(OOM)\"",
+            query);
+    }
+
+    @Test
+    void testUnwrapStageWithContainer() {
+        String query = lokiLogCollectorProvider.buildLogQuery(
+            "kafka-prod", "my-cluster-kafka-0", null, null, "kafka", "message");
+
+        assertEquals("{namespace=\"kafka-prod\", pod=\"my-cluster-kafka-0\", container=\"kafka\"}" + UNWRAP, query);
     }
 
     @Test
@@ -271,7 +281,7 @@ class LokiLogProviderTest {
     @Test
     void testEmptyMessageRecordsExcludedBeforeLineFilters() {
         String query = lokiLogCollectorProvider.buildLogQuery(
-            "kafka", "pod-0", "warnings", List.of("restricted"), null);
+            "kafka", "pod-0", "warnings", List.of("restricted"), null, "message");
 
         int exclusion = query.indexOf(EXCLUDE_EMPTY_MESSAGE);
         assertTrue(exclusion > query.indexOf("| line_format "), query);

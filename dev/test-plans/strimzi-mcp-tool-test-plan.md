@@ -406,7 +406,7 @@ Parameters: { "clusterName": "mcp-cluster", "tailLines": 20 }
 - [ ] Returns log lines from broker pods
 - [ ] Logs are grouped by pod name
 - [ ] At most 20 lines per pod
-- [ ] With the Loki provider (including OpenShift Logging), lines are log messages, not JSON records (no line starts with `{"@timestamp"`)
+- [ ] With the Loki provider (including OpenShift Logging with `MCP_LOG_LOKI_UNWRAP_JSON=true`, which `dev-deploy.sh --ocp --loki` sets), lines are log messages, not JSON records (no line starts with `{"@timestamp"`)
 
 ### T2.11 - Get Cluster Logs (filtered for errors)
 

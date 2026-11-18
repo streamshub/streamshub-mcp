@@ -64,13 +64,16 @@ public interface LokiConfig extends AuthConfig {
     /**
      * Whether to reduce JSON log records (for example OpenShift Logging ViaQ records) to
      * their message field in LogQL, before line filters run and before lines are returned.
-     * Plain-text lines are returned unchanged either way. Set to {@code false} when
-     * applications log JSON themselves and the other fields are needed.
+     * Plain-text lines are returned unchanged either way. Enable it for OpenShift Logging.
+     * Off by default because it reduces every JSON line, including lines that applications
+     * log as JSON themselves: a level kept in another field, such as
+     * {@code {"level":"ERROR","message":"..."}}, would be dropped, and the {@code errors}
+     * filter and the error count would miss the line.
      *
      * @return true to unwrap the JSON message field
      */
     @WithName("unwrap-json")
-    @WithDefault("true")
+    @WithDefault("false")
     boolean unwrapJson();
 
     /**

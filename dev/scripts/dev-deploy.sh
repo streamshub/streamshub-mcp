@@ -170,6 +170,7 @@ if [ "$LOKI" = true ]; then
             MCP_LOG_LOKI_LABEL_NAMESPACE="${MCP_LOG_LOKI_LABEL_NAMESPACE:-kubernetes_namespace_name}" \
             MCP_LOG_LOKI_LABEL_POD="${MCP_LOG_LOKI_LABEL_POD:-kubernetes_pod_name}" \
             MCP_LOG_LOKI_LABEL_CONTAINER="${MCP_LOG_LOKI_LABEL_CONTAINER:-kubernetes_container_name}" \
+            MCP_LOG_LOKI_UNWRAP_JSON="${MCP_LOG_LOKI_UNWRAP_JSON:-true}" \
             QUARKUS_TLS_TRUST_ALL="${QUARKUS_TLS_TRUST_ALL:-true}"
     else
         echo "==> Configuring Loki log provider (standalone Loki from setup-loki-kind.sh)"

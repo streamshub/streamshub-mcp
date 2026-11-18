@@ -33,13 +33,13 @@ import java.util.stream.Collectors;
  * connection configuration via {@code quarkus.rest-client.loki.*} properties
  * and label mapping via {@code mcp.log.loki.*} properties.</p>
  *
- * <p>By default ({@code mcp.log.loki.unwrap-json=true}) the query reduces JSON log
- * records, such as the OpenShift Logging ViaQ records, to their message field
- * ({@code mcp.log.loki.json-message-field}, default {@code message}) with a
- * {@code json | line_format | drop} stage right after the stream selector. Line
+ * <p>With {@code mcp.log.loki.unwrap-json=true} (off by default; set it for OpenShift
+ * Logging) the query reduces JSON log records, such as the OpenShift Logging ViaQ records,
+ * to their message field ({@code mcp.log.loki.json-message-field}, default {@code message})
+ * with a {@code json | line_format | drop} stage right after the stream selector. Line
  * filters then match only the message, and only the message is returned. Plain-text
- * lines (Promtail, Grafana Alloy) fall back to their original text. Set
- * {@code unwrap-json=false} to return raw lines.</p>
+ * lines (Promtail, Grafana Alloy) fall back to their original text. By default raw lines
+ * are returned, so a JSON line that an application logs itself keeps its level field.</p>
  *
  * <p>The {@code previous} parameter is ignored because Loki stores all
  * container logs (current and previous) in the same stream. Use a

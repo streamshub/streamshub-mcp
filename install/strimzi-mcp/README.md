@@ -182,7 +182,7 @@ kubectl apply -f install/strimzi-mcp/optional/clusterrolebinding-loki-applicatio
 
 Without this, Loki queries will return `403 Forbidden` with the message "You don't have permission to access this tenant."
 
-> **Note**: The `dev-deploy.sh --ocp --loki` script creates this ClusterRole automatically if it is missing. It also sets the OpenShift Logging label mapping, including `MCP_LOG_LOKI_LABEL_CONTAINER=kubernetes_container_name`; without it a `container` filter returns no lines.
+> **Note**: The `dev-deploy.sh --ocp --loki` script creates this ClusterRole automatically if it is missing. It also sets the OpenShift Logging label mapping, including `MCP_LOG_LOKI_LABEL_CONTAINER=kubernetes_container_name` (without it a `container` filter returns no lines), and `MCP_LOG_LOKI_UNWRAP_JSON=true`, so the log tools filter and return the log message instead of the whole ViaQ JSON record.
 
 ## Metrics monitoring
 
