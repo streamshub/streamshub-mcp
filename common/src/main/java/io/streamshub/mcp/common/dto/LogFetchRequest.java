@@ -17,8 +17,9 @@ import java.util.List;
  * @param podName      the name of the pod
  * @param tailLines    the number of lines to tail per container
  * @param sinceSeconds optional relative time range in seconds; null to let the provider choose
- *                     (Kubernetes and OpenSearch: no restriction; Loki: a configured lookback,
- *                     reported through {@code LogCollectorProvider.searchScopeNote} when it limits a search)
+ *                     (Kubernetes: no restriction; Loki and OpenSearch: a configured lookback for
+ *                     filtered searches, reported through {@code LogCollectorProvider.searchScopeNote},
+ *                     and for Loki also a maximum lookback for unfiltered tails)
  * @param previous     if true, retrieve logs from the previous container instance
  * @param filter       optional filter: "errors", "warnings", or a regex pattern
  * @param keywords     optional list of keywords for line matching (case-insensitive)

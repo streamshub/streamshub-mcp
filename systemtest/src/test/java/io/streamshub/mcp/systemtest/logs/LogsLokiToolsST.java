@@ -80,6 +80,13 @@ class LogsLokiToolsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(LogsLokiToolsST.class);
 
     /**
+     * Local copy of {@code LogFilterUtils.ERRORS_REGEX} from the common module
+     * (the systemtest module does not depend on common). Keep the two in sync.
+     */
+    private static final Pattern ERRORS = Pattern.compile(
+        "(?i:\\b(?:ERROR|FATAL)\\b)|\\b\\w*(?:Exception|Error)\\b");
+
+    /**
      * Local copy of {@code LogFilterUtils.WARNINGS_REGEX} from the common module
      * (the systemtest module does not depend on common). Keep the two in sync.
      */
@@ -268,6 +275,10 @@ class LogsLokiToolsST extends AbstractST {
                     "has_errors should be consistent with error_count");
                 assertTrue(warnings(root).stream().noneMatch(w -> w.startsWith(SCOPE_NOTE_PREFIX)),
                     "A filtered search with sinceMinutes should not add the search scope note: " + root.path("warnings"));
+                // Loki runs the rule as RE2; every line it returns must also match the Java rule
+                // that error_count uses.
+                logLines(root).forEach(line -> assertTrue(ERRORS.matcher(line).find(),
+                    "errors filter returned a line without an error: " + line));
             })
             .thenAssertResults();
     }

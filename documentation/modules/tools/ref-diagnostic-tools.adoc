@@ -141,7 +141,7 @@ For individual connector issues, use `diagnose_kafka_connector` instead.
 * `connectName` (required) -- Name of the KafkaConnect cluster
 * `namespace` (optional) -- Kubernetes namespace
 * `symptom` (optional) -- Observed symptom
-* `sinceMinutes` (optional) -- Time window in minutes for logs and events; omit for all available events and the most recent error log lines (Loki: last 60 minutes)
+* `sinceMinutes` (optional) -- Time window in minutes for logs and events; omit for all available events and the most recent error log lines (Loki and OpenSearch: the last 60 minutes by default, `mcp.log.loki.filter-lookback`, `mcp.log.opensearch.filter-lookback`)
 
 Uses Sampling:: Yes -- Root cause analysis
 Uses Elicitation:: Yes -- Namespace disambiguation
@@ -161,7 +161,7 @@ Gathers connector status, parent KafkaConnect cluster health, Connect pod status
 * `connectorName` (required) -- Name of the KafkaConnector
 * `namespace` (optional) -- Kubernetes namespace
 * `symptom` (optional) -- Observed symptom or issue description
-* `sinceMinutes` (optional) -- Time window in minutes for logs and events; omit for all available events and the most recent error log lines (Loki: last 60 minutes)
+* `sinceMinutes` (optional) -- Time window in minutes for logs and events; omit for all available events and the most recent error log lines (Loki and OpenSearch: the last 60 minutes by default, `mcp.log.loki.filter-lookback`, `mcp.log.opensearch.filter-lookback`)
 
 Uses Sampling:: Yes -- LLM-guided triage and analysis
 Uses Elicitation:: Yes -- Namespace disambiguation
@@ -274,7 +274,7 @@ Gathers MM2 status, connector health, pod status, logs, and events in a single c
 * `mirrorMakerName` (required) -- Name of the KafkaMirrorMaker2
 * `namespace` (optional) -- Kubernetes namespace
 * `symptom` (optional) -- Observed symptom
-* `sinceMinutes` (optional) -- Time window in minutes for logs and events; omit for all available events and the most recent error log lines (Loki: last 60 minutes)
+* `sinceMinutes` (optional) -- Time window in minutes for logs and events; omit for all available events and the most recent error log lines (Loki and OpenSearch: the last 60 minutes by default, `mcp.log.loki.filter-lookback`, `mcp.log.opensearch.filter-lookback`)
 
 Uses Sampling:: Yes -- Root cause analysis
 Uses Elicitation:: Yes -- Namespace disambiguation
@@ -300,7 +300,7 @@ Gathers bridge status, HTTP listener and client configuration, pod health, logs,
 * `bridgeName` (required) -- Name of the KafkaBridge
 * `namespace` (optional) -- Kubernetes namespace
 * `symptom` (optional) -- Observed symptom
-* `sinceMinutes` (optional) -- Time window in minutes for logs and events; omit for all available events and the most recent error log lines (Loki: last 60 minutes)
+* `sinceMinutes` (optional) -- Time window in minutes for logs and events; omit for all available events and the most recent error log lines (Loki and OpenSearch: the last 60 minutes by default, `mcp.log.loki.filter-lookback`, `mcp.log.opensearch.filter-lookback`)
 
 Uses Sampling:: Yes -- Triage and root cause analysis
 Uses Elicitation:: Yes -- Namespace disambiguation
@@ -327,7 +327,7 @@ Gathers node pool status (roles, replicas, node IDs, storage, conditions), pod h
 * `namespace` (optional) -- Kubernetes namespace
 * `clusterName` (optional) -- Parent Kafka cluster name
 * `symptom` (optional) -- Observed symptom
-* `sinceMinutes` (optional) -- Time window in minutes for logs and events; omit for all available events and the most recent error log lines (Loki: last 60 minutes)
+* `sinceMinutes` (optional) -- Time window in minutes for logs and events; omit for all available events and the most recent error log lines (Loki and OpenSearch: the last 60 minutes by default, `mcp.log.loki.filter-lookback`, `mcp.log.opensearch.filter-lookback`)
 
 Uses Sampling:: Yes -- Triage and root cause analysis
 Uses Elicitation:: Yes -- Namespace disambiguation
@@ -353,7 +353,7 @@ Gathers rebalance status and conditions, optimization metrics, progress ConfigMa
 * `rebalanceName` (required) -- Name of the KafkaRebalance resource
 * `namespace` (optional) -- Kubernetes namespace
 * `symptom` (optional) -- Observed symptom
-* `sinceMinutes` (optional) -- Time window in minutes for logs and events; omit for all available events and the most recent error log lines (Loki: last 60 minutes)
+* `sinceMinutes` (optional) -- Time window in minutes for logs and events; omit for all available events and the most recent error log lines (Loki and OpenSearch: the last 60 minutes by default, `mcp.log.loki.filter-lookback`, `mcp.log.opensearch.filter-lookback`)
 
 Uses Sampling:: Yes -- Triage and root cause analysis
 Uses Elicitation:: Yes -- Namespace disambiguation

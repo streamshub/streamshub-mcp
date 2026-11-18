@@ -74,6 +74,8 @@ class LogsOpenSearchToolsST extends AbstractST {
     private static final Pattern WARNINGS_ANY_CASE =
         Pattern.compile("(?i)\\b(?:ERROR|FATAL|WARN|WARNING)\\b|\\b\\w*(?:Exception|Error)\\b");
     private static final String POD_HEADER = "=== Pod:";
+    /** Start of the note that a filtered OpenSearch search without a time range covered only filter-lookback. */
+    private static final String SCOPE_NOTE_PREFIX = "OpenSearch searched only the last ";
 
     @InjectResourceManager
     KubeResourceManager krm;
@@ -252,6 +254,8 @@ class LogsOpenSearchToolsST extends AbstractST {
                     "has_errors should be consistent with error_count");
                 logLines(root).forEach(line -> assertTrue(ERRORS_ANY_CASE.matcher(line).find(),
                     "errors filter returned a line without an error level or exception: " + line));
+                assertTrue(warnings(root).stream().noneMatch(w -> w.startsWith(SCOPE_NOTE_PREFIX)),
+                    "A filtered search with sinceMinutes should not add the search scope note: " + root.path("warnings"));
             })
             .thenAssertResults();
     }
@@ -335,6 +339,9 @@ class LogsOpenSearchToolsST extends AbstractST {
                 assertEquals(0, root.path("error_count").asInt(), "Error count should be 0");
                 assertFalse(root.path("has_more").asBoolean(),
                     "Should not have more logs when 0 lines returned");
+                assertEquals(1, warnings(root).stream().filter(w -> w.startsWith(SCOPE_NOTE_PREFIX)).count(),
+                    "A filter search without a time range should state its search window once: "
+                        + root.path("warnings"));
             })
             .thenAssertResults();
     }

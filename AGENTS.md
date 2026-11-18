@@ -169,7 +169,7 @@ io.streamshub.mcp.loki.
 
 ```
 io.streamshub.mcp.opensearch.
-├── config/    → OpenSearchConfig (field mapping, auth mode, index pattern)
+├── config/    → OpenSearchConfig (field mapping, auth mode, index pattern, filter lookback)
 ├── service/   → OpenSearchClient, OpenSearchAuthFilter
 ├── util/      → OpenSearchQuerySanitizer
 ├── OpenSearchResponse (response record with nested Hit record)

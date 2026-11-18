@@ -74,6 +74,21 @@ public final class LogFilterUtils {
     }
 
     /**
+     * Whether a request narrows lines by content: a non-blank filter or at least one non-blank keyword.
+     * Backend providers use it to bound such searches when no time range is given.
+     *
+     * @param filter   the filter, or null
+     * @param keywords the keywords, or null
+     * @return true when the filter or a keyword will be applied
+     */
+    public static boolean hasLineFilters(final String filter, final List<String> keywords) {
+        if (resolveFilterRegex(filter) != null) {
+            return true;
+        }
+        return keywords != null && keywords.stream().anyMatch(k -> k != null && !k.isBlank());
+    }
+
+    /**
      * Whether a log line counts as an error: it matches {@link #ERRORS_REGEX}.
      *
      * @param line the log line

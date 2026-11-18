@@ -38,6 +38,11 @@ import java.util.stream.Collectors;
  * The {@code errors}/{@code warnings} shortcuts therefore use term patterns
  * ({@link #ERRORS_TERM_REGEXP}, {@link #WARNINGS_TERM_REGEXP}) that follow the shared
  * rule of {@link LogFilterUtils#ERRORS_REGEX} and {@link LogFilterUtils#WARNINGS_REGEX}.</p>
+ *
+ * <p>Those patterns start with a wildcard, so a search with a {@code filter} or {@code keywords}
+ * but without a time range covers only the last {@code mcp.log.opensearch.filter-lookback}
+ * (default 1 hour) and reports it through {@link #searchScopeNote(LogFetchRequest)}. Searches
+ * without a filter or keywords have no default window.</p>
  */
 @ApplicationScoped
 @LookupIfProperty(name = "mcp.log.provider", stringValue = "streamshub-opensearch")
@@ -123,7 +128,8 @@ public class OpenSearchLogProvider implements LogCollectorProvider {
 
         List<String> filterClauses = selectorClauses(namespace, podName, container);
 
-        String timeRangeClause = buildTimeRangeClause(tsField, sinceSeconds, startTime, endTime);
+        String timeRangeClause = buildTimeRangeClause(tsField, sinceSeconds, startTime, endTime,
+            LogFilterUtils.hasLineFilters(filter, keywords));
         if (timeRangeClause != null) {
             filterClauses.add(timeRangeClause);
         }
@@ -243,18 +249,26 @@ public class OpenSearchLogProvider implements LogCollectorProvider {
     }
 
     /**
-     * Build the time range filter clause. Without {@code startTime} or {@code sinceSeconds}
-     * there is no range: the search is indexed, so the newest {@code tailLines} matches are
-     * returned regardless of age.
+     * Build the time range filter clause.
      *
-     * @param tsField      the timestamp field
-     * @param sinceSeconds optional relative window in seconds
-     * @param startTime    optional absolute start (ISO 8601)
-     * @param endTime      optional absolute end (ISO 8601), used only with {@code startTime}
+     * <ol>
+     *   <li>{@code startTime} set: from {@code startTime} to {@code endTime}, or open-ended</li>
+     *   <li>{@code sinceSeconds} set: the last {@code sinceSeconds}</li>
+     *   <li>a filter or a non-blank keyword: the last {@code mcp.log.opensearch.filter-lookback},
+     *       because the {@code errors}/{@code warnings} term patterns start with a wildcard and
+     *       OpenSearch checks every term of the message field in each searched index</li>
+     *   <li>otherwise no range: the newest {@code tailLines} lines are returned regardless of age</li>
+     * </ol>
+     *
+     * @param tsField        the timestamp field
+     * @param sinceSeconds   optional relative window in seconds
+     * @param startTime      optional absolute start (ISO 8601)
+     * @param endTime        optional absolute end (ISO 8601), used only with {@code startTime}
+     * @param hasLineFilters whether the search has a filter or a non-blank keyword
      * @return the range clause, or null for no time restriction
      */
     private String buildTimeRangeClause(String tsField, Integer sinceSeconds,
-                                         String startTime, String endTime) {
+                                         String startTime, String endTime, boolean hasLineFilters) {
         if (startTime != null && endTime != null) {
             return String.format("{\"range\":{\"%s\":{\"gte\":\"%s\",\"lte\":\"%s\"}}}",
                 tsField,
@@ -270,7 +284,30 @@ public class OpenSearchLogProvider implements LogCollectorProvider {
             return String.format("{\"range\":{\"%s\":{\"gte\":\"%s\"}}}",
                 tsField, since.toString());
         }
+        if (hasLineFilters) {
+            Instant since = Instant.now().minus(config.filterLookback());
+            return String.format("{\"range\":{\"%s\":{\"gte\":\"%s\"}}}",
+                tsField, since.toString());
+        }
         return null;
+    }
+
+    /**
+     * Report the bounded window of a filtered search without a time range, so the caller
+     * knows older matches were not searched.
+     *
+     * @param request the fetch request
+     * @return the note, or null when the request has a time range or no filter or keywords
+     */
+    @Override
+    public String searchScopeNote(final LogFetchRequest request) {
+        if (request.startTime() != null || request.sinceSeconds() != null
+            || !LogFilterUtils.hasLineFilters(request.filter(), request.keywords())) {
+            return null;
+        }
+        return String.format("OpenSearch searched only the last %d minutes for lines matching the filter or"
+            + " keywords, because no sinceMinutes or startTime/endTime was given. Pass sinceMinutes to search"
+            + " further back.", config.filterLookback().toMinutes());
     }
 
     private String resolveFilterRegex(String filter) {

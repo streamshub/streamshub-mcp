@@ -297,11 +297,7 @@ public class LokiLogProvider implements LogCollectorProvider {
     }
 
     private static boolean hasLineFilters(final LogFetchRequest request) {
-        if (LogFilterUtils.resolveFilterRegex(request.filter()) != null) {
-            return true;
-        }
-        return request.keywords() != null
-            && request.keywords().stream().anyMatch(k -> k != null && !k.isBlank());
+        return LogFilterUtils.hasLineFilters(request.filter(), request.keywords());
     }
 
     /**

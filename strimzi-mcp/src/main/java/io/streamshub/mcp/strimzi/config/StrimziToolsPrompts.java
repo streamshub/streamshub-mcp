@@ -36,7 +36,7 @@ public final class StrimziToolsPrompts {
      */
     public static final String SINCE_MINUTES_DESC =
         "Only return logs newer than this many minutes."
-            + " Omit for the most recent lines regardless of age; on Loki, a filter or keywords"
+            + " Omit for the most recent lines regardless of age; on Loki and OpenSearch, a filter or keywords"
             + " without a time range search only the last 60 minutes by default, and the response warns about it.";
 
     /**
@@ -46,7 +46,7 @@ public final class StrimziToolsPrompts {
     public static final String SINCE_MINUTES_DIAGNOSTIC_DESC =
         "Only include logs and events newer than this many minutes."
             + " Omit for all available events and the most recent error log lines"
-            + " (on Loki, the last 60 minutes by default).";
+            + " (on Loki and OpenSearch, the last 60 minutes by default).";
 
     /**
      * Since minutes parameter description for {@code diagnose_kafka_cluster}.

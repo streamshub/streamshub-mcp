@@ -28,7 +28,7 @@ NOTE: The OpenSearch provider runs the shortcuts as an OpenSearch `regexp` query
 The standard analyzer keeps a dotted class name such as `org.apache.kafka.common.errors.TimeoutException` as one word, so class names match and `errors.tolerance` does not.
 OpenSearch matches words in any case, so it also returns a line with a lower-case word such as `exception` in prose, which `error_count` does not count.
 This needs the message field to be a `text` field, as the default dynamic mapping creates.
-The patterns start with a wildcard, so OpenSearch scans the message field's terms in every searched index; with time-based indices, a `sinceMinutes` lets it skip older indices.
+The patterns start with a wildcard, so OpenSearch scans the message field's terms in every searched index. That is why a filtered search without a time range covers only `mcp.log.opensearch.filter-lookback`: with time-based indices, OpenSearch can then skip older indices.
 
 == Time range
 
@@ -46,5 +46,6 @@ When a log tool call gives no `sinceMinutes` and no `startTime`/`endTime`, each 
 With `filter` or `keywords`, searches only the last `mcp.log.loki.filter-lookback` (default 1 hour) and adds a note about it to `warnings`.
 
 |OpenSearch
-|Indexed search with no default time window: returns the newest `tailLines` matching lines regardless of age.
+|Without `filter` or `keywords`, returns the newest `tailLines` lines regardless of age.
+With `filter` or `keywords`, searches only the last `mcp.log.opensearch.filter-lookback` (default 1 hour) and adds a note about it to `warnings`.
 |===

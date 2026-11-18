@@ -8,7 +8,9 @@ import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import io.streamshub.mcp.common.auth.AuthConfig;
+import org.hibernate.validator.constraints.time.DurationMin;
 
+import java.time.Duration;
 import java.util.Optional;
 
 /**
@@ -58,6 +60,20 @@ public interface OpenSearchConfig extends AuthConfig {
     @WithName("index-pattern")
     @WithDefault("kubernetes-*")
     String indexPattern();
+
+    /**
+     * How far back a search with a {@code filter} or {@code keywords} but without a time range
+     * reaches. The {@code errors}/{@code warnings} patterns start with a wildcard, so OpenSearch
+     * checks every term of the message field in each searched index; the window lets it skip older
+     * time-based indices. The response warns that only this window was searched. Searches without
+     * a filter or keywords have no default window. Must be at least one minute; startup fails otherwise.
+     *
+     * @return the lookback for filtered searches without a time range
+     */
+    @WithName("filter-lookback")
+    @DurationMin(minutes = 1)
+    @WithDefault("1h")
+    Duration filterLookback();
 
     /**
      * Field name mapping for Kubernetes metadata in OpenSearch documents.

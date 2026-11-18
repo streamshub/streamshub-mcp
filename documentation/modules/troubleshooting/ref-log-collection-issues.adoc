@@ -28,8 +28,8 @@ kubectl logs -n kafka-ns my-cluster-kafka-0 --tail=10
 
 * Logs may be outside the requested time window
 * Try: "Show me logs from the last 5 minutes"
-* With the Loki provider, a `filter` or `keywords` search without `sinceMinutes` covers only the last hour (`mcp.log.loki.filter-lookback`).
-The response then has a `warnings` entry starting with `Loki searched only the last 60 minutes`.
+* With the Loki or OpenSearch provider, a `filter` or `keywords` search without `sinceMinutes` covers only `mcp.log.loki.filter-lookback` or `mcp.log.opensearch.filter-lookback` (default: the last hour).
+The response then has a `warnings` entry starting with `Loki searched only the last` or `OpenSearch searched only the last`, followed by the window in minutes.
 Pass `sinceMinutes` to search further back.
 
 *Solutions:*
@@ -138,6 +138,31 @@ kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
 ----
 
 Do not enable it when your applications log JSON themselves and the collector ships those lines unchanged: the unwrap keeps only their `message` field, so a level in another field, such as `"level":"ERROR"`, no longer counts for `filter: "errors"` or `error_count`.
+
+== Loki query fails with status code 400
+
+*Symptom:* A log tool fails with an error that contains `Loki query failed for pod <namespace>/<pod>: Bad Request, status code 400`.
+
+*Cause:* Loki rejected the query.
+The MCP server does not pass on Loki's reason, so check these causes:
+
+* The time window is longer than the backend's `max_query_length` limit (Loki default `721h`).
+Loki's own message is `the query time range exceeds the limit (query length: ..., limit: ...)`.
+This happens when `mcp.log.loki.max-lookback` is above the limit, for calls without `filter`, `keywords` or a time range.
+It also happens when a call asks for a longer window with `sinceMinutes` or `startTime`/`endTime`: the server does not shorten a window that the call gives.
+* A custom `filter` regex uses syntax that the RE2 engine of Loki does not support, such as a lookahead `(?=...)` or a backreference.
+
+*Solution:*
+
+* Set `mcp.log.loki.max-lookback` to at most the backend's `max_query_length`, for example:
++
+[source,bash]
+----
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  MCP_LOG_LOKI_MAX_LOOKBACK=168h
+----
+* Ask for a shorter window, or raise `max_query_length` in the Loki limits configuration.
+* Rewrite the `filter` regex without lookarounds or backreferences.
 
 == Container filter returns no lines from OpenSearch
 

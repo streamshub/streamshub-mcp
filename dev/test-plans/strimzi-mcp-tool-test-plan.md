@@ -1130,7 +1130,7 @@ Parameters: { "filter": "errors", "tailLines": 50 }
 ```
 
 **Expected:**
-- [ ] With the Loki provider, `warnings` contains a note starting with `Loki searched only the last 60 minutes`, so an empty result does not read as an all-clear
+- [ ] With the Loki or OpenSearch provider, `warnings` contains a note starting with `Loki searched only the last 60 minutes` or `OpenSearch searched only the last 60 minutes`, so an empty result does not read as an all-clear
 - [ ] With the Kubernetes provider, no such note (the filter applies to the last `tailLines` lines)
 
 ### T9.5 - Get Events for Drain Cleaner

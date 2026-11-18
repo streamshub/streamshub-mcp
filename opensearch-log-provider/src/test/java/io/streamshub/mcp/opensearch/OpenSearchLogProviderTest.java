@@ -5,11 +5,15 @@
 package io.streamshub.mcp.opensearch;
 
 import io.quarkus.test.junit.QuarkusTest;
+import io.streamshub.mcp.common.dto.LogFetchRequest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,6 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTest
 class OpenSearchLogProviderTest {
+
+    private static final Pattern RANGE_GTE = Pattern.compile("\"range\":\\{\"@timestamp\":\\{\"gte\":\"([^\"]+)\"");
 
     @Inject
     OpenSearchLogProvider provider;
@@ -138,6 +144,76 @@ class OpenSearchLogProviderTest {
         String query = provider.buildSearchQuery(
             "kafka", "pod-0", 200, null, null, null, null, null, null);
         assertFalse(query.contains("range"), query);
+    }
+
+    @Test
+    void testFilterWithoutTimeRangeIsBoundedByFilterLookback() {
+        Instant before = Instant.now().minus(Duration.ofHours(1));
+        String query = provider.buildSearchQuery(
+            "kafka", "pod-0", 200, null, "errors", null, null, null, null);
+        Instant after = Instant.now().minus(Duration.ofHours(1));
+
+        Instant gte = rangeStart(query);
+        assertFalse(gte.isBefore(before), query);
+        assertFalse(gte.isAfter(after), query);
+    }
+
+    @Test
+    void testKeywordsWithoutTimeRangeAreBoundedByFilterLookback() {
+        String query = provider.buildSearchQuery(
+            "kafka", "pod-0", 200, null, null, List.of("OOM"), null, null, null);
+        assertNotNull(rangeStart(query), query);
+    }
+
+    @Test
+    void testBlankKeywordsWithoutTimeRangeHaveNoRangeClause() {
+        String query = provider.buildSearchQuery(
+            "kafka", "pod-0", 200, null, "  ", List.of("  "), null, null, null);
+        assertFalse(query.contains("range"), query);
+    }
+
+    @Test
+    void testFilterWithSinceSecondsUsesOnlyThatWindow() {
+        Instant before = Instant.now().minusSeconds(300);
+        String query = provider.buildSearchQuery(
+            "kafka", "pod-0", 200, 300, "errors", null, null, null, null);
+
+        assertEquals(1, query.split("\"range\"", -1).length - 1, query);
+        assertFalse(rangeStart(query).isBefore(before), query);
+    }
+
+    @Test
+    void testFilterWithStartTimeUsesOnlyThatWindow() {
+        String query = provider.buildSearchQuery(
+            "kafka", "pod-0", 200, null, "errors", null, "2026-01-01T00:00:00Z", null, null);
+
+        assertEquals(1, query.split("\"range\"", -1).length - 1, query);
+        assertEquals(Instant.parse("2026-01-01T00:00:00Z"), rangeStart(query), query);
+    }
+
+    @Test
+    void testSearchScopeNoteOnlyForFilteredSearchWithoutTimeRange() {
+        String note = provider.searchScopeNote(request(null, "errors", null, null));
+        assertNotNull(note);
+        assertTrue(note.startsWith("OpenSearch searched only the last 60 minutes"), note);
+        assertNotNull(provider.searchScopeNote(request(null, null, List.of("OOM"), null)));
+
+        assertNull(provider.searchScopeNote(request(300, "errors", null, null)));
+        assertNull(provider.searchScopeNote(request(null, "errors", null, "2026-01-01T00:00:00Z")));
+        assertNull(provider.searchScopeNote(request(null, null, null, null)));
+        assertNull(provider.searchScopeNote(request(null, null, List.of("  "), null)));
+    }
+
+    private static Instant rangeStart(final String query) {
+        Matcher matcher = RANGE_GTE.matcher(query);
+        assertTrue(matcher.find(), query);
+        return Instant.parse(matcher.group(1));
+    }
+
+    private static LogFetchRequest request(final Integer sinceSeconds, final String filter,
+                                           final List<String> keywords, final String startTime) {
+        return new LogFetchRequest("kafka", "pod-0", 100, sinceSeconds, null, filter, keywords,
+            startTime, null, null);
     }
 
     @Test
