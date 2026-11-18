@@ -10,3 +10,42 @@ The server collects logs from Kafka and Strimzi operator pods with the following
 * Filtering by log level, keywords, and time range
 * Multiple log providers: Kubernetes API (default), Grafana Loki, or OpenSearch
 * Real-time progress updates for long-running collections
+
+== Log filters
+
+The `filter` parameter of the log tools accepts two shortcuts or a custom regex pattern:
+
+`errors`:: Lines with an `ERROR` or `FATAL` log level token (in any case, so Go components that log `level=error` match), or an exception or error class name such as `IOException`, `TimeoutException` or `OutOfMemoryError`.
+`warnings`:: Everything `errors` matches, plus lines with a `WARN` or `WARNING` level token.
+Any other value:: Used as a regex pattern.
+
+The shortcuts match whole words.
+Configuration keys such as `errors.tolerance` or `errors.retry.timeout` in a Kafka Connect configuration dump do not match.
+
+The `error_count` that log tools and diagnostics report uses the `errors` rule, so it counts the same lines that `filter: "errors"` returns.
+
+NOTE: The OpenSearch provider runs the shortcuts as an OpenSearch `regexp` query on the words (analyzed terms) of the message field, with term patterns that follow the same rule: the word `error` or `fatal` (plus `warn` or `warning` for `warnings`), or a word that ends with `error` or `exception`.
+The standard analyzer keeps a dotted class name such as `org.apache.kafka.common.errors.TimeoutException` as one word, so class names match and `errors.tolerance` does not.
+OpenSearch matches words in any case, so it also returns a line with a lower-case word such as `exception` in prose, which `error_count` does not count.
+This needs the message field to be a `text` field, as the default dynamic mapping creates.
+The patterns start with a wildcard, so OpenSearch scans the message field's terms in every searched index. That is why a filtered search without a time range covers only `mcp.log.opensearch.filter-lookback`: with time-based indices, OpenSearch can then skip older indices.
+
+== Time range
+
+When a log tool call gives no `sinceMinutes` and no `startTime`/`endTime`, each provider behaves differently:
+
+[cols="1,3",options="header"]
+|===
+|Provider |Without a time range
+
+|Kubernetes (default)
+|Returns the newest `tailLines` lines of each pod. The `filter` and `keywords` apply to those lines only.
+
+|Loki
+|Without `filter` or `keywords`, returns the newest `tailLines` lines from up to `mcp.log.loki.max-lookback` (default 30 days) back.
+With `filter` or `keywords`, searches only the last `mcp.log.loki.filter-lookback` (default 1 hour) and adds a note about it to `warnings`.
+
+|OpenSearch
+|Without `filter` or `keywords`, returns the newest `tailLines` lines regardless of age.
+With `filter` or `keywords`, searches only the last `mcp.log.opensearch.filter-lookback` (default 1 hour) and adds a note about it to `warnings`.
+|===

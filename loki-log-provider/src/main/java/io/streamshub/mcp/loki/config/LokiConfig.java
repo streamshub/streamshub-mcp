@@ -8,7 +8,9 @@ import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import io.smallrye.config.WithName;
 import io.streamshub.mcp.common.auth.AuthConfig;
+import org.hibernate.validator.constraints.time.DurationMin;
 
+import java.time.Duration;
 import java.util.Optional;
 
 /**
@@ -58,6 +60,57 @@ public interface LokiConfig extends AuthConfig {
      */
     @WithName("tenant-id")
     Optional<String> tenantId();
+
+    /**
+     * Whether to reduce JSON log records (for example OpenShift Logging ViaQ records) to
+     * their message field in LogQL, before line filters run and before lines are returned.
+     * Plain-text lines are returned unchanged either way. Enable it for OpenShift Logging.
+     * Off by default because it reduces every JSON line, including lines that applications
+     * log as JSON themselves: a level kept in another field, such as
+     * {@code {"level":"ERROR","message":"..."}}, would be dropped, and the {@code errors}
+     * filter and the error count would miss the line.
+     *
+     * @return true to unwrap the JSON message field
+     */
+    @WithName("unwrap-json")
+    @WithDefault("false")
+    boolean unwrapJson();
+
+    /**
+     * JSON field that holds the log message when {@link #unwrapJson()} is enabled.
+     * Accepts a dotted path such as {@code log.message}.
+     *
+     * @return the JSON message field
+     */
+    @WithName("json-message-field")
+    @WithDefault("message")
+    String jsonMessageField();
+
+    /**
+     * How far back a query without a time range and without line filters reaches.
+     * Loki stops once the {@code tailLines} limit is filled, so a wide window stays cheap.
+     * Keep it at or below the backend's {@code max_query_length} (Loki default 721h),
+     * or Loki rejects the query. Must be at least one minute; startup fails otherwise.
+     *
+     * @return the maximum lookback
+     */
+    @WithName("max-lookback")
+    @DurationMin(minutes = 1)
+    @WithDefault("720h")
+    Duration maxLookback();
+
+    /**
+     * How far back a query with a {@code filter} or {@code keywords} but without a time range
+     * reaches. Loki has no index on line content, so a filtered search scans every line in the
+     * window; the response warns that only this window was searched. The effective value is
+     * capped at {@link #maxLookback()}. Must be at least one minute; startup fails otherwise.
+     *
+     * @return the lookback for filtered queries without a time range
+     */
+    @WithName("filter-lookback")
+    @DurationMin(minutes = 1)
+    @WithDefault("1h")
+    Duration filterLookback();
 
     /**
      * Label name mapping for Kubernetes metadata in Loki.

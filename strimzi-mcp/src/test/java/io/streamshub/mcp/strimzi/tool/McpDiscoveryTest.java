@@ -8,6 +8,7 @@ import io.quarkiverse.mcp.server.test.McpAssured;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.config.ToolMetaFields;
 import io.streamshub.mcp.strimzi.config.StrimziToolResources;
+import io.streamshub.mcp.strimzi.config.StrimziToolsPrompts;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -239,6 +240,43 @@ class McpDiscoveryTest {
                     "clusterName should be required");
             })
             .thenAssertResults();
+    }
+
+    /**
+     * Verify each tool's {@code sinceMinutes} description matches what the tool does when the
+     * argument is omitted: log tools and log-collecting diagnostics mention the Loki default,
+     * {@code diagnose_kafka_cluster} its 30/60-minute default, and {@code diagnose_kafka_storage}
+     * only events and metrics.
+     */
+    @Test
+    void testSinceMinutesDescriptionsMatchBehaviour() {
+        Map<String, String> expected = new HashMap<>();
+        for (String tool : List.of("get_kafka_cluster_logs", "get_strimzi_operator_logs", "get_kafka_connect_logs",
+            "get_kafka_bridge_logs", "get_kafka_mirror_maker_logs", "get_drain_cleaner_logs")) {
+            expected.put(tool, StrimziToolsPrompts.SINCE_MINUTES_DESC);
+        }
+        for (String tool : List.of("diagnose_kafka_connect", "diagnose_kafka_connector", "diagnose_kafka_mirror_maker",
+            "diagnose_kafka_bridge", "diagnose_kafka_node_pool", "diagnose_kafka_rebalance")) {
+            expected.put(tool, StrimziToolsPrompts.SINCE_MINUTES_DIAGNOSTIC_DESC);
+        }
+        expected.put("diagnose_kafka_cluster", StrimziToolsPrompts.SINCE_MINUTES_CLUSTER_DIAGNOSTIC_DESC);
+        expected.put("diagnose_kafka_storage", StrimziToolsPrompts.SINCE_MINUTES_STORAGE_DESC);
+        expected.put("get_strimzi_events", StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC);
+
+        client.when()
+            .toolsList(page -> expected.forEach((toolName, description) -> {
+                McpAssured.ToolInfo tool = page.findByName(toolName);
+                assertNotNull(tool, "Tool '" + toolName + "' should be registered");
+                assertEquals(description, tool.inputSchema().getJsonObject("properties")
+                        .getJsonObject("sinceMinutes").getString("description"),
+                    "sinceMinutes description of " + toolName);
+            }))
+            .thenAssertResults();
+
+        assertFalse(StrimziToolsPrompts.SINCE_MINUTES_DESC.contains("no time restriction"),
+            "log tools must not promise no time restriction: Loki bounds filtered searches");
+        assertFalse(StrimziToolsPrompts.SINCE_MINUTES_STORAGE_DESC.contains("log"),
+            "diagnose_kafka_storage collects no logs");
     }
 
     /**

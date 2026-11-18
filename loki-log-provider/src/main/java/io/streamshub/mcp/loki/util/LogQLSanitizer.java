@@ -6,6 +6,8 @@ package io.streamshub.mcp.loki.util;
 
 import io.streamshub.mcp.common.util.QueryLiteralSanitizer;
 
+import java.util.regex.Pattern;
+
 /**
  * Sanitizes user-supplied values before interpolating them into LogQL queries.
  * Prevents LogQL injection by validating label names against the Loki naming
@@ -15,6 +17,10 @@ public final class LogQLSanitizer {
 
     /** RE2 metacharacters that must be escaped to match text literally. */
     private static final String REGEX_METACHARACTERS = "\\.+*?()|[]{}^$";
+
+    /** A JSON field path for the LogQL {@code json} parser: identifiers joined by dots. */
+    private static final Pattern JSON_FIELD_PATTERN =
+        Pattern.compile("^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$");
 
     private LogQLSanitizer() {
         // Utility class — no instantiation
@@ -65,5 +71,21 @@ public final class LogQLSanitizer {
             escaped.append(c);
         }
         return escaped.toString();
+    }
+
+    /**
+     * Validates a JSON field path for the LogQL {@code json} parser, for example
+     * {@code message} or {@code kubernetes.container_name}. The path is placed inside a
+     * LogQL string literal, so only identifiers joined by single dots are accepted.
+     *
+     * @param field the JSON field path to validate
+     * @return the validated field path
+     * @throws IllegalArgumentException if the field is null, blank, or not a dotted identifier path
+     */
+    public static String sanitizeJsonField(final String field) {
+        if (field == null || !JSON_FIELD_PATTERN.matcher(field).matches()) {
+            throw new IllegalArgumentException("Invalid LogQL JSON field: " + field);
+        }
+        return field;
     }
 }

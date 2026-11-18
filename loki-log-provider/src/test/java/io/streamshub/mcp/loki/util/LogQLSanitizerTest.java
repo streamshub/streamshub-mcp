@@ -99,4 +99,20 @@ class LogQLSanitizerTest {
         assertEquals("OutOfMemory-error_1", LogQLSanitizer.escapeRegexLiteral("OutOfMemory-error_1"));
         assertEquals("", LogQLSanitizer.escapeRegexLiteral(null));
     }
+
+    @Test
+    void testSanitizeJsonFieldAcceptsDottedPath() {
+        assertEquals("message", LogQLSanitizer.sanitizeJsonField("message"));
+        assertEquals("kubernetes.container_name", LogQLSanitizer.sanitizeJsonField("kubernetes.container_name"));
+    }
+
+    @Test
+    void testSanitizeJsonFieldRejectsUnsafeValues() {
+        assertThrows(IllegalArgumentException.class, () -> LogQLSanitizer.sanitizeJsonField(null));
+        assertThrows(IllegalArgumentException.class, () -> LogQLSanitizer.sanitizeJsonField(""));
+        assertThrows(IllegalArgumentException.class, () -> LogQLSanitizer.sanitizeJsonField("a b"));
+        assertThrows(IllegalArgumentException.class, () -> LogQLSanitizer.sanitizeJsonField("a\"b"));
+        assertThrows(IllegalArgumentException.class, () -> LogQLSanitizer.sanitizeJsonField("1abc"));
+        assertThrows(IllegalArgumentException.class, () -> LogQLSanitizer.sanitizeJsonField("a..b"));
+    }
 }

@@ -31,6 +31,7 @@ Benefits:
 |`mcp.log.opensearch.auth-mode` |`none` |Authentication mode: `none`, `basic`, `bearer-token`, or `sa-token`
 |`mcp.log.opensearch.sa-token-path` |`/var/run/secrets/kubernetes.io/serviceaccount/token` |Path to ServiceAccount token
 |`mcp.log.opensearch.index-pattern` |`kubernetes-*` |Index pattern for log queries
+|`mcp.log.opensearch.filter-lookback` |`1h` |How far back a search with `filter` or `keywords` but without a time range reaches. Must be at least `1m`. See <<opensearch-time-range-{context}>>.
 |`mcp.log.opensearch.field.namespace` |`kubernetes.namespace_name` |Field name for Kubernetes namespace
 |`mcp.log.opensearch.field.pod` |`kubernetes.pod_name` |Field name for pod name
 |`mcp.log.opensearch.field.container` |`kubernetes.container_name` |Field name for container name (used to narrow log collection to a single container)
@@ -175,6 +176,23 @@ kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
   MCP_LOG_OPENSEARCH_FIELD_POD=k8s_pod \
   MCP_LOG_OPENSEARCH_FIELD_CONTAINER=k8s_container
 ----
+
+The provider matches the namespace, pod and container fields on their `.keyword` sub-field, as the default dynamic mapping creates.
+If a `container` filter returns no lines from any pod, the server runs one probe for the same pod and container, without a time range or text filters.
+When that probe finds no document either, the response carries a hint in `warnings` that names `mcp.log.opensearch.field.container`, instead of a bare "no errors found".
+
+[id='opensearch-time-range-{context}']
+== Time range
+
+When a log tool call gives no `sinceMinutes` and no `startTime`/`endTime`, the window depends on the line filters:
+
+* *No `filter` and no `keywords`*: no time window. The search is indexed, so log tools return the newest `tailLines` lines regardless of their age.
+* *With `filter` or `keywords`*: the search covers only `mcp.log.opensearch.filter-lookback` (default 1 hour).
+The `errors` and `warnings` patterns start with a wildcard, so OpenSearch checks every word of the message field in each searched index, and a search over all time-based indices can time out on a busy cluster.
+The response adds a note to `warnings` that says only that window was searched, so an empty result does not read as an all-clear.
+The filter lookback must be at least one minute; the server does not start otherwise.
+
+With `sinceMinutes` or `startTime`/`endTime`, OpenSearch searches the whole requested window.
 
 == Elasticsearch compatibility
 

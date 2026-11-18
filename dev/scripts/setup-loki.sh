@@ -8,7 +8,11 @@
 #   ./setup-loki.sh teardown - Remove everything
 #
 # After deployment, configure the MCP server to use the Loki log provider:
-#   MCP_LOG_PROVIDER=loki
+#   MCP_LOG_PROVIDER=streamshub-loki
+#   MCP_LOG_LOKI_LABEL_NAMESPACE=kubernetes_namespace_name
+#   MCP_LOG_LOKI_LABEL_POD=kubernetes_pod_name
+#   MCP_LOG_LOKI_LABEL_CONTAINER=kubernetes_container_name
+#   MCP_LOG_LOKI_UNWRAP_JSON=true
 #   quarkus.rest-client.loki.url=https://logging-loki-gateway-http.openshift-logging.svc:8080/api/logs/v1/application
 
 set -e

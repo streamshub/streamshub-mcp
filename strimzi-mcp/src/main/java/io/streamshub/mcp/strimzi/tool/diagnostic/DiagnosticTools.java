@@ -158,7 +158,7 @@ public class DiagnosticTools {
         @NotBlank @ToolArg(description = StrimziToolsPrompts.CONNECT_CLUSTER_DESC) final String connectName,
         @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
         @ToolArg(description = StrimziToolsPrompts.SYMPTOM_DESC, required = false) final String symptom,
-        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
+        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_DIAGNOSTIC_DESC,
             required = false) final Integer sinceMinutes,
         final Sampling sampling,
         final Elicitation elicitation,
@@ -219,7 +219,7 @@ public class DiagnosticTools {
             required = false
         ) final String symptom,
         @Min(1) @ToolArg(
-            description = StrimziToolsPrompts.SINCE_MINUTES_DESC,
+            description = StrimziToolsPrompts.SINCE_MINUTES_DIAGNOSTIC_DESC,
             required = false
         ) final Integer sinceMinutes,
         final Sampling sampling,
@@ -282,7 +282,7 @@ public class DiagnosticTools {
             required = false
         ) final String symptom,
         @Min(1) @ToolArg(
-            description = StrimziToolsPrompts.SINCE_MINUTES_DESC,
+            description = StrimziToolsPrompts.SINCE_MINUTES_CLUSTER_DIAGNOSTIC_DESC,
             required = false
         ) final Integer sinceMinutes,
         final Sampling sampling,
@@ -462,7 +462,7 @@ public class DiagnosticTools {
             required = false
         ) final String symptom,
         @Min(1) @ToolArg(
-            description = StrimziToolsPrompts.SINCE_MINUTES_DESC,
+            description = StrimziToolsPrompts.SINCE_MINUTES_STORAGE_DESC,
             required = false
         ) final Integer sinceMinutes,
         final Sampling sampling,
@@ -840,7 +840,7 @@ public class DiagnosticTools {
         @NotBlank @ToolArg(description = StrimziToolsPrompts.MIRROR_MAKER_NAME_DESC) final String mirrorMakerName,
         @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
         @ToolArg(description = StrimziToolsPrompts.SYMPTOM_DESC, required = false) final String symptom,
-        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
+        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_DIAGNOSTIC_DESC,
             required = false) final Integer sinceMinutes,
         final Sampling sampling,
         final Elicitation elicitation,
@@ -890,7 +890,7 @@ public class DiagnosticTools {
         @NotBlank @ToolArg(description = StrimziToolsPrompts.BRIDGE_NAME_DESC) final String bridgeName,
         @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
         @ToolArg(description = StrimziToolsPrompts.SYMPTOM_DESC, required = false) final String symptom,
-        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
+        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_DIAGNOSTIC_DESC,
             required = false) final Integer sinceMinutes,
         final Sampling sampling,
         final Elicitation elicitation,
@@ -945,7 +945,7 @@ public class DiagnosticTools {
         @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
         @ToolArg(description = StrimziToolsPrompts.CLUSTER_DESC, required = false) final String clusterName,
         @ToolArg(description = StrimziToolsPrompts.SYMPTOM_DESC, required = false) final String symptom,
-        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
+        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_DIAGNOSTIC_DESC,
             required = false) final Integer sinceMinutes,
         final Sampling sampling,
         final Elicitation elicitation,
@@ -998,7 +998,7 @@ public class DiagnosticTools {
         ) final String rebalanceName,
         @ToolArg(description = StrimziToolsPrompts.NS_DESC, required = false) final String namespace,
         @ToolArg(description = StrimziToolsPrompts.SYMPTOM_DESC, required = false) final String symptom,
-        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_EVENTS_DESC,
+        @Min(1) @ToolArg(description = StrimziToolsPrompts.SINCE_MINUTES_DIAGNOSTIC_DESC,
             required = false) final Integer sinceMinutes,
         final Sampling sampling,
         final Elicitation elicitation,

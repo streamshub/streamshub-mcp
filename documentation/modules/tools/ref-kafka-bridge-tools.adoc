@@ -65,7 +65,7 @@ Get logs from KafkaBridge pods with error analysis. Returns logs from all pods b
 * `namespace` (optional) -- Kubernetes namespace
 * `filter` (optional) -- Log level filter (for example, "errors", "warnings", or a regex pattern)
 * `keywords` (optional) -- List of keywords to search for in logs
-* `sinceMinutes` (optional) -- Time window in minutes
+* `sinceMinutes` (optional) -- Only return logs newer than this many minutes; omit for the most recent lines regardless of age (Loki and OpenSearch: a `filter` or `keywords` without a time range searches only the last 60 minutes by default (`mcp.log.loki.filter-lookback`, `mcp.log.opensearch.filter-lookback`) and adds a note to `warnings`)
 * `startTime` (optional) -- Start time (ISO 8601 format)
 * `endTime` (optional) -- End time (ISO 8601 format)
 * `tailLines` (optional) -- Number of lines to tail from each pod

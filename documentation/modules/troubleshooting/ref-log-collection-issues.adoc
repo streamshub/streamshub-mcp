@@ -28,11 +28,14 @@ kubectl logs -n kafka-ns my-cluster-kafka-0 --tail=10
 
 * Logs may be outside the requested time window
 * Try: "Show me logs from the last 5 minutes"
+* With the Loki or OpenSearch provider, a `filter` or `keywords` search without `sinceMinutes` covers only `mcp.log.loki.filter-lookback` or `mcp.log.opensearch.filter-lookback` (default: the last hour).
+The response then has a `warnings` entry starting with `Loki searched only the last` or `OpenSearch searched only the last`, followed by the window in minutes.
+Pass `sinceMinutes` to search further back.
 
 *Solutions:*
 
 * *Pods not found*: Verify Kafka cluster name and namespace
-* *No logs in time range*: Expand time window
+* *No logs in time range*: Expand time window (pass `sinceMinutes` or `startTime`)
 * *Container not specified*: Specify container name for multi-container pods
 
 == Loki integration not working
@@ -94,3 +97,88 @@ OpenShift Logging v6.x does not auto-create the `cluster-logging-application-vie
 kubectl apply -f install/strimzi-mcp/optional/clusterrole-loki-application-view.yaml
 kubectl apply -f install/strimzi-mcp/optional/clusterrolebinding-loki-application-view.yaml
 ----
+
+== Container filter returns no lines from Loki
+
+*Symptom:* A log tool called with `container` (for example `container: "kafka"`) returns no log lines, while the same call without `container` returns data.
+The response carries a `warnings` entry that starts with `No log lines were returned for container 'kafka' from any pod`.
+
+*Cause:* The Loki provider narrows the query with the container label set in `mcp.log.loki.label.container` (default `container`, as used by Promtail and Grafana Alloy).
+OpenShift Logging (ViaQ data model) uses `kubernetes_container_name`, so the default label matches no stream.
+
+*Solution:* Set the container label for OpenShift Logging:
+
+[source,bash]
+----
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  MCP_LOG_LOKI_LABEL_CONTAINER=kubernetes_container_name
+----
+
+If the label is already right, check the container name: `kubectl get pod <pod> -o jsonpath='{.spec.containers[*].name}'`.
+
+The Loki provider gives this hint only when the container's stream has no lines at all within `mcp.log.loki.max-lookback` (default 30 days).
+When a `filter` or `keywords` search, or a call with `sinceMinutes` or `startTime`/`endTime`, returns nothing, the provider first runs one cheap probe of the same pod and container over `max-lookback`, without the line filters.
+If that probe finds lines, the container mapping is fine and the call simply matched nothing in its window, so no hint is added.
+The hint can still appear for a container that exists but has logged nothing within `max-lookback`.
+
+== Loki returns JSON records, or filters match pod metadata
+
+*Symptom:* With OpenShift Logging, the log tools return each line as a JSON record with pod annotations and labels, and `filter` or `keywords` match lines whose message does not contain the text.
+For example, `filter: "warnings"` returns every line from a namespace labelled `pod-security.kubernetes.io/warn`.
+
+*Cause:* OpenShift Logging stores each log line in Loki as a ViaQ JSON record.
+The Loki provider returns and filters the whole record unless `mcp.log.loki.unwrap-json` is enabled, which is off by default.
+
+*Solution:* Enable the unwrap, so the provider filters and returns only the `message` field:
+
+[source,bash]
+----
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  MCP_LOG_LOKI_UNWRAP_JSON=true
+----
+
+Do not enable it when your applications log JSON themselves and the collector ships those lines unchanged: the unwrap keeps only their `message` field, so a level in another field, such as `"level":"ERROR"`, no longer counts for `filter: "errors"` or `error_count`.
+
+== Loki query fails with status code 400
+
+*Symptom:* A log tool fails with an error that contains `Loki query failed for pod <namespace>/<pod>: Bad Request, status code 400`.
+
+*Cause:* Loki rejected the query.
+The MCP server does not pass on Loki's reason, so check these causes:
+
+* The time window is longer than the backend's `max_query_length` limit (Loki default `721h`).
+Loki's own message is `the query time range exceeds the limit (query length: ..., limit: ...)`.
+This happens when `mcp.log.loki.max-lookback` is above the limit, for calls without `filter`, `keywords` or a time range.
+It also happens when a call asks for a longer window with `sinceMinutes` or `startTime`/`endTime`: the server does not shorten a window that the call gives.
+* A custom `filter` regex uses syntax that the RE2 engine of Loki does not support, such as a lookahead `(?=...)` or a backreference.
+
+*Solution:*
+
+* Set `mcp.log.loki.max-lookback` to at most the backend's `max_query_length`, for example:
++
+[source,bash]
+----
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  MCP_LOG_LOKI_MAX_LOOKBACK=168h
+----
+* Ask for a shorter window, or raise `max_query_length` in the Loki limits configuration.
+* Rewrite the `filter` regex without lookarounds or backreferences.
+
+== Container filter returns no lines from OpenSearch
+
+*Symptom:* A log tool called with `container` returns no log lines, while the same call without `container` returns data.
+The response carries a `warnings` entry that starts with `No log lines were returned for container 'kafka' from any pod` and names `mcp.log.opensearch.field.container`.
+
+*Cause:* The OpenSearch provider narrows the search with a `term` query on `<mcp.log.opensearch.field.container>.keyword` (default `kubernetes.container_name`).
+Pipelines with custom field names, such as `k8s_container`, or without a `.keyword` sub-field, match no document.
+
+*Solution:* Set the container field that your pipeline writes:
+
+[source,bash]
+----
+kubectl -n streamshub-mcp set env deployment/streamshub-mcp-strimzi \
+  MCP_LOG_OPENSEARCH_FIELD_CONTAINER=k8s_container
+----
+
+The hint appears only when the indices hold no document at all for the pod and container: the provider first runs one probe of the same pod and container without a time range or text filters, and adds no hint if the probe finds a document.
+The Kubernetes provider gives no hint, because an unknown container makes the pod's log fetch fail.

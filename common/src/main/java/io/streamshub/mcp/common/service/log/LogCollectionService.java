@@ -18,7 +18,6 @@ import org.jboss.logging.Logger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Orchestrator for collecting logs from multiple Kubernetes pods.
@@ -107,8 +106,7 @@ public class LogCollectionService {
 
                     List<String> matchedLines = new ArrayList<>();
                     for (String line : lines) {
-                        String upperLine = line.toUpperCase(Locale.ENGLISH);
-                        if (upperLine.contains("ERROR") || upperLine.contains("EXCEPTION")) {
+                        if (LogFilterUtils.isErrorLine(line)) {
                             errorCount++;
                         }
                         matchedLines.add(line);
@@ -135,6 +133,22 @@ public class LogCollectionService {
         if (failedPods > 0 && failedPods == pods.size() && totalLines == 0) {
             throw new LogQueryException(
                 String.format("Failed to retrieve logs from all %d pods: %s", pods.size(), warnings), null);
+        }
+
+        if (!pods.isEmpty()) {
+            LogFetchRequest firstPodRequest =
+                LogFetchRequest.from(namespace, pods.getFirst().getMetadata().getName(), options);
+            String container = options.container();
+            if (container != null && !container.isBlank() && totalLines == 0) {
+                String hint = logProvider.get().emptyContainerHint(firstPodRequest);
+                if (hint != null) {
+                    warnings.add(hint);
+                }
+            }
+            String note = logProvider.get().searchScopeNote(firstPodRequest);
+            if (note != null) {
+                warnings.add(note);
+            }
         }
 
         return new PodLogsResult(podNames, allLogs.toString(), errorCount, totalLines, filteredLines, hasMore,

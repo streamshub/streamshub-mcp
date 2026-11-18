@@ -5,11 +5,16 @@
 package io.streamshub.mcp.opensearch;
 
 import io.quarkus.test.junit.QuarkusTest;
+import io.streamshub.mcp.common.dto.LogFetchRequest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -19,6 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTest
 class OpenSearchLogProviderTest {
+
+    private static final Pattern RANGE_GTE = Pattern.compile("\"range\":\\{\"@timestamp\":\\{\"gte\":\"([^\"]+)\"");
 
     @Inject
     OpenSearchLogProvider provider;
@@ -41,18 +48,51 @@ class OpenSearchLogProviderTest {
     void testBuildSearchQueryWithErrorsFilter() {
         String query = provider.buildSearchQuery(
             "kafka", "pod-0", 200, null, "errors", null, null, null, null);
-        assertTrue(query.contains("regexp"));
-        assertTrue(query.contains("(ERROR|EXCEPTION)"));
-        assertTrue(query.contains("case_insensitive"));
+        // Matched per analyzed term: fatal, or a term ending in error/exception (TimeoutException,
+        // java.lang.OutOfMemoryError), but not a config key such as errors.tolerance.
+        assertTrue(query.contains(
+            "{\"regexp\":{\"message\":{\"value\":\"fatal|.*(error|exception)\",\"case_insensitive\":true}}}"),
+            query);
     }
 
     @Test
     void testBuildSearchQueryWithWarningsFilter() {
         String query = provider.buildSearchQuery(
-            "kafka", "pod-0", 200, null, "warnings", null, null, null, null);
-        assertTrue(query.contains("regexp"));
-        assertTrue(query.contains("(ERROR|EXCEPTION|WARN)"));
-        assertTrue(query.contains("case_insensitive"));
+            "kafka", "pod-0", 200, null, " Warnings ", null, null, null, null);
+        assertTrue(query.contains("{\"regexp\":{\"message\":{\"value\":\"fatal|warn|warning|.*(error|exception)\","
+            + "\"case_insensitive\":true}}}"), query);
+    }
+
+    @Test
+    void testShortcutTermPatternsMatchTheSharedRuleOnAnalyzedTerms() {
+        // Terms as the standard analyzer produces them: lowercased, dotted names kept whole.
+        // Lucene regexp is anchored to the whole term, like Matcher.matches().
+        Pattern errors = Pattern.compile(OpenSearchLogProvider.ERRORS_TERM_REGEXP);
+        Pattern warnings = Pattern.compile(OpenSearchLogProvider.WARNINGS_TERM_REGEXP);
+        for (String term : List.of("error", "fatal", "org.apache.kafka.common.errors.timeoutexception",
+            "java.lang.outofmemoryerror", "java.net.connectexception")) {
+            assertTrue(errors.matcher(term).matches(), term);
+            assertTrue(warnings.matcher(term).matches(), term);
+        }
+        for (String term : List.of("warn", "warning")) {
+            assertFalse(errors.matcher(term).matches(), term);
+            assertTrue(warnings.matcher(term).matches(), term);
+        }
+        for (String term : List.of("errors.tolerance", "errors.retry.timeout", "info", "errorhandler.java",
+            "org.apache.kafka.clients.admin.kafkaadminclient", "warned")) {
+            assertFalse(errors.matcher(term).matches(), term);
+            assertFalse(warnings.matcher(term).matches(), term);
+        }
+    }
+
+    @Test
+    void testBuildContainerProbeQueryHasOnlyTheSelector() {
+        assertEquals("{\"query\":{\"bool\":{\"filter\":["
+                + "{\"term\":{\"kubernetes.namespace_name.keyword\":\"kafka\"}},"
+                + "{\"term\":{\"kubernetes.pod_name.keyword\":\"pod-0\"}},"
+                + "{\"term\":{\"kubernetes.container_name.keyword\":\"kafka\"}}]}},"
+                + "\"size\":1,\"_source\":false,\"terminate_after\":1}",
+            provider.buildContainerProbeQuery("kafka", "pod-0", " kafka "));
     }
 
     @Test
@@ -100,13 +140,89 @@ class OpenSearchLogProviderTest {
     }
 
     @Test
-    void testBuildSearchQueryWithPartialTimeRangeFallsBackToDefault() {
+    void testBuildSearchQueryWithoutTimeRangeHasNoRangeClause() {
+        String query = provider.buildSearchQuery(
+            "kafka", "pod-0", 200, null, null, null, null, null, null);
+        assertFalse(query.contains("range"), query);
+    }
+
+    @Test
+    void testFilterWithoutTimeRangeIsBoundedByFilterLookback() {
+        Instant before = Instant.now().minus(Duration.ofHours(1));
+        String query = provider.buildSearchQuery(
+            "kafka", "pod-0", 200, null, "errors", null, null, null, null);
+        Instant after = Instant.now().minus(Duration.ofHours(1));
+
+        Instant gte = rangeStart(query);
+        assertFalse(gte.isBefore(before), query);
+        assertFalse(gte.isAfter(after), query);
+    }
+
+    @Test
+    void testKeywordsWithoutTimeRangeAreBoundedByFilterLookback() {
+        String query = provider.buildSearchQuery(
+            "kafka", "pod-0", 200, null, null, List.of("OOM"), null, null, null);
+        assertNotNull(rangeStart(query), query);
+    }
+
+    @Test
+    void testBlankKeywordsWithoutTimeRangeHaveNoRangeClause() {
+        String query = provider.buildSearchQuery(
+            "kafka", "pod-0", 200, null, "  ", List.of("  "), null, null, null);
+        assertFalse(query.contains("range"), query);
+    }
+
+    @Test
+    void testFilterWithSinceSecondsUsesOnlyThatWindow() {
+        Instant before = Instant.now().minusSeconds(300);
+        String query = provider.buildSearchQuery(
+            "kafka", "pod-0", 200, 300, "errors", null, null, null, null);
+
+        assertEquals(1, query.split("\"range\"", -1).length - 1, query);
+        assertFalse(rangeStart(query).isBefore(before), query);
+    }
+
+    @Test
+    void testFilterWithStartTimeUsesOnlyThatWindow() {
+        String query = provider.buildSearchQuery(
+            "kafka", "pod-0", 200, null, "errors", null, "2026-01-01T00:00:00Z", null, null);
+
+        assertEquals(1, query.split("\"range\"", -1).length - 1, query);
+        assertEquals(Instant.parse("2026-01-01T00:00:00Z"), rangeStart(query), query);
+    }
+
+    @Test
+    void testSearchScopeNoteOnlyForFilteredSearchWithoutTimeRange() {
+        String note = provider.searchScopeNote(request(null, "errors", null, null));
+        assertNotNull(note);
+        assertTrue(note.startsWith("OpenSearch searched only the last 60 minutes"), note);
+        assertNotNull(provider.searchScopeNote(request(null, null, List.of("OOM"), null)));
+
+        assertNull(provider.searchScopeNote(request(300, "errors", null, null)));
+        assertNull(provider.searchScopeNote(request(null, "errors", null, "2026-01-01T00:00:00Z")));
+        assertNull(provider.searchScopeNote(request(null, null, null, null)));
+        assertNull(provider.searchScopeNote(request(null, null, List.of("  "), null)));
+    }
+
+    private static Instant rangeStart(final String query) {
+        Matcher matcher = RANGE_GTE.matcher(query);
+        assertTrue(matcher.find(), query);
+        return Instant.parse(matcher.group(1));
+    }
+
+    private static LogFetchRequest request(final Integer sinceSeconds, final String filter,
+                                           final List<String> keywords, final String startTime) {
+        return new LogFetchRequest("kafka", "pod-0", 100, sinceSeconds, null, filter, keywords,
+            startTime, null, null);
+    }
+
+    @Test
+    void testBuildSearchQueryWithStartTimeOnlyUsesIt() {
         String query = provider.buildSearchQuery(
             "kafka", "pod-0", 200, null, null, null,
             "2026-01-01T00:00:00Z", null, null);
-        assertTrue(query.contains("range"));
-        assertTrue(query.contains("gte"));
-        assertTrue(query.contains("@timestamp"));
+        assertTrue(query.contains("\"gte\":\"2026-01-01T00:00:00Z\""), query);
+        assertFalse(query.contains("\"lte\""), query);
     }
 
     @Test

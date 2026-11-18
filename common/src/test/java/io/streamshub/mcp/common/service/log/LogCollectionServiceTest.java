@@ -6,13 +6,19 @@ package io.streamshub.mcp.common.service.log;
 
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.ContainerResource;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.PodResource;
+import io.fabric8.kubernetes.client.dsl.PrettyLoggable;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PodLogsResult;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for {@link LogCollectionService} log orchestration,
@@ -220,6 +227,85 @@ class LogCollectionServiceTest {
     void testDeduplicateEmptyList() {
         String result = logCollectionService.deduplicateLines(List.of());
         assertEquals("", result);
+    }
+
+    // ---- error counting ----
+
+    @Test
+    void testErrorCountIgnoresConfigDumpAndStackFrames() {
+        PodResource podResource = stubPodResource("pod-1");
+        when(podResource.get()).thenReturn(null);
+        PrettyLoggable prettyLoggable = Mockito.mock(PrettyLoggable.class);
+        Mockito.doReturn(prettyLoggable).when(podResource).tailingLines(101);
+        when(prettyLoggable.getLog()).thenReturn(LogLineFixtures.CONNECT_CONFIG_DUMP
+            + LogLineFixtures.ERROR_LINE + "\n" + LogLineFixtures.EXCEPTION_LINE + "\n"
+            + LogLineFixtures.STACK_FRAME + "\n");
+
+        PodLogsResult result = logCollectionService.collectLogs("kafka", List.of(createSimplePod("pod-1")),
+            LogCollectionParams.builder(100).build());
+
+        assertEquals(2, result.errorCount());
+        assertEquals(9, result.totalLines());
+        assertTrue(result.hasErrors());
+    }
+
+    // ---- container filter hint ----
+
+    @Test
+    void testContainerFilterWithNoLinesHasNoHintOnKubernetesProvider() {
+        // The Kubernetes provider has no label mapping to get wrong: an unknown container is an
+        // API error (a failed pod), so an empty result is a genuinely empty result.
+        stubContainerLog("pod-1", "kafka", null);
+
+        PodLogsResult result = logCollectionService.collectLogs("kafka", List.of(createSimplePod("pod-1")),
+            LogCollectionParams.builder(100).container("kafka").filter("errors").build());
+
+        assertTrue(result.warnings().isEmpty(), result.warnings().toString());
+        assertEquals(0, result.failedPods());
+        assertEquals(0, result.errorCount());
+    }
+
+    @Test
+    void testContainerFilterWithLinesHasNoHint() {
+        stubContainerLog("pod-1", "kafka", LogLineFixtures.WARN_LINE + "\n");
+
+        PodLogsResult result = logCollectionService.collectLogs("kafka", List.of(createSimplePod("pod-1")),
+            LogCollectionParams.builder(100).container("kafka").build());
+
+        assertTrue(result.warnings().isEmpty(), result.warnings().toString());
+    }
+
+    @Test
+    void testNoContainerAndNoLinesHasNoHint() {
+        PodResource podResource = stubPodResource("pod-1");
+        when(podResource.get()).thenReturn(null);
+        PrettyLoggable prettyLoggable = Mockito.mock(PrettyLoggable.class);
+        Mockito.doReturn(prettyLoggable).when(podResource).tailingLines(101);
+        when(prettyLoggable.getLog()).thenReturn(null);
+
+        PodLogsResult result = logCollectionService.collectLogs("kafka", List.of(createSimplePod("pod-1")),
+            LogCollectionParams.builder(100).build());
+
+        assertTrue(result.warnings().isEmpty(), result.warnings().toString());
+    }
+
+    private void stubContainerLog(final String podName, final String container, final String log) {
+        PodResource podResource = stubPodResource(podName);
+        ContainerResource containerResource = Mockito.mock(ContainerResource.class);
+        PrettyLoggable prettyLoggable = Mockito.mock(PrettyLoggable.class);
+        Mockito.doReturn(containerResource).when(podResource).inContainer(container);
+        Mockito.doReturn(prettyLoggable).when(containerResource).tailingLines(101);
+        when(prettyLoggable.getLog()).thenReturn(log);
+    }
+
+    @SuppressWarnings("unchecked")
+    private PodResource stubPodResource(final String podName) {
+        MixedOperation<Pod, PodList, PodResource> podOp = Mockito.mock(MixedOperation.class);
+        PodResource podResource = Mockito.mock(PodResource.class);
+        when(kubernetesClient.pods()).thenReturn(podOp);
+        when(podOp.inNamespace("kafka")).thenReturn(podOp);
+        when(podOp.withName(podName)).thenReturn(podResource);
+        return podResource;
     }
 
     private Pod createSimplePod(final String name) {

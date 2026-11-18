@@ -21,7 +21,7 @@ import java.util.List;
  * @param logLines        the total number of log lines retrieved
  * @param hasMore         whether more log lines are available
  * @param logs            the raw log content
- * @param warnings        per-pod failure details (omitted when empty)
+ * @param warnings        per-pod failure details and log provider notes (omitted when empty)
  * @param timestamp       the time this result was generated
  * @param message         a human-readable summary
  */
@@ -53,7 +53,7 @@ public record KafkaMirrorMaker2LogsResponse(
      * @param logLines        the total lines
      * @param hasMore         whether more lines are available
      * @param logs            the raw logs
-     * @param warnings        per-pod failure details
+     * @param warnings        per-pod failure details and log provider notes
      * @return a logs response
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
