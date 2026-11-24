@@ -176,6 +176,21 @@ class PodScrapingMetricsProviderTest {
     }
 
     @Test
+    void testSamplesCarryTheScrapedPodAndNamespaceUnlessTheyExposeTheirOwn() {
+        when(client.raw("/api/v1/namespaces/kafka/pods/p-0:9404/proxy/metrics")).thenReturn(BODY_ONE);
+        when(client.raw("/api/v1/namespaces/kafka/pods/p-9:9404/proxy/metrics")).thenReturn("other_metric 1\n");
+
+        List<MetricSample> samples = provider.queryMetrics(instant(null, List.of(
+            PodTarget.of(NS, "p-0", 9404, "/metrics"),
+            PodTarget.of(NS, "p-9", 9404, "/metrics")), 0));
+
+        // "up" exposes its own pod label, which wins; the other series get the scraped pod.
+        assertEquals(List.of("p-0", "p-0", "p-9"),
+            samples.stream().map(s -> s.labels().get("pod")).toList());
+        assertTrue(samples.stream().allMatch(s -> NS.equals(s.labels().get("namespace"))));
+    }
+
+    @Test
     void testPodRegexMatcherUsesTheScrapedTargetWhenTheSampleHasNoPodLabel() {
         when(client.raw("/api/v1/namespaces/kafka/pods/operator-abc:9404/proxy/metrics")).thenReturn("jvm_threads 5\n");
         when(client.raw("/api/v1/namespaces/kafka/pods/broker-0:9404/proxy/metrics")).thenReturn("jvm_threads 7\n");
