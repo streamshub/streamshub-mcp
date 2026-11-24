@@ -309,7 +309,8 @@ class StrimziOperatorToolsST extends AbstractST {
                     "log_lines should be a number");
                 int logLines = root.path("log_lines").asInt();
                 int errorCount = root.path("error_count").asInt();
-                assertTrue(errorCount <= logLines,
+                // log_lines counts only the lines kept when the size guardrail truncated the response
+                assertTrue(errorCount <= logLines || root.path("truncated").asBoolean(),
                     "error_count (" + errorCount + ") should not exceed log_lines (" + logLines + ")");
                 assertEquals(root.path("has_errors").asBoolean(), errorCount > 0,
                     "has_errors should be consistent with error_count");

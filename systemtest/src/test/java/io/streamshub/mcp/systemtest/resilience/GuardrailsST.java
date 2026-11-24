@@ -165,8 +165,11 @@ class GuardrailsST extends AbstractST {
         JsonNode truncRoot = parseJson(json);
         assertEquals("mcp-cluster", truncRoot.path("cluster_name").asText(),
             "cluster_name should be preserved even in truncated response");
-        assertTrue(truncRoot.path("log_lines").asInt() > 0,
-            "log_lines should be non-zero to confirm logs were actually truncated, not empty");
+        // log_lines now counts the lines kept, which can be 0 at a 1000-byte limit, so check the flags.
+        assertTrue(truncRoot.path("truncated").asBoolean(),
+            "truncated should be true on a truncated response");
+        assertTrue(truncRoot.path("has_more").asBoolean(),
+            "has_more should be true when the logs were cut");
     }
 
     // ---- Rate Limiting ----

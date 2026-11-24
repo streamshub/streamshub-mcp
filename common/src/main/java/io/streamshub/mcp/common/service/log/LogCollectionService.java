@@ -31,6 +31,12 @@ public class LogCollectionService {
 
     private static final Logger LOG = Logger.getLogger(LogCollectionService.class);
 
+    /**
+     * Start of the line that opens each pod's section in collected logs: {@code === Pod: <name> ===}.
+     * The response size guardrail keys its pod-aware truncation off this prefix.
+     */
+    public static final String POD_HEADER_PREFIX = "=== Pod: ";
+
     @Inject
     Instance<LogCollectorProvider> logProvider;
 
@@ -114,7 +120,7 @@ public class LogCollectionService {
                     }
 
                     if (!matchedLines.isEmpty()) {
-                        allLogs.append("=== Pod: ").append(podName).append(" ===\n");
+                        allLogs.append(POD_HEADER_PREFIX).append(podName).append(" ===\n");
                         allLogs.append(deduplicateLines(matchedLines));
                     }
                 }
@@ -122,7 +128,7 @@ public class LogCollectionService {
                 failedPods++;
                 LOG.warnf("Could not retrieve logs from pod %s: %s", podName, e.getMessage());
                 warnings.add(String.format("Failed to retrieve logs from pod %s: %s", podName, e.getMessage()));
-                allLogs.append("=== Pod: ").append(podName)
+                allLogs.append(POD_HEADER_PREFIX).append(podName)
                     .append(" === (logs unavailable: ").append(e.getMessage()).append(")\n");
             }
             if (options.progressCallback() != null) {

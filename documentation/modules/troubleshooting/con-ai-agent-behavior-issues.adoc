@@ -69,7 +69,7 @@ Try: "Show me metrics from the last hour at cluster aggregation level"
 
 *2. Response truncation*
 
-When responses exceed 500 KB, the server truncates them with a notice: `[...response truncated to stay within size limit]`. The summary statistics and analysis fields are preserved, but some raw data may be cut. This is normal, not an error.
+When a response exceeds `mcp.guardrail.max-response-bytes`, the server shares the size budget across its large text fields and cuts them at line boundaries, marking each cut with `[...response truncated: N of M lines omitted]`. Pod logs keep the newest lines of every pod. The response carries `"truncated": true`, and a truncated log section has `has_more: true`. Summary statistics and small fields such as `analysis` are kept whole. This is normal, not an error.
 
 Solution: Use the summary statistics (`min`, `max`, `avg`, `latest`) instead of raw data points. Use narrower queries or specify `podNames` to reduce response size.
 

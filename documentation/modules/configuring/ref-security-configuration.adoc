@@ -90,14 +90,21 @@ Prevent excessive response sizes that could impact client performance.
 |===
 |Property |Default |Description
 
-|`mcp.guardrail.max-response-bytes` |`500000` |Maximum response size in bytes (500KB)
+|`mcp.guardrail.max-response-bytes` |`50000` |Maximum response size in serialized bytes (50 KB). Claude Code saves a tool result longer than 50,000 characters to a file instead of passing it to the model, so the default keeps results under that. Raise it for clients that accept larger results.
 |===
 
-When a response exceeds this limit, the largest text fields are truncated to fit.
+The limit applies to the serialized response in bytes. When a response exceeds it:
+
+* The byte budget is shared fairly across all large text fields. A field under its fair share stays whole; larger fields are cut. Budget that a field cannot use, because only whole lines are kept, goes to the other fields.
+* Text is cut at line boundaries. In pod logs, every pod keeps its `=== Pod: <name> ===` header and its newest whole lines. Budget that a pod cannot use goes to the other pods. A pod whose newest line is larger than its share keeps only its header and the marker.
+* Each cut is marked with a line such as `[...response truncated: 340 of 400 lines omitted]` (or `characters omitted` for a single long line).
+* The response gets `"truncated": true` at the root and a note at the end of its `message` that tells the agent how to request less. A truncated `logs` field's object gets `has_more: true`, and its `log_lines` becomes the number of lines shown in `logs` (a `[repeated N times]` line counts once).
+
+When the non-text content alone (for example long metric series or event lists) leaves no room for the text fields, the response is left unchanged and the server logs a warning, because shortening text cannot make it fit.
 
 [source,bash]
 ----
-MCP_GUARDRAIL_MAX_RESPONSE_BYTES=1000000  # 1MB
+MCP_GUARDRAIL_MAX_RESPONSE_BYTES=500000  # 500 KB, for clients that accept larger tool results
 ----
 
 [id='rate-limiting-{context}']

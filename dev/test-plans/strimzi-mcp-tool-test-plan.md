@@ -2001,8 +2001,10 @@ Parameters: { "clusterName": "mcp-cluster", "tailLines": 1000 }
 
 **Expected:**
 - [ ] Returns within reasonable time
-- [ ] Response respects `mcp.guardrail.max-response-bytes` (default 500KB)
+- [ ] Response respects `mcp.guardrail.max-response-bytes` (default 50 KB)
+- [ ] In Claude Code, the result is shown inline, not saved to a tool-results file
 - [ ] When truncated, `logs` still holds content close to the size limit (whole log lines, not a ~100-character stub), and the response says it was truncated
+- [ ] A truncated response has `truncated: true` at the root, `has_more: true`, `log_lines` equal to the number of log lines in `logs`, and every pod's `=== Pod: <name> ===` header is present
 - [ ] Asking for more lines never returns less log content than asking for fewer (compare `tailLines` 100, 200 and 1000)
 - [ ] Sensitive data is redacted if `mcp.guardrail.log-redaction.enabled` is true
 - [ ] Values stored under secret-named JSON fields or config keys are redacted even when the value has no `key=value` shape
