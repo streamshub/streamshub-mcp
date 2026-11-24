@@ -157,11 +157,11 @@ public final class KafkaMetricCategories {
                 + "Should be exactly 1. 0 = no active controller (cluster metadata operations stalled), "
                 + ">1 = split-brain condition (investigate controller network connectivity).",
         THROUGHPUT,
-            "kafka_server_brokertopicmetrics_messagesin_total: Cumulative messages received. "
-                + "Rate of change = messages/sec. Sudden drops = producer issues.\n"
-                + "kafka_server_brokertopicmetrics_bytesin_total: Cumulative bytes received. "
+            "kafka_server_brokertopicmetrics_messagesin_total: Messages received (counter; as a rate, messages/sec). "
+                + "Sudden drops = producer issues.\n"
+                + "kafka_server_brokertopicmetrics_bytesin_total: Bytes received (counter; as a rate, bytes/sec). "
                 + "Request aggregation=BROKER to compare brokers — large imbalance = hot partitions.\n"
-                + "kafka_server_brokertopicmetrics_bytesout_total: Cumulative bytes sent to consumers. "
+                + "kafka_server_brokertopicmetrics_bytesout_total: Bytes sent to consumers and followers (counter; as a rate, bytes/sec). "
                 + "bytesout >> bytesin can indicate replication or high consumer fan-out.\n"
                 + "kafka_server_brokertopicmetrics_totalproducerequests_total: Total produce requests. "
                 + "Rate = produce request throughput.\n"

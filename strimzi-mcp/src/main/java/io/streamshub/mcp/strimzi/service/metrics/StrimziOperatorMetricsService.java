@@ -133,7 +133,7 @@ public class StrimziOperatorMetricsService {
         }
         return StrimziOperatorMetricsResponse.of(resolvedName, cluster, resolvedNs,
             metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level,
-            truncated ? metricsQueryService.maxSamples() : null);
+            truncated ? metricsQueryService.maxSamples() : null, queryResult.entityOperatorSamples());
     }
 
     private void validatePodsFound(final List<Pod> coPods, final List<Pod> eoPods, final String namespace) {
@@ -168,7 +168,7 @@ public class StrimziOperatorMetricsService {
      * Samples from one or two backend queries and whether any of them was cut at the sample limit.
      * The limit applies to each query on its own, so it cannot be judged from the concatenated list.
      */
-    private record QueryResult(List<MetricSample> samples, boolean truncated) {
+    private record QueryResult(List<MetricSample> samples, boolean truncated, Integer entityOperatorSamples) {
     }
 
     /**
@@ -195,7 +195,8 @@ public class StrimziOperatorMetricsService {
             operatorPods.addAll(eoPods);
             List<MetricSample> samples = metricsQueryService.queryMetrics(
                 targets, matchers, podMatcher(operatorPods), metricNames, rangeMinutes, startTime, endTime, stepSeconds);
-            return new QueryResult(samples, metricsQueryService.reachedSampleLimit(samples));
+            return new QueryResult(samples, metricsQueryService.reachedSampleLimit(samples),
+                countEntityOperatorSamples(samples, eoPods));
         }
 
         List<MetricSample> allSamples = new ArrayList<>();
@@ -215,7 +216,33 @@ public class StrimziOperatorMetricsService {
         allSamples.addAll(eoSamples);
 
         return new QueryResult(allSamples, metricsQueryService.reachedSampleLimit(coSamples)
-            || metricsQueryService.reachedSampleLimit(eoSamples));
+            || metricsQueryService.reachedSampleLimit(eoSamples), eoSamples.size());
+    }
+
+    /**
+     * Counts the samples of a combined query that came from the entity operator, by their
+     * {@code pod} label.
+     *
+     * @return the count, 0 when there is no entity operator, or null when the samples carry no
+     *         {@code pod} label to tell them apart
+     */
+    private static Integer countEntityOperatorSamples(final List<MetricSample> samples, final List<Pod> eoPods) {
+        if (eoPods.isEmpty()) {
+            return 0;
+        }
+        String eoPattern = podMatcher(eoPods).get("pod");
+        boolean podLabelled = false;
+        int count = 0;
+        for (MetricSample sample : samples) {
+            String pod = sample.labels() != null ? sample.labels().get("pod") : null;
+            if (pod != null) {
+                podLabelled = true;
+                if (pod.matches(eoPattern)) {
+                    count++;
+                }
+            }
+        }
+        return podLabelled || samples.isEmpty() ? count : null;
     }
 
     /**

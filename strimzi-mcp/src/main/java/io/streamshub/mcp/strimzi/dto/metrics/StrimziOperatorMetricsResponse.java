@@ -76,16 +76,53 @@ public record StrimziOperatorMetricsResponse(
                                                      final String interpretation,
                                                      final AggregationLevel level,
                                                      final Integer truncatedAtLimit) {
+        return of(operatorName, clusterName, namespace, provider, categories, samples, interpretation, level,
+            truncatedAtLimit, null);
+    }
+
+    /**
+     * Creates a response with aggregated metric data, saying when the entity operator returned nothing.
+     *
+     * @param operatorName          the operator deployment name
+     * @param clusterName           the Kafka cluster name (null if no entity operator metrics)
+     * @param namespace             the Kubernetes namespace
+     * @param provider              the metrics provider name
+     * @param categories            the requested categories
+     * @param samples               the metric samples
+     * @param interpretation        brief guide for interpreting the returned metrics
+     * @param level                 the aggregation level
+     * @param truncatedAtLimit      the sample limit that was reached, or null when the result is complete
+     * @param entityOperatorSamples the number of samples that came from the entity operator, or null when unknown
+     * @return a response with the aggregated metric data
+     */
+    @SuppressWarnings("checkstyle:ParameterNumber")
+    public static StrimziOperatorMetricsResponse of(final String operatorName, final String clusterName,
+                                                     final String namespace,
+                                                     final String provider, final List<String> categories,
+                                                     final List<MetricSample> samples,
+                                                     final String interpretation,
+                                                     final AggregationLevel level,
+                                                     final Integer truncatedAtLimit,
+                                                     final Integer entityOperatorSamples) {
         long metricCount = samples.stream()
             .map(MetricSample::name)
             .distinct()
             .count();
 
-        String msg = clusterName != null
-            ? String.format("Retrieved %d samples across %d metrics from operator '%s' and entity operator for cluster '%s'",
-                samples.size(), metricCount, operatorName, clusterName)
-            : String.format("Retrieved %d samples across %d metrics from operator '%s'",
+        String msg;
+        if (clusterName == null) {
+            msg = String.format("Retrieved %d samples across %d metrics from operator '%s'",
                 samples.size(), metricCount, operatorName);
+        } else if (entityOperatorSamples != null && entityOperatorSamples == 0) {
+            msg = String.format("Retrieved %d samples across %d metrics from operator '%s'."
+                    + " No entity operator metrics were returned for cluster '%s': the entity operator is not"
+                    + " deployed, or its Topic and User Operator metrics (ports healthcheck-to and healthcheck-uo)"
+                    + " are not scraped",
+                samples.size(), metricCount, operatorName, clusterName);
+        } else {
+            msg = String.format("Retrieved %d samples across %d metrics from operator '%s' and entity operator for cluster '%s'",
+                samples.size(), metricCount, operatorName, clusterName);
+        }
 
         List<AggregatedTimeSeries> series = samples.isEmpty()
             ? List.of() : AggregatedTimeSeries.fromSamples(samples, level);

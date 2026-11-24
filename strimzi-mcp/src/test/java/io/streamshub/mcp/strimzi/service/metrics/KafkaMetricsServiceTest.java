@@ -570,6 +570,18 @@ class KafkaMetricsServiceTest {
     }
 
     @Test
+    void explicitMetricUnavailableOnSmrSaysSo() {
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(createKafkaWithSmr("my-cluster", "kafka"));
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics("kafka", "my-cluster", null,
+            "kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent", null, null, null, null, null, null);
+
+        assertEquals(0, response.sampleCount());
+        assertTrue(response.message().contains("not exposed by the Strimzi Metrics Reporter"), response.message());
+    }
+
+    @Test
     void performanceCategoryKeepsSmrSpelledMedian() {
         givenSingleBrokerCluster();
         givenRequestMetrics(List.of(

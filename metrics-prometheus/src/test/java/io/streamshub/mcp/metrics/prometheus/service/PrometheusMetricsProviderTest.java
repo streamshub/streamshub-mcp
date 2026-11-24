@@ -380,6 +380,34 @@ class PrometheusMetricsProviderTest {
         assertEquals(List.of(1.0, 2.0), result.stream().map(MetricSample::value).toList());
     }
 
+    @Test
+    void rateWindowIsAtLeastFiveMinutesAndFourSteps() {
+        java.time.Instant end = java.time.Instant.parse("2026-01-01T01:00:00Z");
+        java.time.Instant start = end.minusSeconds(1800);
+        assertEquals(300, PrometheusMetricsProvider.rateWindowSeconds(
+            MetricsQueryParams.instant(List.of("c_total"), null, null, 0)));
+        assertEquals(300, PrometheusMetricsProvider.rateWindowSeconds(
+            MetricsQueryParams.range(List.of("c_total"), null, null, start, end, 60, 0)));
+        assertEquals(1200, PrometheusMetricsProvider.rateWindowSeconds(
+            MetricsQueryParams.range(List.of("c_total"), null, null, start, end, 300, 0)));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void counterInstantQueryUsesRateNotIrate() throws Exception {
+        injectMockClient();
+        org.mockito.Mockito.when(prometheusClientInstance.isUnsatisfied()).thenReturn(false);
+        org.mockito.Mockito.when(prometheusClientInstance.get()).thenReturn(prometheusClient);
+        org.mockito.Mockito.when(prometheusClient.instantQuery(org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.isNull()))
+            .thenReturn(new PrometheusResponse("success", new PrometheusData("vector", List.of())));
+
+        provider.queryMetrics(MetricsQueryParams.instant(List.of("c_total"), Map.of("namespace", "kafka"), null, 0));
+
+        org.mockito.Mockito.verify(prometheusClient).instantQuery(
+            "rate(c_total{namespace=\"kafka\"}[300s])", null);
+    }
+
     private static PrometheusResult series(final Map<String, String> labels) {
         return new PrometheusResult(labels, List.of(1719792000.0, "1"), null);
     }

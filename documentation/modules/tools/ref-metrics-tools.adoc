@@ -16,6 +16,14 @@ For `get_kafka_metrics`, request `aggregation` at `BROKER` level to see the valu
 The Kafka Connect, Kafka Bridge and Strimzi operator metrics tools always aggregate at `CLUSTER` level, so they report the worst pod without a per-pod view.
 ====
 
+[NOTE]
+====
+Counters (names ending in `_total`) depend on the metrics provider.
+The Prometheus provider returns them as per-second rates named `<name>_rate_per_second`, computed with `rate()` over `max(5m, 4 × stepSeconds)`, so counters that increase only every few minutes, such as operator reconciliations, still show a non-zero rate.
+The pod-scraping provider returns the running total since the process started.
+The interpretation text says which of the two a response contains.
+====
+
 == get_kafka_metrics
 
 Retrieves Prometheus metrics from Kafka cluster pods by category or explicit metric names.

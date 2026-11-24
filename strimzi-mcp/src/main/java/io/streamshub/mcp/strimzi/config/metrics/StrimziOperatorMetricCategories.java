@@ -63,11 +63,14 @@ public final class StrimziOperatorMetricCategories {
     private static final Map<String, String> DESCRIPTIONS = Map.of(
         RECONCILIATION,
             "**[HIGH - OPERATOR HEALTH]**\n\n"
-                + "strimzi_reconciliations_successful_total: Cumulative count of successful reconciliations. "
-                + "Should increase steadily. Flat line = no reconciliation activity (check if expected).\n\n"
+                + "strimzi_reconciliations_successful_total: Successful reconciliations (counter). "
+                + "As a rate it is reconciliations/sec and stays above 0 while the operator reconciles"
+                + " (periodic reconciliations run every few minutes); as a running total it should keep increasing."
+                + " A rate of 0 over a window longer than the reconciliation interval = no reconciliation activity"
+                + " (check if expected).\n\n"
                 + "**[CRITICAL - RECONCILIATION FAILURES]**\n\n"
-                + "strimzi_reconciliations_failed_total: Cumulative count of failed reconciliations. "
-                + "Should be 0 or stable. **IMMEDIATE ACTION**: Increasing count = operator errors, "
+                + "strimzi_reconciliations_failed_total: Failed reconciliations (counter). "
+                + "Rate should be 0, running total stable. **IMMEDIATE ACTION**: Rate >0 or increasing total = operator errors, "
                 + "resources not being managed correctly. Check operator logs for root cause.\n\n"
                 + "strimzi_reconciliations_total: Total reconciliations attempted. "
                 + "Compare with successful + failed to verify consistency.\n\n"

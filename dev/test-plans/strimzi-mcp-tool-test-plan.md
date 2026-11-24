@@ -1644,6 +1644,8 @@ Parameters: { "clusterName": "mcp-cluster", "category": "reconciliation" }
 - [ ] Returns cluster operator reconciliation metrics (these cover every namespace the operator watches, not only `mcp-cluster`) plus entity operator metrics for `mcp-cluster` (`kind` = `KafkaTopic` / `KafkaUser`)
 - [ ] Includes: `strimzi_reconciliations`, `strimzi_reconciliations_failed` (the Prometheus provider returns counters as `<name>_rate_per_second`, e.g. `strimzi_reconciliations_rate_per_second`)
 - [ ] Includes: `strimzi_reconciliations_locked` (lock contention), `strimzi_reconciliations_periodical` (timer-triggered), with the same `_rate_per_second` suffix
+- [ ] *(Prometheus)* `strimzi_reconciliations_successful_rate_per_second` is above 0 for an operator that reconciled in the last few minutes (the rate window is at least 5 minutes), and the interpretation carries a `[COUNTERS]` note
+- [ ] With `"clusterName": "mcp-cluster"` the message names the entity operator only when its series came back; otherwise it says that no entity operator metrics were returned
 - [ ] Entity operator series are present (requires the entity-operator PodMonitor to scrape the `healthcheck-to` / `healthcheck-uo` ports)
 
 ### T14.9 - Get Cruise Control Metrics

@@ -360,6 +360,28 @@ class MetricNameResolverTest {
     // ---------------------------------------------------------------
 
     @Test
+    void alignInterpretationExplainsRateAndTotalCounters() {
+        String rates = MetricNameResolver.alignInterpretation("guide", List.of("strimzi_reconciliations_rate_per_second"));
+        String totals = MetricNameResolver.alignInterpretation("guide", List.of("strimzi_reconciliations_total"));
+        String gauges = MetricNameResolver.alignInterpretation("guide", List.of("jvm_memory_used_bytes"));
+
+        assertTrue(rates.contains("per-second rates"), rates);
+        assertTrue(totals.contains("running totals"), totals);
+        assertEquals("guide", gauges);
+    }
+
+    @Test
+    void unavailableNamesListsExplicitNamesSmrDoesNotExpose() {
+        assertEquals(List.of("kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent"),
+            MetricNameResolver.unavailableNames(
+                "kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent,jvm_threads_current",
+                MetricsBackend.STRIMZI_REPORTER, KafkaMetricCategories.aliasMap()));
+        assertTrue(MetricNameResolver.unavailableNames(
+            "kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent",
+            MetricsBackend.JMX_EXPORTER, KafkaMetricCategories.aliasMap()).isEmpty());
+    }
+
+    @Test
     void alignInterpretationLeavesNullAndBlankAlone() {
         assertEquals(null, MetricNameResolver.alignInterpretation(
             null, MetricsBackend.STRIMZI_REPORTER, KafkaMetricCategories.aliasMap(), Set.of()));
@@ -405,7 +427,8 @@ class MetricNameResolverTest {
             "kafka_controller_controllerstats_uncleanleaderelections_total: data loss",
             MetricsBackend.JMX_EXPORTER, KafkaMetricCategories.aliasMap(),
             Set.of("kafka_controller_controllerstats_uncleanleaderelections_rate_per_second"));
-        assertEquals("kafka_controller_controllerstats_uncleanleaderelections_rate_per_second: data loss",
+        assertTrue(aligned.startsWith(
+            "kafka_controller_controllerstats_uncleanleaderelections_rate_per_second: data loss\n\n**[COUNTERS]**"),
             aligned);
     }
 
@@ -418,8 +441,8 @@ class MetricNameResolverTest {
             "kafka_controller_controllerstats_uncleanleaderelections_total: data loss",
             MetricsBackend.STRIMZI_REPORTER, KafkaMetricCategories.aliasMap(),
             Set.of("kafka_controller_controllerstats_uncleanleaderelectionspersec_rate_per_second"));
-        assertEquals(
-            "kafka_controller_controllerstats_uncleanleaderelectionspersec_rate_per_second: data loss",
+        assertTrue(aligned.startsWith(
+            "kafka_controller_controllerstats_uncleanleaderelectionspersec_rate_per_second: data loss\n\n"),
             aligned);
     }
 
