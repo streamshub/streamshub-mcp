@@ -71,7 +71,7 @@ Get pod summaries for a KafkaConnect cluster with phase, readiness, restarts, an
 * `connectName` (required) -- Name of the KafkaConnect cluster
 * `namespace` (optional) -- Kubernetes namespace
 
-*Returns:* List of Connect pods with status, readiness, and resource usage
+*Returns:* List of Connect pods with status, readiness, resource usage, and the pod's `strimzi.io/*` annotations (other annotations are left out; see `mcp.pods.summary-annotation-prefixes`)
 
 .Example
 ----

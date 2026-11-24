@@ -98,7 +98,9 @@ io.streamshub.mcp.common.
 │                     TimeSeriesSummary (min/max/avg/latest summary over a series)
 ├── guardrail/      → ArgumentSanitizationGuardrail, AbstractRateLimitGuardrail,
 │                     GeneralRateLimitGuardrail, LogRateLimitGuardrail, MetricsRateLimitGuardrail,
-│                     LogRedactionGuardrail, ResponseSizeLimitGuardrail, GuardedResponses,
+│                     LogRedactionGuardrail, ResponseSizeLimitGuardrail, TextTruncator (byte-exact,
+│                       line-aware text fitting used by ResponseSizeLimitGuardrail), FairShare (byte-budget
+│                       sharing used by TextTruncator and ResponseSizeLimitGuardrail), GuardedResponses,
 │                     Redactor (shared pattern + key-name redaction; used by LogRedactionGuardrail and
 │                       by the diagnostic Sampling path), SensitiveKeys (word-based secret key matcher
 │                       and config-map redaction; applied at source to Kafka/Connector/Bridge/Topic configs),
@@ -345,7 +347,7 @@ All tool methods use native `@ToolGuardrails` to attach a guardrail palette:
 - **ArgumentSanitizationGuardrail** — strips control characters (below U+0020) from string arguments while preserving `\n`, `\t`, `\r`
 - **Rate-limit guardrails** — throttles calls per category (see below)
 - **LogRedactionGuardrail** — redacts sensitive patterns from responses (fail-closed: redaction failure returns generic error)
-- **ResponseSizeLimitGuardrail** — truncates oversized responses to fit `mcp.guardrail.max-response-bytes`
+- **ResponseSizeLimitGuardrail** — fits oversized responses into `mcp.guardrail.max-response-bytes` (serialized bytes): shares the budget across large text fields with `FairShare` (unused share goes to the others), cuts at line boundaries via `TextTruncator` (pod logs keep the newest whole lines of every pod, sectioned by `LogCollectionService.POD_HEADER_PREFIX`), and flags it with root `truncated: true`, a `message` note, and `has_more`/`log_lines` on truncated `logs` objects. Leaves the response unchanged (WARN) when non-text content alone is too large.
 
 The guardrails run in the declared order. All 67 `@Tool` methods use this palette; only the rate-limit guardrail class varies per category.
 

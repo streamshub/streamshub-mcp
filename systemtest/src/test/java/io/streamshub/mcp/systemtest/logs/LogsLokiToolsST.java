@@ -269,7 +269,8 @@ class LogsLokiToolsST extends AbstractST {
                 assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
                 int logLines = root.path("log_lines").asInt();
                 int errorCount = root.path("error_count").asInt();
-                assertTrue(errorCount <= logLines,
+                // log_lines counts only the lines kept when the size guardrail truncated the response
+                assertTrue(errorCount <= logLines || root.path("truncated").asBoolean(),
                     "error_count (" + errorCount + ") should not exceed log_lines (" + logLines + ")");
                 assertEquals(root.path("has_errors").asBoolean(), errorCount > 0,
                     "has_errors should be consistent with error_count");
@@ -301,7 +302,8 @@ class LogsLokiToolsST extends AbstractST {
                 assertClusterLogsResponse(root, Constants.KAFKA_CLUSTER_NAME);
                 int logLines = root.path("log_lines").asInt();
                 int errorCount = root.path("error_count").asInt();
-                assertTrue(errorCount <= logLines,
+                // log_lines counts only the lines kept when the size guardrail truncated the response
+                assertTrue(errorCount <= logLines || root.path("truncated").asBoolean(),
                     "error_count (" + errorCount + ") should not exceed log_lines (" + logLines + ")");
                 if (logLines == 0) {
                     assertFalse(root.path("has_errors").asBoolean(), "Should have no errors when no lines");
@@ -547,7 +549,8 @@ class LogsLokiToolsST extends AbstractST {
                 assertOperatorLogsResponse(root, Constants.STRIMZI_NAMESPACE);
                 int logLines = root.path("log_lines").asInt();
                 int errorCount = root.path("error_count").asInt();
-                assertTrue(errorCount <= logLines,
+                // log_lines counts only the lines kept when the size guardrail truncated the response
+                assertTrue(errorCount <= logLines || root.path("truncated").asBoolean(),
                     "error_count (" + errorCount + ") should not exceed log_lines (" + logLines + ")");
                 assertEquals(root.path("has_errors").asBoolean(), errorCount > 0,
                     "has_errors should be consistent with error_count");
@@ -587,6 +590,7 @@ class LogsLokiToolsST extends AbstractST {
     private static List<String> logLines(final JsonNode root) {
         return Arrays.stream(root.path("logs").asText("").split("\n"))
             .filter(line -> !line.startsWith(POD_HEADER))
+            .filter(line -> !line.startsWith("[...response truncated: "))
             .filter(line -> !line.isEmpty())
             .toList();
     }

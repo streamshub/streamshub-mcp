@@ -39,7 +39,7 @@ The AI should always check `steps_failed` for incomplete data. When the `analysi
 
 == Large responses are automatically truncated
 
-Responses exceeding 500 KB are truncated with the notice `[...response truncated to stay within size limit]`. This is normal behavior, not an error. The summary statistics and analysis fields remain intact even when raw data is truncated.
+Responses larger than `mcp.guardrail.max-response-bytes` are truncated. Look for `"truncated": true` at the root and `[...response truncated: N of M lines omitted]` lines inside text fields. This is normal behavior, not an error. Large text fields share the budget, pod logs keep the newest whole lines of every pod, and a truncated log section reports `has_more: true` with `log_lines` set to the number of lines shown in `logs`. Summary statistics and small fields such as `analysis` remain intact.
 
 == Errors carry structured data
 

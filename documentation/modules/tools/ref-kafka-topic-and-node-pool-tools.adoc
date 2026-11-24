@@ -108,7 +108,7 @@ Get pod information for a specific KafkaNodePool.
 * `nodePoolName` (required) -- Name of the node pool
 * `namespace` (optional) -- Kubernetes namespace
 
-*Returns:* List of pods in the node pool with status, readiness, and resource usage
+*Returns:* List of pods in the node pool with status, readiness, resource usage, and the pod's `strimzi.io/*` annotations (other annotations are left out; see `mcp.pods.summary-annotation-prefixes`)
 
 .Example
 ----

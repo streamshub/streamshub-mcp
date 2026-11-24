@@ -52,7 +52,7 @@ Get pod summaries for a KafkaMirrorMaker2 instance with phase, readiness, restar
 * `mirrorMakerName` (required) -- Name of the KafkaMirrorMaker2
 * `namespace` (optional) -- Kubernetes namespace
 
-*Returns:* Pod summaries with phase, readiness, restart counts, and age
+*Returns:* Pod summaries with phase, readiness, restart counts, age, and the pod's `strimzi.io/*` annotations (other annotations are left out; see `mcp.pods.summary-annotation-prefixes`)
 
 .Example
 ----

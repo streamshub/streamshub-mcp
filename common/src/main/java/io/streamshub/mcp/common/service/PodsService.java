@@ -27,6 +27,7 @@ import io.streamshub.mcp.common.util.EnvVarUtils;
 import io.streamshub.mcp.common.util.InputUtils;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
@@ -36,7 +37,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
@@ -54,7 +57,36 @@ public class PodsService {
     @Inject
     KubernetesClient kubernetesClient;
 
+    /**
+     * Annotation key prefixes that pod summaries keep. Absent keeps every annotation; detailed
+     * views ({@code sections=labels} or {@code full}) always return every annotation.
+     */
+    @ConfigProperty(name = "mcp.pods.summary-annotation-prefixes")
+    Optional<List<String>> summaryAnnotationPrefixes;
+
     PodsService() {
+    }
+
+    /**
+     * Keep only the annotations whose key starts with one of the given prefixes.
+     *
+     * @param annotations the pod annotations, possibly null
+     * @param prefixes    the key prefixes to keep; null or empty keeps every annotation
+     * @return {@code annotations} itself when it is null or no prefixes are given, otherwise a new
+     *         sorted map of the matching entries, or null when none match
+     */
+    static Map<String, String> filterAnnotations(final Map<String, String> annotations,
+                                                 final List<String> prefixes) {
+        if (annotations == null || prefixes == null || prefixes.isEmpty()) {
+            return annotations;
+        }
+        Map<String, String> kept = new TreeMap<>();
+        for (Map.Entry<String, String> entry : annotations.entrySet()) {
+            if (prefixes.stream().anyMatch(prefix -> entry.getKey().startsWith(prefix))) {
+                kept.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return kept.isEmpty() ? null : kept;
     }
 
     /**
@@ -237,7 +269,8 @@ public class PodsService {
 
         // Return enriched summary if no detail sections requested
         if (sections.isEmpty()) {
-            Map<String, String> podAnnotations = metadata.getAnnotations();
+            Map<String, String> podAnnotations = filterAnnotations(metadata.getAnnotations(),
+                summaryAnnotationPrefixes.orElse(List.of()));
             return PodSummaryResponse.PodInfo.enrichedSummary(podName, phase, ready, component,
                 restarts, ageMinutes, lastTerminationReason, lastTerminationTime, podResources,
                 podLabels, podAnnotations);
