@@ -442,29 +442,109 @@ class KafkaMetricsServiceTest {
         assertEquals(3, response.sampleCount());
     }
 
-    @Test
-    void requestTypesFilterNullPassesAllThrough() {
+    private void givenSingleBrokerCluster() {
         Kafka kafka = createKafka("my-cluster", "kafka");
         Pod pod = createPod("my-cluster-kafka-0", "kafka");
-
         when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
             .thenReturn(kafka);
         when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
             eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
             .thenReturn(List.of(pod));
+    }
 
-        List<MetricSample> samples = List.of(
+    private void givenRequestMetrics(final List<MetricSample> samples) {
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(),
+            isNull(), isNull(), isNull(), isNull())).thenReturn(samples);
+    }
+
+    @Test
+    void performanceCategoryDefaultsToCommonRequestTypes() {
+        givenSingleBrokerCluster();
+        givenRequestMetrics(List.of(
             MetricSample.of("kafka_network_requestmetrics_totaltimems",
-                Map.of("request", "Produce"), 5.0),
+                Map.of("request", "Produce", "quantile", "0.99"), 5.0),
             MetricSample.of("kafka_network_requestmetrics_totaltimems",
-                Map.of("request", "Metadata"), 1.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
-            .thenReturn(samples);
+                Map.of("request", "Metadata", "quantile", "0.99"), 1.0)));
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
             "kafka", "my-cluster", "performance", null, null, null, null, null, null, null);
 
-        assertNotNull(response);
+        assertEquals(1, response.sampleCount());
+        assertTrue(response.interpretation().contains("[REQUEST TYPES]"), response.interpretation());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void performanceCategoryPushesRequestAndQuantileFiltersToTheBackend() {
+        givenSingleBrokerCluster();
+        givenRequestMetrics(List.of());
+
+        kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "performance", null, null, null, null, null, null, null);
+
+        ArgumentCaptor<Map<String, String>> regex = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<List<String>> requestNames = ArgumentCaptor.forClass(List.class);
+        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), regex.capture(), requestNames.capture(),
+            isNull(), isNull(), isNull(), isNull());
+        assertEquals("Produce|FetchConsumer|FetchFollower", regex.getValue().get("request"));
+        assertTrue("0.5".matches(regex.getValue().get("quantile")));
+        assertTrue("0.50".matches(regex.getValue().get("quantile")));
+        assertTrue("0.99".matches(regex.getValue().get("quantile")));
+        assertFalse("0.95".matches(regex.getValue().get("quantile")));
+        // Request counters (requests_total, errors_total) have no quantile label: PromQL sees "".
+        assertTrue("".matches(regex.getValue().get("quantile")));
+        assertTrue(requestNames.getValue().stream().allMatch(n -> n.startsWith("kafka_network_requestmetrics_")));
+
+        // The idle-ratio gauges have no quantile label, so they are queried without the regex matchers.
+        ArgumentCaptor<List<String>> otherNames = ArgumentCaptor.forClass(List.class);
+        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), otherNames.capture(),
+            isNull(), isNull(), isNull(), isNull());
+        assertTrue(otherNames.getValue().contains("kafka_network_socketserver_networkprocessoravgidle_percent"));
+        assertTrue(otherNames.getValue().stream().noneMatch(n -> n.startsWith("kafka_network_requestmetrics_")));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void requestTypesWildcardDisablesTheRequestFilter() {
+        givenSingleBrokerCluster();
+        givenRequestMetrics(List.of(
+            MetricSample.of("kafka_network_requestmetrics_totaltimems",
+                Map.of("request", "Produce", "quantile", "0.99"), 5.0),
+            MetricSample.of("kafka_network_requestmetrics_totaltimems",
+                Map.of("request", "Metadata", "quantile", "0.99"), 1.0)));
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "performance", null, null, null, null, null, null, "*");
+
+        assertEquals(2, response.sampleCount());
+        assertFalse(response.interpretation().contains("[REQUEST TYPES]"));
+        ArgumentCaptor<Map<String, String>> regex = ArgumentCaptor.forClass(Map.class);
+        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), regex.capture(), anyList(),
+            isNull(), isNull(), isNull(), isNull());
+        assertFalse(regex.getValue().containsKey("request"));
+    }
+
+    @Test
+    void invalidRequestTypeIsRejected() {
+        givenSingleBrokerCluster();
+
+        McpException e = assertThrows(McpException.class, () -> kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "performance", null, null, null, null, null, null, "Produce.*"));
+        assertEquals(JsonRpcErrorCodes.INVALID_PARAMS, e.getJsonRpcErrorCode());
+    }
+
+    @Test
+    void performanceCategoryKeepsSmrSpelledMedian() {
+        givenSingleBrokerCluster();
+        givenRequestMetrics(List.of(
+            MetricSample.of("kafka_network_requestmetrics_totaltimems",
+                Map.of("request", "Produce", "quantile", "0.5"), 2.0),
+            MetricSample.of("kafka_network_requestmetrics_totaltimems",
+                Map.of("request", "Produce", "quantile", "0.99"), 9.0)));
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "performance", null, null, null, null, null, null, null);
+
         assertEquals(2, response.sampleCount());
     }
 

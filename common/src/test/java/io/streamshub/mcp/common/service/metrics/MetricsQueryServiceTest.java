@@ -227,6 +227,19 @@ class MetricsQueryServiceTest {
     }
 
     @Test
+    void queryPassesRegexMatchersToTheProvider() {
+        when(metricsProvider.queryMetrics(any(MetricsQueryParams.class))).thenReturn(List.of());
+
+        metricsQueryService.queryMetrics(List.of(PodTarget.of("ns", "pod")), Map.of("namespace", "ns"),
+            Map.of("request", "Produce"), List.of("metric_a"), null, null, null, null);
+
+        ArgumentCaptor<MetricsQueryParams> params = ArgumentCaptor.forClass(MetricsQueryParams.class);
+        verify(metricsProvider).queryMetrics(params.capture());
+        assertEquals(Map.of("request", "Produce"), params.getValue().labelRegexMatchers());
+        assertEquals(Map.of("namespace", "ns"), params.getValue().labelMatchers());
+    }
+
+    @Test
     void reachedSampleLimitIsPerMetric() throws Exception {
         setField(metricsQueryService, "maxSamples", 2);
         List<MetricSample> samples = List.of(

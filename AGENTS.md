@@ -268,6 +268,10 @@ io.streamshub.mcp.strimzi.
 - **Metrics providers** implement `MetricsProvider` interface. Selected via `@LookupIfProperty` on `mcp.metrics.provider`.
   Domain services use `MetricsQueryService` (in common/) to query metrics — it handles provider lookup,
   query param construction, and delegation. Do not inject `Instance<MetricsProvider>` directly in domain services.
+  `mcp.metrics.max-samples` is a per-metric limit (`PerMetricSampleLimit`), enforced by every provider and again
+  by `MetricsQueryService`. Filter on label values with the `labelRegexMatchers` overload (PromQL `=~`; pod
+  scraping applies the same full-match semantics) so the filter runs before the limit, not on a truncated result.
+  A regex matcher drops series that lack the label, so query metrics without that label separately.
 - **Metrics aggregation** uses `AggregatedTimeSeries.fromSamples(samples, level)` to group and average
   metric samples by `AggregationLevel` (PARTITION → TOPIC → BROKER → CLUSTER). `MetricLabelFilter.labelsForAggregation()`
   strips labels at each level. Each `*MetricCategories` class defines `finestLevel()` per category so the

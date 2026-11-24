@@ -120,6 +120,20 @@ class PrometheusMetricsProviderTest {
     }
 
     @Test
+    void buildPromQLAddsRegexMatchersToSingleMetric() {
+        String query = provider.buildPromQL(List.of("metric_a"), Map.of("namespace", "kafka"),
+            Map.of("quantile", "0\\.50*|0\\.99"));
+        assertEquals("metric_a{namespace=\"kafka\",quantile=~\"0\\\\.50*|0\\\\.99\"}", query);
+    }
+
+    @Test
+    void buildPromQLAddsRegexMatchersToMultipleMetrics() {
+        String query = provider.buildPromQL(List.of("metric_a", "metric_b"), null,
+            Map.of("request", "Produce|FetchConsumer"));
+        assertEquals("{__name__=~\"metric_a|metric_b\",request=~\"Produce|FetchConsumer\"}", query);
+    }
+
+    @Test
     void partitionMetricsSeparatesCountersAndGauges() {
         List<String> counters = new ArrayList<>();
         List<String> gauges = new ArrayList<>();

@@ -32,7 +32,7 @@ Returns samples with an interpretation guide for thresholds and diagnostics.
 * `endTime` (optional) -- Absolute end time (ISO 8601 format)
 * `stepSeconds` (optional) -- Range query step in seconds
 * `aggregation` (optional) -- Aggregation level (schema enum): `PARTITION` (full detail), `TOPIC` (across partitions), `BROKER` (across topics and partitions), or `CLUSTER` (single value across all dimensions). Values are combined with the metric's own function, the mean unless the note at the top of this page says otherwise. An explicit value is clamped to the finest level the requested category supports. When omitted the default is `CLUSTER`, except for the "partitions" and "storage" categories, which default to `PARTITION` -- their metrics are per-partition values (0/1 health gauges, log sizes) that lose their meaning when averaged.
-* `requestTypes` (optional) -- Comma-separated list of Kafka request types to include (for example, "Produce,Fetch,FindCoordinator"). Filters performance metrics that have a "request" label. Omit to include all request types.
+* `requestTypes` (optional) -- Comma-separated list of Kafka request types to include (for example, "Produce,Fetch,FindCoordinator"). Filters performance metrics that have a "request" label. For the "performance" category, omitting it keeps `Produce`, `FetchConsumer` and `FetchFollower` -- a broker exposes about 80 request types, which makes the full set too large to return. Pass `*` to include all request types. The filter, and the p50/p99 quantile filter of the "performance" category, run in Prometheus before the sample limit applies.
 
 *Returns:* Aggregated metrics with summary statistics (min, max, avg, latest), interpretation guide, and diagnostic thresholds
 

@@ -14,6 +14,8 @@ import java.util.Map;
  *
  * @param metricNames   the metric names to retrieve
  * @param labelMatchers label key-value pairs for Prometheus query filtering
+ * @param labelRegexMatchers label name to regular expression; a sample is kept only when the label's
+ *                      value (empty when absent) fully matches. Applied by every provider.
  * @param podTargets    pod endpoints to scrape (used by pod-scraping provider)
  * @param startTime     range query start time (null for instant queries)
  * @param endTime       range query end time (null for instant queries)
@@ -23,6 +25,7 @@ import java.util.Map;
 public record MetricsQueryParams(
     List<String> metricNames,
     Map<String, String> labelMatchers,
+    Map<String, String> labelRegexMatchers,
     List<PodTarget> podTargets,
     Instant startTime,
     Instant endTime,
@@ -43,7 +46,7 @@ public record MetricsQueryParams(
                                               final Map<String, String> labelMatchers,
                                               final List<PodTarget> podTargets,
                                               final int maxSamples) {
-        return new MetricsQueryParams(metricNames, labelMatchers, podTargets,
+        return new MetricsQueryParams(metricNames, labelMatchers, Map.of(), podTargets,
             null, null, null, maxSamples);
     }
 
@@ -66,7 +69,19 @@ public record MetricsQueryParams(
                                             final Instant endTime,
                                             final int stepSeconds,
                                             final int maxSamples) {
-        return new MetricsQueryParams(metricNames, labelMatchers, podTargets,
+        return new MetricsQueryParams(metricNames, labelMatchers, Map.of(), podTargets,
+            startTime, endTime, stepSeconds, maxSamples);
+    }
+
+    /**
+     * Returns a copy of these parameters with the given regular-expression label matchers.
+     *
+     * @param regexMatchers label name to regular expression (RE2 syntax, fully anchored)
+     * @return the new parameters
+     */
+    public MetricsQueryParams withLabelRegexMatchers(final Map<String, String> regexMatchers) {
+        return new MetricsQueryParams(metricNames, labelMatchers,
+            regexMatchers != null ? Map.copyOf(regexMatchers) : Map.of(), podTargets,
             startTime, endTime, stepSeconds, maxSamples);
     }
 

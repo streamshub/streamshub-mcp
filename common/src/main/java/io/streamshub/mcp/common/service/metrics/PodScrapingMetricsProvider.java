@@ -19,10 +19,13 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Pattern;
 
 /**
  * Metrics provider that scrapes Prometheus text exposition endpoints directly from pods
@@ -78,6 +81,7 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
         // Per metric, so one large metric neither starves the others nor stops the remaining pods
         // from being scraped.
         PerMetricSampleLimit limit = new PerMetricSampleLimit(params.maxSamples());
+        Map<String, Pattern> regexMatchers = compile(params.labelRegexMatchers());
 
         for (PodTarget target : targets) {
             int port = resolvePort(target);
@@ -94,7 +98,7 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
                     LOG.debugf("Scraped %d sample(s) from pod %s/%s",
                         samples.size(), target.namespace(), target.podName());
                     for (MetricSample sample : samples) {
-                        if (!limit.tryAccept(sample.name())) {
+                        if (!matches(sample, regexMatchers) || !limit.tryAccept(sample.name())) {
                             continue;
                         }
                         allSamples.add(MetricSample.of(sample.name(),
@@ -131,6 +135,29 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
             allSamples.size(), targets.size());
 
         return allSamples;
+    }
+
+    private static Map<String, Pattern> compile(final Map<String, String> regexMatchers) {
+        if (regexMatchers == null || regexMatchers.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Pattern> compiled = new HashMap<>();
+        regexMatchers.forEach((label, regex) -> compiled.put(label, Pattern.compile(regex)));
+        return compiled;
+    }
+
+    /**
+     * Applies regex label matchers with PromQL {@code =~} semantics: the whole value must match,
+     * and an absent label counts as the empty string.
+     */
+    private static boolean matches(final MetricSample sample, final Map<String, Pattern> regexMatchers) {
+        for (Map.Entry<String, Pattern> matcher : regexMatchers.entrySet()) {
+            String value = sample.labels() != null ? sample.labels().get(matcher.getKey()) : null;
+            if (!matcher.getValue().matcher(value != null ? value : "").matches()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
