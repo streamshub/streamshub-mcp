@@ -133,6 +133,8 @@ public class KafkaBridgeMetricsService {
         Map<String, String> labelMatchers = new LinkedHashMap<>();
         labelMatchers.put("namespace", resolvedNs);
         labelMatchers.put("strimzi_io_cluster", name);
+        // Other components of the cluster share metric names (jvm_*, process_*); keep only this one.
+        labelMatchers.put("strimzi_io_component_type", StrimziConstants.ComponentTypes.KAFKA_BRIDGE);
 
         List<MetricSample> samples = metricsQueryService.queryMetrics(
             podTargets, labelMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);

@@ -165,6 +165,8 @@ public class KafkaMetricsService {
         Map<String, String> labelMatchers = new LinkedHashMap<>();
         labelMatchers.put("namespace", resolvedNs);
         labelMatchers.put("strimzi_io_cluster", name);
+        // Other components of the cluster share metric names (jvm_*, process_*); keep only this one.
+        labelMatchers.put("strimzi_io_component_type", StrimziConstants.ComponentTypes.KAFKA);
 
         Map<String, String> regexMatchers = requestRegexMatchers(types, performance);
         List<MetricSample> samples = regexMatchers.isEmpty()

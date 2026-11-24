@@ -380,6 +380,41 @@ class PrometheusMetricsProviderTest {
         assertEquals(List.of(1.0, 2.0), result.stream().map(MetricSample::value).toList());
     }
 
+    private static PrometheusResult series(final Map<String, String> labels) {
+        return new PrometheusResult(labels, List.of(1719792000.0, "1"), null);
+    }
+
+    @Test
+    void withoutDuplicateScrapesDropsCopiesThatDifferOnlyInScrapeConfig() {
+        List<PrometheusResult> results = List.of(
+            series(Map.of("__name__", "m", "pod", "p-0", "job", "a", "instance", "10.0.0.1:9404", "endpoint", "x")),
+            series(Map.of("__name__", "m", "pod", "p-0", "job", "b", "instance", "10.0.0.1:9405", "endpoint", "y")),
+            series(Map.of("__name__", "m", "pod", "p-1", "job", "a", "instance", "10.0.0.2:9404", "endpoint", "x")));
+
+        assertEquals(List.of(results.get(0), results.get(2)),
+            PrometheusMetricsProvider.withoutDuplicateScrapes(results));
+    }
+
+    @Test
+    void withoutDuplicateScrapesKeepsContainersOfOnePod() {
+        List<PrometheusResult> results = List.of(
+            series(Map.of("__name__", "jvm", "pod", "eo-0", "container", "topic-operator", "job", "a")),
+            series(Map.of("__name__", "jvm", "pod", "eo-0", "container", "user-operator", "job", "a")));
+
+        assertEquals(results, PrometheusMetricsProvider.withoutDuplicateScrapes(results));
+    }
+
+    @Test
+    void withoutDuplicateScrapesUsesInstanceWhenThereIsNoPodLabel() {
+        List<PrometheusResult> results = List.of(
+            series(Map.of("__name__", "m", "job", "a", "instance", "10.0.0.1:9404")),
+            series(Map.of("__name__", "m", "job", "a", "instance", "10.0.0.2:9404")),
+            series(Map.of("__name__", "m", "job", "b", "instance", "10.0.0.2:9404")));
+
+        assertEquals(List.of(results.get(0), results.get(1)),
+            PrometheusMetricsProvider.withoutDuplicateScrapes(results));
+    }
+
     @SuppressWarnings("unchecked")
     private void injectMockClient() throws Exception {
         Field field = PrometheusMetricsProvider.class.getDeclaredField("prometheusClientInstance");

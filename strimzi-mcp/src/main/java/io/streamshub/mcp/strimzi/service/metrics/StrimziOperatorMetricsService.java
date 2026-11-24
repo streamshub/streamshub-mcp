@@ -4,6 +4,7 @@
  */
 package io.streamshub.mcp.strimzi.service.metrics;
 
+import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.dto.metrics.MetricSample;
@@ -23,9 +24,11 @@ import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 /**
  * Service for retrieving Strimzi operator metrics via pluggable providers.
  * Supports cluster operator pods and, when a cluster name is provided,
@@ -188,8 +191,10 @@ public class StrimziOperatorMetricsService {
             List<PodTarget> targets = buildPodTargets(coPods, eoPods);
             Map<String, String> matchers = new LinkedHashMap<>();
             matchers.put("namespace", coNamespace != null ? coNamespace : eoNamespace);
+            List<Pod> operatorPods = new ArrayList<>(coPods);
+            operatorPods.addAll(eoPods);
             List<MetricSample> samples = metricsQueryService.queryMetrics(
-                targets, matchers, metricNames, rangeMinutes, startTime, endTime, stepSeconds);
+                targets, matchers, podMatcher(operatorPods), metricNames, rangeMinutes, startTime, endTime, stepSeconds);
             return new QueryResult(samples, metricsQueryService.reachedSampleLimit(samples));
         }
 
@@ -199,19 +204,54 @@ public class StrimziOperatorMetricsService {
         Map<String, String> coMatchers = new LinkedHashMap<>();
         coMatchers.put("namespace", coNamespace);
         List<MetricSample> coSamples = metricsQueryService.queryMetrics(
-            coTargets, coMatchers, metricNames, rangeMinutes, startTime, endTime, stepSeconds);
+            coTargets, coMatchers, podMatcher(coPods), metricNames, rangeMinutes, startTime, endTime, stepSeconds);
         allSamples.addAll(coSamples);
 
         List<PodTarget> eoTargets = buildPodTargets(List.of(), eoPods);
         Map<String, String> eoMatchers = new LinkedHashMap<>();
         eoMatchers.put("namespace", eoNamespace);
-        eoMatchers.put("pod", eoPods.getFirst().getMetadata().getName());
         List<MetricSample> eoSamples = metricsQueryService.queryMetrics(
-            eoTargets, eoMatchers, metricNames, rangeMinutes, startTime, endTime, stepSeconds);
+            eoTargets, eoMatchers, podMatcher(eoPods), metricNames, rangeMinutes, startTime, endTime, stepSeconds);
         allSamples.addAll(eoSamples);
 
         return new QueryResult(allSamples, metricsQueryService.reachedSampleLimit(coSamples)
             || metricsQueryService.reachedSampleLimit(eoSamples));
+    }
+
+    /**
+     * Builds a {@code pod} regex matcher limiting a namespace query to the operator pods. Without it
+     * every pod in the namespace that exports {@code jvm_*} or {@code process_*} (Kafka brokers when
+     * the operator runs next to them) is counted as the operator.
+     *
+     * <p>Operator pods belong to Deployments, so a pod is matched by its Deployment's naming pattern
+     * ({@code <deployment>-<replicaset hash>-<suffix>}) rather than by its current name: range queries
+     * then still find the series of pods that were replaced during the window.</p>
+     */
+    static Map<String, String> podMatcher(final List<Pod> pods) {
+        Set<String> patterns = new LinkedHashSet<>();
+        for (Pod pod : pods) {
+            patterns.add(podNamePattern(pod));
+        }
+        return patterns.isEmpty() ? Map.of() : Map.of("pod", String.join("|", patterns));
+    }
+
+    private static String podNamePattern(final Pod pod) {
+        String replicaSet = pod.getMetadata().getOwnerReferences() == null ? null
+            : pod.getMetadata().getOwnerReferences().stream()
+                .filter(o -> "ReplicaSet".equals(o.getKind()))
+                .map(OwnerReference::getName)
+                .findFirst()
+                .orElse(null);
+        int hashStart = replicaSet != null ? replicaSet.lastIndexOf('-') : -1;
+        if (hashStart <= 0) {
+            return quoteRegex(pod.getMetadata().getName());
+        }
+        return quoteRegex(replicaSet.substring(0, hashStart)) + "-[a-z0-9]+-[a-z0-9]+";
+    }
+
+    /** Escapes the regex metacharacters that can occur in a Kubernetes object name. */
+    private static String quoteRegex(final String name) {
+        return name.replace(".", "\\.");
     }
 
     /**

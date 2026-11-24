@@ -19,6 +19,7 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -37,6 +38,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 /**
  * Unit tests for {@link KafkaExporterMetricsService}.
@@ -133,6 +135,14 @@ class KafkaExporterMetricsServiceTest {
         assertEquals("kafka", response.namespace());
         assertEquals(1, response.sampleCount());
         assertEquals(1, response.metricCount());
+
+        // Broker and Cruise Control pods share process_* and jvm_* names; only the exporter is queried.
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> matchers = ArgumentCaptor.forClass(Map.class);
+        verify(metricsQueryService).queryMetrics(anyList(), matchers.capture(), anyList(),
+            isNull(), isNull(), isNull(), isNull());
+        assertEquals(Map.of("namespace", "kafka", "strimzi_io_cluster", "my-cluster",
+            "strimzi_io_component_type", "kafka-exporter"), matchers.getValue());
     }
 
     @Test

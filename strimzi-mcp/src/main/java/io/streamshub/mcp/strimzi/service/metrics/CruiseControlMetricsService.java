@@ -129,6 +129,8 @@ public class CruiseControlMetricsService {
         Map<String, String> labelMatchers = new LinkedHashMap<>();
         labelMatchers.put("namespace", resolvedNs);
         labelMatchers.put("strimzi_io_cluster", name);
+        // Other components of the cluster share metric names (jvm_*, process_*); keep only this one.
+        labelMatchers.put("strimzi_io_component_type", StrimziConstants.ComponentTypes.KAFKA_CRUISE_CONTROL);
 
         // Query metrics via general service
         List<MetricSample> samples = metricsQueryService.queryMetrics(

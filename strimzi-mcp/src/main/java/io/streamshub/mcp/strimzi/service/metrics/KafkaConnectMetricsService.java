@@ -123,6 +123,8 @@ public class KafkaConnectMetricsService {
         Map<String, String> labelMatchers = new LinkedHashMap<>();
         labelMatchers.put("namespace", resolvedNs);
         labelMatchers.put("strimzi_io_cluster", name);
+        // Other components of the cluster share metric names (jvm_*, process_*); keep only this one.
+        labelMatchers.put("strimzi_io_kind", StrimziConstants.KindValues.KAFKA_CONNECT);
 
         List<MetricSample> samples = metricsQueryService.queryMetrics(
             podTargets, labelMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);

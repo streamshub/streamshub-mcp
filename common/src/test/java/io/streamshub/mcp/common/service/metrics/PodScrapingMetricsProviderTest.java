@@ -176,6 +176,20 @@ class PodScrapingMetricsProviderTest {
     }
 
     @Test
+    void testPodRegexMatcherUsesTheScrapedTargetWhenTheSampleHasNoPodLabel() {
+        when(client.raw("/api/v1/namespaces/kafka/pods/operator-abc:9404/proxy/metrics")).thenReturn("jvm_threads 5\n");
+        when(client.raw("/api/v1/namespaces/kafka/pods/broker-0:9404/proxy/metrics")).thenReturn("jvm_threads 7\n");
+
+        List<MetricSample> samples = provider.queryMetrics(instant(null, List.of(
+            PodTarget.of(NS, "operator-abc", 9404, "/metrics"),
+            PodTarget.of(NS, "broker-0", 9404, "/metrics")), 0)
+            .withLabelRegexMatchers(Map.of("pod", "operator-[a-z]+", "namespace", NS)));
+
+        assertEquals(1, samples.size());
+        assertEquals(5.0, samples.getFirst().value());
+    }
+
+    @Test
     void testSampleCapIsPerMetricAndKeepsScrapingRemainingTargets() {
         when(client.raw("/api/v1/namespaces/kafka/pods/p-0:9404/proxy/metrics")).thenReturn(BODY_ONE);
         when(client.raw("/api/v1/namespaces/kafka/pods/p-1:9404/proxy/metrics"))
