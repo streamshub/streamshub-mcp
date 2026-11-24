@@ -8,7 +8,6 @@ import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
@@ -45,10 +44,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -424,40 +420,5 @@ class KafkaServiceTest {
         mockKafkaResource(kafka);
 
         assertNull(kafkaService.getAuthorizationType(NAMESPACE, CLUSTER_NAME));
-    }
-
-    /**
-     * Pod summaries keep only strimzi.io annotations: OpenShift network annotations (OVN, Multus)
-     * are dropped because strimzi-mcp sets mcp.pods.summary-annotation-prefixes=strimzi.io/.
-     */
-    @Test
-    void testGetClusterPodsKeepsOnlyStrimziAnnotations() {
-        Map<String, String> annotations = new HashMap<>(Map.of(
-            "strimzi.io/revision", "3",
-            "strimzi.io/cluster-ca-cert-generation", "5",
-            "strimzi.io/clients-ca-cert-generation", "2",
-            "strimzi.io/server-cert-hash", "abc123hash",
-            "k8s.ovn.org/pod-networks", "{\"default\":{\"ip_addresses\":[\"10.128.2.15/23\"]}}",
-            "k8s.v1.cni.cncf.io/network-status", "[{\"name\":\"ovn-kubernetes\",\"interface\":\"eth0\"}]",
-            "openshift.io/scc", "restricted-v2"));
-        Pod pod = new PodBuilder()
-            .withMetadata(new ObjectMetaBuilder()
-                .withName(CLUSTER_NAME + "-broker-0")
-                .withNamespace(NAMESPACE)
-                .withLabels(Map.of("strimzi.io/cluster", CLUSTER_NAME))
-                .withAnnotations(annotations)
-                .build())
-            .withNewSpec()
-                .addNewContainer().withName("kafka").endContainer()
-            .endSpec()
-            .withNewStatus().withPhase("Running").endStatus()
-            .build();
-        KubernetesMockHelper.setupResourceQuery(kubernetesClient, Pod.class, List.of(pod));
-
-        KafkaClusterPodsResponse result = kafkaService.getClusterPods(NAMESPACE, CLUSTER_NAME);
-
-        assertEquals(Set.of("strimzi.io/revision", "strimzi.io/cluster-ca-cert-generation",
-                "strimzi.io/clients-ca-cert-generation", "strimzi.io/server-cert-hash"),
-            result.podSummary().pods().getFirst().annotations().keySet());
     }
 }

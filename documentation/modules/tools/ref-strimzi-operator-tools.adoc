@@ -69,8 +69,7 @@ Use `list_strimzi_operators` or `get_strimzi_operator` first to discover the pod
 * `podName` (required) -- Name of the pod (for example, 'strimzi-cluster-operator-557fd4bbc-666r6')
 * `sections` (optional) -- Detail sections to include
 
-*Returns:* Detailed pod description with environment variables, resource limits, volumes, and conditions.
-Without `sections`, a summary that keeps only the `strimzi.io/*` annotations (`mcp.pods.summary-annotation-prefixes`); with `sections=labels` or `full`, every label and annotation.
+*Returns:* Detailed pod description with environment variables, resource limits, volumes, and conditions
 
 .Example
 ----

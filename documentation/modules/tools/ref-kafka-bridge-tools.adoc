@@ -48,7 +48,7 @@ Get pod summaries for a KafkaBridge with phase, readiness, restarts, and age.
 * `bridgeName` (required) -- Name of the KafkaBridge
 * `namespace` (optional) -- Kubernetes namespace
 
-*Returns:* List of bridge pods with status, readiness, resource usage, and the pod's `strimzi.io/*` annotations (other annotations are left out; see `mcp.pods.summary-annotation-prefixes`)
+*Returns:* List of bridge pods with status, readiness, and resource usage
 
 .Example
 ----

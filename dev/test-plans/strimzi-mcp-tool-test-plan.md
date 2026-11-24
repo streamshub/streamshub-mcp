@@ -370,7 +370,6 @@ Parameters: { "clusterName": "mcp-cluster" }
 - [ ] Each Kafka node pod's `annotations` map includes `strimzi.io/cluster-ca-cert-generation` and `strimzi.io/clients-ca-cert-generation` (e.g. `"0"`)
 - [ ] Each Kafka node pod's `annotations` map includes `strimzi.io/server-cert-hash` with a real hash value (not `[REDACTED]`; a hash is not a secret)
 - [ ] Non-Kafka pods (EO, CC, KE) carry their own Strimzi annotations; the CA generation / revision keys above are only guaranteed on Kafka node pods
-- [ ] No pod's `annotations` map contains `k8s.ovn.org/*` or `k8s.v1.cni.cncf.io/*` keys (pod summaries keep only `strimzi.io/*` annotations)
 
 ### T2.9 - Get Cluster Config
 
@@ -695,7 +694,6 @@ Parameters: { "clusterName": "mcp-cluster", "nodePoolName": "broker-np1" }
 - [ ] All pods are Running and Ready
 - [ ] Pod names contain `broker-np1`
 - [ ] Each pod's `annotations` map includes `strimzi.io/revision`, `strimzi.io/cluster-ca-cert-generation`, `strimzi.io/clients-ca-cert-generation` and `strimzi.io/server-cert-hash` (all non-null, the hash not `[REDACTED]`; these are Kafka broker pods)
-- [ ] No `k8s.ovn.org/*` or `k8s.v1.cni.cncf.io/*` keys in `annotations`
 
 ### T4.5 - Get Node Pool (nonexistent)
 

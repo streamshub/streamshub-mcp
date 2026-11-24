@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,7 +32,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -42,14 +40,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @QuarkusTest
 class PodsServiceTest {
-
-    private static final Map<String, String> STRIMZI_ANNOTATIONS = Map.of(
-        "strimzi.io/revision", "3",
-        "strimzi.io/cluster-ca-cert-generation", "5",
-        "strimzi.io/clients-ca-cert-generation", "2",
-        "strimzi.io/server-cert-hash", "abc123hash");
-    private static final String OVN_POD_NETWORKS = "{\"default\":{\"ip_addresses\":[\"10.128.2.15/23\"],"
-        + "\"mac_address\":\"0a:58:0a:80:02:0f\",\"gateway_ips\":[\"10.128.2.1\"]}}";
 
     @InjectMock
     KubernetesClient kubernetesClient;
@@ -191,34 +181,6 @@ class PodsServiceTest {
         assertNotNull(info.annotations(), "annotations map should be present");
         assertNull(info.annotations().get("strimzi.io/revision"));
         assertNull(info.annotations().get("strimzi.io/server-cert-hash"));
-    }
-
-    @Test
-    void testFilterAnnotationsKeepsOnlyMatchingPrefixes() {
-        Map<String, String> annotations = new HashMap<>(STRIMZI_ANNOTATIONS);
-        annotations.put("k8s.ovn.org/pod-networks", OVN_POD_NETWORKS);
-        annotations.put("k8s.v1.cni.cncf.io/network-status", "[{\"name\":\"ovn-kubernetes\",\"interface\":\"eth0\"}]");
-        annotations.put("openshift.io/scc", "restricted-v2");
-
-        Map<String, String> filtered = PodsService.filterAnnotations(annotations, List.of("strimzi.io/"));
-
-        assertEquals(STRIMZI_ANNOTATIONS, filtered);
-    }
-
-    @Test
-    void testFilterAnnotationsReturnsNullWhenNothingMatches() {
-        Map<String, String> annotations = Map.of("k8s.ovn.org/pod-networks", OVN_POD_NETWORKS);
-
-        assertNull(PodsService.filterAnnotations(annotations, List.of("strimzi.io/")));
-    }
-
-    @Test
-    void testFilterAnnotationsWithoutPrefixesReturnsInput() {
-        Map<String, String> annotations = Map.of("k8s.ovn.org/pod-networks", OVN_POD_NETWORKS);
-
-        assertSame(annotations, PodsService.filterAnnotations(annotations, null));
-        assertSame(annotations, PodsService.filterAnnotations(annotations, List.of()));
-        assertNull(PodsService.filterAnnotations(null, List.of("strimzi.io/")));
     }
 
     @Test

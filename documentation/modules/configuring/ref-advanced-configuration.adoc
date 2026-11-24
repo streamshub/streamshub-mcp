@@ -15,17 +15,6 @@ Configure diagnostic workflow behavior.
 |`mcp.diagnostic.restart-threshold` |`3` |Pod restart count threshold for smart pod filtering. Pods with restarts above this value are considered problematic and prioritized for log collection during diagnostics.
 |===
 
-== Pod summaries
-
-Configure what pod summaries contain. Pod summaries are returned by the `get_*_pods` tools, embedded in diagnostics, and returned by `get_strimzi_operator_pod` without `sections`.
-
-[cols="2,1,4",options="header"]
-|===
-|Property |Default |Description
-
-|`mcp.pods.summary-annotation-prefixes` |`strimzi.io/` |Comma-separated annotation key prefixes that pod summaries keep. Other annotations, such as the OpenShift network annotations `k8s.ovn.org/*` and `k8s.v1.cni.cncf.io/*` (about 1.3k characters per pod), are left out. `get_strimzi_operator_pod` with `sections=labels` or `full` still returns every annotation.
-|===
-
 == Sampling configuration
 
 Configure LLM-powered diagnostic analysis used by composite diagnostic tools.

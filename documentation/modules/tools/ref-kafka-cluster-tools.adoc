@@ -107,7 +107,7 @@ Get pod information for a Kafka cluster.
 * `clusterName` (required) -- Name of the Kafka cluster
 * `namespace` (optional) -- Kubernetes namespace
 
-*Returns:* List of pods with status, roles, readiness, resource usage, and the pod's `strimzi.io/*` annotations (other annotations are left out; see `mcp.pods.summary-annotation-prefixes`)
+*Returns:* List of pods with status, roles, readiness, and resource usage
 
 .Example
 ----
