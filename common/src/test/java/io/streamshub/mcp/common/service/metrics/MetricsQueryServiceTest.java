@@ -163,17 +163,20 @@ class MetricsQueryServiceTest {
         for (int i = 0; i < 250; i++) {
             largeSampleList.add(MetricSample.of("metric_a", Map.of("pod", "pod-" + i), (double) i));
         }
+        largeSampleList.add(MetricSample.of("metric_b", Map.of("pod", "pod-0"), 1.0));
         when(metricsProvider.queryMetrics(any(MetricsQueryParams.class)))
             .thenReturn(largeSampleList);
 
         List<MetricSample> result = metricsQueryService.queryMetrics(
             List.of(PodTarget.of("ns", "pod")),
             Map.of("namespace", "ns"),
-            List.of("metric_a"), null, null, null, null);
+            List.of("metric_a", "metric_b"), null, null, null, null);
 
-        assertEquals(100, result.size());
+        // The limit applies per metric: metric_a is cut at 100, metric_b after it survives.
+        assertEquals(101, result.size());
         assertEquals("pod-0", result.get(0).labels().get("pod"));
         assertEquals("pod-99", result.get(99).labels().get("pod"));
+        assertEquals("metric_b", result.get(100).name());
     }
 
     @Test
@@ -221,6 +224,17 @@ class MetricsQueryServiceTest {
         assertTrue(metricsQueryService.reachedSampleLimit(samples));
         assertEquals(2, metricsQueryService.maxSamples());
         assertFalse(metricsQueryService.reachedSampleLimit(samples.subList(0, 1)));
+    }
+
+    @Test
+    void reachedSampleLimitIsPerMetric() throws Exception {
+        setField(metricsQueryService, "maxSamples", 2);
+        List<MetricSample> samples = List.of(
+            MetricSample.of("metric_a", Map.of("pod", "pod-0"), 1.0),
+            MetricSample.of("metric_b", Map.of("pod", "pod-0"), 2.0),
+            MetricSample.of("metric_c", Map.of("pod", "pod-0"), 3.0));
+
+        assertFalse(metricsQueryService.reachedSampleLimit(samples));
     }
 
     @Test

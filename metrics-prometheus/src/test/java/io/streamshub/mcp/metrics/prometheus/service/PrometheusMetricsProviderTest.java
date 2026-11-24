@@ -268,6 +268,34 @@ class PrometheusMetricsProviderTest {
         assertEquals(42.5, result.getFirst().value());
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void queryMetricsCapsEachGaugeSeparately() throws Exception {
+        injectMockClient();
+        org.mockito.Mockito.when(prometheusClientInstance.isUnsatisfied()).thenReturn(false);
+        org.mockito.Mockito.when(prometheusClientInstance.get()).thenReturn(prometheusClient);
+        PrometheusResponse response = new PrometheusResponse("success",
+            new PrometheusData("vector", List.of(
+                new PrometheusResult(Map.of("__name__", "large_gauge", "pod", "pod-0"),
+                    List.of(1719792000.0, "1"), null),
+                new PrometheusResult(Map.of("__name__", "large_gauge", "pod", "pod-1"),
+                    List.of(1719792000.0, "2"), null),
+                new PrometheusResult(Map.of("__name__", "large_gauge", "pod", "pod-2"),
+                    List.of(1719792000.0, "3"), null),
+                new PrometheusResult(Map.of("__name__", "small_gauge", "pod", "pod-0"),
+                    List.of(1719792000.0, "4"), null))));
+        org.mockito.Mockito.when(prometheusClient.instantQuery(org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.isNull())).thenReturn(response);
+
+        MetricsQueryParams params = MetricsQueryParams.instant(
+            List.of("large_gauge", "small_gauge"), null, null, 2);
+
+        List<MetricSample> result = provider.queryMetrics(params);
+
+        assertEquals(List.of("large_gauge", "large_gauge", "small_gauge"),
+            result.stream().map(MetricSample::name).toList());
+    }
+
     @SuppressWarnings("unchecked")
     private void injectMockClient() throws Exception {
         Field field = PrometheusMetricsProvider.class.getDeclaredField("prometheusClientInstance");

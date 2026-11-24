@@ -159,15 +159,19 @@ class PodScrapingMetricsProviderTest {
     }
 
     @Test
-    void testSampleCapStopsMidPodAndSkipsRemainingTargets() {
+    void testSampleCapIsPerMetricAndKeepsScrapingRemainingTargets() {
         when(client.raw("/api/v1/namespaces/kafka/pods/p-0:9404/proxy/metrics")).thenReturn(BODY_ONE);
+        when(client.raw("/api/v1/namespaces/kafka/pods/p-1:9404/proxy/metrics"))
+            .thenReturn("up{pod=\"p-1\"} 0\nthird_metric 3\n");
 
         List<MetricSample> samples = provider.queryMetrics(instant(null, List.of(
             PodTarget.of(NS, "p-0", 9404, "/metrics"),
             PodTarget.of(NS, "p-1", 9404, "/metrics")), 1));
 
-        assertEquals(1, samples.size());
-        verify(client, never()).raw("/api/v1/namespaces/kafka/pods/p-1:9404/proxy/metrics");
+        // "up" reached its limit on p-0, but p-1 is still scraped for the other metrics.
+        assertEquals(List.of("up", "other_metric", "third_metric"),
+            samples.stream().map(MetricSample::name).toList());
+        assertEquals("p-0", samples.getFirst().labels().get("pod"));
     }
 
     @Test

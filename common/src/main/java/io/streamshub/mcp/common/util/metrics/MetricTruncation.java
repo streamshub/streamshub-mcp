@@ -5,7 +5,8 @@
 package io.streamshub.mcp.common.util.metrics;
 
 /**
- * Shared wording for metrics responses that were cut at {@code mcp.metrics.max-samples}.
+ * Shared wording for metrics responses in which at least one metric was cut at the per-metric
+ * {@code mcp.metrics.max-samples} limit.
  */
 public final class MetricTruncation {
 
@@ -21,7 +22,7 @@ public final class MetricTruncation {
     public static String note(final int limit) {
         String where;
         if (limit > 0) {
-            where = String.format("at %d samples ", limit);
+            where = String.format("at %d samples per metric ", limit);
         } else {
             where = "";
         }

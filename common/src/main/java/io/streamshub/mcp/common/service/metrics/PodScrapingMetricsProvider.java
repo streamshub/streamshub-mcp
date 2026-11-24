@@ -12,6 +12,7 @@ import io.streamshub.mcp.common.dto.metrics.MetricSample;
 import io.streamshub.mcp.common.dto.metrics.MetricsQueryParams;
 import io.streamshub.mcp.common.dto.metrics.PodTarget;
 import io.streamshub.mcp.common.util.metrics.MetricLabelFilter;
+import io.streamshub.mcp.common.util.metrics.PerMetricSampleLimit;
 import io.streamshub.mcp.common.util.metrics.PrometheusTextParser;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -74,16 +75,11 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
 
         List<MetricSample> allSamples = new ArrayList<>();
         List<String> failedTargets = new ArrayList<>();
-        int maxSamples = params.maxSamples();
-        boolean limitEnabled = maxSamples > 0;
+        // Per metric, so one large metric neither starves the others nor stops the remaining pods
+        // from being scraped.
+        PerMetricSampleLimit limit = new PerMetricSampleLimit(params.maxSamples());
 
         for (PodTarget target : targets) {
-            if (limitEnabled && allSamples.size() >= maxSamples) {
-                LOG.warnf("Pod scraping exceeded max-samples limit (%d), skipping remaining targets",
-                    maxSamples);
-                break;
-            }
-
             int port = resolvePort(target);
             String path = target.path() != null ? target.path() : PodTarget.DEFAULT_PATH;
             String proxyUrl = String.format("/api/v1/namespaces/%s/pods/%s:%d/proxy%s",
@@ -98,8 +94,8 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
                     LOG.debugf("Scraped %d sample(s) from pod %s/%s",
                         samples.size(), target.namespace(), target.podName());
                     for (MetricSample sample : samples) {
-                        if (limitEnabled && allSamples.size() >= maxSamples) {
-                            break;
+                        if (!limit.tryAccept(sample.name())) {
+                            continue;
                         }
                         allSamples.add(MetricSample.of(sample.name(),
                             MetricLabelFilter.filterLabels(sample.labels()),
@@ -124,6 +120,11 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
         if (!failedTargets.isEmpty()) {
             LOG.warnf("Pod scraping partially failed: %d of %d targets failed: %s",
                 failedTargets.size(), targets.size(), failedTargets);
+        }
+
+        if (!limit.truncatedMetrics().isEmpty()) {
+            LOG.warnf("Pod scraping reached the per-metric max-samples limit (%d) for: %s",
+                params.maxSamples(), limit.truncatedMetrics());
         }
 
         LOG.debugf("Scraping complete: collected %d total sample(s) from %d target(s)",

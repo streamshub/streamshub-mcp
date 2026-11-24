@@ -12,6 +12,7 @@ import io.streamshub.mcp.common.service.metrics.MetricsQueryException;
 import io.streamshub.mcp.common.util.ExceptionUtils;
 import io.streamshub.mcp.common.util.metrics.MetricLabelFilter;
 import io.streamshub.mcp.common.util.metrics.MetricNameSuffixes;
+import io.streamshub.mcp.common.util.metrics.PerMetricSampleLimit;
 import io.streamshub.mcp.metrics.prometheus.dto.PrometheusResponse;
 import io.streamshub.mcp.metrics.prometheus.util.PromQLSanitizer;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -242,31 +243,31 @@ public class PrometheusMetricsProvider implements MetricsProvider {
         }
 
         List<MetricSample> samples = new ArrayList<>();
-        boolean limitEnabled = maxSamples > 0;
+        // One query covers several gauges; cap each name separately so the first, largest one
+        // cannot crowd out the rest.
+        PerMetricSampleLimit limit = new PerMetricSampleLimit(maxSamples);
 
         for (PrometheusResponse.PrometheusResult result : response.data().result()) {
-            if (limitEnabled && samples.size() >= maxSamples) {
-                LOG.warnf("Prometheus query exceeded max-samples limit (%d), truncating results", maxSamples);
-                break;
-            }
-
             Map<String, String> labels = result.metric();
             String metricName = labels != null ? labels.getOrDefault("__name__", "") : "";
 
             if (result.values() != null) {
                 // Range query result (matrix)
                 for (List<Object> valueEntry : result.values()) {
-                    if (limitEnabled && samples.size() >= maxSamples) {
-                        break;
+                    if (limit.tryAccept(metricName)) {
+                        addSample(samples, metricName, labels, valueEntry);
                     }
-                    addSample(samples, metricName, labels, valueEntry);
                 }
-            } else if (result.value() != null) {
+            } else if (result.value() != null && limit.tryAccept(metricName)) {
                 // Instant query result (vector)
                 addSample(samples, metricName, labels, result.value());
             }
         }
 
+        if (!limit.truncatedMetrics().isEmpty()) {
+            LOG.warnf("Prometheus query reached the per-metric max-samples limit (%d) for: %s",
+                maxSamples, limit.truncatedMetrics());
+        }
         return samples;
     }
 
