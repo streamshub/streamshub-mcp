@@ -213,12 +213,30 @@ class StrimziOperatorMetricsServiceTest {
         Map<String, String> matcher = StrimziOperatorMetricsService.podMatcher(List.of(coPod, standalone));
 
         String regex = matcher.get("pod");
-        assertEquals("strimzi-cluster-operator-[a-z0-9]+-[a-z0-9]+|operator\\.v1", regex);
+        assertEquals("strimzi-cluster-operator-[a-z0-9]+-[a-z0-9]+|strimzi-cluster-operator-7f9c8d6b5-x2k4j"
+            + "|operator\\.v1", regex);
         assertTrue("strimzi-cluster-operator-55d4b7c9f-abcde".matches(regex));
         assertTrue("operator.v1".matches(regex));
         assertFalse("operatorXv1".matches(regex));
         assertFalse("my-cluster-kafka-0".matches(regex));
         assertTrue(StrimziOperatorMetricsService.podMatcher(List.of()).isEmpty());
+    }
+
+    /**
+     * Kubernetes cuts generateName to 58 characters, so with a long cluster name the dash between the
+     * ReplicaSet hash and the random suffix is lost and the pod does not fit the Deployment pattern.
+     */
+    @Test
+    void podMatcherMatchesAPodWhoseNameLostTheDashBeforeItsSuffix() {
+        String replicaSet = "a-very-long-cluster-name-of-31-ch-entity-operator-6d8f9b7c4d";
+        String podName = replicaSet.substring(0, 58) + "x2k4j";
+        Pod eoPod = createPod(podName, "kafka");
+        eoPod.getMetadata().setOwnerReferences(List.of(new io.fabric8.kubernetes.api.model.OwnerReferenceBuilder()
+            .withKind("ReplicaSet").withName(replicaSet).build()));
+
+        String regex = StrimziOperatorMetricsService.podMatcher(List.of(eoPod)).get("pod");
+
+        assertTrue(podName.matches(regex), regex);
     }
 
     // Entity operator tests

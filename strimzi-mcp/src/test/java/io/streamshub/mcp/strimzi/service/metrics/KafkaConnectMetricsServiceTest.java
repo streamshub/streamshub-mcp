@@ -69,7 +69,7 @@ class KafkaConnectMetricsServiceTest {
         setField(kafkaConnectMetricsService, "kafkaConnectService", kafkaConnectService);
 
         when(metricsQueryService.providerName()).thenReturn("pod-scraping");
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), any(), any(), any(), any()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), any(), any(), any(), any()))
             .thenReturn(List.of());
     }
 
@@ -133,7 +133,7 @@ class KafkaConnectMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_connect_worker_connector_count",
                 Map.of("namespace", "kafka"), 2.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaConnectMetricsResponse response = kafkaConnectMetricsService.getKafkaConnectMetrics(
@@ -146,10 +146,10 @@ class KafkaConnectMetricsServiceTest {
         assertEquals(1, response.metricCount());
 
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<Map<String, String>> matchers = ArgumentCaptor.forClass(Map.class);
-        verify(metricsQueryService).queryMetrics(anyList(), matchers.capture(), anyList(),
+        ArgumentCaptor<Map<String, String>> regex = ArgumentCaptor.forClass(Map.class);
+        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), regex.capture(), anyList(),
             isNull(), isNull(), isNull(), isNull());
-        assertEquals("KafkaConnect", matchers.getValue().get("strimzi_io_kind"));
+        assertEquals(Map.of("strimzi_io_kind", "KafkaConnect|"), regex.getValue());
     }
 
     @Test
@@ -165,7 +165,7 @@ class KafkaConnectMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_connect_worker_connector_count",
                 Map.of("namespace", "kafka"), 2.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
         when(metricsQueryService.reachedSampleLimit(samples)).thenReturn(true);
         when(metricsQueryService.maxSamples()).thenReturn(1);
@@ -244,7 +244,7 @@ class KafkaConnectMetricsServiceTest {
             .thenReturn(connect);
         when(k8sService.queryResourcesByLabels(eq(Pod.class), eq("kafka"), anyMap()))
             .thenReturn(List.of(connectPod));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15)))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15)))
             .thenReturn(List.of());
 
         KafkaConnectMetricsResponse response = kafkaConnectMetricsService.getKafkaConnectMetrics(

@@ -77,7 +77,7 @@ class KafkaMetricsServiceTest {
         setField(kafkaMetricsService, "kafkaService", kafkaService);
 
         when(metricsQueryService.providerName()).thenReturn("pod-scraping");
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), any(), any(), any(), any()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), any(), any(), any(), any()))
             .thenReturn(List.of());
     }
 
@@ -150,7 +150,7 @@ class KafkaMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
                 Map.of("namespace", "kafka"), 0.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -161,6 +161,12 @@ class KafkaMetricsServiceTest {
         assertEquals("kafka", response.namespace());
         assertEquals(1, response.sampleCount());
         assertEquals(1, response.metricCount());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> regex = ArgumentCaptor.forClass(Map.class);
+        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), regex.capture(), anyList(),
+            isNull(), isNull(), isNull(), isNull());
+        assertEquals("kafka|", regex.getValue().get("strimzi_io_component_type"));
     }
 
     @Test
@@ -176,7 +182,7 @@ class KafkaMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
                 Map.of("namespace", "kafka"), 0.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
         when(metricsQueryService.reachedSampleLimit(samples)).thenReturn(true);
         when(metricsQueryService.maxSamples()).thenReturn(1);
@@ -198,7 +204,7 @@ class KafkaMetricsServiceTest {
         when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
             eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
             .thenReturn(List.of(pod));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(List.of(MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
                 Map.of("namespace", "kafka"), 0.0)));
 
@@ -267,14 +273,14 @@ class KafkaMetricsServiceTest {
         when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
             eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
             .thenReturn(List.of(pod));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15)))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15)))
             .thenReturn(List.of());
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
             "kafka", "my-cluster", "replication", null, 60, null, null, 15, null, null);
 
         assertNotNull(response);
-        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15));
+        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15));
     }
 
     @Test
@@ -312,7 +318,7 @@ class KafkaMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
                 Map.of("namespace", "kafka"), 0.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -343,7 +349,7 @@ class KafkaMetricsServiceTest {
             MetricSample.of("kafka_cluster_partition_atminisr", Map.of("topic", "t", "partition", "1"), 0.0),
             MetricSample.of("kafka_cluster_partition_replicascount", Map.of("topic", "t", "partition", "0"), 3.0),
             MetricSample.of("kafka_cluster_partition_replicascount", Map.of("topic", "t", "partition", "1"), 3.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -373,7 +379,7 @@ class KafkaMetricsServiceTest {
             MetricSample.of("kafka_cluster_partition_underminisr", Map.of("topic", "t", "partition", "0"), 0.0),
             MetricSample.of("kafka_cluster_partition_atminisr", Map.of("topic", "t", "partition", "0"), 0.0),
             MetricSample.of("kafka_cluster_partition_replicascount", Map.of("topic", "t", "partition", "0"), 3.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -402,7 +408,7 @@ class KafkaMetricsServiceTest {
             MetricSample.of("kafka_cluster_partition_atminisr", Map.of("topic", "t", "partition", "0"), 0.0),
             MetricSample.of("kafka_cluster_partition_replicascount", Map.of("topic", "t", "partition", "0"), 3.0),
             MetricSample.of("jvm_memory_used_bytes", Map.of("area", "heap"), 1024.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -592,7 +598,7 @@ class KafkaMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
                 Map.of("pod", "my-cluster-broker-0", "strimzi_io_broker_role", "true"), 0.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -618,7 +624,7 @@ class KafkaMetricsServiceTest {
                 Map.of("pod", "my-cluster-controller-0",
                     "strimzi_io_broker_role", "false",
                     "strimzi_io_controller_role", "true"), 0.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -642,7 +648,7 @@ class KafkaMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
                 Map.of("namespace", "kafka"), 0.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -666,7 +672,7 @@ class KafkaMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
                 Map.of("strimzi_io_broker_role", "false", "strimzi_io_controller_role", "false"), 0.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -693,7 +699,7 @@ class KafkaMetricsServiceTest {
                 Map.of("pod", "my-cluster-broker-0", "namespace", "kafka"), 0.0),
             MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
                 Map.of("pod", "my-cluster-controller-0", "namespace", "kafka"), 0.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -719,7 +725,7 @@ class KafkaMetricsServiceTest {
                 Map.of("namespace", "kafka"), 0.0),
             MetricSample.of("kafka_server_replicamanager_underreplicatedpartitions",
                 Map.of("pod", "my-cluster-broker-0", "namespace", "kafka"), 0.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -778,7 +784,7 @@ class KafkaMetricsServiceTest {
                 Map.of("quantile", "0.75"), 100.0),
             MetricSample.of("jvm_gc_collection_seconds_count",
                 Map.of("quantile", "0.95"), 200.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -833,7 +839,7 @@ class KafkaMetricsServiceTest {
                 Map.of("pod", "my-cluster-kafka-0"), 0.0),
             MetricSample.of("kafka_server_replicamanager_leadercount",
                 Map.of("pod", "my-cluster-kafka-0"), 42.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -994,7 +1000,7 @@ class KafkaMetricsServiceTest {
 
         // Capture the metric names handed to the provider
         ArgumentCaptor<List<String>> metricsCaptor = ArgumentCaptor.forClass(List.class);
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), metricsCaptor.capture(),
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), metricsCaptor.capture(),
             isNull(), isNull(), isNull(), isNull()))
             .thenReturn(List.of());
 
@@ -1049,7 +1055,7 @@ class KafkaMetricsServiceTest {
             .thenReturn(List.of(pod));
 
         ArgumentCaptor<List<String>> metricsCaptor = ArgumentCaptor.forClass(List.class);
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), metricsCaptor.capture(),
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), metricsCaptor.capture(),
             isNull(), isNull(), isNull(), isNull()))
             .thenReturn(List.of());
 

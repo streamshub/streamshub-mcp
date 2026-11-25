@@ -70,7 +70,7 @@ class KafkaExporterMetricsServiceTest {
         setField(kafkaExporterMetricsService, "kafkaService", kafkaService);
 
         when(metricsQueryService.providerName()).thenReturn("pod-scraping");
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), any(), any(), any(), any()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), any(), any(), any(), any()))
             .thenReturn(List.of());
     }
 
@@ -124,7 +124,7 @@ class KafkaExporterMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_consumergroup_lag",
                 Map.of("namespace", "kafka"), 42.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaExporterMetricsResponse response = kafkaExporterMetricsService.getKafkaExporterMetrics(
@@ -139,10 +139,13 @@ class KafkaExporterMetricsServiceTest {
         // Broker and Cruise Control pods share process_* and jvm_* names; only the exporter is queried.
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, String>> matchers = ArgumentCaptor.forClass(Map.class);
-        verify(metricsQueryService).queryMetrics(anyList(), matchers.capture(), anyList(),
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> regex = ArgumentCaptor.forClass(Map.class);
+        verify(metricsQueryService).queryMetrics(anyList(), matchers.capture(), regex.capture(), anyList(),
             isNull(), isNull(), isNull(), isNull());
-        assertEquals(Map.of("namespace", "kafka", "strimzi_io_cluster", "my-cluster",
-            "strimzi_io_component_type", "kafka-exporter"), matchers.getValue());
+        assertEquals(Map.of("namespace", "kafka", "strimzi_io_cluster", "my-cluster"), matchers.getValue());
+        // A series without the label (no labelmap relabeling) still matches.
+        assertEquals(Map.of("strimzi_io_component_type", "kafka-exporter|"), regex.getValue());
     }
 
     @Test
@@ -157,7 +160,7 @@ class KafkaExporterMetricsServiceTest {
             .thenReturn(List.of(exporterPod));
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_consumergroup_lag", Map.of("namespace", "kafka"), 42.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
         when(metricsQueryService.reachedSampleLimit(samples)).thenReturn(true);
         when(metricsQueryService.maxSamples()).thenReturn(1);
@@ -226,7 +229,7 @@ class KafkaExporterMetricsServiceTest {
         when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
             eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
             .thenReturn(List.of(exporterPod));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15)))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15)))
             .thenReturn(List.of());
 
         KafkaExporterMetricsResponse response = kafkaExporterMetricsService.getKafkaExporterMetrics(
@@ -250,7 +253,7 @@ class KafkaExporterMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_consumergroup_lag",
                 Map.of("namespace", "kafka"), 10.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaExporterMetricsResponse response = kafkaExporterMetricsService.getKafkaExporterMetrics(

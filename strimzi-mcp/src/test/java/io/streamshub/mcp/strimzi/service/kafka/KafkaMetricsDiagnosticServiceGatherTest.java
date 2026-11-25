@@ -152,7 +152,7 @@ class KafkaMetricsDiagnosticServiceGatherTest {
             StrimziConstants.ComponentTypes.KAFKA));
         when(k8s.queryResourcesByLabel(Pod.class, "kafka", ResourceLabels.STRIMZI_CLUSTER_LABEL, "my-cluster"))
             .thenReturn(List.of(pod));
-        when(query.queryMetrics(anyList(), anyMap(),
+        when(query.queryMetrics(anyList(), anyMap(), anyMap(),
             eq(KafkaMetricCategories.resolve(KafkaMetricCategories.THROUGHPUT)), any(), any(), any(), any()))
             .thenReturn(List.of(
                 MetricSample.of("kafka_server_brokertopicmetrics_bytesin_rate_per_second", Map.of(), 10.0),

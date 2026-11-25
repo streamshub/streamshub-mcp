@@ -231,6 +231,10 @@ public class StrimziOperatorMetricsService {
         Set<String> patterns = new LinkedHashSet<>();
         for (Pod pod : pods) {
             patterns.add(podNamePattern(pod));
+            // Kubernetes cuts generateName to 58 characters before adding the suffix, so a pod of a
+            // Deployment with a long name (a long cluster name for the entity operator) has no dash
+            // between hash and suffix and does not match the pattern. Its own name always matches.
+            patterns.add(quoteRegex(pod.getMetadata().getName()));
         }
         return patterns.isEmpty() ? Map.of() : Map.of("pod", String.join("|", patterns));
     }

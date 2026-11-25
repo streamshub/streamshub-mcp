@@ -79,7 +79,7 @@ class CruiseControlMetricsServiceTest {
         setField(cruiseControlMetricsService, "kafkaService", kafkaService);
 
         when(metricsQueryService.providerName()).thenReturn("pod-scraping");
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), any(), any(), any(), any()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), any(), any(), any(), any()))
             .thenReturn(List.of());
     }
 
@@ -137,7 +137,7 @@ class CruiseControlMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_cruisecontrol_loadmonitor_monitored_partitions_percentage_value",
                 Map.of("namespace", "kafka"), 0.99));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         CruiseControlMetricsResponse response = cruiseControlMetricsService.getCruiseControlMetrics(
@@ -148,6 +148,12 @@ class CruiseControlMetricsServiceTest {
         assertEquals("kafka", response.namespace());
         assertEquals(1, response.sampleCount());
         assertEquals(1, response.metricCount());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> regex = ArgumentCaptor.forClass(Map.class);
+        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), regex.capture(), anyList(),
+            isNull(), isNull(), isNull(), isNull());
+        assertEquals("cruise-control|", regex.getValue().get("strimzi_io_component_type"));
     }
 
     @Test
@@ -166,7 +172,7 @@ class CruiseControlMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_cruisecontrol_loadmonitor_monitored_partitions_percentage_value",
                 Map.of("namespace", "kafka"), 0.99));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
         when(metricsQueryService.reachedSampleLimit(samples)).thenReturn(true);
         when(metricsQueryService.maxSamples()).thenReturn(1);
@@ -229,7 +235,7 @@ class CruiseControlMetricsServiceTest {
             null, null, null, null, null);
 
         assertNotNull(response);
-        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), metricNamesCaptor.capture(),
+        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), anyMap(), metricNamesCaptor.capture(),
             isNull(), isNull(), isNull(), isNull());
         assertTrue(metricNamesCaptor.getValue()
             .contains("kafka_cruisecontrol_anomalydetector_balancedness_score_value"));
@@ -247,14 +253,14 @@ class CruiseControlMetricsServiceTest {
             ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL, StrimziConstants.ComponentTypes.KAFKA_CRUISE_CONTROL);
         when(k8sService.queryResourcesByLabels(eq(Pod.class), eq("kafka"), eq(podLabels)))
             .thenReturn(List.of(ccPod));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15)))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15)))
             .thenReturn(List.of());
 
         CruiseControlMetricsResponse response = cruiseControlMetricsService.getCruiseControlMetrics(
             "kafka", "my-cluster", "sampling", null, 60, null, null, 15, null);
 
         assertNotNull(response);
-        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15));
+        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15));
     }
 
     @Test
@@ -274,14 +280,14 @@ class CruiseControlMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_cruisecontrol_loadmonitor_monitored_partitions_percentage_value",
                 Map.of("namespace", "kafka"), 0.99));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         CruiseControlMetricsResponse response = cruiseControlMetricsService.getCruiseControlMetrics(
             "kafka", "my-cluster", "sampling", null, null, null, null, null, null);
 
         assertNotNull(response);
-        verify(metricsQueryService).queryMetrics(podTargetsCaptor.capture(), anyMap(), anyList(),
+        verify(metricsQueryService).queryMetrics(podTargetsCaptor.capture(), anyMap(), anyMap(), anyList(),
             isNull(), isNull(), isNull(), isNull());
         List<PodTarget> targets = podTargetsCaptor.getValue();
         assertEquals(1, targets.size());

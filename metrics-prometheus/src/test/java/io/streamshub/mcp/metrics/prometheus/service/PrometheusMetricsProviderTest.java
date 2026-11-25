@@ -387,9 +387,12 @@ class PrometheusMetricsProviderTest {
     @Test
     void withoutDuplicateScrapesDropsCopiesThatDifferOnlyInScrapeConfig() {
         List<PrometheusResult> results = List.of(
-            series(Map.of("__name__", "m", "pod", "p-0", "job", "a", "instance", "10.0.0.1:9404", "endpoint", "x")),
-            series(Map.of("__name__", "m", "pod", "p-0", "job", "b", "instance", "10.0.0.1:9405", "endpoint", "y")),
-            series(Map.of("__name__", "m", "pod", "p-1", "job", "a", "instance", "10.0.0.2:9404", "endpoint", "x")));
+            series(Map.of("__name__", "m", "pod", "p-0", "container", "kafka", "job", "a",
+                "instance", "10.0.0.1:9404", "endpoint", "x")),
+            series(Map.of("__name__", "m", "pod", "p-0", "container", "kafka", "job", "b",
+                "instance", "10.0.0.1:9405", "endpoint", "y", "service", "kafka-metrics")),
+            series(Map.of("__name__", "m", "pod", "p-1", "container", "kafka", "job", "a",
+                "instance", "10.0.0.2:9404", "endpoint", "x")));
 
         assertEquals(List.of(results.get(0), results.get(2)),
             PrometheusMetricsProvider.withoutDuplicateScrapes(results));
@@ -402,6 +405,40 @@ class PrometheusMetricsProviderTest {
             series(Map.of("__name__", "jvm", "pod", "eo-0", "container", "user-operator", "job", "a")));
 
         assertEquals(results, PrometheusMetricsProvider.withoutDuplicateScrapes(results));
+    }
+
+    @Test
+    void withoutDuplicateScrapesUsesInstanceWhenThereIsNoContainerLabel() {
+        List<PrometheusResult> results = List.of(
+            series(Map.of("__name__", "jvm", "pod", "eo-0", "job", "a", "instance", "10.0.0.5:8080")),
+            series(Map.of("__name__", "jvm", "pod", "eo-0", "job", "a", "instance", "10.0.0.5:8081")));
+
+        assertEquals(results, PrometheusMetricsProvider.withoutDuplicateScrapes(results));
+    }
+
+    @Test
+    void withoutDuplicateScrapesKeepsBothHalvesOfARestartedPod() {
+        Map<String, String> before = Map.of("__name__", "m", "pod", "p-0", "container", "kafka", "instance", "10.0.0.1:9404");
+        Map<String, String> after = Map.of("__name__", "m", "pod", "p-0", "container", "kafka", "instance", "10.0.0.9:9404");
+        List<PrometheusResult> results = List.of(
+            new PrometheusResult(before, null, List.of(List.of(1000.0, "1"), List.of(1060.0, "2"))),
+            new PrometheusResult(after, null, List.of(List.of(1120.0, "3"), List.of(1180.0, "4"))));
+
+        assertEquals(results, PrometheusMetricsProvider.withoutDuplicateScrapes(results));
+    }
+
+    @Test
+    void withoutDuplicateScrapesDropsOverlappingRangeSamplesOnly() {
+        Map<String, String> first = Map.of("__name__", "m", "pod", "p-0", "container", "kafka", "job", "a");
+        Map<String, String> second = Map.of("__name__", "m", "pod", "p-0", "container", "kafka", "job", "b");
+        List<PrometheusResult> results = List.of(
+            new PrometheusResult(first, null, List.of(List.of(1000.0, "1"), List.of(1060.0, "2"))),
+            new PrometheusResult(second, null, List.of(List.of(1060.0, "2"), List.of(1120.0, "3"))));
+
+        List<PrometheusResult> unique = PrometheusMetricsProvider.withoutDuplicateScrapes(results);
+
+        assertEquals(2, unique.size());
+        assertEquals(List.of(List.of(1120.0, "3")), unique.get(1).values());
     }
 
     @Test

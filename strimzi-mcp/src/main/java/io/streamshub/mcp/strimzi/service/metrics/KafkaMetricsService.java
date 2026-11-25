@@ -165,15 +165,13 @@ public class KafkaMetricsService {
         Map<String, String> labelMatchers = new LinkedHashMap<>();
         labelMatchers.put("namespace", resolvedNs);
         labelMatchers.put("strimzi_io_cluster", name);
-        // Other components of the cluster share metric names (jvm_*, process_*); keep only this one.
-        labelMatchers.put("strimzi_io_component_type", StrimziConstants.ComponentTypes.KAFKA);
 
-        Map<String, String> regexMatchers = requestRegexMatchers(types, performance);
-        List<MetricSample> samples = regexMatchers.isEmpty()
-            ? metricsQueryService.queryMetrics(
-                podTargets, labelMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds)
-            : metricsQueryService.queryMetrics(
-                podTargets, labelMatchers, regexMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
+        // Other components of the cluster share metric names (jvm_*, process_*); keep only this one.
+        Map<String, String> regexMatchers = ComponentScope.matchers(
+            "strimzi_io_component_type", StrimziConstants.ComponentTypes.KAFKA);
+        regexMatchers.putAll(requestRegexMatchers(types, performance));
+        List<MetricSample> samples = metricsQueryService.queryMetrics(
+            podTargets, labelMatchers, regexMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
         boolean truncated = metricsQueryService.reachedSampleLimit(samples);
 
         samples = filterByKafkaNodePods(samples, pods);
