@@ -82,6 +82,10 @@ Troubleshoot connectivity for mcp-cluster
 Runs a multi-step metrics diagnostic workflow.
 Analyzes replication, throughput, performance, and resource metrics to identify anomalies and trends.
 
+Each category is queried on its own, with the same filters and default aggregation as `get_kafka_metrics`, and keeps its own `truncated` flag.
+A category that fails is reported as failed while the others still return data.
+The performance category covers the `Produce`, `FetchConsumer` and `FetchFollower` request types, as `get_kafka_metrics` does by default.
+
 *Parameters:*
 
 * `clusterName` (required) -- Name of the Kafka cluster

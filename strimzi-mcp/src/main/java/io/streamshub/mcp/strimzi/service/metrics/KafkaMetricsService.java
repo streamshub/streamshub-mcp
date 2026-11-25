@@ -47,15 +47,13 @@ public class KafkaMetricsService {
      * {@link #DEFAULT_QUANTILES} as a label regex, for the backend; matches either spelling. The empty
      * alternative keeps request metrics without a quantile (the requests and errors counters).
      */
-    private static final String DEFAULT_QUANTILE_REGEX = "|0\\.50*|0\\.990*";
+    static final String DEFAULT_QUANTILE_REGEX = "|0\\.50*|0\\.990*";
 
     /** Request types kept for the performance category when the caller names none. */
     static final List<String> DEFAULT_REQUEST_TYPES = List.of("Produce", "FetchConsumer", "FetchFollower");
     /** {@code requestTypes} value that disables the request type filter. */
     static final String ALL_REQUEST_TYPES = "*";
     private static final Pattern REQUEST_TYPE = Pattern.compile("[A-Za-z0-9]+");
-    /** Metrics labelled by {@code request} (and {@code quantile}): one series per request type and quantile. */
-    private static final String REQUEST_METRICS_PREFIX = "kafka_network_requestmetrics_";
 
     /** Per-partition 0/1 gauges: a non-zero value marks the partition as worth reporting. */
     private static final Set<String> PARTITION_HEALTH_FLAGS = Set.of(
@@ -168,8 +166,12 @@ public class KafkaMetricsService {
         labelMatchers.put("namespace", resolvedNs);
         labelMatchers.put("strimzi_io_cluster", name);
 
-        List<MetricSample> samples = queryMetrics(podTargets, labelMatchers, resolvedMetrics, types, performance,
-            rangeMinutes, startTime, endTime, stepSeconds);
+        Map<String, String> regexMatchers = requestRegexMatchers(types, performance);
+        List<MetricSample> samples = regexMatchers.isEmpty()
+            ? metricsQueryService.queryMetrics(
+                podTargets, labelMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds)
+            : metricsQueryService.queryMetrics(
+                podTargets, labelMatchers, regexMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
         boolean truncated = metricsQueryService.reachedSampleLimit(samples);
 
         samples = filterByKafkaNodePods(samples, pods);
@@ -187,8 +189,8 @@ public class KafkaMetricsService {
             samples = filterZeroValues(samples);
         }
 
-        String interpretation = KafkaMetricCategories.interpretation(effectiveCategories)
-            + defaultRequestTypesNote(performance, requestTypes);
+        String interpretation = withNote(KafkaMetricCategories.interpretation(effectiveCategories),
+            defaultRequestTypesNote(performance, requestTypes));
 
         // Healthy partitions are dropped from the partitions category — see the method javadoc.
         if (effectiveCategories.contains(KafkaMetricCategories.PARTITIONS)) {
@@ -217,8 +219,19 @@ public class KafkaMetricsService {
         return AggregationLevel.resolve(aggregation, KafkaMetricCategories.maxGranularity(effective));
     }
 
+    /**
+     * Appends a note to an interpretation guide. A call with only {@code metricNames} has no guide,
+     * so the note then stands alone, and no note leaves the guide as it is (possibly null).
+     */
+    static String withNote(final String interpretation, final String note) {
+        if (note == null || note.isEmpty()) {
+            return interpretation;
+        }
+        return interpretation == null ? note.strip() : interpretation + note;
+    }
+
     private static String defaultRequestTypesNote(final boolean performance, final String requestTypes) {
-        if (!performance || requestTypes != null && !requestTypes.isBlank()) {
+        if (!performance || requestTypes != null && !requestTypes.replace(",", "").isBlank()) {
             return "";
         }
         return String.format("%n%n**[REQUEST TYPES]** Request metrics cover %s only (the default)."
@@ -250,46 +263,24 @@ public class KafkaMetricsService {
     }
 
     /**
-     * Queries the request metrics separately when request type or quantile filters apply, so the
-     * filters run in the backend before the per-metric sample limit. They cannot be added to one
-     * combined query: a {@code quantile} matcher would also drop the idle-ratio gauges, which
-     * have no such label.
+     * Builds the regex label matchers that push the request type and quantile filters into the backend,
+     * so they run before the per-metric sample limit.
+     *
+     * <p>Both regexes accept the empty value, which PromQL (and pod scraping) compares against a missing
+     * label. That keeps every metric of the query that has no {@code request} or {@code quantile} label,
+     * such as the idle-ratio gauges and the request counters, so all names can share one query.</p>
+     *
+     * @return the matchers, empty when no filter applies
      */
-    @SuppressWarnings("checkstyle:ParameterNumber")
-    private List<MetricSample> queryMetrics(final List<PodTarget> podTargets,
-                                            final Map<String, String> labelMatchers,
-                                            final List<String> metricNames,
-                                            final Set<String> requestTypes,
-                                            final boolean performance,
-                                            final Integer rangeMinutes,
-                                            final String startTime,
-                                            final String endTime,
-                                            final Integer stepSeconds) {
+    static Map<String, String> requestRegexMatchers(final Set<String> requestTypes, final boolean performance) {
         Map<String, String> regexMatchers = new LinkedHashMap<>();
         if (requestTypes != null) {
-            regexMatchers.put("request", String.join("|", requestTypes));
+            regexMatchers.put("request", String.join("|", requestTypes) + "|");
         }
         if (performance) {
             regexMatchers.put("quantile", DEFAULT_QUANTILE_REGEX);
         }
-        List<String> requestMetrics = metricNames.stream()
-            .filter(n -> n.startsWith(REQUEST_METRICS_PREFIX))
-            .toList();
-        if (regexMatchers.isEmpty() || requestMetrics.isEmpty()) {
-            return metricsQueryService.queryMetrics(
-                podTargets, labelMatchers, metricNames, rangeMinutes, startTime, endTime, stepSeconds);
-        }
-
-        List<MetricSample> samples = new ArrayList<>(metricsQueryService.queryMetrics(
-            podTargets, labelMatchers, regexMatchers, requestMetrics, rangeMinutes, startTime, endTime, stepSeconds));
-        List<String> otherMetrics = metricNames.stream()
-            .filter(n -> !n.startsWith(REQUEST_METRICS_PREFIX))
-            .toList();
-        if (!otherMetrics.isEmpty()) {
-            samples.addAll(metricsQueryService.queryMetrics(
-                podTargets, labelMatchers, otherMetrics, rangeMinutes, startTime, endTime, stepSeconds));
-        }
-        return samples;
+        return regexMatchers;
     }
 
     /**
@@ -298,7 +289,7 @@ public class KafkaMetricsService {
      *
      * @return the request types, or null for no request type filter
      */
-    private static Set<String> resolveRequestTypes(final String requestTypes, final boolean performance) {
+    static Set<String> resolveRequestTypes(final String requestTypes, final boolean performance) {
         if (requestTypes == null || requestTypes.isBlank()) {
             return performance ? new LinkedHashSet<>(DEFAULT_REQUEST_TYPES) : null;
         }
@@ -328,7 +319,11 @@ public class KafkaMetricsService {
         return samples.stream()
             .filter(s -> {
                 String quantile = s.labels() != null ? s.labels().get("quantile") : null;
-                return quantile == null || quantiles.contains(parseQuantile(quantile));
+                if (quantile == null) {
+                    return true;
+                }
+                Double q = parseQuantile(quantile);
+                return q != null && quantiles.contains(q);
             })
             .toList();
     }

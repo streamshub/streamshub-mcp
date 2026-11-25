@@ -44,6 +44,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 /**
@@ -431,8 +432,7 @@ class KafkaMetricsServiceTest {
                 Map.of("request", "Metadata", "quantile", "0.99"), 1.0),
             MetricSample.of("kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent",
                 Map.of(), 0.8));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
-            .thenReturn(samples);
+        givenRequestMetrics(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
             "kafka", "my-cluster", "performance", null, null, null, null, null, null, "Produce,Fetch");
@@ -475,7 +475,7 @@ class KafkaMetricsServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void performanceCategoryPushesRequestAndQuantileFiltersToTheBackend() {
+    void performanceCategoryPushesRequestAndQuantileFiltersToTheBackendInOneQuery() {
         givenSingleBrokerCluster();
         givenRequestMetrics(List.of());
 
@@ -483,24 +483,53 @@ class KafkaMetricsServiceTest {
             "kafka", "my-cluster", "performance", null, null, null, null, null, null, null);
 
         ArgumentCaptor<Map<String, String>> regex = ArgumentCaptor.forClass(Map.class);
-        ArgumentCaptor<List<String>> requestNames = ArgumentCaptor.forClass(List.class);
-        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), regex.capture(), requestNames.capture(),
+        ArgumentCaptor<List<String>> names = ArgumentCaptor.forClass(List.class);
+        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), regex.capture(), names.capture(),
             isNull(), isNull(), isNull(), isNull());
-        assertEquals("Produce|FetchConsumer|FetchFollower", regex.getValue().get("request"));
-        assertTrue("0.5".matches(regex.getValue().get("quantile")));
-        assertTrue("0.50".matches(regex.getValue().get("quantile")));
-        assertTrue("0.99".matches(regex.getValue().get("quantile")));
-        assertFalse("0.95".matches(regex.getValue().get("quantile")));
-        // Request counters (requests_total, errors_total) have no quantile label: PromQL sees "".
-        assertTrue("".matches(regex.getValue().get("quantile")));
-        assertTrue(requestNames.getValue().stream().allMatch(n -> n.startsWith("kafka_network_requestmetrics_")));
+        verify(metricsQueryService, never()).queryMetrics(anyList(), anyMap(), anyList(),
+            any(), any(), any(), any());
+        // The empty alternatives keep metrics without the label: idle-ratio gauges and request counters.
+        assertEquals("Produce|FetchConsumer|FetchFollower|", regex.getValue().get("request"));
+        assertEquals(KafkaMetricsService.DEFAULT_QUANTILE_REGEX, regex.getValue().get("quantile"));
+        assertTrue(names.getValue().contains("kafka_network_socketserver_networkprocessoravgidle_percent"));
+        assertTrue(names.getValue().contains("kafka_network_requestmetrics_totaltimems"));
+    }
 
-        // The idle-ratio gauges have no quantile label, so they are queried without the regex matchers.
-        ArgumentCaptor<List<String>> otherNames = ArgumentCaptor.forClass(List.class);
-        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), otherNames.capture(),
-            isNull(), isNull(), isNull(), isNull());
-        assertTrue(otherNames.getValue().contains("kafka_network_socketserver_networkprocessoravgidle_percent"));
-        assertTrue(otherNames.getValue().stream().noneMatch(n -> n.startsWith("kafka_network_requestmetrics_")));
+    @Test
+    void metricNamesOnlyCallHasNoInterpretation() {
+        givenSingleBrokerCluster();
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", null, "kafka_server_replicamanager_underreplicatedpartitions",
+            null, null, null, null, null, null);
+
+        assertNull(response.interpretation());
+    }
+
+    @Test
+    void blankRequestTypesApplyTheDefaultWithItsNote() {
+        givenSingleBrokerCluster();
+        givenRequestMetrics(List.of());
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "performance", null, null, null, null, null, null, " , ");
+
+        assertTrue(response.interpretation().contains("[REQUEST TYPES]"), response.interpretation());
+    }
+
+    @Test
+    void nonNumericQuantileIsDroppedWithoutFailing() {
+        givenSingleBrokerCluster();
+        givenRequestMetrics(List.of(
+            MetricSample.of("kafka_network_requestmetrics_totaltimems",
+                Map.of("request", "Produce", "quantile", "+Inf"), 3.0),
+            MetricSample.of("kafka_network_requestmetrics_totaltimems",
+                Map.of("request", "Produce", "quantile", "0.99"), 9.0)));
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
+            "kafka", "my-cluster", "performance", null, null, null, null, null, null, null);
+
+        assertEquals(1, response.sampleCount());
     }
 
     @Test
@@ -522,6 +551,7 @@ class KafkaMetricsServiceTest {
         verify(metricsQueryService).queryMetrics(anyList(), anyMap(), regex.capture(), anyList(),
             isNull(), isNull(), isNull(), isNull());
         assertFalse(regex.getValue().containsKey("request"));
+        assertTrue(regex.getValue().containsKey("quantile"));
     }
 
     @Test
@@ -721,7 +751,7 @@ class KafkaMetricsServiceTest {
                 Map.of("request", "Produce", "quantile", "0.99"), 15.0),
             MetricSample.of("kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent",
                 Map.of(), 0.8));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -776,7 +806,7 @@ class KafkaMetricsServiceTest {
                 Map.of("request", "AddRaftVoter", "quantile", "0.99"), 0.0),
             MetricSample.of("kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent",
                 Map.of(), 0.8));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics(
@@ -991,7 +1021,7 @@ class KafkaMetricsServiceTest {
             .thenReturn(List.of(pod));
 
         ArgumentCaptor<List<String>> metricsCaptor = ArgumentCaptor.forClass(List.class);
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), metricsCaptor.capture(),
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), metricsCaptor.capture(),
             isNull(), isNull(), isNull(), isNull()))
             .thenReturn(List.of());
 

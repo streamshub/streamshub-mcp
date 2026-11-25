@@ -271,7 +271,8 @@ io.streamshub.mcp.strimzi.
   `mcp.metrics.max-samples` is a per-metric limit (`PerMetricSampleLimit`), enforced by every provider and again
   by `MetricsQueryService`. Filter on label values with the `labelRegexMatchers` overload (PromQL `=~`; pod
   scraping applies the same full-match semantics) so the filter runs before the limit, not on a truncated result.
-  A regex matcher drops series that lack the label, so query metrics without that label separately.
+  A series that lacks the label is compared as `""`, so a regex without an empty alternative drops it; end the
+  regex with `|` (for example `Produce|FetchConsumer|`) to keep metrics without that label in the same query.
 - **Metrics aggregation** uses `AggregatedTimeSeries.fromSamples(samples, level)` to group and average
   metric samples by `AggregationLevel` (PARTITION → TOPIC → BROKER → CLUSTER). `MetricLabelFilter.labelsForAggregation()`
   strips labels at each level. Each `*MetricCategories` class defines `finestLevel()` per category so the
