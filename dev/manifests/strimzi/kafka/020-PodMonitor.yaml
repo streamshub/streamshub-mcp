@@ -34,7 +34,7 @@ spec:
         operator: In
         # KafkaConnect is scraped by kafka-connect/040-PodMonitor.yaml; selecting it here as well
         # scrapes the Connect pods twice and doubles every summed Connect metric.
-        values: ["Kafka", "KafkaMirrorMaker", "KafkaMirrorMaker2"]
+        values: ["Kafka", "KafkaMirrorMaker2"]
   namespaceSelector:
     matchNames:
       - strimzi-kafka

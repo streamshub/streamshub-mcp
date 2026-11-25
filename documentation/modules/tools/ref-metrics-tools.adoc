@@ -25,7 +25,7 @@ Returns samples with an interpretation guide for thresholds and diagnostics.
 
 * `clusterName` (required) -- Name of the Kafka cluster
 * `namespace` (optional) -- Kubernetes namespace
-* `category` (optional) -- Metric category: "replication", "throughput", "performance", "resources", "kraft", "partitions"
+* `category` (optional) -- Metric category: "replication", "throughput", "performance", "resources", "kraft", "partitions", "storage"
 * `metricNames` (optional) -- Comma-separated list of explicit metric names
 * `rangeMinutes` (optional) -- Range duration in minutes
 * `startTime` (optional) -- Absolute start time (ISO 8601 format)

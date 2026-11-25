@@ -139,9 +139,8 @@ public final class StrimziToolsPrompts {
      */
     public static final String METRICS_CATEGORY_DESC =
         "Metric category: 'replication', 'performance',"
-            + " 'resources', 'throughput', 'kraft', or 'partitions'."
-            + " Defaults to 'replication' if omitted."
-            + " 'partitions' returns per-partition samples and is not aggregated by default.";
+            + " 'resources', 'throughput', 'kraft', 'partitions', or 'storage'."
+            + " Defaults to 'replication' if omitted.";
 
     /**
      * Operator metrics category parameter description.
