@@ -27,8 +27,10 @@ public final class MetricTruncation {
             where = "";
         }
         return "Results truncated " + where + "(mcp.metrics.max-samples): data is incomplete."
-            + " Narrow the query (fewer categories or metricNames; for Prometheus range queries also"
-            + " a shorter rangeMinutes or a larger stepSeconds) or raise the limit.";
+            + " Each metric has its own limit, so dropping other metrics does not help. Narrow the"
+            + " truncated metric instead: filter it (for example with requestTypes for performance"
+            + " metrics), use a shorter rangeMinutes or a larger stepSeconds for range queries,"
+            + " or raise the limit.";
     }
 
     /**

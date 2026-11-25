@@ -8,6 +8,7 @@ import io.streamshub.mcp.common.dto.metrics.MetricSample;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -61,7 +62,7 @@ public final class PerMetricSampleLimit {
      * @return the truncated metric names in the order they first hit the limit
      */
     public Set<String> truncatedMetrics() {
-        return Set.copyOf(truncated);
+        return Collections.unmodifiableSet(new LinkedHashSet<>(truncated));
     }
 
     /**

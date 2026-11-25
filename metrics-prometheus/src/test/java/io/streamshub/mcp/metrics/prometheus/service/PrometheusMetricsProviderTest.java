@@ -296,6 +296,76 @@ class PrometheusMetricsProviderTest {
             result.stream().map(MetricSample::name).toList());
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void rangeQueryCapsEachGaugeSeparatelyAcrossSeries() throws Exception {
+        injectMockClient();
+        org.mockito.Mockito.when(prometheusClientInstance.isUnsatisfied()).thenReturn(false);
+        org.mockito.Mockito.when(prometheusClientInstance.get()).thenReturn(prometheusClient);
+        PrometheusResponse response = new PrometheusResponse("success",
+            new PrometheusData("matrix", List.of(
+                new PrometheusResult(Map.of("__name__", "large_gauge", "pod", "pod-0"), null,
+                    List.of(List.of(1719792000.0, "1"), List.of(1719792060.0, "2"))),
+                new PrometheusResult(Map.of("__name__", "large_gauge", "pod", "pod-1"), null,
+                    List.of(List.of(1719792000.0, "3"), List.of(1719792060.0, "4"))),
+                new PrometheusResult(Map.of("__name__", "small_gauge", "pod", "pod-0"), null,
+                    List.of(List.of(1719792000.0, "5"))))));
+        org.mockito.Mockito.when(prometheusClient.rangeQuery(org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString())).thenReturn(response);
+
+        MetricsQueryParams params = MetricsQueryParams.range(List.of("large_gauge", "small_gauge"),
+            null, null, java.time.Instant.ofEpochSecond(1719791000L),
+            java.time.Instant.ofEpochSecond(1719792060L), 60, 3);
+
+        List<MetricSample> result = provider.queryMetrics(params);
+
+        assertEquals(List.of(1.0, 2.0, 3.0, 5.0), result.stream().map(MetricSample::value).toList());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void unparseableValuesDoNotUseTheSampleLimit() throws Exception {
+        injectMockClient();
+        org.mockito.Mockito.when(prometheusClientInstance.isUnsatisfied()).thenReturn(false);
+        org.mockito.Mockito.when(prometheusClientInstance.get()).thenReturn(prometheusClient);
+        PrometheusResponse response = new PrometheusResponse("success",
+            new PrometheusData("vector", List.of(
+                new PrometheusResult(Map.of("__name__", "test_gauge", "pod", "pod-0"),
+                    List.of(1719792000.0, "+Inf"), null),
+                new PrometheusResult(Map.of("__name__", "test_gauge", "pod", "pod-1"),
+                    List.of(1719792000.0, "1"), null),
+                new PrometheusResult(Map.of("__name__", "test_gauge", "pod", "pod-2"),
+                    List.of(1719792000.0, "2"), null))));
+        org.mockito.Mockito.when(prometheusClient.instantQuery(org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.isNull())).thenReturn(response);
+
+        List<MetricSample> result = provider.queryMetrics(
+            MetricsQueryParams.instant(List.of("test_gauge"), null, null, 2));
+
+        assertEquals(List.of(1.0, 2.0), result.stream().map(MetricSample::value).toList());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void counterQueryCapsSamplesPerMetric() throws Exception {
+        injectMockClient();
+        org.mockito.Mockito.when(prometheusClientInstance.isUnsatisfied()).thenReturn(false);
+        org.mockito.Mockito.when(prometheusClientInstance.get()).thenReturn(prometheusClient);
+        PrometheusResponse response = new PrometheusResponse("success",
+            new PrometheusData("vector", List.of(
+                new PrometheusResult(Map.of("pod", "pod-0"), List.of(1719792000.0, "1"), null),
+                new PrometheusResult(Map.of("pod", "pod-1"), List.of(1719792000.0, "2"), null),
+                new PrometheusResult(Map.of("pod", "pod-2"), List.of(1719792000.0, "3"), null))));
+        org.mockito.Mockito.when(prometheusClient.instantQuery(org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.isNull())).thenReturn(response);
+
+        List<MetricSample> result = provider.queryMetrics(
+            MetricsQueryParams.instant(List.of("test_requests_total"), null, null, 2));
+
+        assertEquals(List.of(1.0, 2.0), result.stream().map(MetricSample::value).toList());
+    }
+
     @SuppressWarnings("unchecked")
     private void injectMockClient() throws Exception {
         Field field = PrometheusMetricsProvider.class.getDeclaredField("prometheusClientInstance");

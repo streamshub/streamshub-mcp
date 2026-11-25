@@ -45,6 +45,16 @@ class PerMetricSampleLimitTest {
     }
 
     @Test
+    void truncatedMetricsKeepTheOrderTheyHitTheLimitAndAllowNull() {
+        PerMetricSampleLimit limit = new PerMetricSampleLimit(1);
+        for (String name : new String[] {"z", null, "a", "z", "a", null}) {
+            limit.tryAccept(name);
+        }
+
+        assertEquals(java.util.Arrays.asList("z", "a", null), new ArrayList<>(limit.truncatedMetrics()));
+    }
+
+    @Test
     void tryAcceptIsUnlimitedWhenLimitIsZero() {
         PerMetricSampleLimit limit = new PerMetricSampleLimit(0);
         for (int i = 0; i < 100; i++) {
