@@ -582,6 +582,23 @@ class KafkaMetricsServiceTest {
     }
 
     @Test
+    void partlyUnavailableMetricsOnSmrAreNamedOnceInAReadableNote() {
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster"))
+            .thenReturn(createKafkaWithSmr("my-cluster", "kafka"));
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(createPod("my-cluster-kafka-0", "kafka")));
+        String unmapped = "kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent";
+
+        KafkaMetricsResponse response = kafkaMetricsService.getKafkaMetrics("kafka", "my-cluster", null,
+            unmapped + ",kafka_server_replicamanager_underreplicatedpartitions", null, null, null, null, null, null);
+
+        String note = response.interpretation();
+        assertTrue(note.startsWith("**[UNAVAILABLE]** " + unmapped + " is not exposed"), note);
+        assertFalse(note.contains("(not exposed by the Strimzi Metrics Reporter)"), note);
+    }
+
+    @Test
     void performanceCategoryKeepsSmrSpelledMedian() {
         givenSingleBrokerCluster();
         givenRequestMetrics(List.of(

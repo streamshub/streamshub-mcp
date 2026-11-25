@@ -182,9 +182,8 @@ public class KafkaMetricsService {
             samples = filterZeroValues(samples);
         }
 
-        String interpretation = withNote(withNote(KafkaMetricCategories.interpretation(effectiveCategories),
-            defaultRequestTypesNote(performance, requestTypes)),
-            unavailable.isEmpty() ? "" : "\n\n**[UNAVAILABLE]** " + unavailableMessage(unavailable, name));
+        String interpretation = withNote(KafkaMetricCategories.interpretation(effectiveCategories),
+            defaultRequestTypesNote(performance, requestTypes));
 
         // Healthy partitions are dropped from the partitions category — see the method javadoc.
         if (effectiveCategories.contains(KafkaMetricCategories.PARTITIONS)) {
@@ -197,6 +196,9 @@ public class KafkaMetricsService {
         interpretation = MetricNameResolver.alignInterpretation(
             interpretation, backend, KafkaMetricCategories.aliasMap(),
             samples.stream().map(MetricSample::name).toList());
+        // Added after the rewrite, which would otherwise annotate the unavailable names in the note too.
+        interpretation = withNote(interpretation,
+            unavailable.isEmpty() ? "" : "\n\n**[UNAVAILABLE]** " + unavailableMessage(unavailable, name));
 
         AggregationLevel level = resolveAggregation(cat, metricNames, aggregation);
         return KafkaMetricsResponse.of(name, resolvedNs,

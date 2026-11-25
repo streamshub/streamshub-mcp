@@ -41,8 +41,10 @@ public final class MetricNameResolver {
     private static final Logger LOG = Logger.getLogger(MetricNameResolver.class);
 
     private static final String RATE_NOTE = "\n\n**[COUNTERS]** Names ending in _rate_per_second are"
-        + " per-second rates of the counter, averaged over max(5m, 4 x stepSeconds): where the guide says"
-        + " \"cumulative\", read the value as events (or bytes) per second. 0 means no increase in that window.";
+        + " per-second rates of the counter, averaged over max(5m, 2 x stepSeconds): where the guide says"
+        + " \"counter\", \"total\" or \"cumulative\", read the value as events (or bytes) per second."
+        + " An instant value is the average over the last 5 minutes, so short spikes are flattened."
+        + " 0 means no increase in that window.";
     private static final String TOTAL_NOTE = "\n\n**[COUNTERS]** Names ending in _total are running totals"
         + " since the process started, not rates: compare two calls to see whether they increase.";
 

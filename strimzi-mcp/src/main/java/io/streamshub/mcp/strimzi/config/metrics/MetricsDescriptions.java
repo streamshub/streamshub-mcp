@@ -40,7 +40,7 @@ final class MetricsDescriptions {
             + "High sum/count ratio = long GC pauses. Rapidly increasing count = GC thrashing. "
             + "**THRESHOLDS**: <5% of CPU time = healthy, 5-10% = monitor, >10% = investigate heap sizing. "
             + "Only concerning if it correlates with " + correlationContext + ".\n\n"
-            + "process_cpu_seconds_total: Cumulative CPU time. Rate of change = CPU utilization.\n\n"
+            + "process_cpu_seconds_total: Counter of CPU seconds used; its per-second rate is the CPU utilization in cores.\n\n"
             + "process_open_fds: Number of open file descriptors allocated by the JVM process. "
             + "Sudden or steady growth indicates an FD leak (e.g. unclosed sockets or files).\n\n"
             + "**[LOW - THREAD HEALTH]**\n\n"
@@ -96,8 +96,8 @@ final class MetricsDescriptions {
      */
     static String goProcessDescription() {
         return "**[MEDIUM - PROCESS HEALTH]**\n\n"
-            + "process_cpu_seconds_total: Cumulative CPU time consumed by the exporter process. "
-            + "Rate of change = CPU utilization. Sustained high values = the exporter itself is busy scraping "
+            + "process_cpu_seconds_total: Counter of CPU seconds used by the exporter process; its per-second "
+            + "rate is the CPU utilization in cores. A sustained high rate = the exporter itself is busy scraping "
             + "many topics.\n\n"
             + "process_resident_memory_bytes: Resident set size (RSS) — physical memory in use. "
             + "Compare against the pod memory limit (see get_kafka_cluster_pods) to assess "

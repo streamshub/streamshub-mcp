@@ -51,7 +51,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
     /** Shortest counter rate window: wide enough to hold several scrapes at common intervals. */
     private static final int MIN_RATE_WINDOW_SECONDS = 300;
     /** A range query's rate window spans this many steps, so every step sees several samples. */
-    private static final int RATE_WINDOW_STEPS = 4;
+    private static final int RATE_WINDOW_STEPS = 2;
 
     @Override
     public List<MetricSample> queryMetrics(final MetricsQueryParams params) {
@@ -101,7 +101,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
     }
 
     /**
-     * Returns the counter rate window: {@code max(5m, 4 x step)}. A window of one step (as range
+     * Returns the counter rate window: {@code max(5m, 2 x step)}. A window of one step (as range
      * queries used) or {@code irate} (as instant queries used) only sees the last one or two scrapes,
      * so a counter that increases every few minutes, such as operator reconciliations, reads 0
      * almost everywhere.

@@ -381,15 +381,34 @@ class PrometheusMetricsProviderTest {
     }
 
     @Test
-    void rateWindowIsAtLeastFiveMinutesAndFourSteps() {
+    void rateWindowIsAtLeastFiveMinutesAndTwoSteps() {
         java.time.Instant end = java.time.Instant.parse("2026-01-01T01:00:00Z");
         java.time.Instant start = end.minusSeconds(1800);
         assertEquals(300, PrometheusMetricsProvider.rateWindowSeconds(
             MetricsQueryParams.instant(List.of("c_total"), null, null, 0)));
-        assertEquals(300, PrometheusMetricsProvider.rateWindowSeconds(
-            MetricsQueryParams.range(List.of("c_total"), null, null, start, end, 60, 0)));
-        assertEquals(1200, PrometheusMetricsProvider.rateWindowSeconds(
-            MetricsQueryParams.range(List.of("c_total"), null, null, start, end, 300, 0)));
+        assertEquals(List.of(300, 300, 600, 7200), List.of(1, 60, 300, 3600).stream()
+            .map(step -> PrometheusMetricsProvider.rateWindowSeconds(
+                MetricsQueryParams.range(List.of("c_total"), null, null, start, end, step, 0)))
+            .toList());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void counterRangeQueryUsesRateOverTheWidenedWindow() throws Exception {
+        injectMockClient();
+        org.mockito.Mockito.when(prometheusClientInstance.isUnsatisfied()).thenReturn(false);
+        org.mockito.Mockito.when(prometheusClientInstance.get()).thenReturn(prometheusClient);
+        org.mockito.Mockito.when(prometheusClient.rangeQuery(org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+            org.mockito.ArgumentMatchers.anyString()))
+            .thenReturn(new PrometheusResponse("success", new PrometheusData("matrix", List.of())));
+        java.time.Instant end = java.time.Instant.ofEpochSecond(1719792000L);
+
+        provider.queryMetrics(MetricsQueryParams.range(List.of("c_total"), Map.of("namespace", "kafka"), null,
+            end.minusSeconds(3600), end, 300, 0));
+
+        org.mockito.Mockito.verify(prometheusClient).rangeQuery("rate(c_total{namespace=\"kafka\"}[600s])",
+            "1719788400", "1719792000", "300s");
     }
 
     @Test

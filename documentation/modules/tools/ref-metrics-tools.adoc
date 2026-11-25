@@ -19,7 +19,8 @@ The Kafka Connect, Kafka Bridge and Strimzi operator metrics tools always aggreg
 [NOTE]
 ====
 Counters (names ending in `_total`) depend on the metrics provider.
-The Prometheus provider returns them as per-second rates named `<name>_rate_per_second`, computed with `rate()` over `max(5m, 4 × stepSeconds)`, so counters that increase only every few minutes, such as operator reconciliations, still show a non-zero rate.
+The Prometheus provider returns them as per-second rates named `<name>_rate_per_second`, computed with `rate()` over `max(5m, 2 × stepSeconds)`, so counters that increase only every few minutes, such as operator reconciliations, still show a non-zero rate.
+An instant query therefore returns the average rate over the last 5 minutes: short spikes are flattened, so the value can differ from a Grafana panel that uses `irate()`.
 The pod-scraping provider returns the running total since the process started.
 The interpretation text says which of the two a response contains.
 ====

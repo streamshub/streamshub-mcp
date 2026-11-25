@@ -105,16 +105,16 @@ public final class KafkaConnectMetricCategories {
                 + "kafka_connect_connector_task_status: Task state (0=unassigned, 1=running, 2=paused, 3=failed).",
         SOURCE,
             "**[HIGH - SOURCE CONNECTOR METRICS]**\n\n"
-                + "kafka_connect_source_task_source_record_poll_total: Total records polled from the source system. "
-                + "Rate of change = source throughput.\n\n"
+                + "kafka_connect_source_task_source_record_poll_total: Counter of records polled from the source system; "
+                + "its per-second rate is the source throughput.\n\n"
                 + "kafka_connect_source_task_source_record_write_total: Total records written to Kafka. "
                 + "Should closely track kafka_connect_source_task_source_record_poll_total. A growing gap indicates write failures.\n\n"
                 + "kafka_connect_source_task_poll_batch_avg_time_ms: Average time per poll batch. "
                 + "**THRESHOLDS**: <100ms = healthy, 100-1000ms = monitor source system, >1000ms = investigate.",
         SINK,
             "**[HIGH - SINK CONNECTOR METRICS]**\n\n"
-                + "kafka_connect_sink_task_sink_record_read_total: Total records read from Kafka. "
-                + "Rate of change = consumption throughput.\n\n"
+                + "kafka_connect_sink_task_sink_record_read_total: Counter of records read from Kafka; "
+                + "its per-second rate is the consumption throughput.\n\n"
                 + "kafka_connect_sink_task_sink_record_send_total: Total records sent to the sink system. "
                 + "Should closely track kafka_connect_sink_task_sink_record_read_total. A growing gap indicates write failures.\n\n"
                 + "kafka_connect_sink_task_put_batch_avg_time_ms: Average time per put batch to the sink. "

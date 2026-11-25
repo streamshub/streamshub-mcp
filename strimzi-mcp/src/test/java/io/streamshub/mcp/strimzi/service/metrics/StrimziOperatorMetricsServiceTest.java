@@ -426,6 +426,39 @@ class StrimziOperatorMetricsServiceTest {
         assertEquals(Boolean.TRUE, response.truncated());
     }
 
+    @Test
+    void sharedNamespaceQuerySaysWhenNoEntityOperatorSampleCameBack() {
+        Pod coPod = createPod("strimzi-cluster-operator-abc123", "kafka");
+        Pod eoPod = createPod("my-cluster-entity-operator-xyz", "kafka");
+        when(strimziOperatorService.findClusterOperatorPods("kafka", null)).thenReturn(List.of(coPod));
+        when(strimziOperatorService.findEntityOperatorPods("kafka", "my-cluster")).thenReturn(List.of(eoPod));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), any(), any(), any(), any()))
+            .thenReturn(List.of(MetricSample.of("jvm_threads_live_threads",
+                Map.of("pod", "strimzi-cluster-operator-abc123"), 40.0)));
+
+        StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
+            "kafka", null, "my-cluster", "jvm", null, null, null, null, null, null);
+
+        assertTrue(response.message().contains("No entity operator metrics were returned"), response.message());
+    }
+
+    @Test
+    void sharedNamespaceQueryCountsEntityOperatorSamplesByPod() {
+        Pod coPod = createPod("strimzi-cluster-operator-abc123", "kafka");
+        Pod eoPod = createPod("my-cluster-entity-operator-xyz", "kafka");
+        when(strimziOperatorService.findClusterOperatorPods("kafka", null)).thenReturn(List.of(coPod));
+        when(strimziOperatorService.findEntityOperatorPods("kafka", "my-cluster")).thenReturn(List.of(eoPod));
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), any(), any(), any(), any()))
+            .thenReturn(List.of(
+                MetricSample.of("jvm_threads_live_threads", Map.of("pod", "strimzi-cluster-operator-abc123"), 40.0),
+                MetricSample.of("jvm_threads_live_threads", Map.of("pod", "my-cluster-entity-operator-xyz"), 30.0)));
+
+        StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
+            "kafka", null, "my-cluster", "jvm", null, null, null, null, null, null);
+
+        assertFalse(response.message().contains("No entity operator metrics"), response.message());
+    }
+
     private Pod createPod(final String name, final String namespace) {
         Pod pod = new Pod();
         ObjectMeta meta = new ObjectMeta();

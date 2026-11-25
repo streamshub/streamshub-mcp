@@ -223,13 +223,13 @@ public final class KafkaMetricCategories {
                 + "**[MEDIUM - KRAFT THROUGHPUT & CHANNEL METRICS]**\n\n"
                 + "kafka_server_raftmetrics_append_records_rate: Rate of metadata record appends per second.\n\n"
                 + "kafka_server_raftmetrics_fetch_records_rate: Rate of metadata fetch requests per second.\n\n"
-                + "kafka_server_raftchannelmetrics_incoming_byte_total: Cumulative incoming bytes on the Raft channel. "
+                + "kafka_server_raftchannelmetrics_incoming_byte_total: Counter of incoming bytes on the Raft channel. "
                 + "Under Prometheus, rate-converted to bytes/sec (rate per second).\n\n"
-                + "kafka_server_raftchannelmetrics_outgoing_byte_total: Cumulative outgoing bytes on the Raft channel. "
+                + "kafka_server_raftchannelmetrics_outgoing_byte_total: Counter of outgoing bytes on the Raft channel. "
                 + "Under Prometheus, rate-converted to bytes/sec (rate per second).\n\n"
-                + "kafka_server_raftchannelmetrics_request_total: Cumulative Raft requests sent/received. "
+                + "kafka_server_raftchannelmetrics_request_total: Counter of Raft requests sent/received. "
                 + "Under Prometheus, rate-converted to requests/sec (rate per second).\n\n"
-                + "kafka_server_raftchannelmetrics_response_total: Cumulative Raft responses sent/received. "
+                + "kafka_server_raftchannelmetrics_response_total: Counter of Raft responses sent/received. "
                 + "Under Prometheus, rate-converted to responses/sec (rate per second).",
         PARTITIONS,
             "**[CRITICAL - PRODUCER AVAILABILITY]**\n\n"
