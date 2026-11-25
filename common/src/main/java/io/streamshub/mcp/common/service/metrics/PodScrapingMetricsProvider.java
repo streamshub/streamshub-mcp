@@ -139,15 +139,28 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
     }
 
     /**
-     * Adds the scraped pod's identity, as Prometheus adds it at scrape time. A pod's own exposition
-     * carries no {@code pod} label, so without this every pod's series share one label set and
-     * {@code aggregation=BROKER} cannot tell them apart. Labels the pod exposes itself take precedence.
+     * Adds the scraped pod's identity the way Prometheus does at scrape time with the default
+     * {@code honorLabels: false}. A pod's own exposition carries no {@code pod} label, so without this
+     * every pod's series share one label set and {@code aggregation=BROKER} cannot tell them apart.
+     *
+     * <p>The target's {@code namespace} and {@code pod} always win. A label of the same name that the pod
+     * exposes itself is kept as {@code exported_namespace} or {@code exported_pod}, so both providers
+     * return the same labels. The Strimzi operators, for example, label their resource metrics with the
+     * namespace of the reconciled resource. An empty exposed value counts as absent, as in Prometheus:
+     * an operator watching all namespaces emits {@code namespace=""}.</p>
      */
-    private static Map<String, String> withTargetLabels(final Map<String, String> labels, final PodTarget target) {
+    static Map<String, String> withTargetLabels(final Map<String, String> labels, final PodTarget target) {
         Map<String, String> result = labels != null ? new LinkedHashMap<>(labels) : new LinkedHashMap<>();
-        result.putIfAbsent("namespace", target.namespace());
-        result.putIfAbsent("pod", target.podName());
+        putTargetLabel(result, "namespace", target.namespace());
+        putTargetLabel(result, "pod", target.podName());
         return result;
+    }
+
+    private static void putTargetLabel(final Map<String, String> labels, final String name, final String value) {
+        String exposed = labels.put(name, value);
+        if (exposed != null && !exposed.isEmpty() && !exposed.equals(value)) {
+            labels.put("exported_" + name, exposed);
+        }
     }
 
     private static Map<String, Pattern> compile(final Map<String, String> regexMatchers) {
