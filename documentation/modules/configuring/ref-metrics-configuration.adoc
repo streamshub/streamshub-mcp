@@ -22,6 +22,10 @@ Choose how the server collects metrics from your Kafka cluster.
 
 The default provider scrapes metrics directly from Kafka pods.
 This requires the `pods/proxy` RBAC permission.
+Each sample is labelled with the `pod` and `namespace` it was scraped from, as Prometheus does at scrape time, so `aggregation: BROKER` shows one series per pod with either provider.
+As in Prometheus with the default `honorLabels: false`, a non-empty `pod` or `namespace` label that the pod exposes itself is kept as `exported_pod` or `exported_namespace`.
+The Strimzi operators, for example, label their resource metrics with the namespace of the reconciled resources.
+The provider returns current values only: counters are running totals, and a range query returns the current values instead of a time series.
 
 For centralized metrics with long-term retention, see xref:proc-configuring-prometheus-integration-{context}[Configuring Prometheus integration].
 

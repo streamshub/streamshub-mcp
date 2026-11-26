@@ -21,6 +21,7 @@ import org.jboss.logging.Logger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -98,12 +99,12 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
                     LOG.debugf("Scraped %d sample(s) from pod %s/%s",
                         samples.size(), target.namespace(), target.podName());
                     for (MetricSample sample : samples) {
-                        if (!matches(sample, target, regexMatchers) || !limit.tryAccept(sample.name())) {
+                        Map<String, String> labels = withTargetLabels(sample.labels(), target);
+                        if (!matches(labels, regexMatchers) || !limit.tryAccept(sample.name())) {
                             continue;
                         }
                         allSamples.add(MetricSample.of(sample.name(),
-                            MetricLabelFilter.filterLabels(sample.labels()),
-                            sample.value(), sample.timestamp()));
+                            MetricLabelFilter.filterLabels(labels), sample.value(), sample.timestamp()));
                     }
                 } else {
                     LOG.debugf("Empty metrics response from pod %s/%s",
@@ -137,6 +138,31 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
         return allSamples;
     }
 
+    /**
+     * Adds the scraped pod's identity the way Prometheus does at scrape time with the default
+     * {@code honorLabels: false}. A pod's own exposition carries no {@code pod} label, so without this
+     * every pod's series share one label set and {@code aggregation=BROKER} cannot tell them apart.
+     *
+     * <p>The target's {@code namespace} and {@code pod} always win. A label of the same name that the pod
+     * exposes itself is kept as {@code exported_namespace} or {@code exported_pod}, so both providers
+     * return the same labels. The Strimzi operators, for example, label their resource metrics with the
+     * namespace of the reconciled resource. An empty exposed value counts as absent, as in Prometheus:
+     * an operator watching all namespaces emits {@code namespace=""}.</p>
+     */
+    static Map<String, String> withTargetLabels(final Map<String, String> labels, final PodTarget target) {
+        Map<String, String> result = labels != null ? new LinkedHashMap<>(labels) : new LinkedHashMap<>();
+        putTargetLabel(result, "namespace", target.namespace());
+        putTargetLabel(result, "pod", target.podName());
+        return result;
+    }
+
+    private static void putTargetLabel(final Map<String, String> labels, final String name, final String value) {
+        String exposed = labels.put(name, value);
+        if (exposed != null && !exposed.isEmpty() && !exposed.equals(value)) {
+            labels.put("exported_" + name, exposed);
+        }
+    }
+
     private static Map<String, Pattern> compile(final Map<String, String> regexMatchers) {
         if (regexMatchers == null || regexMatchers.isEmpty()) {
             return Map.of();
@@ -148,19 +174,11 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
 
     /**
      * Applies regex label matchers with PromQL {@code =~} semantics: the whole value must match,
-     * and an absent label counts as the empty string. A pod's own exposition has no {@code pod} or
-     * {@code namespace} label, which Prometheus adds at scrape time, so those two fall back to the
-     * scraped target's identity.
+     * and an absent label counts as the empty string.
      */
-    private static boolean matches(final MetricSample sample, final PodTarget target,
-                                   final Map<String, Pattern> regexMatchers) {
+    private static boolean matches(final Map<String, String> labels, final Map<String, Pattern> regexMatchers) {
         for (Map.Entry<String, Pattern> matcher : regexMatchers.entrySet()) {
-            String value = sample.labels() != null ? sample.labels().get(matcher.getKey()) : null;
-            if (value == null && "pod".equals(matcher.getKey())) {
-                value = target.podName();
-            } else if (value == null && "namespace".equals(matcher.getKey())) {
-                value = target.namespace();
-            }
+            String value = labels.get(matcher.getKey());
             if (!matcher.getValue().matcher(value != null ? value : "").matches()) {
                 return false;
             }

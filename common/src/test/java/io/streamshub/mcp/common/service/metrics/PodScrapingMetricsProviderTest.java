@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -173,6 +174,25 @@ class PodScrapingMetricsProviderTest {
 
         assertEquals(1, samples.size());
         assertEquals(1.0, samples.getFirst().value());
+    }
+
+    @Test
+    void testTargetPodAndNamespaceWinAndExposedValuesAreKeptAsExportedLabels() {
+        when(client.raw("/api/v1/namespaces/kafka/pods/p-9:9404/proxy/metrics")).thenReturn(BODY_ONE
+            + "strimzi_resources{namespace=\"apps\"} 3\n"
+            + "strimzi_resources{namespace=\"\"} 4\n");
+
+        List<MetricSample> samples = provider.queryMetrics(instant(null, List.of(
+            PodTarget.of(NS, "p-9", 9404, "/metrics")), 0));
+
+        // As Prometheus with honorLabels: false: the target's labels win, a conflicting exposed value
+        // is renamed to exported_*, and an empty exposed value counts as absent.
+        assertEquals(List.of("p-9", "p-9", "p-9", "p-9"), samples.stream().map(s -> s.labels().get("pod")).toList());
+        assertTrue(samples.stream().allMatch(s -> NS.equals(s.labels().get("namespace"))));
+        assertEquals("p-0", samples.get(0).labels().get("exported_pod"));
+        assertFalse(samples.get(1).labels().containsKey("exported_pod"));
+        assertEquals("apps", samples.get(2).labels().get("exported_namespace"));
+        assertFalse(samples.get(3).labels().containsKey("exported_namespace"));
     }
 
     @Test
