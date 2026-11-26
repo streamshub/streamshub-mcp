@@ -98,7 +98,7 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
                     LOG.debugf("Scraped %d sample(s) from pod %s/%s",
                         samples.size(), target.namespace(), target.podName());
                     for (MetricSample sample : samples) {
-                        if (!matches(sample, regexMatchers) || !limit.tryAccept(sample.name())) {
+                        if (!matches(sample, target, regexMatchers) || !limit.tryAccept(sample.name())) {
                             continue;
                         }
                         allSamples.add(MetricSample.of(sample.name(),
@@ -148,11 +148,19 @@ public class PodScrapingMetricsProvider implements MetricsProvider {
 
     /**
      * Applies regex label matchers with PromQL {@code =~} semantics: the whole value must match,
-     * and an absent label counts as the empty string.
+     * and an absent label counts as the empty string. A pod's own exposition has no {@code pod} or
+     * {@code namespace} label, which Prometheus adds at scrape time, so those two fall back to the
+     * scraped target's identity.
      */
-    private static boolean matches(final MetricSample sample, final Map<String, Pattern> regexMatchers) {
+    private static boolean matches(final MetricSample sample, final PodTarget target,
+                                   final Map<String, Pattern> regexMatchers) {
         for (Map.Entry<String, Pattern> matcher : regexMatchers.entrySet()) {
             String value = sample.labels() != null ? sample.labels().get(matcher.getKey()) : null;
+            if (value == null && "pod".equals(matcher.getKey())) {
+                value = target.podName();
+            } else if (value == null && "namespace".equals(matcher.getKey())) {
+                value = target.namespace();
+            }
             if (!matcher.getValue().matcher(value != null ? value : "").matches()) {
                 return false;
             }

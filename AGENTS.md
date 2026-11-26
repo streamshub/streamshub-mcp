@@ -273,6 +273,8 @@ io.streamshub.mcp.strimzi.
   scraping applies the same full-match semantics) so the filter runs before the limit, not on a truncated result.
   A series that lacks the label is compared as `""`, so a regex without an empty alternative drops it; end the
   regex with `|` (for example `Produce|FetchConsumer|`) to keep metrics without that label in the same query.
+  Scope a component's query with `ComponentScope.matchers(label, value)` (`label=~"value|"`), since components of
+  one cluster share names such as `jvm_*`; the empty alternative keeps series from setups without the `strimzi_io_*` relabeling.
 - **Metrics aggregation** uses `AggregatedTimeSeries.fromSamples(samples, level)` to group and average
   metric samples by `AggregationLevel` (PARTITION → TOPIC → BROKER → CLUSTER). `MetricLabelFilter.labelsForAggregation()`
   strips labels at each level. Each `*MetricCategories` class defines `finestLevel()` per category so the

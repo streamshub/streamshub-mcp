@@ -134,8 +134,10 @@ public class KafkaBridgeMetricsService {
         labelMatchers.put("namespace", resolvedNs);
         labelMatchers.put("strimzi_io_cluster", name);
 
-        List<MetricSample> samples = metricsQueryService.queryMetrics(
-            podTargets, labelMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
+        List<MetricSample> samples = metricsQueryService.queryMetrics(podTargets, labelMatchers,
+            // Other components of the cluster share metric names (jvm_*, process_*); keep only this one.
+            ComponentScope.matchers("strimzi_io_component_type", StrimziConstants.ComponentTypes.KAFKA_BRIDGE),
+            resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
         boolean truncated = metricsQueryService.reachedSampleLimit(samples);
 
         List<String> effectiveCategories = new ArrayList<>(categories);

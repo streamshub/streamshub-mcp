@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -65,7 +66,7 @@ class StrimziOperatorMetricsServiceTest {
         setField(strimziOperatorMetricsService, "strimziOperatorService", strimziOperatorService);
 
         when(metricsQueryService.providerName()).thenReturn("pod-scraping");
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), any(), any(), any(), any()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), any(), any(), any(), any()))
             .thenReturn(List.of());
     }
 
@@ -123,7 +124,7 @@ class StrimziOperatorMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("strimzi_reconciliations_successful_total",
                 Map.of("namespace", "kafka-system"), 42.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
@@ -193,13 +194,49 @@ class StrimziOperatorMetricsServiceTest {
         Pod pod = createPod("strimzi-cluster-operator-abc123", "kafka-system");
         when(strimziOperatorService.findClusterOperatorPods("kafka-system", null))
             .thenReturn(List.of(pod));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), eq(30), isNull(), isNull(), eq(10)))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), eq(30), isNull(), isNull(), eq(10)))
             .thenReturn(List.of());
 
         StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(
             "kafka-system", null, null, "reconciliation", null, 30, null, null, 10, null);
 
         assertNotNull(response);
+    }
+
+    @Test
+    void podMatcherUsesTheDeploymentNamingPatternSoReplacedPodsStillMatch() {
+        Pod coPod = createPod("strimzi-cluster-operator-7f9c8d6b5-x2k4j", "strimzi");
+        coPod.getMetadata().setOwnerReferences(List.of(new io.fabric8.kubernetes.api.model.OwnerReferenceBuilder()
+            .withKind("ReplicaSet").withName("strimzi-cluster-operator-7f9c8d6b5").build()));
+        Pod standalone = createPod("operator.v1", "strimzi");
+
+        Map<String, String> matcher = StrimziOperatorMetricsService.podMatcher(List.of(coPod, standalone));
+
+        String regex = matcher.get("pod");
+        assertEquals("strimzi-cluster-operator-[a-z0-9]+-[a-z0-9]+|strimzi-cluster-operator-7f9c8d6b5-x2k4j"
+            + "|operator\\.v1", regex);
+        assertTrue("strimzi-cluster-operator-55d4b7c9f-abcde".matches(regex));
+        assertTrue("operator.v1".matches(regex));
+        assertFalse("operatorXv1".matches(regex));
+        assertFalse("my-cluster-kafka-0".matches(regex));
+        assertTrue(StrimziOperatorMetricsService.podMatcher(List.of()).isEmpty());
+    }
+
+    /**
+     * Kubernetes cuts generateName to 58 characters, so with a long cluster name the dash between the
+     * ReplicaSet hash and the random suffix is lost and the pod does not fit the Deployment pattern.
+     */
+    @Test
+    void podMatcherMatchesAPodWhoseNameLostTheDashBeforeItsSuffix() {
+        String replicaSet = "a-very-long-cluster-name-of-31-ch-entity-operator-6d8f9b7c4d";
+        String podName = replicaSet.substring(0, 58) + "x2k4j";
+        Pod eoPod = createPod(podName, "kafka");
+        eoPod.getMetadata().setOwnerReferences(List.of(new io.fabric8.kubernetes.api.model.OwnerReferenceBuilder()
+            .withKind("ReplicaSet").withName(replicaSet).build()));
+
+        String regex = StrimziOperatorMetricsService.podMatcher(List.of(eoPod)).get("pod");
+
+        assertTrue(podName.matches(regex), regex);
     }
 
     // Entity operator tests
@@ -224,8 +261,9 @@ class StrimziOperatorMetricsServiceTest {
         // Different namespaces → 2 separate queries (CO + EO)
         ArgumentCaptor<List<PodTarget>> targetsCaptor = ArgumentCaptor.forClass(List.class);
         ArgumentCaptor<Map<String, String>> matchersCaptor = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<Map<String, String>> regexCaptor = ArgumentCaptor.forClass(Map.class);
         verify(metricsQueryService, times(2)).queryMetrics(targetsCaptor.capture(),
-            matchersCaptor.capture(), anyList(), any(), any(), any(), any());
+            matchersCaptor.capture(), regexCaptor.capture(), anyList(), any(), any(), any(), any());
 
         // First call: CO targets with CO namespace
         List<PodTarget> coTargets = targetsCaptor.getAllValues().get(0);
@@ -240,7 +278,8 @@ class StrimziOperatorMetricsServiceTest {
         assertEquals(StrimziConstants.EntityOperator.USER_OPERATOR_PORT, eoTargets.get(0).port());
         assertEquals(StrimziConstants.EntityOperator.TOPIC_OPERATOR_PORT, eoTargets.get(1).port());
         assertEquals("kafka-prod", matchersCaptor.getAllValues().get(1).get("namespace"));
-        assertEquals("my-cluster-entity-operator-xyz", matchersCaptor.getAllValues().get(1).get("pod"));
+        assertEquals("strimzi-cluster-operator-abc", regexCaptor.getAllValues().get(0).get("pod"));
+        assertEquals("my-cluster-entity-operator-xyz", regexCaptor.getAllValues().get(1).get("pod"));
     }
 
     @Test
@@ -279,7 +318,7 @@ class StrimziOperatorMetricsServiceTest {
         // Different namespaces → 2 separate queries
         ArgumentCaptor<Map<String, String>> matchersCaptor = ArgumentCaptor.forClass(Map.class);
         verify(metricsQueryService, times(2)).queryMetrics(anyList(),
-            matchersCaptor.capture(), anyList(), any(), any(), any(), any());
+            matchersCaptor.capture(), anyMap(), anyList(), any(), any(), any(), any());
         assertEquals("strimzi-system", matchersCaptor.getAllValues().get(0).get("namespace"));
         assertEquals("kafka-prod", matchersCaptor.getAllValues().get(1).get("namespace"));
     }
@@ -297,7 +336,7 @@ class StrimziOperatorMetricsServiceTest {
             "kafka-system", null, "my-cluster", null, null, null, null, null, null, null);
 
         ArgumentCaptor<Map<String, String>> matchersCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(metricsQueryService).queryMetrics(anyList(), matchersCaptor.capture(), anyList(),
+        verify(metricsQueryService).queryMetrics(anyList(), matchersCaptor.capture(), anyMap(), anyList(),
             any(), any(), any(), any());
         Map<String, String> matchers = matchersCaptor.getValue();
         assertEquals("kafka-system", matchers.get("namespace"));
@@ -321,7 +360,7 @@ class StrimziOperatorMetricsServiceTest {
         assertEquals("kafka-prod", response.namespace());
 
         ArgumentCaptor<Map<String, String>> matchersCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(metricsQueryService).queryMetrics(anyList(), matchersCaptor.capture(), anyList(),
+        verify(metricsQueryService).queryMetrics(anyList(), matchersCaptor.capture(), anyMap(), anyList(),
             any(), any(), any(), any());
         Map<String, String> matchers = matchersCaptor.getValue();
         assertEquals("kafka-prod", matchers.get("namespace"));
@@ -361,7 +400,7 @@ class StrimziOperatorMetricsServiceTest {
         // Limit 3: each query returns 2 samples (under the limit), the concatenation has 4.
         when(metricsQueryService.reachedSampleLimit(anyList()))
             .thenAnswer(invocation -> ((List<?>) invocation.getArgument(0)).size() >= 3);
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), any(), any(), any(), any()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), any(), any(), any(), any()))
             .thenReturn(List.of(
                 MetricSample.of("strimzi_resources", Map.of("pod", "a"), 1.0),
                 MetricSample.of("strimzi_resources", Map.of("pod", "b"), 2.0)));
@@ -378,7 +417,7 @@ class StrimziOperatorMetricsServiceTest {
         when(strimziOperatorService.findClusterOperatorPods("kafka-system", null)).thenReturn(List.of(pod));
         when(metricsQueryService.reachedSampleLimit(anyList())).thenReturn(true);
         when(metricsQueryService.maxSamples()).thenReturn(3);
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), any(), any(), any(), any()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), any(), any(), any(), any()))
             .thenReturn(List.of(MetricSample.of("strimzi_resources", Map.of("pod", "a"), 1.0)));
 
         StrimziOperatorMetricsResponse response = strimziOperatorMetricsService.getOperatorMetrics(

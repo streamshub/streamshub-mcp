@@ -23,8 +23,11 @@ import org.jboss.logging.Logger;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -216,7 +219,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
         List<MetricSample> samples = new ArrayList<>();
         PerMetricSampleLimit limit = new PerMetricSampleLimit(maxSamples);
 
-        for (PrometheusResponse.PrometheusResult result : response.data().result()) {
+        for (PrometheusResponse.PrometheusResult result : withoutDuplicateScrapes(response.data().result())) {
             Map<String, String> labels = result.metric();
             String metricName = fixedName;
             if (metricName == null) {
@@ -239,6 +242,75 @@ public class PrometheusMetricsProvider implements MetricsProvider {
                 maxSamples, limit.truncatedMetrics());
         }
         return samples;
+    }
+
+    /**
+     * Drops samples that are the same target scraped more than once, for example by a PodMonitor
+     * and a second PodMonitor or ServiceMonitor selecting the same pod. Such copies differ only in
+     * scrape-config labels ({@code job}, {@code service}, {@code instance}, {@code endpoint}), which
+     * are stripped later, so left in they would be counted as separate sources and summed.
+     *
+     * <p>Duplicates are dropped per sample, keyed by the series identity and the timestamp. A query
+     * evaluates every series at the same timestamps, so a duplicate scrape collides on each of
+     * them, while a pod that restarted (same name, new IP, so a different {@code instance}) has a
+     * second series at later timestamps and keeps both halves of its window.</p>
+     *
+     * <p>{@code instance} and {@code endpoint} are ignored only when the series carries both a
+     * {@code pod} and a {@code container} label: without {@code pod}, {@code instance} is what tells
+     * two pods apart, and without {@code container} it tells two containers of one pod apart (for
+     * example the Topic and User Operators in the entity-operator pod).</p>
+     *
+     * @param results the series of one query response
+     * @return the series with duplicate samples removed, in their original order; a series left
+     *         with no samples is dropped
+     */
+    static List<PrometheusResponse.PrometheusResult> withoutDuplicateScrapes(
+            final List<PrometheusResponse.PrometheusResult> results) {
+        Set<List<Object>> seen = new HashSet<>();
+        List<PrometheusResponse.PrometheusResult> unique = new ArrayList<>(results.size());
+        int dropped = 0;
+        for (PrometheusResponse.PrometheusResult result : results) {
+            Map<String, String> identity = scrapeIdentity(result.metric());
+            if (result.values() != null) {
+                List<List<Object>> values = new ArrayList<>(result.values().size());
+                for (List<Object> value : result.values()) {
+                    if (seen.add(List.of(identity, timestampOf(value)))) {
+                        values.add(value);
+                    }
+                }
+                dropped += result.values().size() - values.size();
+                if (!values.isEmpty()) {
+                    unique.add(values.size() == result.values().size() ? result
+                        : new PrometheusResponse.PrometheusResult(result.metric(), result.value(), values));
+                }
+            } else if (result.value() == null || seen.add(List.of(identity, timestampOf(result.value())))) {
+                unique.add(result);
+            } else {
+                dropped++;
+            }
+        }
+        if (dropped > 0) {
+            LOG.debugf("Dropped %d duplicate scrape samples", dropped);
+        }
+        return unique;
+    }
+
+    private static Object timestampOf(final List<Object> value) {
+        return value.isEmpty() || value.get(0) == null ? "" : String.valueOf(value.get(0));
+    }
+
+    private static Map<String, String> scrapeIdentity(final Map<String, String> labels) {
+        if (labels == null) {
+            return Map.of();
+        }
+        Map<String, String> identity = new HashMap<>(labels);
+        identity.remove("job");
+        identity.remove("service");
+        if (labels.containsKey("pod") && labels.containsKey("container")) {
+            identity.remove("instance");
+            identity.remove("endpoint");
+        }
+        return identity;
     }
 
     private void validateResponse(final PrometheusResponse response) {

@@ -19,6 +19,7 @@ import io.strimzi.api.kafka.model.connect.KafkaConnect;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -37,6 +38,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 /**
  * Unit tests for {@link KafkaConnectMetricsService}.
@@ -67,7 +69,7 @@ class KafkaConnectMetricsServiceTest {
         setField(kafkaConnectMetricsService, "kafkaConnectService", kafkaConnectService);
 
         when(metricsQueryService.providerName()).thenReturn("pod-scraping");
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), any(), any(), any(), any()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), any(), any(), any(), any()))
             .thenReturn(List.of());
     }
 
@@ -131,7 +133,7 @@ class KafkaConnectMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_connect_worker_connector_count",
                 Map.of("namespace", "kafka"), 2.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
 
         KafkaConnectMetricsResponse response = kafkaConnectMetricsService.getKafkaConnectMetrics(
@@ -142,6 +144,12 @@ class KafkaConnectMetricsServiceTest {
         assertEquals("kafka", response.namespace());
         assertEquals(1, response.sampleCount());
         assertEquals(1, response.metricCount());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> regex = ArgumentCaptor.forClass(Map.class);
+        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), regex.capture(), anyList(),
+            isNull(), isNull(), isNull(), isNull());
+        assertEquals(Map.of("strimzi_io_kind", "KafkaConnect|"), regex.getValue());
     }
 
     @Test
@@ -157,7 +165,7 @@ class KafkaConnectMetricsServiceTest {
         List<MetricSample> samples = List.of(
             MetricSample.of("kafka_connect_worker_connector_count",
                 Map.of("namespace", "kafka"), 2.0));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), isNull(), isNull(), isNull(), isNull()))
             .thenReturn(samples);
         when(metricsQueryService.reachedSampleLimit(samples)).thenReturn(true);
         when(metricsQueryService.maxSamples()).thenReturn(1);
@@ -236,7 +244,7 @@ class KafkaConnectMetricsServiceTest {
             .thenReturn(connect);
         when(k8sService.queryResourcesByLabels(eq(Pod.class), eq("kafka"), anyMap()))
             .thenReturn(List.of(connectPod));
-        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15)))
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), eq(60), isNull(), isNull(), eq(15)))
             .thenReturn(List.of());
 
         KafkaConnectMetricsResponse response = kafkaConnectMetricsService.getKafkaConnectMetrics(

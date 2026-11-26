@@ -139,8 +139,10 @@ public class KafkaExporterMetricsService {
         labelMatchers.put("strimzi_io_cluster", name);
 
         // Query metrics via general service
-        List<MetricSample> samples = metricsQueryService.queryMetrics(
-            podTargets, labelMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
+        List<MetricSample> samples = metricsQueryService.queryMetrics(podTargets, labelMatchers,
+            // Other components of the cluster share metric names (jvm_*, process_*); keep only this one.
+            ComponentScope.matchers("strimzi_io_component_type", StrimziConstants.ComponentTypes.KAFKA_EXPORTER),
+            resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
         boolean truncated = metricsQueryService.reachedSampleLimit(samples);
 
         // Build interpretation from effective categories

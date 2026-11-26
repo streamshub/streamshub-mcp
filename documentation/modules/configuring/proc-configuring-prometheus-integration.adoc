@@ -40,6 +40,20 @@ kubectl apply -k dev/manifests/prometheus/
 kubectl get prometheus -A
 ----
 
+== Required series labels
+
+The MCP server selects series by the labels a Strimzi PodMonitor adds, as in the Strimzi example `PodMonitor` resources:
+
+* `namespace` and `pod` -- added by the Prometheus Operator to every series scraped through a `PodMonitor`.
+  Operator metrics are matched by the operator pod names.
+* `strimzi_io_cluster` -- copied from the Strimzi pod labels by a `labelmap` relabeling of `+__meta_kubernetes_pod_label_(strimzi_io_.+)+`.
+* `strimzi_io_kind` and `strimzi_io_component_type` -- copied by the same relabeling.
+  They are needed for exact scoping: the metrics tools use them to keep the brokers, Kafka Exporter, Cruise Control, Kafka Connect and Kafka Bridge apart, since these components share metric names such as `jvm_*` and `process_*`.
+  A series without them is still returned, so a setup without the relabeling gets data, but a shared metric name can then include series of other components of the same cluster.
+
+A pod scraped by more than one `PodMonitor` or `ServiceMonitor` produces duplicate series that differ only in `job`, `service`, `instance` or `endpoint`.
+The MCP server keeps one sample per timestamp, so a duplicate scrape is not counted twice, and a pod that restarts with a new IP address keeps both parts of its range.
+
 == Configure the MCP server
 
 To enable Prometheus:
