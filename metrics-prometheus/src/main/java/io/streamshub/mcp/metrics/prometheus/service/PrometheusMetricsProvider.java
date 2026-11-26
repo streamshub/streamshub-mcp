@@ -12,6 +12,7 @@ import io.streamshub.mcp.common.service.metrics.MetricsQueryException;
 import io.streamshub.mcp.common.util.ExceptionUtils;
 import io.streamshub.mcp.common.util.metrics.MetricLabelFilter;
 import io.streamshub.mcp.common.util.metrics.MetricNameSuffixes;
+import io.streamshub.mcp.common.util.metrics.PerMetricSampleLimit;
 import io.streamshub.mcp.metrics.prometheus.dto.PrometheusResponse;
 import io.streamshub.mcp.metrics.prometheus.util.PromQLSanitizer;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -65,7 +66,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             String promql = buildPromQL(gaugeMetrics, params.labelMatchers());
             LOG.debugf("Executing PromQL query (gauges): %s", promql);
             PrometheusResponse response = executeQuery(client, promql, params);
-            allSamples.addAll(convertResponse(response, params.maxSamples()));
+            allSamples.addAll(convertResponse(response, params.maxSamples(), null));
         }
 
         if (!counterMetrics.isEmpty()) {
@@ -90,7 +91,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             LOG.debugf("Executing PromQL query (counter rate): %s", promql);
 
             PrometheusResponse response = executeQuery(client, promql, params);
-            result.addAll(convertResponseWithName(response, params.maxSamples(),
+            result.addAll(convertResponse(response, params.maxSamples(),
                 MetricNameSuffixes.toRate(metric)));
         }
         return result;
@@ -198,43 +199,21 @@ public class PrometheusMetricsProvider implements MetricsProvider {
         }
     }
 
-    private List<MetricSample> convertResponseWithName(final PrometheusResponse response,
-                                                       final int maxSamples,
-                                                       final String metricName) {
-        validateResponse(response);
-
-        if (response.data().result() == null || response.data().result().isEmpty()) {
-            return List.of();
-        }
-
-        List<MetricSample> samples = new ArrayList<>();
-        boolean limitEnabled = maxSamples > 0;
-
-        for (PrometheusResponse.PrometheusResult result : response.data().result()) {
-            if (limitEnabled && samples.size() >= maxSamples) {
-                LOG.warnf("Prometheus query exceeded max-samples limit (%d), truncating results", maxSamples);
-                break;
-            }
-
-            Map<String, String> labels = result.metric();
-
-            if (result.values() != null) {
-                for (List<Object> valueEntry : result.values()) {
-                    if (limitEnabled && samples.size() >= maxSamples) {
-                        break;
-                    }
-                    addSample(samples, metricName, labels, valueEntry);
-                }
-            } else if (result.value() != null) {
-                addSample(samples, metricName, labels, result.value());
-            }
-        }
-
-        return samples;
-    }
-
+    /**
+     * Converts a query result, keeping at most {@code maxSamples} samples of each metric name.
+     *
+     * <p>One gauge query covers several metrics, so each name is capped separately: the first,
+     * largest one cannot crowd out the rest. A value that cannot be parsed (for example
+     * {@code +Inf}) does not count against the limit.</p>
+     *
+     * @param response   the Prometheus response
+     * @param maxSamples the per-metric sample limit, or 0 or less for no limit
+     * @param fixedName  the name to give every sample, or null to use each series' {@code __name__}
+     * @return the converted samples
+     */
     private List<MetricSample> convertResponse(final PrometheusResponse response,
-                                                final int maxSamples) {
+                                                final int maxSamples,
+                                                final String fixedName) {
         validateResponse(response);
 
         if (response.data().result() == null || response.data().result().isEmpty()) {
@@ -242,31 +221,30 @@ public class PrometheusMetricsProvider implements MetricsProvider {
         }
 
         List<MetricSample> samples = new ArrayList<>();
-        boolean limitEnabled = maxSamples > 0;
+        PerMetricSampleLimit limit = new PerMetricSampleLimit(maxSamples);
 
         for (PrometheusResponse.PrometheusResult result : response.data().result()) {
-            if (limitEnabled && samples.size() >= maxSamples) {
-                LOG.warnf("Prometheus query exceeded max-samples limit (%d), truncating results", maxSamples);
-                break;
-            }
-
             Map<String, String> labels = result.metric();
-            String metricName = labels != null ? labels.getOrDefault("__name__", "") : "";
+            String metricName = fixedName;
+            if (metricName == null) {
+                metricName = labels != null ? labels.getOrDefault("__name__", "") : "";
+            }
 
             if (result.values() != null) {
                 // Range query result (matrix)
                 for (List<Object> valueEntry : result.values()) {
-                    if (limitEnabled && samples.size() >= maxSamples) {
-                        break;
-                    }
-                    addSample(samples, metricName, labels, valueEntry);
+                    addSample(samples, limit, metricName, labels, valueEntry);
                 }
             } else if (result.value() != null) {
                 // Instant query result (vector)
-                addSample(samples, metricName, labels, result.value());
+                addSample(samples, limit, metricName, labels, result.value());
             }
         }
 
+        if (!limit.truncatedMetrics().isEmpty()) {
+            LOG.warnf("Prometheus query reached the per-metric max-samples limit (%d) for: %s",
+                maxSamples, limit.truncatedMetrics());
+        }
         return samples;
     }
 
@@ -281,20 +259,25 @@ public class PrometheusMetricsProvider implements MetricsProvider {
         }
     }
 
-    private void addSample(final List<MetricSample> samples, final String metricName,
-                            final Map<String, String> labels, final List<Object> valueEntry) {
+    private void addSample(final List<MetricSample> samples, final PerMetricSampleLimit limit,
+                            final String metricName, final Map<String, String> labels,
+                            final List<Object> valueEntry) {
         if (valueEntry.size() < 2) {
             return;
         }
 
+        MetricSample sample;
         try {
             double timestamp = ((Number) valueEntry.get(0)).doubleValue();
             double value = Double.parseDouble(String.valueOf(valueEntry.get(1)));
             Instant instant = Instant.ofEpochSecond((long) timestamp);
-            samples.add(MetricSample.of(metricName, MetricLabelFilter.filterLabels(labels),
-                value, instant));
+            sample = MetricSample.of(metricName, MetricLabelFilter.filterLabels(labels), value, instant);
         } catch (Exception e) {
             LOG.debugf("Failed to parse Prometheus value entry: %s", e.getMessage());
+            return;
+        }
+        if (limit.tryAccept(metricName)) {
+            samples.add(sample);
         }
     }
 }

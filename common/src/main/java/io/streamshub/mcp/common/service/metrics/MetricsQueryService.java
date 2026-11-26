@@ -9,6 +9,7 @@ import io.streamshub.mcp.common.dto.metrics.MetricsQueryParams;
 import io.streamshub.mcp.common.dto.metrics.PodTarget;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
+import io.streamshub.mcp.common.util.metrics.PerMetricSampleLimit;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -17,7 +18,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -66,24 +66,24 @@ public class MetricsQueryService {
     }
 
     /**
-     * Returns the configured maximum number of samples a query may return.
+     * Returns the configured maximum number of samples a query may return for each metric name.
      *
-     * @return the sample limit, or 0 or less when unlimited
+     * @return the per-metric sample limit, or 0 or less when unlimited
      */
     public int maxSamples() {
         return maxSamples;
     }
 
     /**
-     * Reports whether a query result was cut at the sample limit. Providers stop collecting at
-     * the limit, so a result that holds exactly {@code maxSamples} samples is treated as
-     * truncated: the backend may have had more.
+     * Reports whether any metric in a query result was cut at the per-metric sample limit.
+     * Providers stop collecting a metric at the limit, so a metric that holds exactly
+     * {@code maxSamples} samples is treated as truncated: the backend may have had more.
      *
      * @param samples the raw samples returned by {@link #queryMetrics}, before any filtering
-     * @return true when the result reached the configured sample limit
+     * @return true when at least one metric reached the configured sample limit
      */
     public boolean reachedSampleLimit(final List<MetricSample> samples) {
-        return maxSamples > 0 && samples.size() >= maxSamples;
+        return PerMetricSampleLimit.reachedLimit(samples, maxSamples);
     }
 
     /**
@@ -132,13 +132,13 @@ public class MetricsQueryService {
 
         List<MetricSample> samples = metricsProviderInstance.get().queryMetrics(params);
 
-        if (maxSamples > 0 && samples.size() > maxSamples) {
-            LOG.warnf("Metrics query returned %d samples, truncating to %d (mcp.metrics.max-samples)",
-                samples.size(), maxSamples);
-            return new ArrayList<>(samples.subList(0, maxSamples));
+        // Providers already cap each metric; this guards providers that do not.
+        List<MetricSample> capped = PerMetricSampleLimit.apply(samples, maxSamples);
+        if (capped.size() < samples.size()) {
+            LOG.warnf("Metrics query returned %d samples, kept %d after the per-metric limit of %d"
+                + " (mcp.metrics.max-samples)", samples.size(), capped.size(), maxSamples);
         }
-
-        return samples;
+        return capped;
     }
 
     private void requireProvider() {

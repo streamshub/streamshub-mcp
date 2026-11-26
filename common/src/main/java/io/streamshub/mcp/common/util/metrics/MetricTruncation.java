@@ -5,7 +5,8 @@
 package io.streamshub.mcp.common.util.metrics;
 
 /**
- * Shared wording for metrics responses that were cut at {@code mcp.metrics.max-samples}.
+ * Shared wording for metrics responses in which at least one metric was cut at the per-metric
+ * {@code mcp.metrics.max-samples} limit.
  */
 public final class MetricTruncation {
 
@@ -21,13 +22,15 @@ public final class MetricTruncation {
     public static String note(final int limit) {
         String where;
         if (limit > 0) {
-            where = String.format("at %d samples ", limit);
+            where = String.format("at %d samples per metric ", limit);
         } else {
             where = "";
         }
         return "Results truncated " + where + "(mcp.metrics.max-samples): data is incomplete."
-            + " Narrow the query (fewer categories or metricNames; for Prometheus range queries also"
-            + " a shorter rangeMinutes or a larger stepSeconds) or raise the limit.";
+            + " Each metric has its own limit, so dropping other metrics does not help. Narrow the"
+            + " truncated metric instead: filter it (for example with requestTypes for performance"
+            + " metrics), use a shorter rangeMinutes or a larger stepSeconds for range queries,"
+            + " or raise the limit.";
     }
 
     /**

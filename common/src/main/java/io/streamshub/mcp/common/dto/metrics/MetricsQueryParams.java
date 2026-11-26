@@ -18,7 +18,7 @@ import java.util.Map;
  * @param startTime     range query start time (null for instant queries)
  * @param endTime       range query end time (null for instant queries)
  * @param stepSeconds   range query step interval in seconds
- * @param maxSamples    maximum number of samples to collect (0 or negative for unlimited)
+ * @param maxSamples    maximum number of samples to collect for each metric name (0 or negative for unlimited)
  */
 public record MetricsQueryParams(
     List<String> metricNames,
@@ -36,7 +36,7 @@ public record MetricsQueryParams(
      * @param metricNames   the metric names to retrieve
      * @param labelMatchers label matchers for Prometheus filtering
      * @param podTargets    pod endpoints to scrape
-     * @param maxSamples    maximum number of samples to collect
+     * @param maxSamples    maximum number of samples to collect for each metric name
      * @return instant query parameters
      */
     public static MetricsQueryParams instant(final List<String> metricNames,
@@ -56,7 +56,7 @@ public record MetricsQueryParams(
      * @param startTime     the range start time
      * @param endTime       the range end time
      * @param stepSeconds   the step interval in seconds
-     * @param maxSamples    maximum number of samples to collect
+     * @param maxSamples    maximum number of samples to collect for each metric name
      * @return range query parameters
      */
     public static MetricsQueryParams range(final List<String> metricNames,
