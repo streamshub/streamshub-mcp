@@ -25,13 +25,13 @@ Returns samples with an interpretation guide for thresholds and diagnostics.
 
 * `clusterName` (required) -- Name of the Kafka cluster
 * `namespace` (optional) -- Kubernetes namespace
-* `category` (optional) -- Metric category: "replication", "throughput", "performance", "resources", "kraft", "partitions"
+* `category` (optional) -- Metric category: "replication", "throughput", "performance", "resources", "kraft", "partitions", "storage"
 * `metricNames` (optional) -- Comma-separated list of explicit metric names
 * `rangeMinutes` (optional) -- Range duration in minutes
 * `startTime` (optional) -- Absolute start time (ISO 8601 format)
 * `endTime` (optional) -- Absolute end time (ISO 8601 format)
 * `stepSeconds` (optional) -- Range query step in seconds
-* `aggregation` (optional) -- Aggregation level (schema enum): `PARTITION` (full detail), `TOPIC` (across partitions), `BROKER` (across topics and partitions), or `CLUSTER` (single value across all dimensions). Values are combined with the metric's own function, the mean unless the note at the top of this page says otherwise. An explicit value is clamped to the finest level the requested category supports. When omitted the default is `CLUSTER`, except for the "partitions" category, which defaults to `PARTITION` -- its metrics are per-partition 0/1 gauges that lose their meaning when averaged.
+* `aggregation` (optional) -- Aggregation level (schema enum): `PARTITION` (full detail), `TOPIC` (across partitions), `BROKER` (across topics and partitions), or `CLUSTER` (single value across all dimensions). Values are combined with the metric's own function, the mean unless the note at the top of this page says otherwise. An explicit value is clamped to the finest level the requested category supports. When omitted the default is `CLUSTER`, except for the "partitions" and "storage" categories, which default to `PARTITION` -- their metrics are per-partition values (0/1 health gauges, log sizes) that lose their meaning when averaged.
 * `requestTypes` (optional) -- Comma-separated list of Kafka request types to include (for example, "Produce,Fetch,FindCoordinator"). Filters performance metrics that have a "request" label. Omit to include all request types.
 
 *Returns:* Aggregated metrics with summary statistics (min, max, avg, latest), interpretation guide, and diagnostic thresholds
@@ -58,7 +58,7 @@ The `resources` category returns Go process metrics (`process_cpu_seconds_total`
 * `startTime` (optional) -- Absolute start time (ISO 8601 format)
 * `endTime` (optional) -- Absolute end time (ISO 8601 format)
 * `stepSeconds` (optional) -- Range query step in seconds
-* `aggregation` (optional) -- Aggregation level (schema enum): `PARTITION` (full detail), `TOPIC` (across partitions), `BROKER` (across topics and partitions), or `CLUSTER` (single value across all dimensions). Values are combined with the metric's own function, the mean unless the note at the top of this page says otherwise. An explicit value is clamped to the finest level the requested category supports. When omitted the default is `CLUSTER`, except for the "partitions" category, which defaults to `PARTITION` -- its metrics are per-partition 0/1 gauges that lose their meaning when averaged.
+* `aggregation` (optional) -- Aggregation level (schema enum): `PARTITION` (full detail), `TOPIC` (across partitions), `BROKER` (across topics and partitions), or `CLUSTER` (single value across all dimensions). Values are combined with the metric's own function, the mean unless the note at the top of this page says otherwise. An explicit value is clamped to the finest level the requested category supports. When omitted the default is `CLUSTER`, except for the "consumer_lag" and "partitions" categories, which default to `PARTITION` -- their metrics are per-partition values that lose their meaning when averaged.
 
 *Returns:* Aggregated Kafka Exporter metrics with summary statistics and interpretation guide
 
@@ -133,7 +133,7 @@ The `jvm` category uses Micrometer JVM metric names (`jvm_gc_pause_seconds_count
 * `startTime` (optional) -- Absolute start time (ISO 8601 format)
 * `endTime` (optional) -- Absolute end time (ISO 8601 format)
 * `stepSeconds` (optional) -- Range query step in seconds
-* `aggregation` (optional) -- Aggregation level (schema enum): `PARTITION` (full detail), `TOPIC` (across partitions), `BROKER` (across topics and partitions), or `CLUSTER` (single value across all dimensions). Values are combined with the metric's own function, the mean unless the note at the top of this page says otherwise. An explicit value is clamped to the finest level the requested category supports. When omitted the default is `CLUSTER`, except for the "partitions" category, which defaults to `PARTITION` -- its metrics are per-partition 0/1 gauges that lose their meaning when averaged.
+* `aggregation` (optional) -- Aggregation level (schema enum): `PARTITION` (full detail), `TOPIC` (across partitions), `BROKER` (across topics and partitions), or `CLUSTER` (single value across all dimensions). Values are combined with the metric's own function, the mean unless the note at the top of this page says otherwise. An explicit value is clamped to the finest level the requested category supports. When omitted the default is `CLUSTER`.
 
 *Returns:* Aggregated operator metrics with summary statistics and interpretation guide
 

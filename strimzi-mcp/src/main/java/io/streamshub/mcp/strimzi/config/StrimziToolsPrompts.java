@@ -139,9 +139,8 @@ public final class StrimziToolsPrompts {
      */
     public static final String METRICS_CATEGORY_DESC =
         "Metric category: 'replication', 'performance',"
-            + " 'resources', 'throughput', 'kraft', or 'partitions'."
-            + " Defaults to 'replication' if omitted."
-            + " 'partitions' returns per-partition samples and is not aggregated by default.";
+            + " 'resources', 'throughput', 'kraft', 'partitions', or 'storage'."
+            + " Defaults to 'replication' if omitted.";
 
     /**
      * Operator metrics category parameter description.
@@ -347,7 +346,10 @@ public final class StrimziToolsPrompts {
         "Aggregation level: PARTITION (full per-pod/topic/partition detail),"
             + " TOPIC (per-pod/topic, avg across partitions),"
             + " BROKER (per-pod, avg across topics+partitions),"
-            + " or CLUSTER (single avg across all dimensions, default)."
+            + " or CLUSTER (single avg across all dimensions)."
+            + " Default: CLUSTER, except categories with per-partition data, which default to PARTITION"
+            + " (get_kafka_metrics partitions and storage; get_kafka_exporter_metrics consumer_lag"
+            + " and partitions), because averaging hides the few partitions that matter."
             + " Aggregation works on topic/partition dimensions."
             + " The server automatically adjusts to the finest level supported by the"
             + " requested category (e.g., PARTITION on a broker-only category becomes BROKER)."

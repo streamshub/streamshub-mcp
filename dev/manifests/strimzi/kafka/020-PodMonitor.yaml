@@ -13,9 +13,12 @@ spec:
   namespaceSelector:
     matchNames:
       - strimzi-kafka
+  # Strimzi 1.1+ names the Topic and User Operator ports separately (healthcheck-to, healthcheck-uo).
   podMetricsEndpoints:
     - path: /metrics
-      port: healthcheck
+      port: healthcheck-to
+    - path: /metrics
+      port: healthcheck-uo
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
@@ -29,7 +32,9 @@ spec:
     matchExpressions:
       - key: "strimzi.io/kind"
         operator: In
-        values: ["Kafka", "KafkaConnect", "KafkaConnectS2I", "KafkaMirrorMaker", "KafkaMirrorMaker2"]
+        # KafkaConnect is scraped by kafka-connect/040-PodMonitor.yaml; selecting it here as well
+        # scrapes the Connect pods twice and doubles every summed Connect metric.
+        values: ["Kafka", "KafkaMirrorMaker2"]
   namespaceSelector:
     matchNames:
       - strimzi-kafka
