@@ -120,6 +120,11 @@ public class KafkaMetricsService {
             cat, metricNames, DEFAULT_CATEGORY,
             KafkaMetricCategories::resolve, KafkaMetricCategories.allCategories(),
             backend, KafkaMetricCategories.aliasMap());
+        List<String> unavailable = MetricNameResolver.unavailableNames(
+            metricNames, backend, KafkaMetricCategories.aliasMap());
+        if (resolvedMetrics.isEmpty() && !unavailable.isEmpty()) {
+            return KafkaMetricsResponse.empty(name, resolvedNs, unavailableMessage(unavailable, name));
+        }
         List<String> categories = new ArrayList<>();
         if (cat != null) {
             categories.add(cat);
@@ -131,19 +136,7 @@ public class KafkaMetricsService {
             name, resolvedNs, metricsQueryService.providerName());
 
         // Find Kafka broker pods only (excludes exporter, cruise-control, entity-operator, etc.)
-        List<Pod> pods = k8sService.queryResourcesByLabel(
-                Pod.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, name)
-            .stream()
-            .filter(pod -> {
-                Map<String, String> labels = pod.getMetadata().getLabels();
-                if (labels == null) {
-                    return false;
-                }
-                String componentType = labels.get(ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL);
-                return componentType != null
-                    && StrimziConstants.ComponentTypes.BROKER_TYPES.contains(componentType);
-            })
-            .toList();
+        List<Pod> pods = findKafkaNodePods(resolvedNs, name);
 
         LOG.debugf("Found %d scrapeable pod(s) for cluster '%s': %s",
             pods.size(), name,
@@ -203,11 +196,36 @@ public class KafkaMetricsService {
         interpretation = MetricNameResolver.alignInterpretation(
             interpretation, backend, KafkaMetricCategories.aliasMap(),
             samples.stream().map(MetricSample::name).toList());
+        // Added after the rewrite, which would otherwise annotate the unavailable names in the note too.
+        interpretation = withNote(interpretation,
+            unavailable.isEmpty() ? "" : "\n\n**[UNAVAILABLE]** " + unavailableMessage(unavailable, name));
 
         AggregationLevel level = resolveAggregation(cat, metricNames, aggregation);
         return KafkaMetricsResponse.of(name, resolvedNs,
             metricsQueryService.providerName(), effectiveCategories, samples, interpretation, level,
             truncated ? metricsQueryService.maxSamples() : null);
+    }
+
+    private List<Pod> findKafkaNodePods(final String namespace, final String clusterName) {
+        return k8sService.queryResourcesByLabel(
+                Pod.class, namespace, ResourceLabels.STRIMZI_CLUSTER_LABEL, clusterName)
+            .stream()
+            .filter(pod -> {
+                Map<String, String> labels = pod.getMetadata().getLabels();
+                if (labels == null) {
+                    return false;
+                }
+                String componentType = labels.get(ResourceLabels.STRIMZI_COMPONENT_TYPE_LABEL);
+                return componentType != null
+                    && StrimziConstants.ComponentTypes.BROKER_TYPES.contains(componentType);
+            })
+            .toList();
+    }
+
+    private static String unavailableMessage(final List<String> unavailable, final String clusterName) {
+        return String.format("%s %s not exposed by the Strimzi Metrics Reporter that cluster '%s' uses,"
+                + " so no data can be returned. Query the category instead to get the metrics it does expose.",
+            String.join(", ", unavailable), unavailable.size() == 1 ? "is" : "are", clusterName);
     }
 
     private static AggregationLevel resolveAggregation(final String category, final String metricNames,

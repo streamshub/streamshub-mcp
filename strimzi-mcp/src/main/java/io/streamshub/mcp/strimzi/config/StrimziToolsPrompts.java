@@ -203,7 +203,9 @@ public final class StrimziToolsPrompts {
      */
     public static final String STEP_SECONDS_DESC =
         "Query resolution step in seconds for range queries."
-            + " Defaults to server-configured value (typically 60).";
+            + " Defaults to server-configured value (typically 60)."
+            + " With Prometheus, counter rates are averaged over max(5 minutes, 2 x step), so a larger step"
+            + " smooths them more.";
 
     /**
      * Since minutes parameter description for events.

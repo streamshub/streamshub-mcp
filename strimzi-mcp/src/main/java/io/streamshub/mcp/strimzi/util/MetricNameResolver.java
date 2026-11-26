@@ -40,6 +40,14 @@ public final class MetricNameResolver {
 
     private static final Logger LOG = Logger.getLogger(MetricNameResolver.class);
 
+    private static final String RATE_NOTE = "\n\n**[COUNTERS]** Names ending in _rate_per_second are"
+        + " per-second rates of the counter, averaged over max(5m, 2 x stepSeconds): where the guide says"
+        + " \"counter\", \"total\" or \"cumulative\", read the value as events (or bytes) per second."
+        + " An instant value is the average over the last 5 minutes, so short spikes are flattened."
+        + " 0 means no increase in that window.";
+    private static final String TOTAL_NOTE = "\n\n**[COUNTERS]** Names ending in _total are running totals"
+        + " since the process started, not rates: compare two calls to see whether they increase.";
+
     private MetricNameResolver() {
     }
 
@@ -123,6 +131,26 @@ public final class MetricNameResolver {
         }
 
         return translateToSmr(resolved, explicitSet, backend, aliasMap);
+    }
+
+    /**
+     * Returns the explicitly requested metric names that the cluster's metrics backend does not expose
+     * ({@link #UNMAPPED} in the alias map), so a caller can say so instead of returning a bare empty result.
+     *
+     * @param metricNames comma-separated explicit metric names (may be null)
+     * @param backend     the metrics backend for the target cluster
+     * @param aliasMap    JMX name to SMR name mappings (may be null)
+     * @return the unavailable names in request order; empty when all are available
+     */
+    public static List<String> unavailableNames(final String metricNames,
+                                                final MetricsBackend backend,
+                                                final Map<String, String> aliasMap) {
+        if (backend == MetricsBackend.JMX_EXPORTER || aliasMap == null) {
+            return List.of();
+        }
+        return parseExplicitMetricNames(metricNames).stream()
+            .filter(n -> UNMAPPED.equals(aliasMap.get(n)))
+            .toList();
     }
 
     private static Set<String> parseExplicitMetricNames(final String metricNames) {
@@ -233,7 +261,28 @@ public final class MetricNameResolver {
                 }
             }
         }
-        return rewriteNames(aligned, rateNames);
+        return rewriteNames(aligned, rateNames) + counterNote(returnedNames);
+    }
+
+    /**
+     * Explains how the counters in a response read. The guide describes counters by what they count
+     * ("cumulative ..."), but the Prometheus provider returns them as per-second rates and the
+     * pod-scraping provider as running totals; without this an agent reads a rate as a total, or
+     * a flat running total as a stalled one.
+     */
+    private static String counterNote(final Collection<String> returnedNames) {
+        boolean rates = returnedNames.stream()
+            .anyMatch(n -> n != null && n.endsWith(MetricNameSuffixes.RATE_PER_SECOND));
+        boolean totals = returnedNames.stream()
+            .anyMatch(n -> n != null && n.endsWith(MetricNameSuffixes.TOTAL));
+        StringBuilder note = new StringBuilder();
+        if (rates) {
+            note.append(RATE_NOTE);
+        }
+        if (totals) {
+            note.append(TOTAL_NOTE);
+        }
+        return note.toString();
     }
 
     /**

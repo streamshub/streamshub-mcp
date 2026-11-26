@@ -48,7 +48,10 @@ public class PrometheusMetricsProvider implements MetricsProvider {
         // package-private no-arg constructor for CDI
     }
 
-    private static final String DEFAULT_RATE_WINDOW = "5m";
+    /** Shortest counter rate window: wide enough to hold several scrapes at common intervals. */
+    private static final int MIN_RATE_WINDOW_SECONDS = 300;
+    /** A range query's rate window spans this many steps, so every step sees several samples. */
+    private static final int RATE_WINDOW_STEPS = 2;
 
     @Override
     public List<MetricSample> queryMetrics(final MetricsQueryParams params) {
@@ -82,15 +85,12 @@ public class PrometheusMetricsProvider implements MetricsProvider {
     private List<MetricSample> queryCountersWithRate(final PrometheusClient client,
                                                       final List<String> counterMetrics,
                                                       final MetricsQueryParams params) {
-        String rateWindow = params.isRangeQuery()
-            ? params.stepSeconds() + "s"
-            : DEFAULT_RATE_WINDOW;
-        String rateFunc = params.isRangeQuery() ? "rate" : "irate";
+        String rateWindow = rateWindowSeconds(params) + "s";
 
         List<MetricSample> result = new ArrayList<>();
         for (String metric : counterMetrics) {
             String inner = buildPromQL(List.of(metric), params.labelMatchers(), params.labelRegexMatchers());
-            String promql = rateFunc + "(" + inner + "[" + rateWindow + "])";
+            String promql = "rate(" + inner + "[" + rateWindow + "])";
             LOG.debugf("Executing PromQL query (counter rate): %s", promql);
 
             PrometheusResponse response = executeQuery(client, promql, params);
@@ -98,6 +98,22 @@ public class PrometheusMetricsProvider implements MetricsProvider {
                 MetricNameSuffixes.toRate(metric)));
         }
         return result;
+    }
+
+    /**
+     * Returns the counter rate window: {@code max(5m, 2 x step)}. A window of one step (as range
+     * queries used) or {@code irate} (as instant queries used) only sees the last one or two scrapes,
+     * so a counter that increases every few minutes, such as operator reconciliations, reads 0
+     * almost everywhere.
+     *
+     * @param params the query parameters
+     * @return the window length in seconds
+     */
+    static int rateWindowSeconds(final MetricsQueryParams params) {
+        if (!params.isRangeQuery() || params.stepSeconds() == null) {
+            return MIN_RATE_WINDOW_SECONDS;
+        }
+        return Math.max(MIN_RATE_WINDOW_SECONDS, RATE_WINDOW_STEPS * params.stepSeconds());
     }
 
     private PrometheusResponse executeQuery(final PrometheusClient client,

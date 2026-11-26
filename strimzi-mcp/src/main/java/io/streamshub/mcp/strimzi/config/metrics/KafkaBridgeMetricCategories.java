@@ -84,8 +84,8 @@ public final class KafkaBridgeMetricCategories {
     private static final Map<String, String> DESCRIPTIONS = Map.of(
         HTTP,
             "**[HIGH - HTTP REQUEST METRICS]**\n\n"
-                + "strimzi_bridge_http_server_requests_total: Total HTTP requests handled by the bridge. "
-                + "Rate of change = throughput. Sudden drops may indicate connectivity issues.\n\n"
+                + "strimzi_bridge_http_server_requests_total: Counter of HTTP requests handled by the bridge; "
+                + "its per-second rate is the request throughput. A sudden drop in the rate may indicate connectivity issues.\n\n"
                 + "strimzi_bridge_http_server_active_connections: Current active HTTP connections. "
                 + "Sustained high values may indicate connection leaks or slow consumers.\n\n"
                 + "strimzi_bridge_http_server_active_requests: In-flight HTTP requests. "

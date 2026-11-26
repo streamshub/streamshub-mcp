@@ -42,6 +42,19 @@ class StrimziOperatorMetricsResponseTest {
     }
 
     @Test
+    void messageSaysWhenTheEntityOperatorReturnedNothing() {
+        List<MetricSample> samples = List.of(MetricSample.of("strimzi_reconciliations_total", Map.of(), 100.0));
+
+        String empty = StrimziOperatorMetricsResponse.of("cluster-operator", "my-cluster", "strimzi", "prometheus",
+            List.of("reconciliation"), samples, null, AggregationLevel.CLUSTER, null, 0).message();
+        String present = StrimziOperatorMetricsResponse.of("cluster-operator", "my-cluster", "strimzi", "prometheus",
+            List.of("reconciliation"), samples, null, AggregationLevel.CLUSTER, null, 3).message();
+
+        assertTrue(empty.contains("No entity operator metrics were returned for cluster 'my-cluster'"), empty);
+        assertTrue(present.contains("and entity operator for cluster 'my-cluster'"), present);
+    }
+
+    @Test
     void ofWithRangeDataPopulatesTimeSeries() {
         Instant now = Instant.now();
         List<MetricSample> samples = List.of(
