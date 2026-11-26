@@ -371,7 +371,8 @@ public final class StrimziToolsPrompts {
         "Comma-separated list of Kafka request types to include"
             + " (e.g., 'Produce,Fetch,FindCoordinator')."
             + " Filters performance metrics that have a 'request' label."
-            + " Omit to include all request types."
+            + " For the performance category, omitting it keeps Produce, FetchConsumer and FetchFollower;"
+            + " pass '*' to include all request types."
             + " Common types: Produce, Fetch, FetchConsumer, FetchFollower,"
             + " FindCoordinator, Metadata, JoinGroup, SyncGroup, Heartbeat.";
 

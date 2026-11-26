@@ -63,7 +63,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
         List<MetricSample> allSamples = new ArrayList<>();
 
         if (!gaugeMetrics.isEmpty()) {
-            String promql = buildPromQL(gaugeMetrics, params.labelMatchers());
+            String promql = buildPromQL(gaugeMetrics, params.labelMatchers(), params.labelRegexMatchers());
             LOG.debugf("Executing PromQL query (gauges): %s", promql);
             PrometheusResponse response = executeQuery(client, promql, params);
             allSamples.addAll(convertResponse(response, params.maxSamples(), null));
@@ -86,7 +86,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
 
         List<MetricSample> result = new ArrayList<>();
         for (String metric : counterMetrics) {
-            String inner = buildPromQL(List.of(metric), params.labelMatchers());
+            String inner = buildPromQL(List.of(metric), params.labelMatchers(), params.labelRegexMatchers());
             String promql = rateFunc + "(" + inner + "[" + rateWindow + "])";
             LOG.debugf("Executing PromQL query (counter rate): %s", promql);
 
@@ -143,6 +143,22 @@ public class PrometheusMetricsProvider implements MetricsProvider {
      * @return the PromQL query string
      */
     String buildPromQL(final List<String> metricNames, final Map<String, String> labelMatchers) {
+        return buildPromQL(metricNames, labelMatchers, Map.of());
+    }
+
+    /**
+     * Builds a PromQL query from metric names, exact label matchers and regex label matchers
+     * ({@code label=~"regex"}).
+     *
+     * @param metricNames   the metric names to query
+     * @param labelMatchers the exact label matchers to apply
+     * @param regexMatchers the regex label matchers to apply
+     * @return the PromQL query string
+     */
+    String buildPromQL(final List<String> metricNames, final Map<String, String> labelMatchers,
+                       final Map<String, String> regexMatchers) {
+        Map<String, String> exact = labelMatchers != null ? labelMatchers : Map.of();
+        Map<String, String> regex = regexMatchers != null ? regexMatchers : Map.of();
         StringBuilder query = new StringBuilder();
 
         if (metricNames == null || metricNames.isEmpty()) {
@@ -150,53 +166,30 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             return query.toString();
         }
 
+        List<String> matchers = new ArrayList<>();
+        exact.forEach((label, value) -> matchers.add(matcher(label, "=", value)));
+        regex.forEach((label, value) -> matchers.add(matcher(label, "=~", value)));
+
         if (metricNames.size() == 1) {
             query.append(PromQLSanitizer.sanitizeMetricName(metricNames.get(0)));
-            appendLabelMatchers(query, labelMatchers);
+            if (!matchers.isEmpty()) {
+                query.append("{").append(String.join(",", matchers)).append("}");
+            }
         } else {
             String nameRegex = metricNames.stream()
                 .map(PromQLSanitizer::sanitizeMetricName)
                 .collect(Collectors.joining("|"));
             query.append("{__name__=~\"").append(nameRegex).append("\"");
-            if (labelMatchers != null && !labelMatchers.isEmpty()) {
-                appendLabelMatchersInline(query, labelMatchers);
-            }
+            matchers.forEach(m -> query.append(",").append(m));
             query.append("}");
         }
 
         return query.toString();
     }
 
-    private void appendLabelMatchers(final StringBuilder query,
-                                      final Map<String, String> labelMatchers) {
-        if (labelMatchers == null || labelMatchers.isEmpty()) {
-            return;
-        }
-
-        query.append("{");
-        boolean first = true;
-        for (Map.Entry<String, String> entry : labelMatchers.entrySet()) {
-            if (!first) {
-                query.append(",");
-            }
-            query.append(PromQLSanitizer.sanitizeLabelName(entry.getKey()));
-            query.append("=\"");
-            query.append(PromQLSanitizer.sanitizeLabelValue(entry.getValue()));
-            query.append("\"");
-            first = false;
-        }
-        query.append("}");
-    }
-
-    private void appendLabelMatchersInline(final StringBuilder query,
-                                            final Map<String, String> labelMatchers) {
-        for (Map.Entry<String, String> entry : labelMatchers.entrySet()) {
-            query.append(",");
-            query.append(PromQLSanitizer.sanitizeLabelName(entry.getKey()));
-            query.append("=\"");
-            query.append(PromQLSanitizer.sanitizeLabelValue(entry.getValue()));
-            query.append("\"");
-        }
+    private static String matcher(final String label, final String operator, final String value) {
+        return PromQLSanitizer.sanitizeLabelName(label) + operator + "\""
+            + PromQLSanitizer.sanitizeLabelValue(value) + "\"";
     }
 
     /**

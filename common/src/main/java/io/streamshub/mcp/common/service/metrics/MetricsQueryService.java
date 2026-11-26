@@ -114,6 +114,35 @@ public class MetricsQueryService {
                                             final String startTime,
                                             final String endTime,
                                             final Integer stepSeconds) {
+        return queryMetrics(podTargets, labelMatchers, Map.of(), metricNames,
+            rangeMinutes, startTime, endTime, stepSeconds);
+    }
+
+    /**
+     * Queries metrics using the configured provider, keeping only samples whose labels match the
+     * given regular expressions. The filter runs in the backend where possible (PromQL {@code =~}),
+     * so it narrows the result before the per-metric sample limit applies.
+     *
+     * @param podTargets         pod endpoints to scrape (used by pod-scraping provider)
+     * @param labelMatchers      label key-value pairs for Prometheus query filtering
+     * @param labelRegexMatchers label name to regular expression; a sample is kept only when the
+     *                           label's value (empty when absent) fully matches
+     * @param metricNames        the metric names to retrieve
+     * @param rangeMinutes       range query duration in minutes (null for instant query)
+     * @param startTime          absolute start time in ISO 8601 format (null for relative or instant query)
+     * @param endTime            absolute end time in ISO 8601 format (null for relative or instant query)
+     * @param stepSeconds        range query step interval in seconds (null for default)
+     * @return a list of metric samples matching the query
+     */
+    @SuppressWarnings("checkstyle:ParameterNumber")
+    public List<MetricSample> queryMetrics(final List<PodTarget> podTargets,
+                                            final Map<String, String> labelMatchers,
+                                            final Map<String, String> labelRegexMatchers,
+                                            final List<String> metricNames,
+                                            final Integer rangeMinutes,
+                                            final String startTime,
+                                            final String endTime,
+                                            final Integer stepSeconds) {
         requireProvider();
 
         // An empty (but non-null) name list means "nothing resolved" — e.g. every name was
@@ -125,7 +154,7 @@ public class MetricsQueryService {
         }
 
         MetricsQueryParams params = buildParams(podTargets, labelMatchers, metricNames,
-            rangeMinutes, startTime, endTime, stepSeconds);
+            rangeMinutes, startTime, endTime, stepSeconds).withLabelRegexMatchers(labelRegexMatchers);
 
         LOG.debugf("Querying metrics: %d metric names, %d pod targets (provider=%s)",
             metricNames.size(), podTargets.size(), providerName);

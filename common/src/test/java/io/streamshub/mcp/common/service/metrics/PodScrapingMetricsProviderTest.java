@@ -21,6 +21,7 @@ import org.mockito.Mockito;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -156,6 +157,22 @@ class PodScrapingMetricsProviderTest {
         when(client.raw("/api/v1/namespaces/kafka/pods/p-0:8080/proxy/metrics")).thenReturn(BODY_TWO);
 
         assertEquals(1, provider.queryMetrics(instant(null, List.of(PodTarget.of(NS, "p-0")), 0)).size());
+    }
+
+    @Test
+    void testRegexMatchersKeepOnlyMatchingSamplesAndTreatAbsentLabelsAsEmpty() {
+        when(client.raw("/api/v1/namespaces/kafka/pods/p-0:9404/proxy/metrics")).thenReturn(
+            "req{request=\"Produce\",quantile=\"0.5\"} 1\n"
+                + "req{request=\"Produce\",quantile=\"0.95\"} 2\n"
+                + "req{request=\"Metadata\",quantile=\"0.5\"} 3\n"
+                + "no_labels 4\n");
+
+        List<MetricSample> samples = provider.queryMetrics(instant(null, List.of(
+            PodTarget.of(NS, "p-0", 9404, "/metrics")), 0)
+            .withLabelRegexMatchers(Map.of("request", "Produce", "quantile", "0\\.50*|0\\.990*")));
+
+        assertEquals(1, samples.size());
+        assertEquals(1.0, samples.getFirst().value());
     }
 
     @Test

@@ -1561,7 +1561,8 @@ Parameters: {
 - [ ] At the default level the series carries `aggregation_fn` = `min` (the most saturated broker, not the mean across brokers)
 - [ ] Repeating the call with `"aggregation": "BROKER"` returns one series per broker pod, and the default value equals the lowest of them
 - [ ] *(JMX exporter clusters only)* the same checks pass for `kafka_server_kafkarequesthandlerpool_requesthandleravgidle_percent`
-- [ ] `{ "clusterName": "mcp-cluster", "category": "performance" }` returns the request metrics (`requestqueuetimems`, `totaltimems`, ... with p50 and p99) **and** the network processor idle ratio, and is not truncated
+- [ ] `{ "clusterName": "mcp-cluster", "category": "performance" }` returns the request metrics (`requestqueuetimems`, `totaltimems`, ... with p50 and p99; on SMR p50 is labelled `quantile: "0.5"`) for `Produce`, `FetchConsumer` and `FetchFollower` only, **and** the network processor idle ratio, and is not truncated. The interpretation carries a `[REQUEST TYPES]` note naming the default
+- [ ] Repeating it with `"requestTypes": "*"` returns every request type; `"requestTypes": "Metadata"` returns only `Metadata`
 
 ### T14.3b - Get Kafka Metrics (time range)
 
@@ -1749,6 +1750,9 @@ Parameters: { "clusterName": "mcp-cluster" }
 
 **Expected:**
 - [ ] Returns metrics analysis covering: replication, performance, resources, throughput
+- [ ] `replication_metrics` holds the same metrics `get_kafka_metrics` returns for `"category": "replication"` (URP, leader count, partition count, offline replicas, ...)
+- [ ] `throughput_metrics` is not empty (on Prometheus its counters are named `*_rate_per_second`)
+- [ ] No category is `truncated`, and a truncated category would not flag the others
 - [ ] Thresholds and interpretation present
 - [ ] For a healthy dev cluster, no critical anomalies expected
 

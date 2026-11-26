@@ -10,10 +10,8 @@ import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
-import io.streamshub.mcp.common.dto.metrics.AggregatedTimeSeries;
 import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
-import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
@@ -28,13 +26,10 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 /**
  * Orchestrates a multistep metrics diagnostic workflow for Kafka clusters.
  *
@@ -63,9 +58,6 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
 
     @Inject
     KafkaMetricsService kafkaMetricsService;
-
-    @Inject
-    MetricsQueryService metricsQueryService;
 
     @Override
     protected Logger getLogger() {
@@ -141,7 +133,7 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
         DiagnosticHelper.sendProgress(progress, ++stepIndex, TOTAL_STEPS, pods != null ? "Checked Kafka pod health" : "Failed to check pod health");
         DiagnosticHelper.checkCancellation(cancellation);
 
-        // === Phase 2: Metrics investigation (single scrape for all categories) ===
+        // === Phase 2: Metrics investigation (one query per category) ===
         InvestigationAreas areas = decideInvestigationAreas(
             sampling, cluster, pods, concern, cancelled);
         DiagnosticHelper.checkAsyncCancellation(cancelled);
@@ -215,7 +207,7 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
         }
     }
 
-    // ---- Phase 2: Metrics investigation (single scrape) ----
+    // ---- Phase 2: Metrics investigation (one query per category) ----
 
     @WithSpan("diagnose.metrics.gather")
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -228,65 +220,42 @@ public class KafkaMetricsDiagnosticService extends BaseDiagnosticService {
                                                                 final Integer stepSeconds,
                                                                 final List<String> completed,
                                                                 final List<String> failed) {
-        // Collect all metric names from selected categories
-        Map<String, List<String>> categoryMetricNames = new LinkedHashMap<>();
+        List<String> categories = new ArrayList<>();
         if (areas.replication) {
-            categoryMetricNames.put(KafkaMetricCategories.REPLICATION, KafkaMetricCategories.resolve(KafkaMetricCategories.REPLICATION));
+            categories.add(KafkaMetricCategories.REPLICATION);
         }
         if (areas.performance) {
-            categoryMetricNames.put(KafkaMetricCategories.PERFORMANCE, KafkaMetricCategories.resolve(KafkaMetricCategories.PERFORMANCE));
+            categories.add(KafkaMetricCategories.PERFORMANCE);
         }
         if (areas.resources) {
-            categoryMetricNames.put(KafkaMetricCategories.RESOURCES, KafkaMetricCategories.resolve(KafkaMetricCategories.RESOURCES));
+            categories.add(KafkaMetricCategories.RESOURCES);
         }
         if (areas.throughput) {
-            categoryMetricNames.put(KafkaMetricCategories.THROUGHPUT, KafkaMetricCategories.resolve(KafkaMetricCategories.THROUGHPUT));
+            categories.add(KafkaMetricCategories.THROUGHPUT);
         }
 
-        if (categoryMetricNames.isEmpty()) {
+        if (categories.isEmpty()) {
             return Map.of();
         }
 
-        // Merge all metric names and scrape once
-        String allNames = categoryMetricNames.values().stream()
-            .flatMap(List::stream)
-            .distinct()
-            .collect(Collectors.joining(","));
-
-        KafkaMetricsResponse allMetrics;
-        try {
-            allMetrics = kafkaMetricsService.getKafkaMetrics(
-                namespace, clusterName, null, allNames, rangeMinutes, startTime, endTime, stepSeconds, null, null);
-        } catch (Exception e) {
-            LOG.warnf("Failed to gather Kafka metrics: %s", e.getMessage());
-            for (String cat : categoryMetricNames.keySet()) {
-                failed.add(categoryStepName(cat) + ": " + e.getMessage());
-            }
-            return null;
-        }
-
-        // Split results by category
+        // One query per category: each gets its own sample budget, its category-specific
+        // filters (performance quantiles and request types) and its own aggregation default.
+        // A single merged query let one category crowd out the others, and splitting the merged
+        // result by JMX name dropped every metric the backend renames (SMR aliases, counter rates).
         Map<String, KafkaMetricsResponse> results = new LinkedHashMap<>();
-        for (Map.Entry<String, List<String>> entry : categoryMetricNames.entrySet()) {
-            String category = entry.getKey();
-            Set<String> names = new HashSet<>(entry.getValue());
-            List<AggregatedTimeSeries> categorySeries = allMetrics.timeSeries() != null
-                ? allMetrics.timeSeries().stream()
-                    .filter(ts -> names.contains(ts.name()))
-                    .toList()
-                : List.of();
-
-            String interpretation = KafkaMetricCategories.interpretation(List.of(category));
-            KafkaMetricsResponse categoryResponse = KafkaMetricsResponse.ofTimeSeries(
-                allMetrics.clusterName(), allMetrics.namespace(),
-                allMetrics.provider(), List.of(category),
-                categorySeries, interpretation,
-                Boolean.TRUE.equals(allMetrics.truncated()) ? metricsQueryService.maxSamples() : null);
-            results.put(category, categoryResponse);
-            completed.add(categoryStepName(category));
+        for (String category : categories) {
+            try {
+                results.put(category, kafkaMetricsService.getKafkaMetrics(
+                    namespace, clusterName, category, null, rangeMinutes, startTime, endTime, stepSeconds,
+                    null, null));
+                completed.add(categoryStepName(category));
+            } catch (Exception e) {
+                LOG.warnf("Failed to gather Kafka %s metrics: %s", category, e.getMessage());
+                failed.add(categoryStepName(category) + ": " + e.getMessage());
+            }
         }
 
-        return results;
+        return results.isEmpty() ? null : results;
     }
 
     private String categoryStepName(final String category) {
