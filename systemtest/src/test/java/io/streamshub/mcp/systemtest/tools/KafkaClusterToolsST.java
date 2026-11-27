@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -226,6 +227,11 @@ class KafkaClusterToolsST extends AbstractST {
                 }
                 assertTrue(hasPlain, "Should have 'plain' listener");
                 assertTrue(hasTls, "Should have 'tls' listener");
+                // The plain listener has no authentication in every setup, so it is named (#361)
+                List<String> unauthenticated = new ArrayList<>();
+                cluster.path("unauthenticated_listeners").forEach(n -> unauthenticated.add(n.asText()));
+                assertTrue(unauthenticated.contains("plain"),
+                    "unauthenticated_listeners should name the plain listener, got " + unauthenticated);
                 // Broker replicas
                 assertTrue(cluster.has("broker_replicas"), "Should have broker replicas info");
                 assertEquals(cluster.path("broker_replicas").path("expected").asInt(),
@@ -432,7 +438,15 @@ class KafkaClusterToolsST extends AbstractST {
         Map<String, Object> args = Map.of("clusterName", Constants.KAFKA_CLUSTER_NAME);
         mcpClient.when()
             .toolsCall("get_kafka_cluster_certificates", args, response -> {
-                assertToolSuccess(response);
+                JsonNode root = assertToolSuccess(response);
+
+                boolean plainReportsNone = false;
+                for (JsonNode auth : root.path("listener_authentication")) {
+                    if ("plain".equals(auth.path("listener_name").asText())) {
+                        plainReportsNone = "none".equals(auth.path("authentication_type").asText());
+                    }
+                }
+                assertTrue(plainReportsNone, "plain listener has no auth and should report authentication_type none");
 
                 String text = response.content().getFirst().asText().text();
                 LOGGER.info("get_kafka_cluster_certificates response (length={})", text.length());

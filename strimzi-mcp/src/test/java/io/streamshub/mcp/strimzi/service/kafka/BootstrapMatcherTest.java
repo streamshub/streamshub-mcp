@@ -29,7 +29,7 @@ class BootstrapMatcherTest {
 
     private static KafkaClusterResponse clusterWith(final List<ListenerInfo> listeners) {
         return new KafkaClusterResponse("my-cluster", "kafka", "Kafka", null, null, null, null, null, null,
-            null, listeners, null, null, null, null, null, null, null, null, null, null, null, null);
+            null, listeners, null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     private static KafkaMirrorMaker2Response mm2(final String target, final List<String> sources,

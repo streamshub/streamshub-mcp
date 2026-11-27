@@ -22,7 +22,8 @@ import java.util.TreeSet;
  * @param principals    every principal that appears in {@code matrix}, sorted
  * @param resourceCount the number of distinct resource keys in {@code matrix}
  * @param principalCount the number of distinct principals in {@code matrix}
- * @param broadGrants   allow grants flagged as over-broad (wildcard resource or the {@code All} operation)
+ * @param broadGrants   allow grants flagged as over-broad (wildcard resource, the {@code All} operation,
+ *                      or privileged cluster-level access)
  * @param message       a human-readable summary of the matrix contents
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -40,13 +41,15 @@ public record KafkaUserAclMatrixResponse(
 ) {
 
     /**
-     * A single over-broad ACL grant: an allow rule whose resource name is a wildcard
-     * or whose operations include {@code All}.
+     * A single over-broad ACL grant: an allow rule whose resource name is a wildcard, whose
+     * operations include {@code All}, or that grants a privileged operation ({@code Alter},
+     * {@code AlterConfigs}, {@code ClusterAction}, {@code Create}) on the cluster resource.
      *
      * @param principal  the Kafka principal the grant applies to
      * @param resource   the matrix resource key the grant applies to
      * @param operations the granted operations
      * @param reason     a short human-readable reason the grant was flagged, e.g. {@code "wildcard resource"}
+     *                   or {@code "cluster-level access"}; comma-joined when several apply
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record BroadGrant(

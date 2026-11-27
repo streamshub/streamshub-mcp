@@ -10,6 +10,7 @@ import io.streamshub.mcp.common.guardrail.SensitiveKeys;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
+import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaEffectiveConfigResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaEffectiveConfigResponse.AuthorizationInfo;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaEffectiveConfigResponse.AutoRebalanceInfo;
@@ -245,7 +246,8 @@ public class KafkaConfigService {
     }
 
     private ListenerConfigInfo mapListener(final GenericKafkaListener listener) {
-        String authType = listener.getAuth() != null ? listener.getAuth().getType() : null;
+        String authType = listener.getAuth() != null
+            ? listener.getAuth().getType() : StrimziConstants.Listeners.NO_AUTHENTICATION;
         return new ListenerConfigInfo(
             listener.getName(),
             listener.getPort(),

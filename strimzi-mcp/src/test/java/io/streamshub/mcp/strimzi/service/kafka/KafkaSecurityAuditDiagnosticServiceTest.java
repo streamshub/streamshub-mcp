@@ -13,6 +13,7 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaSecurityAuditReport;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserAclMatrixResponse;
 import io.streamshub.mcp.strimzi.service.KubernetesMockHelper;
@@ -33,6 +34,7 @@ import org.mockito.Mockito;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -125,6 +127,26 @@ class KafkaSecurityAuditDiagnosticServiceTest {
         assertTrue(report.stepsCompleted().contains("users"));
         assertNull(report.analysis()); // no Sampling -> raw data
         assertNotNull(report.timestamp());
+    }
+
+    /**
+     * Verify the triage summary names unauthenticated listeners, and leaves the key out when there are none.
+     */
+    @Test
+    void testTriageSummaryIncludesUnauthenticatedListeners() {
+        Map<String, Object> withOpen = auditService.buildPhase1Summary(
+            new KafkaSecurityAuditDiagnosticService.ClusterSecurity(cluster(List.of("plain")), "simple"), List.of());
+        Map<String, Object> allAuthenticated = auditService.buildPhase1Summary(
+            new KafkaSecurityAuditDiagnosticService.ClusterSecurity(cluster(List.of()), "simple"), List.of());
+
+        assertEquals(List.of("plain"), withOpen.get("unauthenticated_listeners"));
+        assertFalse(allAuthenticated.containsKey("unauthenticated_listeners"));
+    }
+
+    private static KafkaClusterResponse cluster(final List<String> unauthenticatedListeners) {
+        return KafkaClusterResponse.of("my-cluster", "kafka", "Kafka", "4.2.0", "4.2.0",
+            null, null, null, "Ready", null, null, null, null,
+            false, true, unauthenticatedListeners, true, null, 1L, null, null, null, null, List.of());
     }
 
     @Test

@@ -124,6 +124,20 @@ public final class StrimziConstants {
     }
 
     /**
+     * Kafka listener constants.
+     */
+    public static final class Listeners {
+        /**
+         * Authentication type reported for a listener that has no {@code authentication} block,
+         * so an anonymous listener is explicit in responses rather than a missing field.
+         */
+        public static final String NO_AUTHENTICATION = "none";
+
+        private Listeners() {
+        }
+    }
+
+    /**
      * KafkaBridge-specific constants.
      */
     public static final class KafkaBridge {

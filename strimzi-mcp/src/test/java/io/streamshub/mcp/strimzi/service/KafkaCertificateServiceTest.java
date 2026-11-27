@@ -186,6 +186,37 @@ class KafkaCertificateServiceTest {
         assertEquals("tls", tlsListener.authenticationType());
     }
 
+    /**
+     * Verify a listener without an authentication block reports authentication_type "none"
+     * instead of omitting the field.
+     */
+    @Test
+    void testGetCertificatesReportsNoneForUnauthenticatedListener() {
+        Kafka kafka = new KafkaBuilder()
+            .withMetadata(new ObjectMetaBuilder()
+                .withName(CLUSTER_NAME)
+                .withNamespace(NAMESPACE)
+                .build())
+            .withNewSpec()
+                .withNewKafka()
+                    .addNewListener()
+                        .withName("plain")
+                        .withPort(9092)
+                        .withType(KafkaListenerType.INTERNAL)
+                        .withTls(false)
+                    .endListener()
+                .endKafka()
+            .endSpec()
+            .build();
+        mockKafkaResource(kafka);
+        mockSecret(CLUSTER_NAME + "-cluster-ca-cert", VALID_CERT_PEM, true);
+        mockSecret(CLUSTER_NAME + "-clients-ca-cert", VALID_CERT_PEM, true);
+
+        KafkaCertificateResponse response = kafkaCertificateService.getCertificates(NAMESPACE, CLUSTER_NAME, null);
+
+        assertEquals("none", response.listenerAuthentication().getFirst().authenticationType());
+    }
+
     @Test
     void testGetCertificatesReturnsEmptyWhenSecretsNotFound() {
         Kafka kafka = buildKafkaWithListeners();

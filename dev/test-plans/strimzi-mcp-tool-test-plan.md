@@ -232,6 +232,7 @@ Parameters: { "clusterName": "mcp-cluster" }
   - `route`: route, `<route host>:443`
   - `console`: internal, `...-kafka-bootstrap.strimzi-kafka.svc:9777`
 - [ ] `authorization_enabled` is `true` (the authorization type `simple` is checked in T2.9)
+- [ ] `authentication_enabled` is `true` and `unauthenticated_listeners` is `["plain"]` (the only listener without authentication)
 - [ ] Conditions section shows Ready condition
 - [ ] `running_kafka_version` present and matches `4.3.1` (or a patch thereof)
 - [ ] `kafka_metadata_version` present (non-null string, `4.3-IV0`)
@@ -388,7 +389,7 @@ Parameters: { "clusterName": "mcp-cluster" }
   - `log.segment.bytes`: 64000000
 - [ ] `authorization.type` is `simple`
 - [ ] `listeners[]` carries per-listener details:
-  - `plain`: port 9092, internal, tls=false, no auth
+  - `plain`: port 9092, internal, tls=false, `auth_type`=none
   - `tls`: port 9093, internal, tls=true, `auth_type`=tls
   - `route`: port 9666, route, tls=true, `auth_type`=tls
   - `console`: port 9777, internal, tls=true, `auth_type`=scram-sha-512
@@ -838,6 +839,18 @@ Parameters: { "clusterName": "mcp-cluster", "resourceType": "bogus" }
 **Expected:**
 - [ ] Returns a tool error -- `resourceType` is a schema enum (`AclResourceType`), so the framework rejects an unknown value before the tool runs
 - [ ] The error response contains no stack trace
+
+### T5.9 - Get User ACLs Matrix (cluster)
+
+```
+Tool: get_kafka_user_acls_matrix
+Parameters: { "clusterName": "mcp-cluster", "resourceType": "cluster" }
+```
+
+**Expected:**
+- [ ] `matrix` has a single `kafka-cluster` entry with `mcp-admin-user: [All]` (plus `mm2-user: [Alter, Create, Describe]` when `--mirror-maker` is deployed)
+- [ ] `broad_grants` flags `mcp-admin-user` as `"cluster-level access, All operations"`; with `--mirror-maker`, `mm2-user` is flagged as `"cluster-level access"` (its `Alter` lets it manage ACLs)
+- [ ] No other principal is flagged (read-only cluster grants such as `Describe` alone are not flagged; covered by `KafkaUserServiceTest`)
 
 ---
 
@@ -1489,6 +1502,7 @@ Parameters: { "clusterName": "mcp-cluster-mirror" }
 - [ ] Version: 4.3.1
 - [ ] Only 1 listener: `plain`, bootstrap address `mcp-cluster-mirror-kafka-bootstrap.strimzi-kafka-mirror.svc:9092` (TLS details are in `get_kafka_cluster_config`)
 - [ ] No authorization configured (`authorization_enabled: false`)
+- [ ] `authentication_enabled: false` and `unauthenticated_listeners` is `["plain"]`
 - [ ] `running_kafka_version` present
 - [ ] `cluster_id` present and non-empty
 - [ ] `reconciliation.up_to_date` is `true`
@@ -1877,7 +1891,7 @@ Parameters: { "clusterName": "mcp-cluster" }
 
 **Expected:**
 - [ ] Returns security audit report
-- [ ] Report includes: `cluster` (listeners, authentication), `authorization_type`, `certificates` (CA and client cert expiry), `users` (KafkaUser inventory)
+- [ ] Report includes: `cluster` (listeners, authentication, `unauthenticated_listeners: ["plain"]`), `authorization_type`, `certificates` (CA and client cert expiry), `users` (KafkaUser inventory)
 - [ ] Report includes: `acl_matrices`, one per resource type that has at least one ACL (topic, group and cluster on the dev cluster; transactionalId only if such ACLs exist), with `broad_grants` flagged (wildcard resource, `All` operation, cluster-level access: on the dev cluster `mm2-user`'s `Alter`/`Create`/`Describe` on the cluster is flagged)
 - [ ] `certificates` lists the cluster and clients CA (requires the sensitive RBAC prerequisite)
 - [ ] `steps_completed` includes: `cluster_security`, `certificates`, `users`, `acls`
@@ -2059,7 +2073,7 @@ sequentially and verify cross-tool consistency.
 
 **Expected:**
 - [ ] Bootstrap addresses match listener config (4 listeners, 4 bootstrap entries)
-- [ ] Cluster CA and clients CA certificates present; `listener_authentication` shows `tls`, `route`, `console` with TLS enabled
+- [ ] Cluster CA and clients CA certificates present; `listener_authentication` shows `tls`, `route`, `console` with TLS enabled, and `plain` with `authentication_type` `none`
 - [ ] Diagnostic references listeners, certs, and users
 
 ### E2E-4: Operator Health
@@ -2359,6 +2373,7 @@ This phase tests all three server-side error handling patterns under RBAC restri
 | 5     | T5.6    | get_kafka_user (nonexistent) | core | | |
 | 5     | T5.7    | get_kafka_user_acls_matrix (topics) | core | | |
 | 5     | T5.8    | get_kafka_user_acls_matrix (invalid resourceType) | core | | |
+| 5     | T5.9    | get_kafka_user_acls_matrix (cluster) | core | | |
 | 6     | T6.1    | list_strimzi_operators | core | | |
 | 6     | T6.2    | get_strimzi_operator | core | | |
 | 6     | T6.3    | get_strimzi_operator (ns) | core | | |

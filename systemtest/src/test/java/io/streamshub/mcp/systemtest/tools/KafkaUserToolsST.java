@@ -428,6 +428,25 @@ class KafkaUserToolsST extends AbstractST {
                 }
                 assertTrue(anyBroadGrant,
                     "Admin/TLS users have wildcard and cluster ACLs; broad_grants must be flagged");
+                boolean clusterLevelFlagged = false;
+                for (JsonNode matrix : matrices) {
+                    for (JsonNode grant : matrix.path("broad_grants")) {
+                        if ("kafka-cluster".equals(grant.path("resource").asText())
+                            && grant.path("reason").asText().contains("cluster-level access")) {
+                            clusterLevelFlagged = true;
+                        }
+                    }
+                }
+                assertTrue(clusterLevelFlagged,
+                    "Admin user's cluster grant should be flagged as cluster-level access");
+
+                JsonNode cluster = root.path("cluster");
+                assertTrue(cluster.path("authentication_enabled").asBoolean(),
+                    "authentication_enabled stays true when any listener has auth");
+                JsonNode unauthenticated = cluster.path("unauthenticated_listeners");
+                assertTrue(unauthenticated.isArray() && unauthenticated.size() == 1
+                        && "plain".equals(unauthenticated.get(0).asText()),
+                    "The plain listener has no auth and should be named in unauthenticated_listeners");
 
                 assertFalse(root.path("certificates").isMissingNode(),
                     "Should have certificates section (sensitive RBAC granted)");

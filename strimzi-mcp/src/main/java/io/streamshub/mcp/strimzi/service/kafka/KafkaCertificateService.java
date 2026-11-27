@@ -269,7 +269,7 @@ public class KafkaCertificateService {
             ? listener.getType().toValue() : null;
         boolean tlsEnabled = listener.isTls();
         String authType = listener.getAuth() != null
-            ? listener.getAuth().getType() : null;
+            ? listener.getAuth().getType() : StrimziConstants.Listeners.NO_AUTHENTICATION;
 
         return KafkaCertificateResponse.ListenerAuthInfo.of(
             listenerName, listenerType, tlsEnabled, authType);
