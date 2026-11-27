@@ -243,7 +243,9 @@ public final class KafkaMetricCategories {
         STORAGE,
             "**[HIGH - LOG STORAGE & CAPACITY]**\n\n"
                 + "kafka_log_log_size: Disk space in bytes used by log segments per topic and partition. "
-                + "Identifies large partitions and tracks storage growth over time.\n\n"
+                + "Identifies large partitions and tracks storage growth over time. "
+                + "At broker or cluster aggregation the partition sizes are summed, so the value is the "
+                + "total on disk.\n\n"
                 + "**[MEDIUM - DISK I/O ACTIVITY]**\n\n"
                 + "kafka_server_kafkaserver_linux_disk_read_bytes: Total bytes read from disk by the Kafka broker process.\n\n"
                 + "kafka_server_kafkaserver_linux_disk_write_bytes: Total bytes written to disk by the Kafka broker process."

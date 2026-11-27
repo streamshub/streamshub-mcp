@@ -123,6 +123,11 @@ public enum MetricAggregation {
         Map.entry("kafka_connect_worker_task_startup_failure_total", SUM),
         Map.entry("kafka_connect_worker_task_startup_success_total", SUM),
 
+        // --- Kafka broker: storage ---
+        // Bytes on disk per partition: a broker's (or the cluster's) disk usage is their total,
+        // and the mean partition size is not a number anyone compares with a volume's capacity.
+        Map.entry("kafka_log_log_size", SUM),
+
         // --- Kafka Exporter: consumer lag ---
         // Total messages a group is behind. The category defaults to PARTITION, so this only
         // applies when a caller explicitly asks for a coarser level — where the mean lag per

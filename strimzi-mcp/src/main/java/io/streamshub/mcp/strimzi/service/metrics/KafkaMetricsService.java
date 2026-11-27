@@ -15,6 +15,7 @@ import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.common.util.TimeRangeValidator;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.config.metrics.KafkaMetricCategories;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaVolumeUsageResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import io.streamshub.mcp.strimzi.util.MetricNameResolver;
@@ -31,6 +32,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 /**
@@ -54,6 +56,11 @@ public class KafkaMetricsService {
     /** {@code requestTypes} value that disables the request type filter. */
     static final String ALL_REQUEST_TYPES = "*";
     private static final Pattern REQUEST_TYPE = Pattern.compile("[A-Za-z0-9]+");
+
+    static final String VOLUME_USED_BYTES = "kubelet_volume_stats_used_bytes";
+    static final String VOLUME_CAPACITY_BYTES = "kubelet_volume_stats_capacity_bytes";
+    private static final String PVC_LABEL = "persistentvolumeclaim";
+    private static final String POD_SCRAPING_PROVIDER = "streamshub-pod-scraping";
 
     /** Per-partition 0/1 gauges: a non-zero value marks the partition as worth reporting. */
     private static final Set<String> PARTITION_HEALTH_FLAGS = Set.of(
@@ -443,5 +450,74 @@ public class KafkaMetricsService {
                 return req == null || types.contains(req);
             })
             .toList();
+    }
+
+    /**
+     * Returns how full each of the given PersistentVolumeClaims is, from the kubelet's
+     * {@code kubelet_volume_stats_used_bytes} and {@code kubelet_volume_stats_capacity_bytes}.
+     *
+     * <p>The kubelet, not a Kafka pod, exposes these metrics, so they are only available through
+     * a Prometheus that scrapes the kubelet. With the pod-scraping provider the response carries
+     * no volumes and a message saying so. The query matches only the namespace and the PVC names,
+     * because kubelet series have no Strimzi labels.</p>
+     *
+     * @param namespace the namespace of the PVCs
+     * @param pvcNames  the PVC names
+     * @return the usage per PVC, or no volumes with a message explaining why
+     */
+    public KafkaVolumeUsageResponse getVolumeUsage(final String namespace, final List<String> pvcNames) {
+        if (pvcNames == null || pvcNames.isEmpty()) {
+            return KafkaVolumeUsageResponse.of(null, "No PersistentVolumeClaims to check");
+        }
+        if (POD_SCRAPING_PROVIDER.equals(metricsQueryService.providerName())) {
+            return KafkaVolumeUsageResponse.of(null, "Volume usage needs the Prometheus metrics provider:"
+                + " kubelet_volume_stats_* come from the kubelet, which the pod-scraping provider does not scrape."
+                + " Compare kafka_log_log_size with the PVC capacity instead.");
+        }
+
+        Map<String, String> labelMatchers = Map.of("namespace", namespace);
+        Map<String, String> regexMatchers = Map.of(PVC_LABEL, pvcNames.stream()
+            .map(ComponentScope::quote)
+            .collect(Collectors.joining("|")));
+        List<MetricSample> samples = metricsQueryService.queryMetrics(List.of(), labelMatchers, regexMatchers,
+            List.of(VOLUME_USED_BYTES, VOLUME_CAPACITY_BYTES), null, null, null, null);
+
+        // Latest value per PVC and metric; an instant query has one sample per series anyway.
+        Map<String, Map<String, MetricSample>> byPvc = new TreeMap<>();
+        for (MetricSample sample : samples) {
+            String pvc = sample.labels() != null ? sample.labels().get(PVC_LABEL) : null;
+            if (pvc == null) {
+                continue;
+            }
+            byPvc.computeIfAbsent(pvc, k -> new LinkedHashMap<>())
+                .merge(sample.name(), sample, (a, b) -> isLater(b, a) ? b : a);
+        }
+
+        List<KafkaVolumeUsageResponse.VolumeUsage> volumes = byPvc.entrySet().stream()
+            .map(e -> KafkaVolumeUsageResponse.VolumeUsage.of(e.getKey(),
+                bytes(e.getValue().get(VOLUME_USED_BYTES)), bytes(e.getValue().get(VOLUME_CAPACITY_BYTES))))
+            .toList();
+        List<String> missing = pvcNames.stream().filter(pvc -> !byPvc.containsKey(pvc)).sorted().toList();
+
+        String message;
+        if (volumes.isEmpty()) {
+            message = "No kubelet_volume_stats_* series found for these PVCs. Check that Prometheus scrapes the"
+                + " kubelet (/metrics on each node) and that the volumes are mounted.";
+        } else if (!missing.isEmpty()) {
+            message = String.format("Volume usage for %d of %d PVCs; no kubelet volume stats for: %s",
+                volumes.size(), pvcNames.size(), String.join(", ", missing));
+        } else {
+            message = String.format("Volume usage for %d PVCs", volumes.size());
+        }
+        return KafkaVolumeUsageResponse.of(volumes, message);
+    }
+
+    private static boolean isLater(final MetricSample candidate, final MetricSample current) {
+        return candidate.timestamp() != null
+            && (current.timestamp() == null || candidate.timestamp().isAfter(current.timestamp()));
+    }
+
+    private static Long bytes(final MetricSample sample) {
+        return sample != null ? Math.round(sample.value()) : null;
     }
 }

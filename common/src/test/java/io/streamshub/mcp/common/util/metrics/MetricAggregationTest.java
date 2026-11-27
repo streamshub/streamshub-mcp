@@ -30,6 +30,8 @@ class MetricAggregationTest {
             MetricAggregation.forMetric("kafka_controller_kafkacontroller_activecontrollercount"));
         assertEquals(MetricAggregation.MAX,
             MetricAggregation.forMetric("kafka_server_replicafetchermanager_maxlag"));
+        assertEquals(MetricAggregation.SUM, MetricAggregation.forMetric("kafka_log_log_size"),
+            "A broker's log size is the total of its partitions, not their mean");
     }
 
     /**

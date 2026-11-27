@@ -100,7 +100,13 @@ public class StrimziOperatorMetricsService {
         List<Pod> eoPods = cluster != null ? strimziOperatorService.findEntityOperatorPods(ns, cluster) : List.of();
         validatePodsFound(coPods, eoPods, ns);
 
-        String resolvedName = name != null ? name : "cluster-operator";
+        // Name the operator as list_strimzi_operators does: by its Deployment. The name argument
+        // only has to be a prefix of the pod names, so the pods decide when there are any.
+        String resolvedName = coPods.stream()
+            .map(StrimziOperatorMetricsService::deploymentName)
+            .filter(Objects::nonNull)
+            .findFirst()
+            .orElse(name);
         LOG.infof("Getting metrics for operator '%s'%s (provider=%s)",
             resolvedName,
             cluster != null ? " with entity operator for Kafka cluster '" + cluster + "'" : "",
@@ -267,6 +273,20 @@ public class StrimziOperatorMetricsService {
     }
 
     private static String podNamePattern(final Pod pod) {
+        String deployment = deploymentName(pod);
+        if (deployment == null) {
+            return quoteRegex(pod.getMetadata().getName());
+        }
+        return quoteRegex(deployment) + "-[a-z0-9]+-[a-z0-9]+";
+    }
+
+    /**
+     * The name of the Deployment that owns a pod: its ReplicaSet's name without the hash suffix.
+     *
+     * @param pod the pod
+     * @return the Deployment name, or null when the pod has no ReplicaSet owner
+     */
+    static String deploymentName(final Pod pod) {
         String replicaSet = pod.getMetadata().getOwnerReferences() == null ? null
             : pod.getMetadata().getOwnerReferences().stream()
                 .filter(o -> "ReplicaSet".equals(o.getKind()))
@@ -274,10 +294,7 @@ public class StrimziOperatorMetricsService {
                 .findFirst()
                 .orElse(null);
         int hashStart = replicaSet != null ? replicaSet.lastIndexOf('-') : -1;
-        if (hashStart <= 0) {
-            return quoteRegex(pod.getMetadata().getName());
-        }
-        return quoteRegex(replicaSet.substring(0, hashStart)) + "-[a-z0-9]+-[a-z0-9]+";
+        return hashStart > 0 ? replicaSet.substring(0, hashStart) : null;
     }
 
     /** Escapes the regex metacharacters that can occur in a Kubernetes object name. */
