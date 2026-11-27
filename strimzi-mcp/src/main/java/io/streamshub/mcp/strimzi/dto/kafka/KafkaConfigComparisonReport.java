@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.dto.kafka;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.streamshub.mcp.common.service.DiagnosticSteps;
 
 import java.time.Instant;
 import java.util.List;
@@ -52,19 +53,11 @@ public record KafkaConfigComparisonReport(
                                                  final List<String> stepsFailed) {
         String name1 = cluster1Config != null ? cluster1Config.name() : "unknown";
         String name2 = cluster2Config != null ? cluster2Config.name() : "unknown";
-        int completed = stepsCompleted != null ? stepsCompleted.size() : 0;
-        int failed = stepsFailed != null ? stepsFailed.size() : 0;
-
-        String msg;
-        if (failed == 0) {
-            msg = String.format("Comparison of '%s' and '%s' completed: %d steps succeeded",
-                name1, name2, completed);
-        } else {
-            msg = String.format("Comparison of '%s' and '%s' completed: %d steps succeeded, %d steps failed",
-                name1, name2, completed, failed);
-        }
+        String msg = String.format("Comparison of '%s' and '%s' completed: %s",
+            name1, name2, DiagnosticSteps.summary(stepsCompleted, null, stepsFailed));
 
         return new KafkaConfigComparisonReport(cluster1Config, cluster2Config, analysis,
-            stepsCompleted, stepsFailed, Instant.now(), msg);
+            stepsCompleted,
+            DiagnosticSteps.nonEmptyOrNull(stepsFailed), Instant.now(), msg);
     }
 }

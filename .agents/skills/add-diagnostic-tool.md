@@ -39,6 +39,10 @@ public record XxxDiagnosticReport(
 }
 ```
 
+Follow the shared step convention (`DiagnosticSteps` in `common`):
+- In the factory method, build the step counts with `DiagnosticSteps.summary(stepsCompleted, stepsDegraded, stepsFailed)` and pass `DiagnosticSteps.nonEmptyOrNull(...)` for each list, so an empty `steps_failed` (or `steps_degraded`) is left out of the response.
+- A step that returns data but hits errors on part of it (for example a response with an `errors` list, such as certificate Secrets the service account cannot read) goes to `steps_degraded` as `"step: reason"`, not to `steps_completed`. See `KafkaConnectivityDiagnosticReport`.
+
 Reference existing report DTOs for structure:
 - `KafkaClusterDiagnosticReport` (`dto/kafka/`) — cluster, node pools, pods, operator, logs, events, metrics
 - `KafkaConnectivityDiagnosticReport` (`dto/kafka/`) — cluster, bootstrap, certificates, pods, logs

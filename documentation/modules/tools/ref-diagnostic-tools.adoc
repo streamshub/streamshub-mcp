@@ -41,7 +41,11 @@ Diagnose issues with mcp-cluster
 == diagnose_kafka_storage
 
 Runs a multi-step storage diagnostic workflow for a Kafka cluster.
-Cross-checks PersistentVolumeClaims, storage capacity, volume expansion capability, node pool declared storage layout, pod health, disk metrics (`kafka_log_log_size`, Linux disk I/O), and Kubernetes events.
+Cross-checks PersistentVolumeClaims, storage capacity, volume expansion capability, node pool declared storage layout, pod health, disk metrics (`kafka_log_log_size` summed per broker, Linux disk I/O), volume usage, and Kubernetes events.
+
+`volume_usage` lists each PVC's `used_bytes`, `capacity_bytes` and `usage_percent`, from the kubelet's `kubelet_volume_stats_used_bytes` and `kubelet_volume_stats_capacity_bytes`.
+These metrics come from the kubelet, so they need the Prometheus metrics provider with a Prometheus that scrapes the kubelet.
+With the pod-scraping provider, `volume_usage` has only a message saying so; compare the per-broker `kafka_log_log_size` with the PVC capacity instead.
 
 *Parameters:*
 
@@ -67,7 +71,9 @@ Checks listener configuration, bootstrap addresses, TLS settings, pod health, an
 
 * `clusterName` (required) -- Name of the Kafka cluster
 * `namespace` (optional) -- Kubernetes namespace
-* `listenerName` (optional) -- Specific listener to check
+* `listenerName` (optional) -- Listener to focus on. The report then contains only that listener's bootstrap servers and certificate authentication, the KafkaUsers whose authentication type the listener accepts (none for a listener without authentication, all users for a `custom` listener such as OAuth), and the connectivity log lines that name the listener (`<NAME>-<PORT>`, for example `TLS-9093`) or its port in a channel ID. The report echoes the name as `listener_filter`. An unknown name fails with an invalid-params error that lists the cluster's listeners.
+
+A step that returns data but hits errors on part of it, such as certificate Secrets that the service account cannot read, is listed in `steps_degraded` instead of `steps_completed`.
 
 Uses Sampling:: Yes
 Uses Elicitation:: Yes
@@ -179,12 +185,12 @@ Diagnose issues with my-debezium-connector
 
 Server-driven companion to the xref:ref-prompt-templates-{context}[`troubleshoot-topic` prompt template].
 Runs a multi-step diagnostic workflow for a KafkaTopic.
-Gathers topic status, related topics (scope detection), cluster health, operator logs, events, and Kafka Exporter metrics in a single call.
+Gathers topic status, related topics (scope detection), cluster health, operator logs, events, Kafka Exporter partition metrics and consumer group lag in a single call.
 
 *3-phase workflow:*
 
 . *Phase 1 -- Initial data gathering*: Topic status, related topics for scope detection (topic-wide vs cluster-wide), parent cluster health gate.
-. *Phase 2 -- Deep investigation*: Operator logs (filtered for topic name), Kubernetes events, Kafka Exporter partition metrics. A Ready topic on a Ready cluster is not treated as healthy by itself: when you pass a `symptom`, when a replication-factor change is in flight, or when the topic or cluster is not Ready, all areas that can explain it are always investigated, whatever the triage answers.
+. *Phase 2 -- Deep investigation*: Operator logs (filtered for topic name), Kubernetes events for the KafkaTopic resource and the Entity Operator pods (not the broker pods), the Kafka Exporter partition metrics of this topic only, and its consumer group lag (`consumer_lag`: `kafka_consumergroup_lag` per consumer group, summed across the topic's partitions, over the last 15 minutes). The metrics are matched on the Kafka topic name (`spec.topicName` when set). A Ready topic on a Ready cluster is not treated as healthy by itself: when you pass a `symptom`, when a replication-factor change is in flight, or when the topic or cluster is not Ready, all areas that can explain it are always investigated, whatever the triage answers.
 . *Phase 3 -- Analysis*: Root cause analysis distinguishing topic config issues, Topic Operator issues, and cluster-wide problems.
 
 *Parameters:*

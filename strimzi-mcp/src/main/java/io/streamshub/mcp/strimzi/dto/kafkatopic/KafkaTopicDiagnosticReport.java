@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.dto.kafkatopic;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
+import io.streamshub.mcp.common.service.DiagnosticSteps;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaExporterMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
@@ -23,7 +24,8 @@ import java.util.List;
  * @param cluster         the parent Kafka cluster status
  * @param operatorLogs    the Strimzi operator logs filtered for topic
  * @param events          related Kubernetes events
- * @param exporterMetrics Kafka Exporter partition metrics
+ * @param exporterMetrics Kafka Exporter partition metrics for the topic
+ * @param consumerLag     consumer group lag on the topic over the last 15 minutes, per group
  * @param analysis        LLM-generated root cause analysis (null if Sampling not supported)
  * @param stepsCompleted  the list of successfully completed diagnostic steps
  * @param stepsFailed     the list of failed diagnostic steps with error messages
@@ -38,6 +40,7 @@ public record KafkaTopicDiagnosticReport(
     @JsonProperty("operator_logs") StrimziOperatorLogsResponse operatorLogs,
     @JsonProperty("events") StrimziEventsResponse events,
     @JsonProperty("exporter_metrics") KafkaExporterMetricsResponse exporterMetrics,
+    @JsonProperty("consumer_lag") KafkaExporterMetricsResponse consumerLag,
     @JsonProperty("analysis") String analysis,
     @JsonProperty("steps_completed") List<String> stepsCompleted,
     @JsonProperty("steps_failed") List<String> stepsFailed,
@@ -54,6 +57,7 @@ public record KafkaTopicDiagnosticReport(
      * @param operatorLogs    the operator logs
      * @param events          the related events
      * @param exporterMetrics the Kafka Exporter metrics
+     * @param consumerLag     the consumer group lag on the topic
      * @param analysis        the LLM analysis
      * @param stepsCompleted  the completed steps
      * @param stepsFailed     the failed steps (null if none)
@@ -66,12 +70,14 @@ public record KafkaTopicDiagnosticReport(
                                                  final StrimziOperatorLogsResponse operatorLogs,
                                                  final StrimziEventsResponse events,
                                                  final KafkaExporterMetricsResponse exporterMetrics,
+                                                 final KafkaExporterMetricsResponse consumerLag,
                                                  final String analysis,
                                                  final List<String> stepsCompleted,
                                                  final List<String> stepsFailed) {
-        String msg = String.format("Diagnostic completed: %d steps succeeded, %d steps failed",
-            stepsCompleted.size(), stepsFailed != null ? stepsFailed.size() : 0);
+        String msg = "Diagnostic completed: "
+            + DiagnosticSteps.summary(stepsCompleted, null, stepsFailed);
         return new KafkaTopicDiagnosticReport(topic, relatedTopics, cluster, operatorLogs,
-            events, exporterMetrics, analysis, stepsCompleted, stepsFailed, Instant.now(), msg);
+            events, exporterMetrics, consumerLag, analysis, stepsCompleted,
+            DiagnosticSteps.nonEmptyOrNull(stepsFailed), Instant.now(), msg);
     }
 }

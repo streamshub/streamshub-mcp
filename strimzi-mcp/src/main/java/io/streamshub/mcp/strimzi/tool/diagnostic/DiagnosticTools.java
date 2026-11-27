@@ -400,7 +400,7 @@ public class DiagnosticTools {
             required = false
         ) final String namespace,
         @ToolArg(
-            description = StrimziToolsPrompts.LISTENER_DESC,
+            description = StrimziToolsPrompts.CONNECTIVITY_LISTENER_DESC,
             required = false
         ) final String listenerName,
         final Sampling sampling,
@@ -435,7 +435,9 @@ public class DiagnosticTools {
         name = "diagnose_kafka_storage",
         description = "Runs a multi-step storage diagnostic for a Kafka cluster."
             + " Cross-checks PersistentVolumeClaims, storage capacity, volume expansion capability,"
-            + " node pool storage specifications, pod health, disk metrics, and Kubernetes events."
+            + " node pool storage specifications, pod health, disk metrics (log size per broker),"
+            + " PVC usage against capacity (kubelet volume stats; Prometheus provider only),"
+            + " and Kubernetes events."
             + " Uses Sampling for analysis and Elicitation for disambiguation."
             + " Falls back to gathering all data when Sampling is not supported.",
         structuredContent = true,
@@ -657,7 +659,9 @@ public class DiagnosticTools {
         name = "diagnose_kafka_topic",
         description = "Runs a multi-step diagnostic workflow for a KafkaTopic."
             + " Gathers topic status, related topics, cluster health,"
-            + " operator logs, events, and Kafka Exporter metrics in a single call."
+            + " operator logs, events for the topic and its Entity Operator,"
+            + " the topic's Kafka Exporter partition metrics and its consumer group lag"
+            + " (last 15 minutes) in a single call."
             + " Uses Sampling for LLM analysis and Elicitation for disambiguation."
             + " Falls back to gathering all data when Sampling is not supported.",
         structuredContent = true,

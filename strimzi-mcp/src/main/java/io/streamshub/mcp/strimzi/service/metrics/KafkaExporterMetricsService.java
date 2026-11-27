@@ -76,6 +76,41 @@ public class KafkaExporterMetricsService {
                                                                   final String endTime,
                                                                   final Integer stepSeconds,
                                                                   final String aggregation) {
+        return getKafkaExporterMetrics(namespace, clusterName, category, metricNames, rangeMinutes,
+            startTime, endTime, stepSeconds, aggregation, Map.of());
+    }
+
+    /**
+     * Retrieves metrics from Kafka Exporter pods for a cluster, keeping only the series whose
+     * labels have the given values, for example {@code topic=orders} to scope partition offsets
+     * and consumer lag to one topic.
+     *
+     * <p>The filters are applied in the metrics backend (PromQL matchers, or while scraping), so
+     * the series of other topics never count against the per-metric sample limit.</p>
+     *
+     * @param namespace    the namespace (optional, null for auto-discovery)
+     * @param clusterName  the Kafka cluster name (required)
+     * @param category     the metric category (optional, defaults to "consumer_lag")
+     * @param metricNames  explicit metric names (optional, merged with category)
+     * @param rangeMinutes range query duration in minutes (optional, null for instant)
+     * @param startTime    absolute start time in ISO 8601 format (optional, use with endTime)
+     * @param endTime      absolute end time in ISO 8601 format (optional, use with startTime)
+     * @param stepSeconds  range query step interval (optional, uses default)
+     * @param aggregation  aggregation level (optional, defaults to the category's finest level)
+     * @param labelFilters label name to exact value; a series without the label is dropped
+     * @return the Kafka Exporter metrics response
+     */
+    @SuppressWarnings("checkstyle:ParameterNumber")
+    public KafkaExporterMetricsResponse getKafkaExporterMetrics(final String namespace,
+                                                                  final String clusterName,
+                                                                  final String category,
+                                                                  final String metricNames,
+                                                                  final Integer rangeMinutes,
+                                                                  final String startTime,
+                                                                  final String endTime,
+                                                                  final Integer stepSeconds,
+                                                                  final String aggregation,
+                                                                  final Map<String, String> labelFilters) {
         String ns = InputUtils.normalizeInput(namespace);
         String name = InputUtils.normalizeInput(clusterName);
         String cat = InputUtils.normalizeInput(category);
@@ -138,11 +173,17 @@ public class KafkaExporterMetricsService {
         labelMatchers.put("namespace", resolvedNs);
         labelMatchers.put("strimzi_io_cluster", name);
 
+        // Other components of the cluster share metric names (jvm_*, process_*); keep only this one.
+        Map<String, String> regexMatchers = ComponentScope.matchers(
+            "strimzi_io_component_type", StrimziConstants.ComponentTypes.KAFKA_EXPORTER);
+        // Regex matchers, not exact ones: the pod-scraping provider applies only regex matchers.
+        if (labelFilters != null) {
+            labelFilters.forEach((label, value) -> regexMatchers.put(label, ComponentScope.quote(value)));
+        }
+
         // Query metrics via general service
         List<MetricSample> samples = metricsQueryService.queryMetrics(podTargets, labelMatchers,
-            // Other components of the cluster share metric names (jvm_*, process_*); keep only this one.
-            ComponentScope.matchers("strimzi_io_component_type", StrimziConstants.ComponentTypes.KAFKA_EXPORTER),
-            resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
+            regexMatchers, resolvedMetrics, rangeMinutes, startTime, endTime, stepSeconds);
         boolean truncated = metricsQueryService.reachedSampleLimit(samples);
 
         // Build interpretation from effective categories

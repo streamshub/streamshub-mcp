@@ -1730,7 +1730,11 @@ Parameters: {
 
 **Expected:**
 - [ ] Report covers PVCs, storage capacity, volume expansion capability, node pool storage specs, pod health, storage metrics, and events
-- [ ] Report completed steps include `cluster_status`, `node_pools`, `pvcs`, `pods`, `storage_metrics`, `events`
+- [ ] Report completed steps include `cluster_status`, `node_pools`, `pvcs`, `pods`, `storage_metrics`, `volume_usage`, `events`
+- [ ] `storage_metrics.aggregation` is `broker`: one `kafka_log_log_size` series per broker (summed), not one per topic partition
+- [ ] With the Prometheus provider, `volume_usage.volumes` has one entry per PVC with `used_bytes`, `capacity_bytes` and `usage_percent`; compare with `kubectl exec <broker> -- df -h /var/lib/kafka/data-0`
+- [ ] With the pod-scraping provider, `volume_usage` has only a message that it needs Prometheus
+- [ ] `steps_failed` is left out when no step failed
 
 ### T15.3 - Diagnose Connectivity
 
@@ -1756,6 +1760,13 @@ Parameters: { "clusterName": "mcp-cluster", "listenerName": "tls" }
 **Expected:**
 - [ ] Focuses analysis on the `tls` listener (port 9093, mutual TLS auth)
 - [ ] TLS certificate details included
+- [ ] `listener_filter` is `tls`
+- [ ] `bootstrap_servers` lists only the `tls` listener
+- [ ] `users` lists only users with `tls` or `tls-external` authentication
+- [ ] Every `cluster_logs` line names `TLS-9093` or `:9093-`
+- [ ] With `"listenerName": "plain"` (no authentication), `users` is empty
+- [ ] With `"listenerName": "nosuch"`, the call fails with invalid params and lists `plain, tls, ...`
+- [ ] Without the sensitive Role, `certificates` is in `steps_degraded` (not `steps_completed`) and the message counts it as degraded
 
 ### T15.5 - Diagnose Kafka Metrics
 
@@ -1797,7 +1808,10 @@ Parameters: { "topicName": "mcp-test-topic" }
 - [ ] Returns topic diagnostic for `mcp-test-topic`
 - [ ] Topic CR status, partition config (3 partitions, 3 replicas)
 - [ ] Reconciliation status from topic operator
-- [ ] With `"symptom": "consumers are lagging"` on a Ready topic and cluster, `steps_completed` still contains operator logs, events and exporter metrics
+- [ ] With `"symptom": "consumers are lagging"` on a Ready topic and cluster, `steps_completed` still contains operator logs, events, exporter metrics and consumer lag
+- [ ] `events` lists only the `KafkaTopic` and the Entity Operator pod, not broker pods or PVCs
+- [ ] Every `exporter_metrics` series has `topic` = `mcp-test-topic` (in `labels` or `common_labels`); no `__consumer_offsets` series
+- [ ] `consumer_lag` has one series per consumer group of `mcp-test-topic`, aggregation `topic`, over 15 minutes
 
 ### T15.8 - Diagnose KafkaConnect
 

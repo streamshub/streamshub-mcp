@@ -37,7 +37,19 @@ final class ComponentScope {
      */
     static Map<String, String> matchers(final String label, final String value) {
         Map<String, String> matchers = new LinkedHashMap<>();
-        matchers.put(label, REGEX_META.matcher(value).replaceAll("\\\\$0") + "|");
+        matchers.put(label, quote(value) + "|");
         return matchers;
+    }
+
+    /**
+     * Escapes the regex metacharacters in a label value, so a regex matcher matches the value
+     * exactly. Uses only escapes that both Java regex and PromQL (RE2) accept, unlike
+     * {@link Pattern#quote}.
+     *
+     * @param value the literal label value, for example a topic name such as {@code orders.v1}
+     * @return the value with each metacharacter escaped
+     */
+    static String quote(final String value) {
+        return REGEX_META.matcher(value).replaceAll("\\\\$0");
     }
 }

@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.dto.kafkabridge;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.streamshub.mcp.common.service.DiagnosticSteps;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaBridgeMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
 
@@ -62,9 +63,10 @@ public record KafkaBridgeDiagnosticReport(
             final String analysis,
             final List<String> stepsCompleted,
             final List<String> stepsFailed) {
-        String msg = String.format("KafkaBridge diagnostic completed: %d steps succeeded, %d steps failed",
-            stepsCompleted.size(), stepsFailed != null ? stepsFailed.size() : 0);
+        String msg = "KafkaBridge diagnostic completed: "
+            + DiagnosticSteps.summary(stepsCompleted, null, stepsFailed);
         return new KafkaBridgeDiagnosticReport(bridge, pods, logs, events, metrics,
-            analysis, stepsCompleted, stepsFailed, Instant.now(), msg);
+            analysis, stepsCompleted,
+            DiagnosticSteps.nonEmptyOrNull(stepsFailed), Instant.now(), msg);
     }
 }

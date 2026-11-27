@@ -117,7 +117,9 @@ class StrimziOperatorMetricsServiceTest {
 
     @Test
     void successfulMetricsRetrieval() {
-        Pod pod = createPod("strimzi-cluster-operator-abc123", "kafka-system");
+        Pod pod = createPod("strimzi-cluster-operator-7f9c8d6b5-abc12", "kafka-system");
+        pod.getMetadata().setOwnerReferences(List.of(new io.fabric8.kubernetes.api.model.OwnerReferenceBuilder()
+            .withKind("ReplicaSet").withName("strimzi-cluster-operator-7f9c8d6b5").build()));
         when(strimziOperatorService.findClusterOperatorPods("kafka-system", null))
             .thenReturn(List.of(pod));
 
@@ -131,7 +133,8 @@ class StrimziOperatorMetricsServiceTest {
             "kafka-system", null, null, "reconciliation", null, null, null, null, null, null);
 
         assertNotNull(response);
-        assertEquals("cluster-operator", response.operatorName());
+        // Named by its Deployment, as list_strimzi_operators names it.
+        assertEquals("strimzi-cluster-operator", response.operatorName());
         assertNull(response.clusterName());
         assertEquals("kafka-system", response.namespace());
         assertEquals(1, response.sampleCount());

@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.dto.kafka;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.streamshub.mcp.common.service.DiagnosticSteps;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserAclMatrixResponse;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserResponse;
 
@@ -66,9 +67,10 @@ public record KafkaSecurityAuditReport(
                                               String analysis,
                                               List<String> stepsCompleted,
                                               List<String> stepsFailed) {
-        String msg = String.format("Security audit completed: %d steps succeeded, %d steps failed",
-            stepsCompleted.size(), stepsFailed != null ? stepsFailed.size() : 0);
+        String msg = "Security audit completed: "
+            + DiagnosticSteps.summary(stepsCompleted, null, stepsFailed);
         return new KafkaSecurityAuditReport(cluster, authorizationType, certificates, users,
-            aclMatrices, analysis, stepsCompleted, stepsFailed, Instant.now(), msg);
+            aclMatrices, analysis, stepsCompleted,
+            DiagnosticSteps.nonEmptyOrNull(stepsFailed), Instant.now(), msg);
     }
 }

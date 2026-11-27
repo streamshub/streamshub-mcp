@@ -124,6 +124,21 @@ class KafkaConnectivityDiagnosticServiceTest {
         assertNotNull(report);
         assertNotNull(report.cluster());
         assertTrue(report.message().contains("my-cluster"));
+        assertEquals("tls", report.listenerFilter(), "The listener filter is echoed in the report");
+        assertEquals(List.of("tls"), report.bootstrapServers().bootstrapServers().stream()
+            .map(b -> b.listenerName()).toList(), "Only the tls listener's bootstrap address is reported");
+        assertTrue(report.message().contains("listener 'tls'"), report.message());
+    }
+
+    @Test
+    void testUnknownListenerNameFailsFast() {
+        setupKafkaClusterWithListeners("my-cluster", "kafka");
+
+        McpException e = assertThrows(McpException.class, () -> connectivityDiagnosticService.diagnose(
+            "kafka", "my-cluster", "externl", null, null, null, null));
+
+        assertTrue(e.getMessage().contains("Listener 'externl' not found"), e.getMessage());
+        assertTrue(e.getMessage().contains("Available listeners: plain, tls"), e.getMessage());
     }
 
     // ---- Test helpers ----

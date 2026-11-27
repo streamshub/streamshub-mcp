@@ -13,6 +13,7 @@ import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.common.service.metrics.MetricsQueryService;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.config.metrics.KafkaMetricCategories;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaVolumeUsageResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.service.kafka.KafkaService;
 import io.strimzi.api.ResourceLabels;
@@ -446,6 +447,49 @@ class KafkaMetricsServiceTest {
         assertNotNull(response);
         // Produce + Fetch (matched by requestTypes) + idle gauge (no request label, passes through) = 3
         assertEquals(3, response.sampleCount());
+    }
+
+    @Test
+    void volumeUsageNeedsPrometheus() {
+        when(metricsQueryService.providerName()).thenReturn("streamshub-pod-scraping");
+
+        KafkaVolumeUsageResponse response = kafkaMetricsService.getVolumeUsage("kafka", List.of("data-0-my-cluster-broker-0"));
+
+        assertTrue(response.volumes().isEmpty());
+        assertTrue(response.message().contains("Prometheus"), response.message());
+        verify(metricsQueryService, never()).queryMetrics(anyList(), anyMap(), anyMap(), anyList(), any(), any(), any(), any());
+    }
+
+    @Test
+    void volumeUsageComputesPercentPerPvc() {
+        when(metricsQueryService.providerName()).thenReturn("streamshub-prometheus");
+        String pvc0 = "data-0-my-cluster-broker-0";
+        String pvc1 = "data-0-my-cluster-broker-1";
+        when(metricsQueryService.queryMetrics(anyList(), anyMap(), anyMap(), anyList(), any(), any(), any(), any()))
+            .thenReturn(List.of(
+                MetricSample.of(KafkaMetricsService.VOLUME_USED_BYTES, Map.of("persistentvolumeclaim", pvc0), 25.0),
+                MetricSample.of(KafkaMetricsService.VOLUME_CAPACITY_BYTES, Map.of("persistentvolumeclaim", pvc0), 100.0)));
+
+        KafkaVolumeUsageResponse response = kafkaMetricsService.getVolumeUsage("kafka", List.of(pvc0, pvc1));
+
+        assertEquals(1, response.volumes().size());
+        KafkaVolumeUsageResponse.VolumeUsage usage = response.volumes().getFirst();
+        assertEquals(pvc0, usage.pvc());
+        assertEquals(25L, usage.usedBytes());
+        assertEquals(100L, usage.capacityBytes());
+        assertEquals(25.0, usage.usagePercent());
+        assertTrue(response.message().contains("1 of 2") && response.message().contains(pvc1), response.message());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> matchers = ArgumentCaptor.forClass(Map.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> regex = ArgumentCaptor.forClass(Map.class);
+        verify(metricsQueryService).queryMetrics(eq(List.of()), matchers.capture(), regex.capture(),
+            eq(List.of(KafkaMetricsService.VOLUME_USED_BYTES, KafkaMetricsService.VOLUME_CAPACITY_BYTES)),
+            isNull(), isNull(), isNull(), isNull());
+        // Kubelet series have no Strimzi labels, so only the namespace and the PVC names are matched.
+        assertEquals(Map.of("namespace", "kafka"), matchers.getValue());
+        assertEquals(Map.of("persistentvolumeclaim", pvc0 + "|" + pvc1), regex.getValue());
     }
 
     private void givenSingleBrokerCluster() {

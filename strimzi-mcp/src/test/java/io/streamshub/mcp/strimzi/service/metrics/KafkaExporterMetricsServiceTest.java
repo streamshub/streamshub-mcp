@@ -297,6 +297,25 @@ class KafkaExporterMetricsServiceTest {
         assertEquals("broker", response.aggregation());
     }
 
+    @Test
+    void labelFiltersScopeTheQueryInTheBackend() {
+        when(kafkaService.findKafkaCluster("kafka", "my-cluster")).thenReturn(createKafka("my-cluster", "kafka"));
+        when(k8sService.queryResourcesByLabel(eq(Pod.class), eq("kafka"),
+            eq(ResourceLabels.STRIMZI_CLUSTER_LABEL), eq("my-cluster")))
+            .thenReturn(List.of(createExporterPod("my-cluster-kafka-exporter-0", "kafka")));
+
+        kafkaExporterMetricsService.getKafkaExporterMetrics(
+            "kafka", "my-cluster", "consumer_lag", null, 15, null, null, null, "topic", Map.of("topic", "orders.v1"));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> regex = ArgumentCaptor.forClass(Map.class);
+        verify(metricsQueryService).queryMetrics(anyList(), anyMap(), regex.capture(), anyList(),
+            eq(15), isNull(), isNull(), isNull());
+        // A regex matcher, so the pod-scraping provider applies it too; the dot matches only a dot.
+        assertEquals(Map.of("strimzi_io_component_type", "kafka-exporter|", "topic", "orders\\.v1"),
+            regex.getValue());
+    }
+
     private Kafka createKafka(final String name, final String namespace) {
         Kafka kafka = new Kafka();
         ObjectMeta meta = new ObjectMeta();

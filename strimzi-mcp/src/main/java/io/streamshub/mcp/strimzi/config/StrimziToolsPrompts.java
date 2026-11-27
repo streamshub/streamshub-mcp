@@ -135,6 +135,16 @@ public final class StrimziToolsPrompts {
             + " Omit to return all listeners.";
 
     /**
+     * Listener name parameter description for the connectivity diagnostic.
+     */
+    public static final String CONNECTIVITY_LISTENER_DESC =
+        "Listener name to focus on (e.g., 'plain', 'tls', 'external')."
+            + " Narrows bootstrap servers, certificates, users (those whose authentication"
+            + " type the listener accepts) and logs (lines naming the listener or its port) to it."
+            + " An unknown name fails and lists the cluster's listeners."
+            + " Omit to check all listeners.";
+
+    /**
      * Metrics category parameter description.
      */
     public static final String METRICS_CATEGORY_DESC =

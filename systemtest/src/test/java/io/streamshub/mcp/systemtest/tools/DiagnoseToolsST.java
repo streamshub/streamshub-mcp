@@ -254,9 +254,28 @@ class DiagnoseToolsST extends AbstractST {
                     "Should have certificates section");
                 assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster").path("name").asText(), "Cluster name should match");
                 assertEquals("Ready", root.path("cluster").path("readiness").asText(), "Cluster should be Ready");
-                assertEquals(2, root.path("bootstrap_servers").path("bootstrap_servers").size(), "Should have 2 bootstrap servers");
+                assertEquals("tls", root.path("listener_filter").asText(), "The listener filter should be echoed");
+                JsonNode servers = root.path("bootstrap_servers").path("bootstrap_servers");
+                assertEquals(1, servers.size(), "Only the tls listener's bootstrap server should be reported");
+                assertEquals("tls", servers.get(0).path("listener_name").asText());
                 assertEquals(6, root.path("steps_completed").size(), "Should have 6 completed steps");
             })
+            .thenAssertResults();
+    }
+
+    @Test
+    @Story("diagnose_kafka_connectivity rejects an unknown listener")
+    void testDiagnoseKafkaConnectivityUnknownListener() {
+        Map<String, Object> args = Map.of(
+            "clusterName", Constants.KAFKA_CLUSTER_NAME,
+            "listenerName", "nosuch");
+
+        mcpClient.when()
+            .toolsCall("diagnose_kafka_connectivity")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32602, "INVALID_PARAMS",
+                "Listener 'nosuch' not found", "Available listeners"))
+            .send()
             .thenAssertResults();
     }
 
@@ -532,6 +551,13 @@ class DiagnoseToolsST extends AbstractST {
                 assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster").path("name").asText(),
                     "cluster name should match");
                 assertTrue(root.path("pvcs").path("pvcs").isArray(), "pvcs array should be present");
+                assertFalse(root.path("volume_usage").path("message").asText("").isEmpty(),
+                    "volume_usage should say what it found or why it has no data");
+                JsonNode storageMetrics = root.path("storage_metrics");
+                if (storageMetrics.path("sample_count").asInt() > 0) {
+                    assertEquals("broker", storageMetrics.path("aggregation").asText(),
+                        "Log size should be aggregated per broker");
+                }
             })
             .thenAssertResults();
     }

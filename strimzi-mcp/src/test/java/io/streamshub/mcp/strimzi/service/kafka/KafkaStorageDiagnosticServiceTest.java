@@ -15,6 +15,7 @@ import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaPvcInfo;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaPvcResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaStorageDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaVolumeUsageResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
 import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
@@ -33,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -84,6 +86,9 @@ class KafkaStorageDiagnosticServiceTest {
         when(eventsService.getEvents(eq(NAMESPACE), eq(CLUSTER_NAME), eq(StrimziConstants.KindValues.KAFKA), any())).thenReturn(
             StrimziEventsResponse.empty(CLUSTER_NAME, NAMESPACE)
         );
+        when(metricsService.getVolumeUsage(NAMESPACE, List.of("data-0"))).thenReturn(
+            KafkaVolumeUsageResponse.of(List.of(KafkaVolumeUsageResponse.VolumeUsage.of("data-0", 90L, 100L)),
+                "Volume usage for 1 PVCs"));
     }
 
     @Test
@@ -122,5 +127,12 @@ class KafkaStorageDiagnosticServiceTest {
         assertTrue(report.stepsCompleted().contains("pods"));
         assertTrue(report.stepsCompleted().contains("storage_metrics"));
         assertTrue(report.stepsCompleted().contains("events"));
+        assertTrue(report.stepsCompleted().contains("volume_usage"));
+        assertEquals(90.0, report.volumeUsage().volumes().getFirst().usagePercent());
+        assertNull(report.stepsFailed(), "An empty steps_failed is left out, as in the other diagnostics");
+        assertEquals("Kafka storage diagnostic completed: 7 steps succeeded", report.message());
+        // Log size per broker (summed over partitions), not one series per topic partition.
+        verify(metricsService).getKafkaMetrics(NAMESPACE, CLUSTER_NAME, KafkaMetricCategories.STORAGE,
+            null, null, null, null, null, "BROKER", null);
     }
 }

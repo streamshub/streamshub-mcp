@@ -129,6 +129,37 @@ public class StrimziEventsService {
     }
 
     /**
+     * Get events for a KafkaTopic and for the Entity Operator pods of its cluster, whose Topic
+     * Operator reconciles the topic.
+     *
+     * <p>Unlike {@link #getEvents} for a Kafka cluster, this leaves out the broker pods, PVCs and
+     * node pools, whose scheduling and image-pull events say nothing about one topic.</p>
+     *
+     * @param namespace         the namespace of the KafkaTopic (and of its cluster's Entity Operator)
+     * @param topicResourceName the KafkaTopic resource name
+     * @param clusterName       the Kafka cluster the topic belongs to, or null to skip the operator pods
+     * @param sinceMinutes      only return events last observed within this many minutes, or null for all
+     * @return events grouped by resource
+     */
+    public StrimziEventsResponse getKafkaTopicEvents(final String namespace, final String topicResourceName,
+                                                     final String clusterName, final Integer sinceMinutes) {
+        Instant sinceTime = sinceMinutes != null
+            ? Instant.now().minusSeconds((long) sinceMinutes * SECONDS_PER_MINUTE)
+            : null;
+
+        List<ResourceEventsResult> results = new ArrayList<>();
+        results.add(eventsService.getEventsForResource(namespace, topicResourceName,
+            StrimziConstants.KindValues.KAFKA_TOPIC, sinceTime));
+        if (clusterName != null) {
+            collectPods(namespace,
+                Map.of(KubernetesConstants.Labels.APP_NAME, StrimziConstants.EntityOperator.APP_NAME_VALUE,
+                    ResourceLabels.STRIMZI_CLUSTER_LABEL, clusterName),
+                results, sinceTime);
+        }
+        return buildResponse(topicResourceName, namespace, results);
+    }
+
+    /**
      * Resolve a {@code resourceKind} argument to its canonical spelling, ignoring case and
      * surrounding whitespace.
      *
