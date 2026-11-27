@@ -19,6 +19,11 @@ Test naming convention: `methodName_condition_expectedResult`.
 
 Each domain service, diagnostic service, and tools class has a corresponding test class.
 
+### Real API shapes
+
+When a bug depends on fabric8 or the API server (discovery, resource scope, deserialization), do not reproduce it with a typed builder or a permissive Mockito chain, because those accept shapes the server never returns or rejects.
+Test against `@EnableKubernetesMockClient` (see `KubernetesResourceServiceMockServerTest`) or parse the real JSON with `Serialization.unmarshal(json, Type.class)`.
+
 ## Code coverage
 
 Code coverage is collected using JaCoCo and is gated behind a Maven profile to keep production builds clean.

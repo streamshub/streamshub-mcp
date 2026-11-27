@@ -20,6 +20,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.dsl.base.ResourceDefinitionContext;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.ImageBuildInspection;
@@ -38,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -497,7 +499,9 @@ class ImageBuildInspectionServiceTest {
         NonNamespaceOperation<GenericKubernetesResource, GenericKubernetesResourceList,
             Resource<GenericKubernetesResource>> labeledOp = mock(NonNamespaceOperation.class);
 
-        when(kubernetesClient.genericKubernetesResources("build.openshift.io/v1", "Build"))
+        // ResourceDefinitionContext has no equals(), so match on the plural and group.
+        when(kubernetesClient.genericKubernetesResources(argThat((ResourceDefinitionContext c) -> c != null
+                && "builds".equals(c.getPlural()) && "build.openshift.io".equals(c.getGroup()))))
             .thenReturn(resourceOp);
         when(resourceOp.inNamespace(eq(namespace))).thenReturn(nsOp);
         when(nsOp.withLabel(eq("openshift.io/build-config.name"), eq(buildConfigName))).thenReturn(labeledOp);

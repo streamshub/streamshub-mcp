@@ -190,6 +190,8 @@ class KafkaClusterToolsST extends AbstractST {
                     "Should have kafka_version");
                 assertTrue(cluster.path("kafka_version").asText().matches("\\d+\\.\\d+\\.\\d+"),
                     "Kafka version should be in x.y.z format");
+                assertFalse(cluster.path("cluster_security").path("encryption").asText().isEmpty(),
+                    "cluster_security.encryption should be reported");
                 // Conditions
                 assertTrue(cluster.has("conditions"), "Should have conditions");
                 JsonNode conditions = cluster.path("conditions");
@@ -496,6 +498,10 @@ class KafkaClusterToolsST extends AbstractST {
                 assertEquals(Environment.KAFKA_NAMESPACE, root.path("namespace").asText(),
                     "namespace should match");
                 assertTrue(root.path("pvcs").isArray(), "pvcs should be an array");
+                for (JsonNode pvc : root.path("pvcs")) {
+                    assertTrue(pvc.has("allow_volume_expansion") && pvc.get("allow_volume_expansion").isBoolean(),
+                        "every PVC should report a boolean allow_volume_expansion");
+                }
             })
             .thenAssertResults();
     }

@@ -1194,8 +1194,9 @@ Parameters: { "connectName": "mcp-connect" }
   - [ ] `build.plugins` array contains at least one plugin with `name` and `artifacts`
   - [ ] `build.plugins[0].artifacts` contains at least one artifact with `type` and `source`; `source` is the full Maven URL, unaltered (`https://repo.maven.apache.org/maven2/org/apache/camel/kafkaconnector/...`)
   - [ ] `build.build_logs` is null/absent (dev cluster build is healthy)
-  - [ ] `build.builder` is absent on Kubernetes once the operator deletes the builder pod; on OpenShift it may be present with `phase=Complete` (the Build object persists)
-  - [ ] `build.message` indicates build state (e.g., "Build completed" or "Build configured")
+  - [ ] `build.builder` is absent on Kubernetes once the operator deletes the builder pod; on OpenShift it is present with `kind=Build` and `phase=Complete` (the Build object persists)
+  - [ ] `build.message` indicates build state (e.g., "Build completed" or "Build configured"); on OpenShift it is not an "introspection failed" message
+  - [ ] `build.message` never contains a raw API error (no service-account name, no API server address)
 
 ### T10.3 - Get Connect Pods
 

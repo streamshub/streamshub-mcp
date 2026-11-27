@@ -4,11 +4,13 @@
  */
 package io.streamshub.mcp.strimzi.service.kafkaconnect;
 
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.dto.ImageBuildInspection;
 import io.streamshub.mcp.common.dto.ImageBuildStatus;
 import io.streamshub.mcp.common.service.ImageBuildInspectionService;
+import io.streamshub.mcp.common.service.KubernetesQueryException;
 import io.streamshub.mcp.common.service.OpenShiftDetector;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectBuildInfo;
 import io.strimzi.api.kafka.model.connect.KafkaConnect;
@@ -19,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -92,15 +95,34 @@ class KafkaConnectBuildServiceTest {
 
     @Test
     void testDescribeBuildDegradesGracefullyOnError() {
-        when(buildInspectionService.inspectBuilderPod(eq("kafka"), anyString()))
-            .thenThrow(new RuntimeException("boom"));
+        when(openShiftDetector.isOpenShift()).thenReturn(true);
+        when(buildInspectionService.inspectOpenShiftBuild(eq("kafka"), anyString()))
+            .thenThrow(new KubernetesQueryException(
+                "Failed to query builds.build.openshift.io by openshift.io/build-config.name=c-connect"
+                    + " in namespace 'kafka' (403 Forbidden)",
+                new KubernetesClientException("GET at: https://172.30.0.1:443/apis/... User"
+                    + " \"system:serviceaccount:streamshub-mcp:streamshub-mcp-strimzi\" cannot list")));
 
         KafkaConnectBuildInfo build = buildService.describeBuild(connectWithBuild());
 
         assertEquals("my.registry/connect:latest", build.outputImage());
         assertNull(build.builder());
         assertTrue(build.message().contains("introspection failed"));
-        assertTrue(build.message().contains("boom"));
+        assertTrue(build.message().contains("(403 Forbidden)"));
+        assertFalse(build.message().contains("system:serviceaccount"));
+        assertFalse(build.message().contains("172.30.0.1"));
+    }
+
+    @Test
+    void testDescribeBuildHidesUnexpectedErrorText() {
+        when(buildInspectionService.inspectBuilderPod(eq("kafka"), anyString()))
+            .thenThrow(new RuntimeException("boom"));
+
+        KafkaConnectBuildInfo build = buildService.describeBuild(connectWithBuild());
+
+        assertNull(build.builder());
+        assertTrue(build.message().endsWith("unexpected error, see the MCP server log"));
+        assertFalse(build.message().contains("boom"));
     }
 
     @Test

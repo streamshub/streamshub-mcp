@@ -43,7 +43,7 @@ The `build` object appears only when `spec.build` is configured on the KafkaConn
 * `plugins` -- list of plugins, each with `name` and `artifacts` (each artifact has `type` and `source`)
 * `builder` -- builder status object with `kind` (`Pod` or `Build`), `name`, `phase`, `ready`, `reason` (container-level such as `ImagePullBackOff`, or pod-level such as `Unschedulable` or `Evicted`), `message`, and `builder_image`
 * `build_logs` (failure path only) -- excerpt of build logs when the builder is failing
-* `message` -- human-readable build state message
+* `message` -- human-readable build state message. When build introspection fails, `message` gives a short reason (for example the HTTP status, such as `(403 Forbidden)`), not the raw API error
 
 The `builder` field is present whenever a builder pod or OpenShift Build object still exists, in any phase (pending, running, succeeded, or failed). The `build_logs` excerpt is included only on the failure path (the builder failed or is stuck pending). Once the operator has cleaned up a completed build's pod or Build object, both fields are omitted.
 

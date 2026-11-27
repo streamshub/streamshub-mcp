@@ -4,6 +4,8 @@
  */
 package io.streamshub.mcp.strimzi.service.kafka;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -54,6 +56,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -78,6 +81,9 @@ public class KafkaService {
 
     @Inject
     KafkaNodePoolService nodePoolService;
+
+    @Inject
+    ObjectMapper objectMapper;
 
     /**
      * No-arg constructor for CDI.
@@ -263,14 +269,15 @@ public class KafkaService {
         List<PersistentVolumeClaim> pvcs = k8sService.queryResourcesByLabel(
             PersistentVolumeClaim.class, resolvedNs, ResourceLabels.STRIMZI_CLUSTER_LABEL, normalizedName);
 
+        Map<String, Boolean> expansionCache = new HashMap<>();
         List<KafkaPvcInfo> pvcInfos = pvcs.stream()
-            .map(this::createPvcInfo)
+            .map(pvc -> createPvcInfo(pvc, expansionCache))
             .toList();
 
         return KafkaPvcResponse.of(normalizedName, resolvedNs, pvcInfos);
     }
 
-    private KafkaPvcInfo createPvcInfo(final PersistentVolumeClaim pvc) {
+    private KafkaPvcInfo createPvcInfo(final PersistentVolumeClaim pvc, final Map<String, Boolean> expansionCache) {
         String name = pvc.getMetadata() != null ? pvc.getMetadata().getName() : null;
         String namespace = pvc.getMetadata() != null ? pvc.getMetadata().getNamespace() : null;
         String phase = pvc.getStatus() != null ? pvc.getStatus().getPhase() : null;
@@ -296,14 +303,7 @@ public class KafkaService {
 
         Boolean allowVolumeExpansion = null;
         if (storageClassName != null && !storageClassName.isBlank()) {
-            try {
-                StorageClass sc = k8sService.getResource(StorageClass.class, null, storageClassName);
-                if (sc != null) {
-                    allowVolumeExpansion = sc.getAllowVolumeExpansion();
-                }
-            } catch (Exception e) {
-                LOG.debugf("Could not fetch StorageClass %s: %s", storageClassName, e.getMessage());
-            }
+            allowVolumeExpansion = allowVolumeExpansion(storageClassName, expansionCache);
         }
 
         return KafkaPvcInfo.of(
@@ -315,6 +315,32 @@ public class KafkaService {
             actualCapacity,
             volumeName,
             allowVolumeExpansion);
+    }
+
+    /**
+     * Reads whether a StorageClass allows volume expansion. StorageClass is cluster-scoped, so it is
+     * read without a namespace, and each distinct name is read once per call through the cache.
+     *
+     * @param storageClassName the StorageClass name
+     * @param cache            per-call results by StorageClass name, including unreadable ones as null
+     * @return the allowVolumeExpansion flag, where an unset field reports false (Kubernetes treats it as
+     *         not allowed), or null when the StorageClass cannot be read or does not exist
+     */
+    private Boolean allowVolumeExpansion(final String storageClassName, final Map<String, Boolean> cache) {
+        if (cache.containsKey(storageClassName)) {
+            return cache.get(storageClassName);
+        }
+        Boolean result = null;
+        try {
+            StorageClass sc = k8sService.getClusterScopedResource(StorageClass.class, storageClassName);
+            if (sc != null) {
+                result = Boolean.TRUE.equals(sc.getAllowVolumeExpansion());
+            }
+        } catch (Exception e) {
+            LOG.debugf("Could not fetch StorageClass %s: %s", storageClassName, e.getMessage());
+        }
+        cache.put(storageClassName, result);
+        return result;
     }
 
     private KafkaPodDisruptionBudgetInfo createPdbInfo(final PodDisruptionBudget pdb) {
@@ -619,19 +645,26 @@ public class KafkaService {
         return new KafkaClusterResponse.AutoRebalanceInfo(state, modes, ar.getLastTransitionTime());
     }
 
+    /**
+     * Extract encryption and authentication types from {@code status.clusterSecurity}.
+     * The client deserializes this block as an untyped map (the API model declares it as
+     * {@code Object}), while builders produce a typed status, so both are normalised
+     * through a JSON tree and unknown type strings pass through unchanged.
+     *
+     * @param kafka the Kafka custom resource
+     * @return the encryption and authentication types, or null when the status carries neither
+     */
     private KafkaClusterResponse.ClusterSecurityInfo extractClusterSecurity(final Kafka kafka) {
         if (kafka.getStatus() == null || kafka.getStatus().getClusterSecurity() == null) {
             return null;
         }
-        Object cs = kafka.getStatus().getClusterSecurity();
-        if (cs instanceof io.strimzi.api.kafka.model.kafka.clustersecurity.ClusterSecurityStatus secStatus) {
-            String encryption = secStatus.getEncryption() != null && secStatus.getEncryption().getType() != null
-                ? secStatus.getEncryption().getType().toValue() : null;
-            String authentication = secStatus.getAuthentication() != null && secStatus.getAuthentication().getType() != null
-                ? secStatus.getAuthentication().getType().toValue() : null;
-            return new KafkaClusterResponse.ClusterSecurityInfo(encryption, authentication);
+        JsonNode node = objectMapper.valueToTree(kafka.getStatus().getClusterSecurity());
+        String encryption = node.path("encryption").path("type").textValue();
+        String authentication = node.path("authentication").path("type").textValue();
+        if (encryption == null && authentication == null) {
+            return null;
         }
-        return null;
+        return new KafkaClusterResponse.ClusterSecurityInfo(encryption, authentication);
     }
 
     private Instant extractCreationTime(final Kafka kafka) {
