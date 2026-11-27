@@ -13,12 +13,13 @@ import io.quarkiverse.mcp.server.Sampling;
 import io.streamshub.mcp.common.config.KubernetesConstants;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
+import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
-import io.streamshub.mcp.strimzi.config.StrimziConstants;
+import io.streamshub.mcp.strimzi.config.metrics.KafkaExporterMetricCategories;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
@@ -42,7 +43,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Orchestrates a multistep diagnostic workflow for KafkaTopics.
  *
  * <p>Gathers data from the topic, related topics, parent Kafka cluster,
- * operator logs, events, and exporter metrics in a single operation.
+ * Entity Operator logs, events for the KafkaTopic and the Entity Operator, and the topic's
+ * Kafka Exporter partition metrics and consumer group lag in a single operation.
  * Optionally uses MCP Sampling for LLM triage and analysis.</p>
  *
  * <p>Individual step failures do not abort the workflow. Failed steps are
@@ -53,13 +55,17 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
 
     private static final Logger LOG = Logger.getLogger(KafkaTopicDiagnosticService.class);
     private static final int PHASE1_STEPS = 3;
-    private static final int MAX_PHASE2_STEPS = 3;
+    private static final int MAX_PHASE2_STEPS = 4;
+    /** Window of the consumer lag query: long enough to tell a growing lag from a steady one. */
+    static final int CONSUMER_LAG_RANGE_MINUTES = 15;
+    private static final String TOPIC_LABEL = "topic";
     private static final String STEP_TOPIC_STATUS = "topic_status";
     private static final String STEP_RELATED_TOPICS = "related_topics";
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
     private static final String STEP_OPERATOR_LOGS = "operator_logs";
     private static final String STEP_EVENTS = "events";
     private static final String STEP_EXPORTER_METRICS = "exporter_metrics";
+    private static final String STEP_CONSUMER_LAG = "consumer_lag";
 
     @Inject
     KafkaTopicService topicService;
@@ -156,7 +162,10 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         DiagnosticHelper.checkCancellation(cancellation);
 
         String resolvedNs = clusterStatus != null ? clusterStatus.namespace() : ns;
-        String logKeyword = topic.topicName() != null ? topic.topicName() : name;
+        // The Kafka topic name, which the exporter's topic label and the operator logs use; it can
+        // differ from the KafkaTopic resource name (spec.topicName).
+        String kafkaTopicName = topic.topicName() != null ? topic.topicName() : topic.name();
+        String topicNs = topic.namespace() != null ? topic.namespace() : resolvedNs;
 
         // === Phase 2: Deep investigation ===
         InvestigationAreas areas = investigateAreas(
@@ -168,7 +177,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         StrimziOperatorLogsResponse operatorLogs = null;
         if (areas.operatorLogs) {
             operatorLogs = gatherOperatorLogs(
-                resolvedNs, resolvedCluster, logKeyword, completed, failed);
+                resolvedNs, resolvedCluster, kafkaTopicName, completed, failed);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
                 operatorLogs != null ? "Collected Strimzi Entity Operator logs" : "Failed to collect operator logs");
             DiagnosticHelper.checkCancellation(cancellation);
@@ -177,28 +186,35 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         StrimziEventsResponse events = null;
         if (areas.events) {
             events = gatherEvents(
-                resolvedNs, resolvedCluster, completed, failed);
+                topicNs, topic.name(), resolvedCluster, completed, failed);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
                 events != null ? String.format("Found %d KafkaTopic related events", events.totalEvents()) : "Failed to gather events");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         KafkaExporterMetricsResponse exporterMetrics = null;
+        KafkaExporterMetricsResponse consumerLag = null;
         if (areas.exporterMetrics) {
             exporterMetrics = gatherExporterMetrics(
-                resolvedNs, resolvedCluster, completed, failed);
+                resolvedNs, resolvedCluster, kafkaTopicName, completed, failed);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
-                exporterMetrics != null ? "Collected Kafka Exporter partition metrics" : "Failed to gather exporter metrics");
+                exporterMetrics != null ? "Collected Kafka Exporter partition metrics for the topic" : "Failed to gather exporter metrics");
+            DiagnosticHelper.checkCancellation(cancellation);
+
+            consumerLag = gatherConsumerLag(
+                resolvedNs, resolvedCluster, kafkaTopicName, completed, failed);
+            DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps,
+                consumerLag != null ? "Collected consumer group lag for the topic" : "Failed to gather consumer group lag");
             DiagnosticHelper.checkCancellation(cancellation);
         }
 
         // === Phase 3: Final analysis ===
         String analysis = produceAnalysis(sampling, topic, relatedTopics, clusterStatus,
-            operatorLogs, events, exporterMetrics, symptom, resolvedTopicNs, cancelled);
+            operatorLogs, events, exporterMetrics, consumerLag, symptom, resolvedTopicNs, cancelled);
         DiagnosticHelper.checkAsyncCancellation(cancelled);
 
         return KafkaTopicDiagnosticReport.of(topic, relatedTopics, clusterStatus, operatorLogs,
-            events, exporterMetrics, analysis, completed, failed.isEmpty() ? null : failed);
+            events, exporterMetrics, consumerLag, analysis, completed, failed.isEmpty() ? null : failed);
     }
 
     // ---- Phase 1: Initial data gathering ----
@@ -305,12 +321,14 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
 
     @WithSpan("diagnose.topic.events")
     StrimziEventsResponse gatherEvents(final String namespace,
+                                        final String topicResourceName,
                                         final String clusterName,
                                         final List<String> completed,
                                         final List<String> failed) {
         try {
-            StrimziEventsResponse result = eventsService.getEvents(
-                namespace, clusterName, StrimziConstants.KindValues.KAFKA, null);
+            // The KafkaTopic and the Entity Operator that reconciles it, not the whole cluster.
+            StrimziEventsResponse result = eventsService.getKafkaTopicEvents(
+                namespace, topicResourceName, clusterName, null);
             completed.add(STEP_EVENTS);
             return result;
         } catch (Exception e) {
@@ -323,16 +341,39 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
     @WithSpan("diagnose.topic.exporter_metrics")
     KafkaExporterMetricsResponse gatherExporterMetrics(final String namespace,
                                                         final String clusterName,
+                                                        final String kafkaTopicName,
                                                         final List<String> completed,
                                                         final List<String> failed) {
         try {
             KafkaExporterMetricsResponse result = exporterMetricsService.getKafkaExporterMetrics(
-                namespace, clusterName, "partitions", null, null, null, null, null, null);
+                namespace, clusterName, KafkaExporterMetricCategories.PARTITIONS, null, null, null, null, null, null,
+                Map.of(TOPIC_LABEL, kafkaTopicName));
             completed.add(STEP_EXPORTER_METRICS);
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Kafka Exporter metrics: %s", e.getMessage());
             failed.add(STEP_EXPORTER_METRICS + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    @WithSpan("diagnose.topic.consumer_lag")
+    KafkaExporterMetricsResponse gatherConsumerLag(final String namespace,
+                                                    final String clusterName,
+                                                    final String kafkaTopicName,
+                                                    final List<String> completed,
+                                                    final List<String> failed) {
+        try {
+            // Per consumer group, summed across the topic's partitions, over a window that shows the trend.
+            KafkaExporterMetricsResponse result = exporterMetricsService.getKafkaExporterMetrics(
+                namespace, clusterName, KafkaExporterMetricCategories.CONSUMER_LAG, null,
+                CONSUMER_LAG_RANGE_MINUTES, null, null, null, AggregationLevel.TOPIC.name(),
+                Map.of(TOPIC_LABEL, kafkaTopicName));
+            completed.add(STEP_CONSUMER_LAG);
+            return result;
+        } catch (Exception e) {
+            LOG.warnf("Failed to gather consumer group lag: %s", e.getMessage());
+            failed.add(STEP_CONSUMER_LAG + ": " + e.getMessage());
             return null;
         }
     }
@@ -367,11 +408,13 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
                            final StrimziOperatorLogsResponse operatorLogs,
                            final StrimziEventsResponse events,
                            final KafkaExporterMetricsResponse exporterMetrics,
+                           final KafkaExporterMetricsResponse consumerLag,
                            final String symptom,
                            final String resolvedNamespace,
                            final AtomicBoolean cancelled) {
         return performAnalysisMrtr(sampling, ANALYSIS_SYSTEM_PROMPT,
-            buildFullSummary(topic, relatedTopics, cluster, operatorLogs, events, exporterMetrics, symptom),
+            buildFullSummary(topic, relatedTopics, cluster, operatorLogs, events, exporterMetrics, consumerLag,
+                symptom),
             "analysis", resolvedNamespace, cancelled);
     }
 
@@ -414,6 +457,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
                                                   final StrimziOperatorLogsResponse operatorLogs,
                                                   final StrimziEventsResponse events,
                                                   final KafkaExporterMetricsResponse exporterMetrics,
+                                                  final KafkaExporterMetricsResponse consumerLag,
                                                   final String symptom) {
         Map<String, Object> data = new LinkedHashMap<>();
         if (symptom != null) {
@@ -425,6 +469,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         DiagnosticHelper.putIfNotNull(data, STEP_OPERATOR_LOGS, operatorLogs);
         DiagnosticHelper.putIfNotNull(data, STEP_EVENTS, events);
         DiagnosticHelper.putIfNotNull(data, STEP_EXPORTER_METRICS, exporterMetrics);
+        DiagnosticHelper.putIfNotNull(data, STEP_CONSUMER_LAG, consumerLag);
         return data;
     }
 
@@ -441,7 +486,8 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
      *
      * @param operatorLogs    whether to gather Strimzi operator logs
      * @param events          whether to gather Kubernetes events
-     * @param exporterMetrics whether to gather Kafka Exporter partition metrics
+     * @param exporterMetrics whether to gather the topic's Kafka Exporter partition metrics and
+     *                        consumer group lag (two steps)
      */
     record InvestigationAreas(boolean operatorLogs, boolean events, boolean exporterMetrics) {
 
@@ -491,7 +537,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
             int c = 0;
             if (operatorLogs) c++;
             if (events) c++;
-            if (exporterMetrics) c++;
+            if (exporterMetrics) c += 2; // partition metrics and consumer lag
             return c;
         }
     }
@@ -510,7 +556,8 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         Set all to false only when there is no symptom, the topic and cluster are Ready, and nothing \
         else in the findings looks abnormal. \
         If the topic is in Error state, set operator_logs and events to true. \
-        If there may be replication or partition issues, set exporter_metrics to true. \
+        If there may be replication or partition issues, or consumers may be lagging, \
+        set exporter_metrics to true (it covers this topic's partitions and consumer group lag). \
         If the cluster is NotReady, set operator_logs and events to true.\
         """;
 
@@ -523,6 +570,8 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
         2. Topic Operator issues (CRITICAL): operator crash-looping, reconciliation stuck, RBAC errors
         3. Cluster-wide issues (CRITICAL): cluster NotReady, insufficient brokers, storage exhausted
         4. Replication issues (HIGH): under-replicated partitions, offline replicas, ISR shrinkage
+        5. Consumer issues (MEDIUM): consumer group lag on this topic that grows over the \
+        15-minute consumer_lag window (steady lag is often normal)
 
         Structure your response as:
         - Root cause (single most likely cause)

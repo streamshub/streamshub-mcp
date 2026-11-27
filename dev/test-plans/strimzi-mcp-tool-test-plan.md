@@ -1804,7 +1804,10 @@ Parameters: { "topicName": "mcp-test-topic" }
 - [ ] Returns topic diagnostic for `mcp-test-topic`
 - [ ] Topic CR status, partition config (3 partitions, 3 replicas)
 - [ ] Reconciliation status from topic operator
-- [ ] With `"symptom": "consumers are lagging"` on a Ready topic and cluster, `steps_completed` still contains operator logs, events and exporter metrics
+- [ ] With `"symptom": "consumers are lagging"` on a Ready topic and cluster, `steps_completed` still contains operator logs, events, exporter metrics and consumer lag
+- [ ] `events` lists only the `KafkaTopic` and the Entity Operator pod, not broker pods or PVCs
+- [ ] Every `exporter_metrics` series has `topic` = `mcp-test-topic` (in `labels` or `common_labels`); no `__consumer_offsets` series
+- [ ] `consumer_lag` has one series per consumer group of `mcp-test-topic`, aggregation `topic`, over 15 minutes
 
 ### T15.8 - Diagnose KafkaConnect
 

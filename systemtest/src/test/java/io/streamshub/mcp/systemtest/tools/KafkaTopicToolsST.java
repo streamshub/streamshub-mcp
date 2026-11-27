@@ -313,8 +313,24 @@ class KafkaTopicToolsST extends AbstractST {
                 assertEquals("mcp-cluster", root.path("topic").path("cluster").asText(), "Topic cluster should match");
                 assertEquals(4, root.path("related_topics").path("total").asInt(), "Should have 4 related topics");
                 assertEquals("Ready", root.path("cluster").path("readiness").asText(), "Cluster readiness should be Ready");
-                assertEquals(6, root.path("steps_completed").size(), "Should have 6 completed steps");
-                assertTrue(root.path("message").asText().contains("6 steps succeeded"), "Message should indicate 6 steps succeeded");
+                // Events cover the KafkaTopic and the Entity Operator, not the broker pods.
+                for (JsonNode resource : root.path("events").path("resources")) {
+                    String kind = resource.path("resource_kind").asText();
+                    String resourceName = resource.path("resource_name").asText();
+                    assertTrue("KafkaTopic".equals(kind) || resourceName.contains("entity-operator"),
+                        "Unexpected event resource " + kind + "/" + resourceName);
+                }
+                assertFalse(root.path("consumer_lag").isMissingNode(), "Should have consumer_lag section");
+                // A label shared by every series is moved to common_labels.
+                String commonTopic = root.path("exporter_metrics").path("common_labels").path("topic")
+                    .asText("mcp-topic-alpha");
+                assertEquals("mcp-topic-alpha", commonTopic, "Exporter metrics should be scoped to the topic");
+                for (JsonNode series : root.path("exporter_metrics").path("time_series")) {
+                    String topic = series.path("labels").path("topic").asText("mcp-topic-alpha");
+                    assertEquals("mcp-topic-alpha", topic, "Exporter metrics should be scoped to the topic");
+                }
+                assertEquals(7, root.path("steps_completed").size(), "Should have 7 completed steps");
+                assertTrue(root.path("message").asText().contains("7 steps succeeded"), "Message should indicate 7 steps succeeded");
             })
             .thenAssertResults();
     }
@@ -422,8 +438,8 @@ class KafkaTopicToolsST extends AbstractST {
                 assertEquals(3, root.path("topic").path("partitions").asInt(), "Topic should have 3 partitions");
                 assertEquals(4, root.path("related_topics").path("total").asInt(), "Should have 4 related topics");
                 assertEquals("Ready", root.path("cluster").path("readiness").asText(), "Cluster readiness should be Ready");
-                assertEquals(6, root.path("steps_completed").size(), "Should have 6 completed steps");
-                assertTrue(root.path("message").asText().contains("6 steps succeeded"), "Message should indicate 6 steps succeeded");
+                assertEquals(7, root.path("steps_completed").size(), "Should have 7 completed steps");
+                assertTrue(root.path("message").asText().contains("7 steps succeeded"), "Message should indicate 7 steps succeeded");
             })
             .thenAssertResults();
     }

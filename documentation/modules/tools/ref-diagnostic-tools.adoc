@@ -181,12 +181,12 @@ Diagnose issues with my-debezium-connector
 
 Server-driven companion to the xref:ref-prompt-templates-{context}[`troubleshoot-topic` prompt template].
 Runs a multi-step diagnostic workflow for a KafkaTopic.
-Gathers topic status, related topics (scope detection), cluster health, operator logs, events, and Kafka Exporter metrics in a single call.
+Gathers topic status, related topics (scope detection), cluster health, operator logs, events, Kafka Exporter partition metrics and consumer group lag in a single call.
 
 *3-phase workflow:*
 
 . *Phase 1 -- Initial data gathering*: Topic status, related topics for scope detection (topic-wide vs cluster-wide), parent cluster health gate.
-. *Phase 2 -- Deep investigation*: Operator logs (filtered for topic name), Kubernetes events, Kafka Exporter partition metrics. A Ready topic on a Ready cluster is not treated as healthy by itself: when you pass a `symptom`, when a replication-factor change is in flight, or when the topic or cluster is not Ready, all areas that can explain it are always investigated, whatever the triage answers.
+. *Phase 2 -- Deep investigation*: Operator logs (filtered for topic name), Kubernetes events for the KafkaTopic resource and the Entity Operator pods (not the broker pods), the Kafka Exporter partition metrics of this topic only, and its consumer group lag (`consumer_lag`: `kafka_consumergroup_lag` per consumer group, summed across the topic's partitions, over the last 15 minutes). The metrics are matched on the Kafka topic name (`spec.topicName` when set). A Ready topic on a Ready cluster is not treated as healthy by itself: when you pass a `symptom`, when a replication-factor change is in flight, or when the topic or cluster is not Ready, all areas that can explain it are always investigated, whatever the triage answers.
 . *Phase 3 -- Analysis*: Root cause analysis distinguishing topic config issues, Topic Operator issues, and cluster-wide problems.
 
 *Parameters:*

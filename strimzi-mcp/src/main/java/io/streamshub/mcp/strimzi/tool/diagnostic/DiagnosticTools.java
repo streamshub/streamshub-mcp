@@ -657,7 +657,9 @@ public class DiagnosticTools {
         name = "diagnose_kafka_topic",
         description = "Runs a multi-step diagnostic workflow for a KafkaTopic."
             + " Gathers topic status, related topics, cluster health,"
-            + " operator logs, events, and Kafka Exporter metrics in a single call."
+            + " operator logs, events for the topic and its Entity Operator,"
+            + " the topic's Kafka Exporter partition metrics and its consumer group lag"
+            + " (last 15 minutes) in a single call."
             + " Uses Sampling for LLM analysis and Elicitation for disambiguation."
             + " Falls back to gathering all data when Sampling is not supported.",
         structuredContent = true,

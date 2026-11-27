@@ -94,6 +94,11 @@ public final class StrimziConstants {
          */
         public static final String KAFKA_REBALANCE = "KafkaRebalance";
 
+        /**
+         * Kind value for KafkaTopic (used for the topic diagnostic's events).
+         */
+        public static final String KAFKA_TOPIC = "KafkaTopic";
+
         private KindValues() {
         }
     }
