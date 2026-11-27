@@ -78,7 +78,7 @@ class KafkaConnectivityDiagnosticStepsTest {
     @Test
     void testReportCountsDegradedSteps() {
         KafkaConnectivityDiagnosticReport report = KafkaConnectivityDiagnosticReport.of(
-            null, null, null, null, null, null, null,
+            null, null, null, null, null, null, null, null,
             List.of("cluster_status", "bootstrap_servers"),
             List.of("certificates: 1 certificate Secret(s) could not be read, see certificates.errors"),
             List.of());

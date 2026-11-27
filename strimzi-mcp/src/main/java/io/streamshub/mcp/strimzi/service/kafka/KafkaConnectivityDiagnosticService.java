@@ -24,6 +24,7 @@ import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaConnectivityDiagnosticReport;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserResponse;
 import io.streamshub.mcp.strimzi.service.kafkauser.KafkaUserService;
+import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -90,14 +91,15 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
      *
      * @param namespace    optional namespace (elicited if ambiguous)
      * @param clusterName  the Kafka cluster name
-     * @param listenerName optional listener to focus on
+     * @param listenerName optional listener to focus on: bootstrap servers, certificates, users and
+     *                     logs are narrowed to it, and an unknown name fails with invalid params
      * @param sampling     MCP Sampling for LLM analysis (may be unsupported)
      * @param elicitation  MCP Elicitation for user input (may be unsupported)
      * @param progress     MCP progress tracking
      * @param cancellation MCP cancellation checking
      * @return a consolidated connectivity diagnostic report
      */
-    @SuppressWarnings("checkstyle:ParameterNumber")
+    @SuppressWarnings({"checkstyle:ParameterNumber", "checkstyle:NPathComplexity"})
     public KafkaConnectivityDiagnosticReport diagnose(final String namespace,
                                                       final String clusterName,
                                                       final String listenerName,
@@ -136,8 +138,15 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
 
         String resolvedNs = cluster.namespace();
 
+        // An unknown listener fails fast, before any data is gathered for a listener that does not exist.
+        GenericKafkaListener listenerSpec = listener != null
+            ? ListenerScope.resolve(kafkaService.findKafkaCluster(resolvedNs, name), listener) : null;
+
         KafkaBootstrapResponse bootstrapServers = gatherBootstrapServers(
             resolvedNs, name, completed, failed);
+        if (listenerSpec != null) {
+            bootstrapServers = ListenerScope.bootstrapServers(bootstrapServers, listener);
+        }
         DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps, bootstrapServers != null ? String.format("Found %d Kafka listeners", bootstrapServers.bootstrapServers() != null ? bootstrapServers.bootstrapServers().size() : 0) : "Failed to gather bootstrap servers");
         DiagnosticHelper.checkCancellation(cancellation);
 
@@ -167,7 +176,7 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
         KafkaClusterLogsResponse clusterLogs = null;
         if (areas.clusterLogs) {
             clusterLogs = gatherConnectivityLogs(
-                resolvedNs, name, completed, failed);
+                resolvedNs, name, listenerSpec, completed, failed);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, clusterLogs != null ? "Collected connectivity-related logs" : "Failed to collect connectivity logs");
             DiagnosticHelper.checkCancellation(cancellation);
         }
@@ -175,6 +184,9 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
         List<KafkaUserResponse> users = null;
         if (areas.users) {
             users = gatherUsers(resolvedNs, name, completed, failed);
+            if (listenerSpec != null) {
+                users = ListenerScope.users(users, listenerSpec);
+            }
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, users != null ? String.format("Found %d KafkaUsers for cluster", users.size()) : "Failed to gather KafkaUsers");
             DiagnosticHelper.checkCancellation(cancellation);
         }
@@ -184,7 +196,7 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
             certificates, pods, clusterLogs, users, listener, cancelled);
         DiagnosticHelper.checkAsyncCancellation(cancelled);
 
-        return KafkaConnectivityDiagnosticReport.of(cluster, bootstrapServers,
+        return KafkaConnectivityDiagnosticReport.of(cluster, listener, bootstrapServers,
             certificates, pods, clusterLogs, users, analysis,
             completed, degraded, failed);
     }
@@ -274,12 +286,17 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
     @WithSpan("diagnose.connectivity.logs")
     KafkaClusterLogsResponse gatherConnectivityLogs(final String namespace,
                                                     final String clusterName,
+                                                    final GenericKafkaListener listener,
                                                     final List<String> completed,
                                                     final List<String> failed) {
         try {
-            LogCollectionParams params = LogCollectionParams.builder(defaultTailLines)
-                .keywords(CONNECTIVITY_KEYWORDS)
-                .build();
+            LogCollectionParams.Builder builder = LogCollectionParams.builder(defaultTailLines)
+                .keywords(CONNECTIVITY_KEYWORDS);
+            if (listener != null) {
+                // Lines must name the listener (or its port) and contain a connectivity keyword.
+                builder.filter(ListenerScope.logFilter(listener));
+            }
+            LogCollectionParams params = builder.build();
             KafkaClusterLogsResponse result = kafkaService.getClusterLogs(
                 namespace, clusterName, params);
             completed.add(STEP_CLUSTER_LOGS);

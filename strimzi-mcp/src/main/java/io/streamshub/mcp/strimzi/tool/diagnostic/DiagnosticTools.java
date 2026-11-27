@@ -400,7 +400,7 @@ public class DiagnosticTools {
             required = false
         ) final String namespace,
         @ToolArg(
-            description = StrimziToolsPrompts.LISTENER_DESC,
+            description = StrimziToolsPrompts.CONNECTIVITY_LISTENER_DESC,
             required = false
         ) final String listenerName,
         final Sampling sampling,

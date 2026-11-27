@@ -1756,6 +1756,13 @@ Parameters: { "clusterName": "mcp-cluster", "listenerName": "tls" }
 **Expected:**
 - [ ] Focuses analysis on the `tls` listener (port 9093, mutual TLS auth)
 - [ ] TLS certificate details included
+- [ ] `listener_filter` is `tls`
+- [ ] `bootstrap_servers` lists only the `tls` listener
+- [ ] `users` lists only users with `tls` or `tls-external` authentication
+- [ ] Every `cluster_logs` line names `TLS-9093` or `:9093-`
+- [ ] With `"listenerName": "plain"` (no authentication), `users` is empty
+- [ ] With `"listenerName": "nosuch"`, the call fails with invalid params and lists `plain, tls, ...`
+- [ ] Without the sensitive Role, `certificates` is in `steps_degraded` (not `steps_completed`) and the message counts it as degraded
 
 ### T15.5 - Diagnose Kafka Metrics
 

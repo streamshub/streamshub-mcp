@@ -67,7 +67,9 @@ Checks listener configuration, bootstrap addresses, TLS settings, pod health, an
 
 * `clusterName` (required) -- Name of the Kafka cluster
 * `namespace` (optional) -- Kubernetes namespace
-* `listenerName` (optional) -- Specific listener to check
+* `listenerName` (optional) -- Listener to focus on. The report then contains only that listener's bootstrap servers and certificate authentication, the KafkaUsers whose authentication type the listener accepts (none for a listener without authentication, all users for a `custom` listener such as OAuth), and the connectivity log lines that name the listener (`<NAME>-<PORT>`, for example `TLS-9093`) or its port in a channel ID. The report echoes the name as `listener_filter`. An unknown name fails with an invalid-params error that lists the cluster's listeners.
+
+A step that returns data but hits errors on part of it, such as certificate Secrets that the service account cannot read, is listed in `steps_degraded` instead of `steps_completed`.
 
 Uses Sampling:: Yes
 Uses Elicitation:: Yes

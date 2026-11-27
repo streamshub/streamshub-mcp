@@ -23,6 +23,7 @@ import java.util.List;
  * {@code stepsDegraded} instead of {@code stepsCompleted}.</p>
  *
  * @param cluster          Kafka cluster status and conditions
+ * @param listenerFilter   the listener the report is narrowed to, or null for all listeners
  * @param bootstrapServers listener addresses, types, and ports
  * @param certificates     TLS certificate metadata and listener authentication
  * @param pods             pod health summaries (phase, restarts, termination reasons)
@@ -38,6 +39,7 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record KafkaConnectivityDiagnosticReport(
     @JsonProperty("cluster") KafkaClusterResponse cluster,
+    @JsonProperty("listener_filter") String listenerFilter,
     @JsonProperty("bootstrap_servers") KafkaBootstrapResponse bootstrapServers,
     @JsonProperty("certificates") KafkaCertificateResponse certificates,
     @JsonProperty("pods") KafkaClusterPodsResponse pods,
@@ -55,6 +57,7 @@ public record KafkaConnectivityDiagnosticReport(
      * Creates a connectivity diagnostic report with gathered data and step tracking.
      *
      * @param cluster          cluster status response
+     * @param listenerFilter   the listener the report is narrowed to, or null
      * @param bootstrapServers bootstrap server addresses
      * @param certificates     certificate and authentication response
      * @param pods             pod health response
@@ -68,6 +71,7 @@ public record KafkaConnectivityDiagnosticReport(
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
     public static KafkaConnectivityDiagnosticReport of(KafkaClusterResponse cluster,
+                                                       String listenerFilter,
                                                        KafkaBootstrapResponse bootstrapServers,
                                                        KafkaCertificateResponse certificates,
                                                        KafkaClusterPodsResponse pods,
@@ -78,10 +82,11 @@ public record KafkaConnectivityDiagnosticReport(
                                                        List<String> stepsDegraded,
                                                        List<String> stepsFailed) {
         String clusterName = cluster != null ? cluster.name() : "unknown";
-        String msg = String.format("Connectivity diagnostic completed for cluster '%s': %s",
-            clusterName, DiagnosticSteps.summary(stepsCompleted, stepsDegraded, stepsFailed));
+        String scope = listenerFilter != null ? " (listener '" + listenerFilter + "')" : "";
+        String msg = String.format("Connectivity diagnostic completed for cluster '%s'%s: %s",
+            clusterName, scope, DiagnosticSteps.summary(stepsCompleted, stepsDegraded, stepsFailed));
 
-        return new KafkaConnectivityDiagnosticReport(cluster, bootstrapServers, certificates,
+        return new KafkaConnectivityDiagnosticReport(cluster, listenerFilter, bootstrapServers, certificates,
             pods, clusterLogs, users, analysis, stepsCompleted,
             DiagnosticSteps.nonEmptyOrNull(stepsDegraded), DiagnosticSteps.nonEmptyOrNull(stepsFailed),
             Instant.now(), msg);
