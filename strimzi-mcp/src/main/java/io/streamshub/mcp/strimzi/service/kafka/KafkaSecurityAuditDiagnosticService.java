@@ -271,8 +271,15 @@ public class KafkaSecurityAuditDiagnosticService extends BaseDiagnosticService {
 
     // ---- Helpers ----
 
-    private Map<String, Object> buildPhase1Summary(final ClusterSecurity clusterSecurity,
-                                                   final List<KafkaUserResponse> users) {
+    /**
+     * Build the compact Phase 1 summary sent to the triage prompt.
+     *
+     * @param clusterSecurity the resolved cluster security configuration
+     * @param users           the KafkaUser inventory
+     * @return the triage summary
+     */
+    Map<String, Object> buildPhase1Summary(final ClusterSecurity clusterSecurity,
+                                           final List<KafkaUserResponse> users) {
         Map<String, Object> summary = new LinkedHashMap<>();
         DiagnosticHelper.putIfNotNull(summary, "authentication_enabled",
             clusterSecurity.cluster().authenticationEnabled());
@@ -364,7 +371,8 @@ public class KafkaSecurityAuditDiagnosticService extends BaseDiagnosticService {
         - Listeners with no authentication (open access points; named in the cluster's \
         unauthenticated_listeners, and reported with authentication_type 'none')
         - ACL grants with 'All' operations (superuser-level access)
-        - ACL grants on the 'cluster' resource (cluster admin access)
+        - ACL grants on the 'cluster' resource with 'Alter', 'AlterConfigs', 'ClusterAction', \
+        'Create' or 'All' (cluster admin access; 'Alter' lets the principal manage ACLs)
         - ACL grants with wildcard resource name '*' (matches all resources)
         - Users with authentication but no authorization/ACLs — note: the 'simple' authorizer \
         (AclAuthorizer / StandardAuthorizer) denies all access by default unless the user is a \
@@ -378,6 +386,7 @@ public class KafkaSecurityAuditDiagnosticService extends BaseDiagnosticService {
 
         INFORMATIONAL:
         - 'deny' ACL rules (verify they are intentional hardening)
+        - Read-only or routine cluster grants ('Describe', 'DescribeConfigs', 'IdempotentWrite')
         - 'tls-external' authentication (certificates managed outside Strimzi)
         - Multiple authentication types in use (operational complexity)
 

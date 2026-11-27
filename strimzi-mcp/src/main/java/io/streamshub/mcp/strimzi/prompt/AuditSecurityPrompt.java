@@ -88,7 +88,7 @@ public class AuditSecurityPrompt {
             these are open access points (`authentication_enabled` is true as soon as any one \
             listener has authentication). Then use `get_kafka_cluster_config` for per-listener detail.
             For each listener, note:
-            - The `auth_type` (tls, tls-external, scram-sha-512, oauth, custom, or none)
+            - The `auth_type` (tls, scram-sha-512, custom, or none)
             - Whether TLS encryption is enabled
 
             Then use `get_kafka_cluster_certificates` to check certificate expiry dates.
@@ -109,7 +109,8 @@ public class AuditSecurityPrompt {
             **HIGH RISK:**
             - Users with NO authentication configured (access without credentials)
             - ACL rules granting `All` operations (superuser-level access)
-            - ACL rules on `cluster` resource type (cluster admin access)
+            - ACL rules on the `cluster` resource with `Alter`, `AlterConfigs`, `ClusterAction`, \
+            `Create` or `All` (cluster admin access; `Alter` lets the user manage ACLs)
             - ACL rules with wildcard resource name `*` (matches all resources)
             - Users with authentication but NO authorization/ACLs — note: Kafka's \
             built-in authorizer (AclAuthorizer / StandardAuthorizer) denies all access \
@@ -124,6 +125,7 @@ public class AuditSecurityPrompt {
 
             **INFORMATIONAL:**
             - `deny` type ACL rules (unusual -- verify they are intentional security hardening)
+            - Read-only or routine cluster grants (`Describe`, `DescribeConfigs`, `IdempotentWrite`)
             - `tls-external` authentication (certificates managed outside Strimzi)
             - Multiple authentication types in use (adds operational complexity)
 

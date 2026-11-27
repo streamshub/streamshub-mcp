@@ -850,7 +850,7 @@ Parameters: { "clusterName": "mcp-cluster", "resourceType": "cluster" }
 **Expected:**
 - [ ] `matrix` has a single `kafka-cluster` entry with `mcp-admin-user: [All]` (plus `mm2-user: [Alter, Create, Describe]` when `--mirror-maker` is deployed)
 - [ ] `broad_grants` flags `mcp-admin-user` as `"cluster-level access, All operations"`; with `--mirror-maker`, `mm2-user` is flagged as `"cluster-level access"` (its `Alter` lets it manage ACLs)
-- [ ] A principal with only `Describe`, `DescribeConfigs` or `IdempotentWrite` on the cluster is not flagged
+- [ ] No other principal is flagged (read-only cluster grants such as `Describe` alone are not flagged; covered by `KafkaUserServiceTest`)
 
 ---
 

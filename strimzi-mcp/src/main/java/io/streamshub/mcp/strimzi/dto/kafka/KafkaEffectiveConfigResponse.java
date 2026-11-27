@@ -147,7 +147,7 @@ public record KafkaEffectiveConfigResponse(
      * @param port      listener port number
      * @param type      listener type (internal, route, loadbalancer, etc.)
      * @param tls       whether TLS is enabled
-     * @param authType  authentication type (scram-sha-512, tls, oauth, etc.), or {@code none} when the
+     * @param authType  authentication type (scram-sha-512, tls, custom), or {@code none} when the
      *                  listener has no authentication
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)

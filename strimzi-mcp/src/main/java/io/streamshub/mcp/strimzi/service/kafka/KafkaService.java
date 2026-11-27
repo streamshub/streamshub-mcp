@@ -786,24 +786,23 @@ public class KafkaService {
         return false;
     }
 
-    private boolean extractAuthenticationEnabled(final Kafka kafka) {
+    private List<GenericKafkaListener> specListeners(final Kafka kafka) {
         if (kafka.getSpec() != null && kafka.getSpec().getKafka() != null
             && kafka.getSpec().getKafka().getListeners() != null) {
-            return kafka.getSpec().getKafka().getListeners().stream()
-                .anyMatch(listener -> listener.getAuth() != null);
+            return kafka.getSpec().getKafka().getListeners();
         }
-        return false;
+        return List.of();
+    }
+
+    private boolean extractAuthenticationEnabled(final Kafka kafka) {
+        return specListeners(kafka).stream().anyMatch(listener -> listener.getAuth() != null);
     }
 
     private List<String> extractUnauthenticatedListeners(final Kafka kafka) {
-        if (kafka.getSpec() != null && kafka.getSpec().getKafka() != null
-            && kafka.getSpec().getKafka().getListeners() != null) {
-            return kafka.getSpec().getKafka().getListeners().stream()
-                .filter(listener -> listener.getAuth() == null)
-                .map(GenericKafkaListener::getName)
-                .toList();
-        }
-        return List.of();
+        return specListeners(kafka).stream()
+            .filter(listener -> listener.getAuth() == null)
+            .map(GenericKafkaListener::getName)
+            .toList();
     }
 
     private boolean extractAuthorizationEnabled(final Kafka kafka) {

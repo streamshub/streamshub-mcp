@@ -167,7 +167,7 @@ public record KafkaCertificateResponse(
      * @param listenerName       the listener name
      * @param listenerType       the listener type (e.g., internal, route, loadbalancer)
      * @param tlsEnabled         whether TLS is enabled on this listener
-     * @param authenticationType the authentication type (e.g., scram-sha-512, tls, oauth), or {@code none}
+     * @param authenticationType the authentication type (e.g., scram-sha-512, tls, custom), or {@code none}
      *                           when the listener has no authentication
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
