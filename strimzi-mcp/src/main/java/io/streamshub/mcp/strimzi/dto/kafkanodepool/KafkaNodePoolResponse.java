@@ -23,8 +23,11 @@ import java.util.List;
  * @param statusRoles    the actual roles assigned from status
  * @param nodeIds        the node IDs used in this pool from status
  * @param storageType    the type of storage used (optional)
- * @param storageSize    the size of storage (optional)
- * @param ready          whether the node pool condition is Ready
+ * @param storageSize    the per-node storage size, the total across volumes for JBOD (optional)
+ * @param volumes        the JBOD volumes in spec order (JBOD only)
+ * @param ready          true when the operator has observed the current spec and assigned the desired
+ *                       number of nodes (an explicit Ready/NotReady condition wins); pod readiness is
+ *                       reported separately
  * @param conditions     the status conditions
  * @param reconciliation reconciliation status tracking (generation vs observedGeneration)
  */
@@ -40,6 +43,7 @@ public record KafkaNodePoolResponse(
     @JsonProperty("node_ids") List<Integer> nodeIds,
     @JsonProperty("storage_type") String storageType,
     @JsonProperty("storage_size") String storageSize,
+    @JsonProperty("volumes") List<StorageVolumeInfo> volumes,
     @JsonProperty("ready") Boolean ready,
     @JsonProperty("conditions") List<ConditionInfo> conditions,
     @JsonProperty("reconciliation") ReconciliationInfo reconciliation
@@ -57,8 +61,11 @@ public record KafkaNodePoolResponse(
      * @param statusRoles    the actual roles assigned from status
      * @param nodeIds        the node IDs used in this pool from status
      * @param storageType    the type of storage used
-     * @param storageSize    the size of storage
-     * @param ready          whether the node pool condition is Ready
+     * @param storageSize    the per-node storage size, the total across volumes for JBOD
+     * @param volumes        the JBOD volumes in spec order, null otherwise
+     * @param ready          true when the operator has observed the current spec and assigned the desired
+     *                       number of nodes (an explicit Ready/NotReady condition wins); pod readiness is
+     *                       reported separately
      * @param conditions     the status conditions
      * @param reconciliation reconciliation status tracking
      * @return a new node pool response
@@ -69,10 +76,11 @@ public record KafkaNodePoolResponse(
                                             Integer statusReplicas, List<String> statusRoles,
                                             List<Integer> nodeIds,
                                             String storageType, String storageSize,
+                                            List<StorageVolumeInfo> volumes,
                                             Boolean ready,
                                             List<ConditionInfo> conditions,
                                             ReconciliationInfo reconciliation) {
         return new KafkaNodePoolResponse(name, namespace, cluster, roles, replicas, statusReplicas, statusRoles,
-            nodeIds, storageType, storageSize, ready, conditions, reconciliation);
+            nodeIds, storageType, storageSize, volumes, ready, conditions, reconciliation);
     }
 }

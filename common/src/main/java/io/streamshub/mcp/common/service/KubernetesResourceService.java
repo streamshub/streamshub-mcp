@@ -15,6 +15,7 @@ import org.jboss.logging.Logger;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Common service for Kubernetes resource operations.
@@ -292,6 +293,27 @@ public class KubernetesResourceService {
                 String.format("Failed to get %s '%s' in namespace '%s'%s",
                     resourceClass.getSimpleName(), name, namespace, formatStatusSuffix(e)), e);
         }
+    }
+
+    /**
+     * Check whether a resource with the given name exists. With a namespace this is a lookup by name;
+     * without one, all namespaces are searched and a name found in several namespaces still counts as
+     * existing (no ambiguity error).
+     *
+     * @param <T>           the resource type
+     * @param resourceClass the resource class
+     * @param namespace     the namespace, or null to search all namespaces
+     * @param name          the resource name
+     * @return true if at least one resource with that name exists
+     * @throws KubernetesQueryException if the Kubernetes API call fails
+     */
+    public <T extends HasMetadata> boolean resourceExists(final Class<T> resourceClass, final String namespace,
+                                                          final String name) {
+        if (namespace != null) {
+            return getResource(resourceClass, namespace, name) != null;
+        }
+        return queryResourcesInAnyNamespace(resourceClass).stream()
+            .anyMatch(r -> r.getMetadata() != null && Objects.equals(r.getMetadata().getName(), name));
     }
 
     /**

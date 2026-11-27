@@ -8,10 +8,14 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.streamshub.mcp.common.dto.error.McpErrorCategory;
+import io.streamshub.mcp.common.dto.error.McpErrorData;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserAclMatrixResponse;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserResponse;
 import io.streamshub.mcp.strimzi.service.kafkauser.KafkaUserService;
 import io.strimzi.api.ResourceLabels;
+import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.user.KafkaUser;
 import io.strimzi.api.kafka.model.user.KafkaUserBuilder;
 import io.strimzi.api.kafka.model.user.acl.AclResourcePatternType;
@@ -48,6 +52,7 @@ class KafkaUserServiceTest {
     @BeforeEach
     void setUp() {
         KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaUser.class);
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, Kafka.class, List.of(kafka("my-cluster", "kafka")));
     }
 
     /**
@@ -91,6 +96,33 @@ class KafkaUserServiceTest {
         List<KafkaUserResponse> result = userService.listUsers(null, "my-cluster");
 
         assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    /**
+     * Verify a cluster filter that names no Kafka cluster reports RESOURCE_NOT_FOUND instead of an empty list.
+     */
+    @Test
+    void testListUsersWithUnknownClusterThrowsNotFound() {
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Kafka.class);
+
+        McpException ex = assertThrows(McpException.class,
+            () -> userService.listUsers("kafka", "missing"));
+
+        assertTrue(ex.getMessage().contains("Kafka cluster 'missing' not found in namespace kafka"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("omit namespace"), ex.getMessage());
+        assertEquals(McpErrorCategory.RESOURCE_NOT_FOUND, ((McpErrorData) ex.getData()).category());
+    }
+
+    /**
+     * Verify listing without a cluster filter never checks for a Kafka cluster, so it stays an empty list.
+     */
+    @Test
+    void testListUsersWithoutClusterFilterStaysEmpty() {
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Kafka.class);
+
+        List<KafkaUserResponse> result = userService.listUsers("kafka", null);
+
         assertTrue(result.isEmpty());
     }
 
@@ -230,6 +262,21 @@ class KafkaUserServiceTest {
     }
 
     /**
+     * Verify the ACL matrix of a cluster that does not exist reports RESOURCE_NOT_FOUND instead of an empty matrix.
+     */
+    @Test
+    void testAclMatrixThrowsNotFoundForUnknownCluster() {
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Kafka.class);
+
+        McpException ex = assertThrows(McpException.class,
+            () -> userService.getAclMatrix("kafka", "missing", null));
+
+        assertTrue(ex.getMessage().contains("Kafka cluster 'missing' not found in namespace kafka"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("omit namespace"), ex.getMessage());
+        assertEquals(McpErrorCategory.RESOURCE_NOT_FOUND, ((McpErrorData) ex.getData()).category());
+    }
+
+    /**
      * Verify cluster-scoped ACL rules, which carry no resource name, key under a stable placeholder
      * rather than a null map key.
      */
@@ -288,6 +335,12 @@ class KafkaUserServiceTest {
             "admin", "cluster-level access, All operations",
             "configurer", "cluster-level access",
             "broker-like", "cluster-level access"), reasons);
+    }
+
+    private static Kafka kafka(final String name, final String namespace) {
+        return new KafkaBuilder()
+            .withNewMetadata().withName(name).withNamespace(namespace).endMetadata()
+            .build();
     }
 
     private static KafkaUser clusterAclUser(final String name, final StrimziAclOperation... operations) {

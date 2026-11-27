@@ -27,6 +27,7 @@ import io.streamshub.mcp.strimzi.dto.kafka.KafkaEffectiveConfigResponse.RackInfo
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaEffectiveConfigResponse.ResourcesInfo;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaEffectiveConfigResponse.SubOperatorInfo;
 import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
+import io.streamshub.mcp.strimzi.util.KafkaStorageUtils;
 import io.strimzi.api.kafka.model.common.ExternalLogging;
 import io.strimzi.api.kafka.model.common.InlineLogging;
 import io.strimzi.api.kafka.model.common.JvmOptions;
@@ -35,12 +36,9 @@ import io.strimzi.api.kafka.model.common.Rack;
 import io.strimzi.api.kafka.model.common.TopologyLabelRack;
 import io.strimzi.api.kafka.model.common.metrics.JmxPrometheusExporterMetrics;
 import io.strimzi.api.kafka.model.common.metrics.MetricsConfig;
-import io.strimzi.api.kafka.model.kafka.JbodStorage;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaAuthorization;
 import io.strimzi.api.kafka.model.kafka.KafkaClusterSpec;
-import io.strimzi.api.kafka.model.kafka.PersistentClaimStorage;
-import io.strimzi.api.kafka.model.kafka.Storage;
 import io.strimzi.api.kafka.model.kafka.cruisecontrol.BrokerCapacity;
 import io.strimzi.api.kafka.model.kafka.cruisecontrol.CruiseControlSpec;
 import io.strimzi.api.kafka.model.kafka.entityoperator.EntityOperatorSpec;
@@ -57,7 +55,6 @@ import org.jboss.logging.Logger;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 /**
  * Service for extracting the effective configuration of a Kafka cluster.
  *
@@ -407,7 +404,7 @@ public class KafkaConfigService {
             .toList();
         String storageType = nodePool.getSpec().getStorage() != null
             ? nodePool.getSpec().getStorage().getType() : null;
-        String storageSize = extractStorageSize(nodePool.getSpec().getStorage());
+        String storageSize = KafkaStorageUtils.totalSize(nodePool.getSpec().getStorage());
 
         return new NodePoolConfigInfo(
             nodePool.getMetadata().getName(),
@@ -418,20 +415,6 @@ public class KafkaConfigService {
             extractResources(nodePool.getSpec().getResources()),
             extractJvmOptions(nodePool.getSpec().getJvmOptions())
         );
-    }
-
-    private String extractStorageSize(final Storage storage) {
-        return switch (storage) {
-            case PersistentClaimStorage pcs -> pcs.getSize();
-            case JbodStorage jbod when jbod.getVolumes() != null -> jbod.getVolumes().stream()
-                .filter(PersistentClaimStorage.class::isInstance)
-                .map(PersistentClaimStorage.class::cast)
-                .map(PersistentClaimStorage::getSize)
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElse(null);
-            case null, default -> null;
-        };
     }
 
     private String resolveConfigMapContent(final String namespace, final String configMapName, final String key) {

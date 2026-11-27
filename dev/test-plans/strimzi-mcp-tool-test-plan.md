@@ -571,6 +571,17 @@ Parameters: { "clusterName": "mcp-cluster", "statusFilter": "UNMANAGED" }
 - [ ] Returns only topics annotated `strimzi.io/managed=false` (each has `managed`: false)
 - [ ] Empty result when no unmanaged topics exist
 
+### T3.3d - List Topics (nonexistent cluster)
+
+```
+Tool: list_kafka_topics
+Parameters: { "clusterName": "nonexistent-cluster-xyz" }
+```
+
+**Expected:**
+- [ ] JSON-RPC error `-32002` with `error.data.category` `RESOURCE_NOT_FOUND` (not an empty list)
+- [ ] Message names `nonexistent-cluster-xyz`, no stack trace
+
 ### T3.4 - Get Topic Details (mcp-test-topic)
 
 > Requires: `--test-clients`
@@ -647,6 +658,17 @@ Parameters: { "clusterName": "mcp-cluster" }
 - [ ] Each entry includes: `conditions` list and `ready` boolean
 - [ ] Each entry includes: `reconciliation` (generation, observed_generation, up_to_date)
 
+### T4.1a - List Node Pools (nonexistent cluster)
+
+```
+Tool: list_kafka_node_pools
+Parameters: { "clusterName": "nonexistent-cluster-xyz" }
+```
+
+**Expected:**
+- [ ] JSON-RPC error `-32002` with `error.data.category` `RESOURCE_NOT_FOUND` (not an empty list)
+- [ ] Message names `nonexistent-cluster-xyz`, no stack trace
+
 ### T4.2 - Get Node Pool (controller)
 
 ```
@@ -657,7 +679,7 @@ Parameters: { "clusterName": "mcp-cluster", "nodePoolName": "controller-np" }
 **Expected:**
 - [ ] Roles: `[controller]`
 - [ ] Replicas: 3
-- [ ] Storage: JBOD with 1 volume, 10Gi persistent-claim
+- [ ] Storage: JBOD with 1 volume, 10Gi persistent-claim; `volumes` lists 1 entry (id 0, `persistent-claim`, `10Gi`)
 - [ ] `node_ids` contains exactly 3 integers (controller node IDs)
 - [ ] `status_replicas` is 3
 - [ ] `status_roles` is `[controller]`
@@ -675,7 +697,7 @@ Parameters: { "clusterName": "mcp-cluster", "nodePoolName": "broker-np1" }
 **Expected:**
 - [ ] Roles: `[broker]`
 - [ ] Replicas: 3
-- [ ] Storage: JBOD with 2 volumes, each 50Gi persistent-claim
+- [ ] Storage: JBOD with 2 volumes, each 50Gi persistent-claim; `storage_size` is `100Gi` (the total) and `volumes` lists 2 entries (ids 0 and 1, `persistent-claim`, `50Gi`)
 - [ ] `node_ids` contains exactly 3 integers (broker node IDs, distinct from `controller-np`)
 - [ ] `status_replicas` is 3
 - [ ] `status_roles` is `[broker]`
@@ -715,6 +737,7 @@ Parameters: { "nodePoolName": "broker-np1", "clusterName": "mcp-cluster" }
 
 **Expected:**
 - [ ] `node_pool.name` is `broker-np1`, `node_pool.cluster` is `mcp-cluster`
+- [ ] `node_pool.ready` is `true`
 - [ ] `pods` section present with pod health for the pool
 - [ ] `pvcs` is an array (PVC storage binding status)
 - [ ] `steps_completed` contains `node_pool` and `pods`
@@ -762,6 +785,17 @@ Parameters: { "clusterName": "mcp-cluster" }
 **Expected:**
 - [ ] Returns only users labeled with `strimzi.io/cluster: mcp-cluster`
 - [ ] All users are in namespace `strimzi-kafka`
+
+### T5.2a - List Users (nonexistent cluster)
+
+```
+Tool: list_kafka_users
+Parameters: { "clusterName": "nonexistent-cluster-xyz" }
+```
+
+**Expected:**
+- [ ] JSON-RPC error `-32002` with `error.data.category` `RESOURCE_NOT_FOUND` (not an empty list)
+- [ ] Message names `nonexistent-cluster-xyz`, no stack trace
 
 ### T5.3 - Get User (SCRAM with quotas)
 
@@ -851,6 +885,17 @@ Parameters: { "clusterName": "mcp-cluster", "resourceType": "cluster" }
 - [ ] `matrix` has a single `kafka-cluster` entry with `mcp-admin-user: [All]` (plus `mm2-user: [Alter, Create, Describe]` when `--mirror-maker` is deployed)
 - [ ] `broad_grants` flags `mcp-admin-user` as `"cluster-level access, All operations"`; with `--mirror-maker`, `mm2-user` is flagged as `"cluster-level access"` (its `Alter` lets it manage ACLs)
 - [ ] No other principal is flagged (read-only cluster grants such as `Describe` alone are not flagged; covered by `KafkaUserServiceTest`)
+
+### T5.10 - Get User ACLs Matrix (nonexistent cluster)
+
+```
+Tool: get_kafka_user_acls_matrix
+Parameters: { "clusterName": "nonexistent-cluster-xyz" }
+```
+
+**Expected:**
+- [ ] JSON-RPC error `-32002` with `error.data.category` `RESOURCE_NOT_FOUND` (not an empty matrix)
+- [ ] Message names `nonexistent-cluster-xyz`, no stack trace
 
 ---
 
@@ -2357,9 +2402,11 @@ This phase tests all three server-side error handling patterns under RBAC restri
 | 3     | T3.3a   | list_kafka_topics (name filter) | core | | |
 | 3     | T3.3b   | list_kafka_topics (status filter) | core | | |
 | 3     | T3.3c   | list_kafka_topics (unmanaged filter) | core | | |
+| 3     | T3.3d   | list_kafka_topics (nonexistent cluster) | core | | |
 | 3     | T3.4    | get_kafka_topic | --test-clients | | |
 | 3     | T3.5    | get_kafka_topic (nonexistent) | core | | |
 | 4     | T4.1    | list_kafka_node_pools | core | | |
+| 4     | T4.1a   | list_kafka_node_pools (nonexistent cluster) | core | | |
 | 4     | T4.2    | get_kafka_node_pool (controller) | core | | |
 | 4     | T4.3    | get_kafka_node_pool (broker) | core | | |
 | 4     | T4.4    | get_kafka_node_pool_pods | core | | |
@@ -2368,6 +2415,7 @@ This phase tests all three server-side error handling patterns under RBAC restri
 | 4     | T4.7    | diagnose_kafka_node_pool (not found) | core | | |
 | 5     | T5.1    | list_kafka_users | core | | |
 | 5     | T5.2    | list_kafka_users (cluster) | core | | |
+| 5     | T5.2a   | list_kafka_users (nonexistent cluster) | core | | |
 | 5     | T5.3    | get_kafka_user (SCRAM+quotas) | core | | |
 | 5     | T5.4    | get_kafka_user (TLS) | core | | |
 | 5     | T5.5    | get_kafka_user (admin) | core | | |
@@ -2375,6 +2423,7 @@ This phase tests all three server-side error handling patterns under RBAC restri
 | 5     | T5.7    | get_kafka_user_acls_matrix (topics) | core | | |
 | 5     | T5.8    | get_kafka_user_acls_matrix (invalid resourceType) | core | | |
 | 5     | T5.9    | get_kafka_user_acls_matrix (cluster) | core | | |
+| 5     | T5.10   | get_kafka_user_acls_matrix (nonexistent cluster) | core | | |
 | 6     | T6.1    | list_strimzi_operators | core | | |
 | 6     | T6.2    | get_strimzi_operator | core | | |
 | 6     | T6.3    | get_strimzi_operator (ns) | core | | |

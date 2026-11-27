@@ -14,9 +14,11 @@ import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
+import io.streamshub.mcp.strimzi.dto.kafkanodepool.StorageVolumeInfo;
+import io.streamshub.mcp.strimzi.util.KafkaClusterChecks;
+import io.streamshub.mcp.strimzi.util.KafkaStorageUtils;
 import io.strimzi.api.ResourceLabels;
-import io.strimzi.api.kafka.model.kafka.JbodStorage;
-import io.strimzi.api.kafka.model.kafka.PersistentClaimStorage;
+import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.kafka.Storage;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -67,6 +69,9 @@ public class KafkaNodePoolService {
         } else {
             nodePools = k8sService.queryResourcesByLabelInAnyNamespace(
                 KafkaNodePool.class, ResourceLabels.STRIMZI_CLUSTER_LABEL, normalizedClusterName);
+        }
+        if (nodePools.isEmpty()) {
+            KafkaClusterChecks.requireClusterExists(k8sService, ns, normalizedClusterName);
         }
 
         return nodePools.stream()
@@ -215,7 +220,7 @@ public class KafkaNodePoolService {
         Integer statusReplicas = null;
         List<String> statusRoles = null;
         List<Integer> nodeIds = null;
-        Boolean ready = null;
+        boolean ready = deriveReady(nodePool);
         List<io.streamshub.mcp.common.dto.ConditionInfo> conditions = null;
 
         if (nodePool.getStatus() != null) {
@@ -231,21 +236,51 @@ public class KafkaNodePoolService {
                     .map(c -> io.streamshub.mcp.common.dto.ConditionInfo.of(
                         c.getType(), c.getStatus(), c.getReason(), c.getMessage(), c.getLastTransitionTime()))
                     .toList();
-                ready = nodePool.getStatus().getConditions().stream()
-                    .anyMatch(c -> KubernetesConstants.Conditions.TYPE_READY.equals(c.getType())
-                        && KubernetesConstants.Conditions.STATUS_TRUE.equals(c.getStatus()));
             }
         }
 
         String storageType = extractStorageType(nodePool);
-        String storageSize = extractStorageSize(nodePool);
+        Storage storage = nodePool.getSpec().getStorage();
+        String storageSize = KafkaStorageUtils.totalSize(storage);
+        List<StorageVolumeInfo> volumes = KafkaStorageUtils.volumes(storage);
 
         ReconciliationInfo reconciliation = ReconciliationInfo.ofStatus(
             nodePool.getMetadata().getGeneration(),
             nodePool.getStatus() != null ? nodePool.getStatus().getObservedGeneration() : 0L);
 
         return KafkaNodePoolResponse.of(name, namespace, cluster, roles, replicas,
-            statusReplicas, statusRoles, nodeIds, storageType, storageSize, ready, conditions, reconciliation);
+            statusReplicas, statusRoles, nodeIds, storageType, storageSize, volumes, ready, conditions, reconciliation);
+    }
+
+    /**
+     * Derives readiness from the node pool CR, since Strimzi sets no Ready condition on it.
+     * An explicit Ready or NotReady condition wins; otherwise the pool is ready when the
+     * operator has observed the current generation and the status replicas match the spec.
+     * Warning conditions and pod readiness are ignored.
+     */
+    private static boolean deriveReady(final KafkaNodePool nodePool) {
+        if (nodePool.getStatus() == null) {
+            return false;
+        }
+        List<Condition> conditions = nodePool.getStatus().getConditions() != null
+            ? nodePool.getStatus().getConditions() : List.of();
+        for (Condition c : conditions) {
+            if (KubernetesConstants.Conditions.TYPE_READY.equals(c.getType())) {
+                return KubernetesConstants.Conditions.STATUS_TRUE.equals(c.getStatus());
+            }
+        }
+        for (Condition c : conditions) {
+            if (KubernetesConstants.Conditions.TYPE_NOT_READY.equals(c.getType())
+                && KubernetesConstants.Conditions.STATUS_TRUE.equals(c.getStatus())) {
+                return false;
+            }
+        }
+        Long generation = nodePool.getMetadata().getGeneration();
+        Long observed = nodePool.getStatus().getObservedGeneration();
+        if (observed != null && observed > 0 && generation != null && !observed.equals(generation)) {
+            return false;
+        }
+        return Objects.equals(nodePool.getStatus().getReplicas(), nodePool.getSpec().getReplicas());
     }
 
     private String extractStorageType(final KafkaNodePool nodePool) {
@@ -254,20 +289,4 @@ public class KafkaNodePoolService {
         }
         return KubernetesConstants.UNKNOWN;
     }
-
-    private String extractStorageSize(final KafkaNodePool nodePool) {
-        Storage storage = nodePool.getSpec().getStorage();
-        return switch (storage) {
-            case PersistentClaimStorage pcs -> pcs.getSize();
-            case JbodStorage jbod when jbod.getVolumes() != null -> jbod.getVolumes().stream()
-                .filter(PersistentClaimStorage.class::isInstance)
-                .map(PersistentClaimStorage.class::cast)
-                .map(PersistentClaimStorage::getSize)
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElse(null);
-            case null, default -> null;
-        };
-    }
-
 }

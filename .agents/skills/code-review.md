@@ -69,7 +69,7 @@ Scan the changed files and classify into categories. This guides which checks ap
 - [ ] All user-supplied strings pass through `InputUtils.normalizeInput()` before use.
 - [ ] Null namespace -> query all namespaces; non-null -> query that namespace.
 - [ ] Required parameters validated early; throw `McpErrors.invalidParams(...)` (or the matching `McpErrors` factory) with a clear message on failure.
-- [ ] Empty list results returned as empty list (not an error).
+- [ ] Empty list results returned as empty list (not an error), except `list_kafka_topics`, `list_kafka_node_pools`, `list_kafka_users` (with `clusterName`) and `get_kafka_user_acls_matrix`, which report not-found for an unknown cluster.
 - [ ] Never return error objects — always throw or return typed responses.
 - [ ] No exceptions swallowed — no empty catch blocks or `catch (Exception e) { LOG.warn(...) }`. Let infrastructure exceptions propagate to `@WrapBusinessError`.
 - [ ] Logging uses JBoss format: `LOG.infof()` / `LOG.debugf()` — no string concatenation.

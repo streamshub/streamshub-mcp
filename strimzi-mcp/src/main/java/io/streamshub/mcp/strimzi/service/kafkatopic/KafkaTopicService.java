@@ -17,6 +17,7 @@ import io.streamshub.mcp.common.util.PaginationUtils;
 import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.TopicStatusFilter;
+import io.streamshub.mcp.strimzi.util.KafkaClusterChecks;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
@@ -42,6 +43,8 @@ public class KafkaTopicService {
      * either way, and over a larger estate the client-side scan and message are not worth it.
      */
     private static final int MAX_HINT_CANDIDATES = 2000;
+    private static final String WATCHED_NAMESPACE_HINT =
+        "KafkaTopics can live in the Topic Operator's watched namespace; omit namespace to search all namespaces.";
     /** Clusters listed in the other-cluster not-found hint before an "and N more" tail. */
     private static final int MAX_LISTED_OWNERS = 5;
 
@@ -89,6 +92,10 @@ public class KafkaTopicService {
         } else {
             topics = k8sService.queryResourcesByLabelInAnyNamespace(
                 KafkaTopic.class, ResourceLabels.STRIMZI_CLUSTER_LABEL, normalizedClusterName);
+        }
+        if (topics.isEmpty()) {
+            KafkaClusterChecks.requireClusterExists(k8sService, ns, normalizedClusterName,
+                ns != null ? WATCHED_NAMESPACE_HINT : null);
         }
 
         List<KafkaTopicResponse> allResponses = topics.stream()

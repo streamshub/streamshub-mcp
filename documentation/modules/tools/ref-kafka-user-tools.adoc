@@ -17,6 +17,8 @@ List KafkaUsers with authentication type, authorization, ACL count, and readines
 * `clusterName` (optional) -- Kafka cluster name to filter users
 * `namespace` (optional) -- Kubernetes namespace
 
+When `clusterName` is set, no users match, and no Kafka cluster with that name exists, the call fails with a `RESOURCE_NOT_FOUND` error instead of returning an empty list.
+
 *Returns:* List of users with name, cluster, authentication type, authorization type, ACL count, readiness, and Kafka principal name
 
 .Example
@@ -49,6 +51,8 @@ Build an ACL matrix (resource to principal to operations) aggregated across all 
 * `clusterName` (required) -- Kafka cluster name
 * `namespace` (optional) -- Kubernetes namespace
 * `resourceType` (optional) -- ACL resource type to filter on (schema enum): `TOPIC` (default), `GROUP`, `TRANSACTIONAL_ID`, or `CLUSTER`
+
+When the cluster has no KafkaUsers and no Kafka cluster named `clusterName` exists, the call fails with a `RESOURCE_NOT_FOUND` error instead of returning an empty matrix.
 
 *Returns:* `matrix` (resource name to principal to sorted operations for allow rules), `denied` (same shape for deny rules, omitted when there are none), `principals` (sorted list of principals in `matrix`), `resource_count`, `principal_count`, `broad_grants` (principal, resource, operations, and a reason such as `"wildcard resource"`, `"All operations"`, or `"cluster-level access"` for an allow rule on the cluster resource with `Alter`, `AlterConfigs`, `ClusterAction`, `Create`, or `All`; reasons are comma-joined when several apply), and a summary `message`
 

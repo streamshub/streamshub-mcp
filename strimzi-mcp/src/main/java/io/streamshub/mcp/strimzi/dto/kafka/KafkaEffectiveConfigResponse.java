@@ -312,7 +312,7 @@ public record KafkaEffectiveConfigResponse(
      * @param roles       assigned roles (broker, controller)
      * @param replicas    number of replicas
      * @param storageType storage type (persistent-claim, jbod, ephemeral)
-     * @param storageSize storage size
+     * @param storageSize storage size, the total across volumes for JBOD
      * @param resources   CPU and memory resources
      * @param jvmOptions  JVM options
      */

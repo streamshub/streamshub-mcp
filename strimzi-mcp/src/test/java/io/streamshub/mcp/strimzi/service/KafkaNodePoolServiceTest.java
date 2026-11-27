@@ -9,13 +9,18 @@ import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.common.config.KubernetesConstants;
+import io.streamshub.mcp.common.dto.error.McpErrorCategory;
+import io.streamshub.mcp.common.dto.error.McpErrorData;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
 import io.streamshub.mcp.strimzi.service.kafkanodepool.KafkaNodePoolService;
 import io.strimzi.api.ResourceLabels;
+import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePoolBuilder;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePoolList;
@@ -81,6 +86,8 @@ class KafkaNodePoolServiceTest {
         Resource<KafkaNodePool> nullResource = Mockito.mock(Resource.class);
         Mockito.lenient().when(nodePoolNsOp.withName(ArgumentMatchers.anyString())).thenReturn(nullResource);
         Mockito.lenient().when(nullResource.get()).thenReturn(null);
+
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, Kafka.class, List.of(kafka(CLUSTER_NAME, NAMESPACE)));
     }
 
     /**
@@ -114,6 +121,21 @@ class KafkaNodePoolServiceTest {
             () -> nodePoolService.listNodePools("kafka", null));
 
         assertTrue(ex.getMessage().contains("required"));
+    }
+
+    /**
+     * Verify list reports RESOURCE_NOT_FOUND when no Kafka cluster has the requested name,
+     * instead of an empty list.
+     */
+    @Test
+    void testListNodePoolsThrowsNotFoundForUnknownCluster() {
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Kafka.class);
+
+        McpException ex = assertThrows(McpException.class,
+            () -> nodePoolService.listNodePools(NAMESPACE, "missing"));
+
+        assertTrue(ex.getMessage().contains("Kafka cluster 'missing' not found in namespace kafka"), ex.getMessage());
+        assertEquals(McpErrorCategory.RESOURCE_NOT_FOUND, ((McpErrorData) ex.getData()).category());
     }
 
     /**
@@ -285,7 +307,7 @@ class KafkaNodePoolServiceTest {
                 .withNewEphemeralStorage().endEphemeralStorage()
             .endSpec()
             .withNewStatus()
-                .withReplicas(2)
+                .withReplicas(3)
                 .withRoles(List.of(ProcessRoles.BROKER))
                 .addNewCondition()
                     .withType("Ready").withStatus("False")
@@ -301,11 +323,43 @@ class KafkaNodePoolServiceTest {
     }
 
     /**
-     * Verify ready is null and conditions is null when status has no conditions.
+     * Verify an explicit Ready=True condition wins over a replica mismatch that would derive not ready.
      */
     @Test
     @SuppressWarnings("unchecked")
-    void testGetNodePoolReadyAndConditionsNullWhenNoStatus() {
+    void testReadyTrueConditionWinsOverReplicaMismatch() {
+        KafkaNodePool nodePool = new KafkaNodePoolBuilder()
+            .withNewMetadata()
+                .withName(POOL_NAME)
+                .withNamespace(NAMESPACE)
+                .withLabels(Map.of(ResourceLabels.STRIMZI_CLUSTER_LABEL, CLUSTER_NAME))
+            .endMetadata()
+            .withNewSpec()
+                .withReplicas(3)
+                .withRoles(List.of(ProcessRoles.BROKER))
+                .withNewEphemeralStorage().endEphemeralStorage()
+            .endSpec()
+            .withNewStatus()
+                .withReplicas(2)
+                .withRoles(List.of(ProcessRoles.BROKER))
+                .addNewCondition()
+                    .withType("Ready").withStatus("True")
+                .endCondition()
+            .endStatus()
+            .build();
+        mockGetNodePool(nodePool);
+
+        KafkaNodePoolResponse response = nodePoolService.getNodePool(NAMESPACE, CLUSTER_NAME, POOL_NAME);
+
+        assertEquals(Boolean.TRUE, response.ready());
+    }
+
+    /**
+     * Verify ready is false and conditions is null when the pool has no status (never reconciled).
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void testReadyFalseAndConditionsNullWhenNoStatus() {
         KafkaNodePool nodePool = new KafkaNodePoolBuilder()
             .withNewMetadata()
                 .withName(POOL_NAME)
@@ -322,8 +376,100 @@ class KafkaNodePoolServiceTest {
 
         KafkaNodePoolResponse response = nodePoolService.getNodePool(NAMESPACE, CLUSTER_NAME, POOL_NAME);
 
-        assertNull(response.ready());
+        assertEquals(Boolean.FALSE, response.ready());
         assertNull(response.conditions());
+    }
+
+    /**
+     * Verify a reconciled pool with empty conditions (the real Strimzi shape) is ready.
+     */
+    @Test
+    void testReadyTrueForReconciledPoolWithEmptyConditions() {
+        mockGetNodePool(poolFromJson(1, 3, "1", 3, "[]"));
+
+        assertEquals(Boolean.TRUE, nodePoolService.getNodePool(NAMESPACE, CLUSTER_NAME, POOL_NAME).ready());
+    }
+
+    /**
+     * Verify a pool whose spec change has not been observed is not ready.
+     */
+    @Test
+    void testReadyFalseWhileSpecChangeNotObserved() {
+        mockGetNodePool(poolFromJson(2, 3, "1", 3, "[]"));
+
+        assertEquals(Boolean.FALSE, nodePoolService.getNodePool(NAMESPACE, CLUSTER_NAME, POOL_NAME).ready());
+    }
+
+    /**
+     * Verify a pool still scaling (status replicas differ from spec) is not ready.
+     */
+    @Test
+    void testReadyFalseWhileScaling() {
+        mockGetNodePool(poolFromJson(1, 3, "1", 2, "[]"));
+
+        assertEquals(Boolean.FALSE, nodePoolService.getNodePool(NAMESPACE, CLUSTER_NAME, POOL_NAME).ready());
+    }
+
+    /**
+     * Verify a pool scaled to zero and reconciled is ready.
+     */
+    @Test
+    void testReadyTrueForPoolScaledToZero() {
+        mockGetNodePool(poolFromJson(4, 0, "4", 0, "[]"));
+
+        assertEquals(Boolean.TRUE, nodePoolService.getNodePool(NAMESPACE, CLUSTER_NAME, POOL_NAME).ready());
+    }
+
+    /**
+     * Verify warning conditions do not affect ready and stay in the conditions list.
+     */
+    @Test
+    void testReadyIgnoresWarningConditions() {
+        mockGetNodePool(poolFromJson(1, 3, "1", 3,
+            "[{\"type\":\"Warning\",\"status\":\"True\",\"reason\":\"KafkaStorage\","
+                + "\"message\":\"Some warning\"}]"));
+
+        KafkaNodePoolResponse response = nodePoolService.getNodePool(NAMESPACE, CLUSTER_NAME, POOL_NAME);
+
+        assertEquals(Boolean.TRUE, response.ready());
+        assertEquals(1, response.conditions().size());
+        assertEquals("Warning", response.conditions().get(0).type());
+    }
+
+    /**
+     * Verify the generation check is skipped when status has no observedGeneration.
+     */
+    @Test
+    void testReadyTrueWhenObservedGenerationUnset() {
+        mockGetNodePool(poolFromJson(1, 3, null, 3, "[]"));
+
+        assertEquals(Boolean.TRUE, nodePoolService.getNodePool(NAMESPACE, CLUSTER_NAME, POOL_NAME).ready());
+    }
+
+    /**
+     * Verify an explicit NotReady=True condition makes the pool not ready.
+     */
+    @Test
+    void testReadyFalseWhenNotReadyConditionTrue() {
+        mockGetNodePool(poolFromJson(1, 3, "1", 3,
+            "[{\"type\":\"NotReady\",\"status\":\"True\"}]"));
+
+        assertEquals(Boolean.FALSE, nodePoolService.getNodePool(NAMESPACE, CLUSTER_NAME, POOL_NAME).ready());
+    }
+
+    private KafkaNodePool poolFromJson(final long generation, final int specReplicas,
+                                       final String observedGeneration, final int statusReplicas,
+                                       final String conditionsJson) {
+        String json = "{\"apiVersion\":\"kafka.strimzi.io/v1\",\"kind\":\"KafkaNodePool\","
+            + "\"metadata\":{\"name\":\"" + POOL_NAME + "\",\"namespace\":\"" + NAMESPACE + "\","
+            + "\"generation\":" + generation + ",\"labels\":{\"strimzi.io/cluster\":\"" + CLUSTER_NAME + "\"}},"
+            + "\"spec\":{\"replicas\":" + specReplicas + ",\"roles\":[\"broker\"],"
+            + "\"storage\":{\"type\":\"persistent-claim\",\"size\":\"50Gi\"}},"
+            + "\"status\":{\"conditions\":" + conditionsJson
+            + (observedGeneration != null ? ",\"observedGeneration\":" + observedGeneration : "")
+            + ",\"nodeIds\":[3,4,5],\"replicas\":" + statusReplicas
+            + ",\"roles\":[\"broker\"],\"clusterId\":\"x\"}}";
+        return Serialization.unmarshal(json, KafkaNodePool.class);
     }
 
     /**
@@ -388,11 +534,11 @@ class KafkaNodePoolServiceTest {
     }
 
     /**
-     * Verify storage_size falls back to the first persistent volume's size for JBOD storage.
+     * Verify storage_size is the total across JBOD volumes and volumes lists each one.
      */
     @Test
     @SuppressWarnings("unchecked")
-    void testGetNodePoolEnrichesJbodStorageUsesFirstPersistentVolumeSize() {
+    void testGetNodePoolJbodStorageReportsTotalAndVolumes() {
         KafkaNodePool nodePool = new KafkaNodePoolBuilder()
             .withNewMetadata()
                 .withName(POOL_NAME)
@@ -407,6 +553,10 @@ class KafkaNodePoolServiceTest {
                         .withId(0)
                         .withSize("50Gi")
                     .endPersistentClaimStorageVolume()
+                    .addNewPersistentClaimStorageVolume()
+                        .withId(1)
+                        .withSize("50Gi")
+                    .endPersistentClaimStorageVolume()
                 .endJbodStorage()
             .endSpec()
             .build();
@@ -415,7 +565,8 @@ class KafkaNodePoolServiceTest {
         KafkaNodePoolResponse response = nodePoolService.getNodePool(NAMESPACE, CLUSTER_NAME, POOL_NAME);
 
         assertEquals("jbod", response.storageType());
-        assertEquals("50Gi", response.storageSize());
+        assertEquals("100Gi", response.storageSize());
+        assertEquals(2, response.volumes().size());
     }
 
     /**
@@ -441,6 +592,12 @@ class KafkaNodePoolServiceTest {
 
         assertEquals(KubernetesConstants.UNKNOWN, response.storageType());
         assertNull(response.storageSize());
+    }
+
+    private static Kafka kafka(final String name, final String namespace) {
+        return new KafkaBuilder()
+            .withNewMetadata().withName(name).withNamespace(namespace).endMetadata()
+            .build();
     }
 
     @SuppressWarnings("unchecked")

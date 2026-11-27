@@ -47,6 +47,10 @@ public final class KubernetesConstants {
          */
         public static final String TYPE_READY = "Ready";
         /**
+         * Condition type indicating the resource is not ready.
+         */
+        public static final String TYPE_NOT_READY = "NotReady";
+        /**
          * Condition status value representing true.
          */
         public static final String STATUS_TRUE = "True";

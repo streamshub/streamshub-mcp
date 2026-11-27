@@ -12,6 +12,7 @@ import io.streamshub.mcp.common.util.InputUtils;
 import io.streamshub.mcp.common.util.McpErrors;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserAclMatrixResponse;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserResponse;
+import io.streamshub.mcp.strimzi.util.KafkaClusterChecks;
 import io.strimzi.api.ResourceLabels;
 import io.strimzi.api.kafka.model.common.Condition;
 import io.strimzi.api.kafka.model.user.KafkaUser;
@@ -57,6 +58,8 @@ public class KafkaUserService {
     private static final String DENY_RULE_TYPE = "deny";
     private static final String ALL_OPERATIONS_VALUE = "All";
     private static final String WILDCARD_RESOURCE_NAME = "*";
+    private static final String WATCHED_NAMESPACE_HINT =
+        "KafkaUsers can live in the User Operator's watched namespace; omit namespace to search all namespaces.";
     private static final String PREFIX_PATTERN_TYPE = "prefix";
     private static final String CLUSTER_RESOURCE_TYPE = "cluster";
     /**
@@ -95,6 +98,10 @@ public class KafkaUserService {
             } else {
                 users = k8sService.queryResourcesByLabelInAnyNamespace(
                     KafkaUser.class, ResourceLabels.STRIMZI_CLUSTER_LABEL, cluster);
+            }
+            if (users.isEmpty()) {
+                KafkaClusterChecks.requireClusterExists(k8sService, ns, cluster,
+                    ns != null ? WATCHED_NAMESPACE_HINT : null);
             }
         } else {
             if (ns != null) {
@@ -176,6 +183,10 @@ public class KafkaUserService {
         } else {
             users = k8sService.queryResourcesByLabelInAnyNamespace(
                 KafkaUser.class, ResourceLabels.STRIMZI_CLUSTER_LABEL, cluster);
+        }
+        if (users.isEmpty()) {
+            KafkaClusterChecks.requireClusterExists(k8sService, ns, cluster,
+                ns != null ? WATCHED_NAMESPACE_HINT : null);
         }
 
         Map<String, Map<String, TreeSet<String>>> allowed = new TreeMap<>();
