@@ -107,11 +107,14 @@ public class TroubleshootKafkaStoragePrompt {
             - `WaitForFirstConsumer` binding mode and scheduler cannot satisfy pod constraints
 
             ## Step 3: Check storage capacity and disk metrics
-            Use `get_kafka_metrics(clusterName='%s'%s, category='storage')` \
-            to retrieve disk utilization metrics.
+            Use `get_kafka_metrics(clusterName='%s'%s, category='storage', aggregation='broker')` \
+            to retrieve disk utilization metrics per broker (the default `partition` \
+            aggregation returns one series per topic partition).
             Key indicators:
-            - **`kafka_log_log_size`** -- total bytes used by Kafka logs per broker; \
-            compare against PVC capacity to estimate free space
+            - **`kafka_log_log_size`** -- total bytes used by Kafka logs per broker \
+            (summed over its partitions); compare against PVC capacity to estimate free \
+            space. With the Prometheus provider, `diagnose_kafka_storage` also reports \
+            each PVC's `usage_percent` from the kubelet volume stats
             - **Disk I/O throughput** -- Kafka does not expose disk read/write bytes \
             as JMX metrics; if your cluster has Prometheus Node Exporter, look for \
             `node_disk_read_bytes_total` and `node_disk_written_bytes_total`; \

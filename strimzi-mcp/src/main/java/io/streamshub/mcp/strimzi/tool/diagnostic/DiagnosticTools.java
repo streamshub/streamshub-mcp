@@ -435,7 +435,9 @@ public class DiagnosticTools {
         name = "diagnose_kafka_storage",
         description = "Runs a multi-step storage diagnostic for a Kafka cluster."
             + " Cross-checks PersistentVolumeClaims, storage capacity, volume expansion capability,"
-            + " node pool storage specifications, pod health, disk metrics, and Kubernetes events."
+            + " node pool storage specifications, pod health, disk metrics (log size per broker),"
+            + " PVC usage against capacity (kubelet volume stats; Prometheus provider only),"
+            + " and Kubernetes events."
             + " Uses Sampling for analysis and Elicitation for disambiguation."
             + " Falls back to gathering all data when Sampling is not supported.",
         structuredContent = true,

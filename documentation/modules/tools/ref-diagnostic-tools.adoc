@@ -41,7 +41,11 @@ Diagnose issues with mcp-cluster
 == diagnose_kafka_storage
 
 Runs a multi-step storage diagnostic workflow for a Kafka cluster.
-Cross-checks PersistentVolumeClaims, storage capacity, volume expansion capability, node pool declared storage layout, pod health, disk metrics (`kafka_log_log_size`, Linux disk I/O), and Kubernetes events.
+Cross-checks PersistentVolumeClaims, storage capacity, volume expansion capability, node pool declared storage layout, pod health, disk metrics (`kafka_log_log_size` summed per broker, Linux disk I/O), volume usage, and Kubernetes events.
+
+`volume_usage` lists each PVC's `used_bytes`, `capacity_bytes` and `usage_percent`, from the kubelet's `kubelet_volume_stats_used_bytes` and `kubelet_volume_stats_capacity_bytes`.
+These metrics come from the kubelet, so they need the Prometheus metrics provider with a Prometheus that scrapes the kubelet.
+With the pod-scraping provider, `volume_usage` has only a message saying so; compare the per-broker `kafka_log_log_size` with the PVC capacity instead.
 
 *Parameters:*
 

@@ -10,6 +10,7 @@ import io.quarkiverse.mcp.server.Elicitation;
 import io.quarkiverse.mcp.server.McpException;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Sampling;
+import io.streamshub.mcp.common.dto.metrics.AggregationLevel;
 import io.streamshub.mcp.common.service.BaseDiagnosticService;
 import io.streamshub.mcp.common.service.DiagnosticHelper;
 import io.streamshub.mcp.common.util.InputUtils;
@@ -19,8 +20,10 @@ import io.streamshub.mcp.strimzi.config.StrimziConstants;
 import io.streamshub.mcp.strimzi.config.metrics.KafkaMetricCategories;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaPvcInfo;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaPvcResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaStorageDiagnosticReport;
+import io.streamshub.mcp.strimzi.dto.kafka.KafkaVolumeUsageResponse;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
@@ -41,7 +44,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Orchestrates a multi-step storage diagnostic workflow for a Kafka cluster.
  *
  * <p>Phase 1 gathers cluster status, declared node pool storage layout, PVC status/capacity,
- * and pod health. Phase 2 gathers storage metrics and Kubernetes events.
+ * and pod health. Phase 2 gathers storage metrics (log size per broker), the PVCs' disk usage against
+ * their capacity (kubelet volume stats, Prometheus provider only), and Kubernetes events.
  * Phase 3 uses Sampling for root cause analysis.</p>
  */
 @ApplicationScoped
@@ -50,21 +54,25 @@ public class KafkaStorageDiagnosticService extends BaseDiagnosticService {
     private static final Logger LOG = Logger.getLogger(KafkaStorageDiagnosticService.class);
 
     private static final int PHASE1_STEPS = 4;
-    private static final int MAX_PHASE2_STEPS = 2;
+    private static final int MAX_PHASE2_STEPS = 3;
 
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
     private static final String STEP_NODE_POOLS = "node_pools";
     private static final String STEP_PVCS = "pvcs";
     private static final String STEP_PODS = "pods";
     private static final String STEP_METRICS = "storage_metrics";
+    private static final String STEP_VOLUME_USAGE = "volume_usage";
     private static final String STEP_EVENTS = "events";
 
     private static final String SYSTEM_PROMPT = """
         You are a storage diagnostic expert for Apache Kafka on Kubernetes managed by Strimzi.
         Analyze the gathered storage information (PVCs, capacity, volume expansion capability,
-        node pool storage specs, pod health, disk metrics, and Kubernetes events) to determine:
+        node pool storage specs, pod health, disk metrics, volume usage, and Kubernetes events) to determine:
         1. PVC binding issues (stuck Pending, missing StorageClass, provisioner failure).
-        2. Storage capacity pressure or approaching disk exhaustion.
+        2. Storage capacity pressure or approaching disk exhaustion. volume_usage gives each PVC's
+           used bytes, capacity and usage_percent: above 80% is a warning, above 90% is critical.
+           storage_metrics gives kafka_log_log_size summed per broker (log data on disk); when
+           volume_usage has no volumes, compare that total with the PVC capacity instead.
         3. Volume expansion capability (whether allowVolumeExpansion is true).
         4. Storage layout mismatch between NodePool storage declarations and actual PVCs.
         Provide a concise diagnosis and actionable remediation steps.
@@ -163,6 +171,12 @@ public class KafkaStorageDiagnosticService extends BaseDiagnosticService {
             "Collected Kafka storage metrics");
         DiagnosticHelper.checkCancellation(cancellation);
 
+        // Phase 2: Volume usage against capacity
+        KafkaVolumeUsageResponse volumeUsage = gatherVolumeUsage(resolvedNs, pvcs, completed, failed);
+        DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
+            volumeUsage != null ? volumeUsage.message() : "Failed to check volume usage");
+        DiagnosticHelper.checkCancellation(cancellation);
+
         // Phase 2: Events
         StrimziEventsResponse events = gatherEvents(resolvedNs, name, sinceMinutes, completed, failed);
         DiagnosticHelper.sendProgress(progress, ++stepIndex, maxSteps,
@@ -178,6 +192,7 @@ public class KafkaStorageDiagnosticService extends BaseDiagnosticService {
             DiagnosticHelper.putIfNotNull(fullData, "pvcs", pvcs);
             DiagnosticHelper.putIfNotNull(fullData, "pods", pods);
             DiagnosticHelper.putIfNotNull(fullData, "storage_metrics", storageMetrics);
+            DiagnosticHelper.putIfNotNull(fullData, STEP_VOLUME_USAGE, volumeUsage);
             DiagnosticHelper.putIfNotNull(fullData, "events", events);
             if (symptom != null) {
                 fullData.put("symptom", symptom);
@@ -194,6 +209,7 @@ public class KafkaStorageDiagnosticService extends BaseDiagnosticService {
             pvcs,
             pods,
             storageMetrics,
+            volumeUsage,
             events,
             analysis,
             completed,
@@ -274,13 +290,34 @@ public class KafkaStorageDiagnosticService extends BaseDiagnosticService {
                                               final List<String> completed,
                                               final List<String> failed) {
         try {
+            // Per broker: the log size is summed over the broker's partitions. The PARTITION default
+            // returns one series per topic partition, hundreds on a real cluster.
             KafkaMetricsResponse result = metricsService.getKafkaMetrics(
-                ns, name, KafkaMetricCategories.STORAGE, null, sinceMinutes, null, null, null, null, null);
+                ns, name, KafkaMetricCategories.STORAGE, null, sinceMinutes, null, null, null,
+                AggregationLevel.BROKER.name(), null);
             completed.add(STEP_METRICS);
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather storage metrics for cluster %s in ns %s: %s", name, ns, e.getMessage());
             failed.add(STEP_METRICS + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    @WithSpan("diagnose.storage.volume_usage")
+    KafkaVolumeUsageResponse gatherVolumeUsage(final String ns,
+                                               final KafkaPvcResponse pvcs,
+                                               final List<String> completed,
+                                               final List<String> failed) {
+        try {
+            List<String> pvcNames = pvcs != null && pvcs.pvcs() != null
+                ? pvcs.pvcs().stream().map(KafkaPvcInfo::name).toList() : List.of();
+            KafkaVolumeUsageResponse result = metricsService.getVolumeUsage(ns, pvcNames);
+            completed.add(STEP_VOLUME_USAGE);
+            return result;
+        } catch (Exception e) {
+            LOG.warnf("Failed to gather volume usage in ns %s: %s", ns, e.getMessage());
+            failed.add(STEP_VOLUME_USAGE + ": " + e.getMessage());
             return null;
         }
     }

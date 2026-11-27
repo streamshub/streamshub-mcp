@@ -1730,7 +1730,11 @@ Parameters: {
 
 **Expected:**
 - [ ] Report covers PVCs, storage capacity, volume expansion capability, node pool storage specs, pod health, storage metrics, and events
-- [ ] Report completed steps include `cluster_status`, `node_pools`, `pvcs`, `pods`, `storage_metrics`, `events`
+- [ ] Report completed steps include `cluster_status`, `node_pools`, `pvcs`, `pods`, `storage_metrics`, `volume_usage`, `events`
+- [ ] `storage_metrics.aggregation` is `broker`: one `kafka_log_log_size` series per broker (summed), not one per topic partition
+- [ ] With the Prometheus provider, `volume_usage.volumes` has one entry per PVC with `used_bytes`, `capacity_bytes` and `usage_percent`; compare with `kubectl exec <broker> -- df -h /var/lib/kafka/data-0`
+- [ ] With the pod-scraping provider, `volume_usage` has only a message that it needs Prometheus
+- [ ] `steps_failed` is left out when no step failed
 
 ### T15.3 - Diagnose Connectivity
 

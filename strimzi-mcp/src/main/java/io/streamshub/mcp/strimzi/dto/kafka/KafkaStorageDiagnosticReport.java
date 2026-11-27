@@ -21,7 +21,8 @@ import java.util.List;
  * @param nodePools      the list of node pools defining storage layout
  * @param pvcs           the PVC status and capacity details
  * @param pods           the Kafka cluster pod health
- * @param storageMetrics storage-related metrics (e.g. log size, disk I/O)
+ * @param storageMetrics storage-related metrics per broker (log size summed over partitions, disk I/O)
+ * @param volumeUsage    each PVC's used bytes against its capacity, from the kubelet volume stats
  * @param events         Kubernetes events relevant to storage and pods
  * @param analysis       LLM-generated root cause analysis (null if Sampling not supported)
  * @param stepsCompleted the list of successfully completed diagnostic steps
@@ -36,6 +37,7 @@ public record KafkaStorageDiagnosticReport(
     @JsonProperty("pvcs") KafkaPvcResponse pvcs,
     @JsonProperty("pods") KafkaClusterPodsResponse pods,
     @JsonProperty("storage_metrics") KafkaMetricsResponse storageMetrics,
+    @JsonProperty("volume_usage") KafkaVolumeUsageResponse volumeUsage,
     @JsonProperty("events") StrimziEventsResponse events,
     @JsonProperty("analysis") String analysis,
     @JsonProperty("steps_completed") List<String> stepsCompleted,
@@ -52,6 +54,7 @@ public record KafkaStorageDiagnosticReport(
      * @param pvcs           the PVC details
      * @param pods           the pod health
      * @param storageMetrics the storage metrics
+     * @param volumeUsage    the PVC usage against capacity
      * @param events         the Kubernetes events
      * @param analysis       the LLM analysis
      * @param stepsCompleted the completed steps
@@ -65,6 +68,7 @@ public record KafkaStorageDiagnosticReport(
             final KafkaPvcResponse pvcs,
             final KafkaClusterPodsResponse pods,
             final KafkaMetricsResponse storageMetrics,
+            final KafkaVolumeUsageResponse volumeUsage,
             final StrimziEventsResponse events,
             final String analysis,
             final List<String> stepsCompleted,
@@ -77,6 +81,7 @@ public record KafkaStorageDiagnosticReport(
             pvcs,
             pods,
             storageMetrics,
+            volumeUsage,
             events,
             analysis,
             stepsCompleted,

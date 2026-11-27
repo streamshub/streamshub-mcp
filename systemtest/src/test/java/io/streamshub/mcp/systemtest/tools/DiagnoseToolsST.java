@@ -551,6 +551,13 @@ class DiagnoseToolsST extends AbstractST {
                 assertEquals(Constants.KAFKA_CLUSTER_NAME, root.path("cluster").path("name").asText(),
                     "cluster name should match");
                 assertTrue(root.path("pvcs").path("pvcs").isArray(), "pvcs array should be present");
+                assertFalse(root.path("volume_usage").path("message").asText("").isEmpty(),
+                    "volume_usage should say what it found or why it has no data");
+                JsonNode storageMetrics = root.path("storage_metrics");
+                if (storageMetrics.path("sample_count").asInt() > 0) {
+                    assertEquals("broker", storageMetrics.path("aggregation").asText(),
+                        "Log size should be aggregated per broker");
+                }
             })
             .thenAssertResults();
     }
