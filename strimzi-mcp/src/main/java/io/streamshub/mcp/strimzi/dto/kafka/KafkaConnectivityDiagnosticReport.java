@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.dto.kafka;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.streamshub.mcp.common.service.DiagnosticSteps;
 import io.streamshub.mcp.strimzi.dto.kafkauser.KafkaUserResponse;
 
 import java.time.Instant;
@@ -17,7 +18,9 @@ import java.util.List;
  *
  * <p>Each field corresponds to one diagnostic step. Fields are null when the
  * step was skipped (Sampling-guided selective investigation) or failed
- * (recorded in {@code stepsFailed}).</p>
+ * (recorded in {@code stepsFailed}). A step that returned data but hit errors on part of
+ * it, such as certificate Secrets the service account cannot read, is recorded in
+ * {@code stepsDegraded} instead of {@code stepsCompleted}.</p>
  *
  * @param cluster          Kafka cluster status and conditions
  * @param bootstrapServers listener addresses, types, and ports
@@ -27,6 +30,7 @@ import java.util.List;
  * @param users            KafkaUser summaries with authentication types and ACL counts
  * @param analysis         LLM-generated connectivity analysis via Sampling, or null
  * @param stepsCompleted   diagnostic steps that completed successfully
+ * @param stepsDegraded    diagnostic steps that returned data but hit errors on part of it
  * @param stepsFailed      diagnostic steps that failed with error descriptions
  * @param timestamp        when this report was generated
  * @param message          human-readable summary of the diagnostic run
@@ -41,6 +45,7 @@ public record KafkaConnectivityDiagnosticReport(
     @JsonProperty("users") List<KafkaUserResponse> users,
     @JsonProperty("analysis") String analysis,
     @JsonProperty("steps_completed") List<String> stepsCompleted,
+    @JsonProperty("steps_degraded") List<String> stepsDegraded,
     @JsonProperty("steps_failed") List<String> stepsFailed,
     @JsonProperty("timestamp") Instant timestamp,
     @JsonProperty("message") String message
@@ -57,6 +62,7 @@ public record KafkaConnectivityDiagnosticReport(
      * @param users            KafkaUser summaries
      * @param analysis         LLM analysis text or null
      * @param stepsCompleted   steps that succeeded
+     * @param stepsDegraded    steps that returned partial data, with reasons
      * @param stepsFailed      steps that failed with reasons
      * @return a new connectivity diagnostic report
      */
@@ -69,22 +75,15 @@ public record KafkaConnectivityDiagnosticReport(
                                                        List<KafkaUserResponse> users,
                                                        String analysis,
                                                        List<String> stepsCompleted,
+                                                       List<String> stepsDegraded,
                                                        List<String> stepsFailed) {
-        int completed = stepsCompleted != null ? stepsCompleted.size() : 0;
-        int failed = stepsFailed != null ? stepsFailed.size() : 0;
         String clusterName = cluster != null ? cluster.name() : "unknown";
-
-        String msg;
-        if (failed == 0) {
-            msg = String.format("Connectivity diagnostic completed for cluster '%s': %d steps succeeded",
-                clusterName, completed);
-        } else {
-            msg = String.format(
-                "Connectivity diagnostic completed for cluster '%s': %d steps succeeded, %d steps failed",
-                clusterName, completed, failed);
-        }
+        String msg = String.format("Connectivity diagnostic completed for cluster '%s': %s",
+            clusterName, DiagnosticSteps.summary(stepsCompleted, stepsDegraded, stepsFailed));
 
         return new KafkaConnectivityDiagnosticReport(cluster, bootstrapServers, certificates,
-            pods, clusterLogs, users, analysis, stepsCompleted, stepsFailed, Instant.now(), msg);
+            pods, clusterLogs, users, analysis, stepsCompleted,
+            DiagnosticSteps.nonEmptyOrNull(stepsDegraded), DiagnosticSteps.nonEmptyOrNull(stepsFailed),
+            Instant.now(), msg);
     }
 }

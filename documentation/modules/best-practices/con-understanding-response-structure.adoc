@@ -31,11 +31,12 @@ When a time series has a `compressed: true` flag, it means consecutive identical
 All diagnostic reports include these fields:
 
 * *`steps_completed`* -- list of diagnostic steps that succeeded
-* *`steps_failed`* -- list of steps that failed, with error descriptions
+* *`steps_degraded`* -- list of steps that returned data but hit errors on part of it, with a reason (for example, certificate Secrets that the service account cannot read). These steps are not listed in `steps_completed`. Left out when empty.
+* *`steps_failed`* -- list of steps that failed, with error descriptions. Left out when empty.
 * *`analysis`* -- LLM-generated root cause analysis (when Sampling is supported), or null
 * *`message`* -- human-readable summary of the diagnostic run
 
-The AI should always check `steps_failed` for incomplete data. When the `analysis` field is present, it contains the root cause analysis, and the AI should present it rather than re-processing the raw data sections.
+The AI should always check `steps_degraded` and `steps_failed` for incomplete data. When the `analysis` field is present, it contains the root cause analysis, and the AI should present it rather than re-processing the raw data sections.
 
 == Large responses are automatically truncated
 

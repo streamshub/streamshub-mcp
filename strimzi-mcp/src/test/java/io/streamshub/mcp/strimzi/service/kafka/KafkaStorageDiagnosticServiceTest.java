@@ -122,5 +122,7 @@ class KafkaStorageDiagnosticServiceTest {
         assertTrue(report.stepsCompleted().contains("pods"));
         assertTrue(report.stepsCompleted().contains("storage_metrics"));
         assertTrue(report.stepsCompleted().contains("events"));
+        assertNull(report.stepsFailed(), "An empty steps_failed is left out, as in the other diagnostics");
+        assertEquals("Kafka storage diagnostic completed: 6 steps succeeded", report.message());
     }
 }

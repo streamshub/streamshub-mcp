@@ -41,7 +41,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * MCP Sampling for LLM analysis and Elicitation for namespace disambiguation.</p>
  *
  * <p>Individual step failures do not abort the workflow. Failed steps are
- * recorded and the report includes all data that was successfully gathered.</p>
+ * recorded and the report includes all data that was successfully gathered.
+ * A step that returned data with errors on part of it is recorded as degraded.</p>
  */
 @ApplicationScoped
 public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
@@ -122,6 +123,7 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
         DiagnosticHelper.registerCancellationCallback(cancellation, cancelled);
 
         List<String> completed = new ArrayList<>();
+        List<String> degraded = new ArrayList<>();
         List<String> failed = new ArrayList<>();
         int stepIndex = 0;
 
@@ -149,7 +151,7 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
         KafkaCertificateResponse certificates = null;
         if (areas.certificates) {
             certificates = gatherCertificates(
-                resolvedNs, name, listener, completed, failed);
+                resolvedNs, name, listener, completed, degraded, failed);
             DiagnosticHelper.sendProgress(progress, ++stepIndex, totalSteps, certificates != null ? "Checked TLS certificates and authentication" : "Failed to check certificates");
             DiagnosticHelper.checkCancellation(cancellation);
         }
@@ -184,7 +186,7 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
 
         return KafkaConnectivityDiagnosticReport.of(cluster, bootstrapServers,
             certificates, pods, clusterLogs, users, analysis,
-            completed, failed.isEmpty() ? null : failed);
+            completed, degraded, failed);
     }
 
     // ---- Phase 1: Initial data gathering ----
@@ -233,11 +235,18 @@ public class KafkaConnectivityDiagnosticService extends BaseDiagnosticService {
                                                 final String clusterName,
                                                 final String listenerName,
                                                 final List<String> completed,
+                                                final List<String> degraded,
                                                 final List<String> failed) {
         try {
             KafkaCertificateResponse result = kafkaCertificateService.getCertificates(
                 namespace, clusterName, listenerName);
-            completed.add(STEP_CERTIFICATES);
+            if (result.errors() != null && !result.errors().isEmpty()) {
+                // Some certificate Secrets could not be read (often a 403): the step has gaps.
+                degraded.add(String.format("%s: %d certificate Secret(s) could not be read, see certificates.errors",
+                    STEP_CERTIFICATES, result.errors().size()));
+            } else {
+                completed.add(STEP_CERTIFICATES);
+            }
             return result;
         } catch (Exception e) {
             LOG.warnf("Failed to gather Kafka TLS certificates: %s", e.getMessage());
