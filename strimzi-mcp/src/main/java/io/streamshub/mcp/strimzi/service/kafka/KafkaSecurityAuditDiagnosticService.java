@@ -276,6 +276,10 @@ public class KafkaSecurityAuditDiagnosticService extends BaseDiagnosticService {
         Map<String, Object> summary = new LinkedHashMap<>();
         DiagnosticHelper.putIfNotNull(summary, "authentication_enabled",
             clusterSecurity.cluster().authenticationEnabled());
+        List<String> unauthenticated = clusterSecurity.cluster().unauthenticatedListeners();
+        if (unauthenticated != null && !unauthenticated.isEmpty()) {
+            summary.put("unauthenticated_listeners", unauthenticated);
+        }
         DiagnosticHelper.putIfNotNull(summary, "authorization_enabled",
             clusterSecurity.cluster().authorizationEnabled());
         DiagnosticHelper.putIfNotNull(summary, "authorization_type", clusterSecurity.authorizationType());
@@ -357,7 +361,8 @@ public class KafkaSecurityAuditDiagnosticService extends BaseDiagnosticService {
         Flag findings in three severity tiers:
 
         HIGH RISK:
-        - Listeners with no authentication (open access points)
+        - Listeners with no authentication (open access points; named in the cluster's \
+        unauthenticated_listeners, and reported with authentication_type 'none')
         - ACL grants with 'All' operations (superuser-level access)
         - ACL grants on the 'cluster' resource (cluster admin access)
         - ACL grants with wildcard resource name '*' (matches all resources)
@@ -376,8 +381,8 @@ public class KafkaSecurityAuditDiagnosticService extends BaseDiagnosticService {
         - 'tls-external' authentication (certificates managed outside Strimzi)
         - Multiple authentication types in use (operational complexity)
 
-        Each ACL matrix already includes a pre-computed broad_grants list flagging wildcard and \
-        'All' grants with a reason -- incorporate these directly.
+        Each ACL matrix already includes a pre-computed broad_grants list flagging wildcard, \
+        'All' and privileged cluster-level grants with a reason -- incorporate these directly.
 
         Structure your response as:
         - Summary (total users, authentication type distribution, listener authentication coverage, \

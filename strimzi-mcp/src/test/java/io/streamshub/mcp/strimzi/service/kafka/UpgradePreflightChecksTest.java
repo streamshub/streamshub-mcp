@@ -35,7 +35,7 @@ class UpgradePreflightChecksTest {
     private static KafkaClusterResponse cluster(final String running, final String metadata) {
         return KafkaClusterResponse.of("c", "kafka", "Kafka", running, running,
             metadata, null, null, "Ready", null, null, null, null,
-            null, null, null, null, 1L, null, null, null, null, List.of());
+            null, null, null, null, null, 1L, null, null, null, null, List.of());
     }
 
     private static List<UpgradePreflightFinding> blockers(final List<UpgradePreflightFinding> findings) {

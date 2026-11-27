@@ -126,7 +126,7 @@ class ResourceSubscriptionEventsTest {
     private static KafkaClusterResponse cluster(final String name, final String readiness) {
         return KafkaClusterResponse.of(name, NS, "Kafka", "4.2.0", "4.2.0",
             null, null, null, readiness, null, null, null, null,
-            null, null, null, null, 1L, null, null, null, null, List.of());
+            null, null, null, null, null, 1L, null, null, null, null, List.of());
     }
 
     @Test

@@ -206,6 +206,6 @@ class KafkaClusterOverviewServiceTest {
             name, namespace, "Kafka", version, null,
             null, null, null, readiness,
             null, null, RoleReplicasInfo.of(expected, ready, null, null), null,
-            null, null, null, null, 1000L, null, null, null, null, List.of());
+            null, null, null, null, null, 1000L, null, null, null, null, List.of());
     }
 }

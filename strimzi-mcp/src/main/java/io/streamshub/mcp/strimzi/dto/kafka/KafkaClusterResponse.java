@@ -30,7 +30,8 @@ import java.util.Objects;
  * @param brokerReplicas                the broker replica and storage information
  * @param controllerReplicas            the controller replica and storage information
  * @param externalAccess                whether external access is configured
- * @param authenticationEnabled         whether authentication is configured
+ * @param authenticationEnabled         whether authentication is configured on at least one listener
+ * @param unauthenticatedListeners      names of listeners without authentication (omitted when empty)
  * @param authorizationEnabled          whether authorization is configured
  * @param creationTime                  when the cluster was created
  * @param ageMinutes                    the age of the cluster in minutes
@@ -57,6 +58,8 @@ public record KafkaClusterResponse(
     @JsonProperty("controller_replicas") RoleReplicasInfo controllerReplicas,
     @JsonProperty("external_access") Boolean externalAccess,
     @JsonProperty("authentication_enabled") Boolean authenticationEnabled,
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    @JsonProperty("unauthenticated_listeners") List<String> unauthenticatedListeners,
     @JsonProperty("authorization_enabled") Boolean authorizationEnabled,
     @JsonProperty("creation_time") Instant creationTime,
     @JsonProperty("age_minutes") Long ageMinutes,
@@ -111,7 +114,8 @@ public record KafkaClusterResponse(
      * @param brokerReplicas                the broker replica and storage info
      * @param controllerReplicas            the controller replica and storage info
      * @param externalAccess                whether external access is configured
-     * @param authenticationEnabled         whether authentication is enabled
+     * @param authenticationEnabled         whether authentication is enabled on at least one listener
+     * @param unauthenticatedListeners      names of listeners without authentication (may be null)
      * @param authorizationEnabled          whether authorization is enabled
      * @param creationTime                  the creation time
      * @param ageMinutes                    the age in minutes
@@ -131,6 +135,7 @@ public record KafkaClusterResponse(
                                            RoleReplicasInfo brokerReplicas,
                                            RoleReplicasInfo controllerReplicas,
                                            Boolean externalAccess, Boolean authenticationEnabled,
+                                           List<String> unauthenticatedListeners,
                                            Boolean authorizationEnabled, Instant creationTime,
                                            Long ageMinutes, String managedBy,
                                            AutoRebalanceInfo autoRebalance,
@@ -140,7 +145,9 @@ public record KafkaClusterResponse(
         return new KafkaClusterResponse(name, namespace, kind, kafkaVersion, runningKafkaVersion,
             kafkaMetadataVersion, operatorLastSuccessfulVersion, clusterId, readiness,
             conditions, listeners, brokerReplicas, controllerReplicas,
-            externalAccess, authenticationEnabled, authorizationEnabled,
+            externalAccess, authenticationEnabled,
+            unauthenticatedListeners != null ? List.copyOf(unauthenticatedListeners) : List.of(),
+            authorizationEnabled,
             creationTime, ageMinutes, managedBy, autoRebalance, clusterSecurity, reconciliation,
             warnings != null ? warnings.stream().filter(Objects::nonNull).toList() : List.of());
     }

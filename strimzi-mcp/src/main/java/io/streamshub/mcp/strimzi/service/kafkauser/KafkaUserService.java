@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 /**
@@ -57,6 +58,14 @@ public class KafkaUserService {
     private static final String ALL_OPERATIONS_VALUE = "All";
     private static final String WILDCARD_RESOURCE_NAME = "*";
     private static final String PREFIX_PATTERN_TYPE = "prefix";
+    private static final String CLUSTER_RESOURCE_TYPE = "cluster";
+    /**
+     * Cluster-level operations that let a principal change cluster state: {@code Alter} manages ACLs,
+     * so its holder can grant itself more access. Read-only and producer-routine operations
+     * ({@code Describe}, {@code DescribeConfigs}, {@code IdempotentWrite}) are not flagged.
+     */
+    private static final Set<String> PRIVILEGED_CLUSTER_OPERATIONS =
+        Set.of("Alter", "AlterConfigs", "ClusterAction", "Create", ALL_OPERATIONS_VALUE);
 
     @Inject
     KubernetesResourceService k8sService;
@@ -233,19 +242,19 @@ public class KafkaUserService {
     }
 
     private String broadGrantReason(final KafkaUserResponse.AclRuleInfo rule) {
-        boolean wildcardResource = WILDCARD_RESOURCE_NAME.equals(rule.resourceName());
-        boolean allOperations = rule.operations() != null && rule.operations().contains(ALL_OPERATIONS_VALUE);
-
-        if (!wildcardResource && !allOperations) {
-            return null;
+        List<String> operations = rule.operations() != null ? rule.operations() : List.of();
+        List<String> reasons = new ArrayList<>();
+        if (WILDCARD_RESOURCE_NAME.equals(rule.resourceName())) {
+            reasons.add("wildcard resource");
         }
-        if (wildcardResource && allOperations) {
-            return "wildcard resource, All operations";
+        if (CLUSTER_RESOURCE_TYPE.equalsIgnoreCase(rule.resourceType())
+                && operations.stream().anyMatch(PRIVILEGED_CLUSTER_OPERATIONS::contains)) {
+            reasons.add("cluster-level access");
         }
-        if (wildcardResource) {
-            return "wildcard resource";
+        if (operations.contains(ALL_OPERATIONS_VALUE)) {
+            reasons.add("All operations");
         }
-        return "All operations";
+        return reasons.isEmpty() ? null : String.join(", ", reasons);
     }
 
     private String resolveAclMatrixResourceType(final String resourceType) {

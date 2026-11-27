@@ -144,7 +144,8 @@ public class KafkaUserTools {
             + " across all KafkaUsers on a Kafka cluster, to answer questions like"
             + " \"who can write to this topic\"."
             + " Optionally filter by resourceType (defaults to TOPIC)."
-            + " Flags over-broad allow grants (wildcard resource name or the 'All' operation) in broad_grants."
+            + " Flags over-broad allow grants (wildcard resource name, the 'All' operation,"
+            + " or privileged cluster-level access) in broad_grants."
             + " On clusters with many users or ACL rules the response may be truncated;"
             + " narrow the query with resourceType or inspect individual users with get_kafka_user.",
         annotations = @Tool.Annotations(

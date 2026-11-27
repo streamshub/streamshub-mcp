@@ -38,6 +38,9 @@ import io.strimzi.api.kafka.model.kafka.clustersecurity.ClusterSecurityStatusBui
 import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceMode;
 import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceState;
 import io.strimzi.api.kafka.model.kafka.cruisecontrol.KafkaAutoRebalanceStatusBrokersBuilder;
+import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
+import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerAuthenticationTls;
+import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -384,6 +387,67 @@ class KafkaServiceTest {
         assertEquals(CLUSTER_NAME, response.clusterName());
         assertEquals(NAMESPACE, response.namespace());
         assertNotNull(response.pvcs());
+    }
+
+    /**
+     * Verify listeners without authentication are named in unauthenticated_listeners, while
+     * authentication_enabled keeps its "any listener has auth" meaning.
+     */
+    @Test
+    void testGetClusterListsUnauthenticatedListeners() {
+        Kafka kafka = new KafkaBuilder()
+            .withMetadata(new ObjectMetaBuilder()
+                .withName(CLUSTER_NAME)
+                .withNamespace(NAMESPACE)
+                .build())
+            .withNewSpec()
+                .withNewKafka()
+                    .withListeners(
+                        new GenericKafkaListenerBuilder()
+                            .withName("plain").withPort(9092)
+                            .withType(KafkaListenerType.INTERNAL).withTls(false)
+                            .build(),
+                        new GenericKafkaListenerBuilder()
+                            .withName("tls").withPort(9093)
+                            .withType(KafkaListenerType.INTERNAL).withTls(true)
+                            .withAuth(new KafkaListenerAuthenticationTls())
+                            .build())
+                .endKafka()
+            .endSpec()
+            .build();
+        mockKafkaResource(kafka);
+
+        KafkaClusterResponse response = kafkaService.getCluster(NAMESPACE, CLUSTER_NAME);
+
+        assertTrue(response.authenticationEnabled());
+        assertEquals(List.of("plain"), response.unauthenticatedListeners());
+    }
+
+    /**
+     * Verify unauthenticated_listeners is empty when every listener has authentication.
+     */
+    @Test
+    void testGetClusterUnauthenticatedListenersEmptyWhenAllAuthenticated() {
+        Kafka kafka = new KafkaBuilder()
+            .withMetadata(new ObjectMetaBuilder()
+                .withName(CLUSTER_NAME)
+                .withNamespace(NAMESPACE)
+                .build())
+            .withNewSpec()
+                .withNewKafka()
+                    .withListeners(new GenericKafkaListenerBuilder()
+                        .withName("tls").withPort(9093)
+                        .withType(KafkaListenerType.INTERNAL).withTls(true)
+                        .withAuth(new KafkaListenerAuthenticationTls())
+                        .build())
+                .endKafka()
+            .endSpec()
+            .build();
+        mockKafkaResource(kafka);
+
+        KafkaClusterResponse response = kafkaService.getCluster(NAMESPACE, CLUSTER_NAME);
+
+        assertTrue(response.unauthenticatedListeners().isEmpty());
     }
 
     @Test

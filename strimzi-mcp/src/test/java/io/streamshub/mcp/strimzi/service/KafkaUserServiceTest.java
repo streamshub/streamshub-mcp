@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -260,6 +261,56 @@ class KafkaUserServiceTest {
 
         assertEquals(List.of("kafka-cluster"), List.copyOf(response.matrix().keySet()));
         assertEquals(List.of("Describe"), response.matrix().get("kafka-cluster").get("admin"));
+    }
+
+    /**
+     * Verify privileged cluster-level grants are flagged as cluster-level access, even without the
+     * {@code All} operation, while read-only cluster grants are not.
+     */
+    @Test
+    void testAclMatrixFlagsPrivilegedClusterGrants() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaUser.class, List.of(
+            clusterAclUser("mm2-user", StrimziAclOperation.ALTER, StrimziAclOperation.CREATE,
+                StrimziAclOperation.DESCRIBE),
+            clusterAclUser("producer", StrimziAclOperation.DESCRIBE, StrimziAclOperation.IDEMPOTENTWRITE,
+                StrimziAclOperation.DESCRIBECONFIGS),
+            clusterAclUser("admin", StrimziAclOperation.ALL),
+            clusterAclUser("configurer", StrimziAclOperation.ALTERCONFIGS),
+            clusterAclUser("broker-like", StrimziAclOperation.CLUSTERACTION)));
+
+        KafkaUserAclMatrixResponse response = userService.getAclMatrix("kafka", "my-cluster", "cluster");
+
+        Map<String, String> reasons = response.broadGrants().stream()
+            .collect(Collectors.toMap(
+                KafkaUserAclMatrixResponse.BroadGrant::principal, KafkaUserAclMatrixResponse.BroadGrant::reason));
+        assertEquals(Map.of(
+            "mm2-user", "cluster-level access",
+            "admin", "cluster-level access, All operations",
+            "configurer", "cluster-level access",
+            "broker-like", "cluster-level access"), reasons);
+    }
+
+    private static KafkaUser clusterAclUser(final String name, final StrimziAclOperation... operations) {
+        return new KafkaUserBuilder()
+            .withNewMetadata()
+                .withName(name)
+                .withNamespace("kafka")
+                .withLabels(Map.of(ResourceLabels.STRIMZI_CLUSTER_LABEL, "my-cluster"))
+            .endMetadata()
+            .withNewSpec()
+                .withNewKafkaUserAuthorizationSimple()
+                    .addNewAcl()
+                        .withType(AclRuleType.ALLOW)
+                        .withNewAclRuleClusterResource()
+                        .endAclRuleClusterResource()
+                        .withOperations(operations)
+                    .endAcl()
+                .endKafkaUserAuthorizationSimple()
+            .endSpec()
+            .withNewStatus()
+                .withUsername(name)
+            .endStatus()
+            .build();
     }
 
     private static KafkaUser topicAclUser(final String name, final String namespace, final String cluster,

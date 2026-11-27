@@ -187,7 +187,7 @@ class KafkaFleetOverviewServiceTest {
         KafkaClusterResponse cluster = KafkaClusterResponse.of(
             "test", "ns", "Kafka", "4.2.0", null,
             null, null, null, "Ready",
-            null, null, null, null, null, null, null,
+            null, null, null, null, null, null, null, null,
             null, null, null, null, null, null, List.of());
         when(kafkaService.listClusters(null)).thenReturn(List.of(cluster));
 
@@ -375,7 +375,7 @@ class KafkaFleetOverviewServiceTest {
             name, namespace, "Kafka", version, null,
             null, null, null, readiness,
             null, null, RoleReplicasInfo.of(expected, ready, null, null), null,
-            null, null, null, null, 1000L, null, null, null, null, List.of());
+            null, null, null, null, null, 1000L, null, null, null, null, List.of());
     }
 
     private static KafkaRebalanceResponse buildRebalance(String name, String state) {

@@ -83,11 +83,13 @@ public class AuditSecurityPrompt {
             control, use the fallback steps below.
 
             ## Fallback Step 1: Gather cluster authentication configuration
-            Use `get_kafka_cluster` to retrieve the cluster's listener configuration.
+            Use `get_kafka_cluster` to retrieve the cluster's listeners. Its \
+            `unauthenticated_listeners` field names every listener without authentication; \
+            these are open access points (`authentication_enabled` is true as soon as any one \
+            listener has authentication). Then use `get_kafka_cluster_config` for per-listener detail.
             For each listener, note:
-            - Whether authentication is configured (type: tls, scram-sha-512, oauth, custom, or none)
+            - The `auth_type` (tls, tls-external, scram-sha-512, oauth, custom, or none)
             - Whether TLS encryption is enabled
-            - Listeners without authentication represent open access points
 
             Then use `get_kafka_cluster_certificates` to check certificate expiry dates.
             Flag any certificates expiring within 30 days.

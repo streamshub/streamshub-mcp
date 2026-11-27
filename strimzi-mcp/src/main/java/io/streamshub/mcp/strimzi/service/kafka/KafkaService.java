@@ -545,7 +545,8 @@ public class KafkaService {
             kafkaMetadataVersion, operatorLastSuccessfulVersion, clusterId, readiness,
             conditions, listeners, brokerReplicas, controllerReplicas,
             extractExternalAccess(kafka),
-            extractAuthenticationEnabled(kafka), extractAuthorizationEnabled(kafka),
+            extractAuthenticationEnabled(kafka), extractUnauthenticatedListeners(kafka),
+            extractAuthorizationEnabled(kafka),
             creationTime, ageMinutes, extractManagedBy(kafka),
             autoRebalance, clusterSecurity, reconciliation, warnings);
     }
@@ -792,6 +793,17 @@ public class KafkaService {
                 .anyMatch(listener -> listener.getAuth() != null);
         }
         return false;
+    }
+
+    private List<String> extractUnauthenticatedListeners(final Kafka kafka) {
+        if (kafka.getSpec() != null && kafka.getSpec().getKafka() != null
+            && kafka.getSpec().getKafka().getListeners() != null) {
+            return kafka.getSpec().getKafka().getListeners().stream()
+                .filter(listener -> listener.getAuth() == null)
+                .map(GenericKafkaListener::getName)
+                .toList();
+        }
+        return List.of();
     }
 
     private boolean extractAuthorizationEnabled(final Kafka kafka) {

@@ -88,7 +88,7 @@ class KafkaToolsTest {
                     "my-cluster-kafka-bootstrap.kafka.svc:9093")),
                 new RoleReplicasInfo(3, 3, "jbod", "100Gi"),
                 null,
-                false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi",
+                false, true, null, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi",
                 null, null, null, List.of())
         ));
 
@@ -146,7 +146,7 @@ class KafkaToolsTest {
                     "my-cluster-kafka-bootstrap.kafka.svc:9092")),
                 new RoleReplicasInfo(3, 3, "jbod", "100Gi"),
                 null,
-                false, true, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi",
+                false, true, null, false, Instant.parse("2025-01-01T00:00:00Z"), 60L, "strimzi",
                 null, null, null, List.of())
         );
 
@@ -305,7 +305,7 @@ class KafkaToolsTest {
                     "prod-cluster-kafka-bootstrap.production.svc:9093")),
                 new RoleReplicasInfo(3, 3, "jbod", "100Gi"),
                 null,
-                false, true, true, Instant.parse("2025-01-01T00:00:00Z"), 120L, "strimzi",
+                false, true, null, true, Instant.parse("2025-01-01T00:00:00Z"), 120L, "strimzi",
                 null, null, null, List.of())
         ));
 

@@ -146,7 +146,8 @@ class KafkaConfigServiceTest {
         assertEquals(9092, response.listeners().get(0).port());
         assertEquals("internal", response.listeners().get(0).type());
         assertEquals(false, response.listeners().get(0).tls());
-        assertNull(response.listeners().get(0).authType());
+        assertEquals("none", response.listeners().get(0).authType(),
+            "listener without authentication reports auth_type none");
 
         assertEquals("tls", response.listeners().get(1).name());
         assertEquals(true, response.listeners().get(1).tls());

@@ -67,7 +67,7 @@ class KafkaStorageDiagnosticServiceTest {
         when(kafkaService.getCluster(NAMESPACE, CLUSTER_NAME)).thenReturn(
             new KafkaClusterResponse(CLUSTER_NAME, NAMESPACE, "Kafka", "4.2.0",
                 "4.2.0", null, null, null, "Ready", List.of(), List.of(), null, null,
-                false, true, false, null, 60L, "strimzi", null, null, null, List.of())
+                false, true, null, false, null, 60L, "strimzi", null, null, null, List.of())
         );
         when(kafkaService.getClusterPvcs(NAMESPACE, CLUSTER_NAME)).thenReturn(
             KafkaPvcResponse.of(CLUSTER_NAME, NAMESPACE, List.of(
