@@ -57,8 +57,8 @@ class KafkaTopicDiagnosticScopingTest {
         List<String> completed = new ArrayList<>();
         diagnosticService.gatherConsumerLag("kafka", "my-cluster", "orders.v1", completed, new ArrayList<>());
 
-        verify(exporterMetricsService).getKafkaExporterMetrics("kafka", "my-cluster", "consumer_lag",
-            null, 15, null, null, null, "TOPIC", Map.of("topic", "orders.v1"));
+        verify(exporterMetricsService).getKafkaExporterMetrics("kafka", "my-cluster", null,
+            "kafka_consumergroup_lag", 15, null, null, null, "TOPIC", Map.of("topic", "orders.v1"));
         assertEquals(List.of("consumer_lag"), completed);
     }
 

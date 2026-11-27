@@ -59,6 +59,7 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
     /** Window of the consumer lag query: long enough to tell a growing lag from a steady one. */
     static final int CONSUMER_LAG_RANGE_MINUTES = 15;
     private static final String TOPIC_LABEL = "topic";
+    private static final String CONSUMER_GROUP_LAG = "kafka_consumergroup_lag";
     private static final String STEP_TOPIC_STATUS = "topic_status";
     private static final String STEP_RELATED_TOPICS = "related_topics";
     private static final String STEP_CLUSTER_STATUS = "cluster_status";
@@ -365,8 +366,9 @@ public class KafkaTopicDiagnosticService extends BaseDiagnosticService {
                                                     final List<String> failed) {
         try {
             // Per consumer group, summed across the topic's partitions, over a window that shows the trend.
+            // Only the lag: the group's committed offset averaged over partitions means nothing.
             KafkaExporterMetricsResponse result = exporterMetricsService.getKafkaExporterMetrics(
-                namespace, clusterName, KafkaExporterMetricCategories.CONSUMER_LAG, null,
+                namespace, clusterName, null, CONSUMER_GROUP_LAG,
                 CONSUMER_LAG_RANGE_MINUTES, null, null, null, AggregationLevel.TOPIC.name(),
                 Map.of(TOPIC_LABEL, kafkaTopicName));
             completed.add(STEP_CONSUMER_LAG);

@@ -114,16 +114,21 @@ final class ListenerScope {
     /**
      * Builds a log filter for the listener's lines.
      *
-     * <p>Kafka names a Strimzi listener {@code <NAME>-<PORT>} (for example {@code TLS-9093}) in
-     * socket-server and authentication logs, and its channel IDs read
+     * <p>Kafka names a Strimzi listener {@code <NAME>-<PORT>} in upper case (for example
+     * {@code TLS-9093}) in socket-server and authentication logs, and its channel IDs read
      * {@code <local address>:<port>-<remote address>:<port>-<index>}. The filter matches either
-     * form. It uses only syntax that Java regex and RE2 (Loki) both support.</p>
+     * form. It is a plain alternation, without flags or word boundaries, so the Kubernetes and Loki
+     * providers apply it the same way. A listener port is 9092 or higher and at most 65535, so one
+     * port is never a prefix of another in these forms.</p>
+     *
+     * <p>The OpenSearch provider matches a custom filter against analyzed terms, which split on
+     * {@code -} and {@code :}, so there the filter finds no lines.</p>
      *
      * @param listener the listener
-     * @return a case-insensitive regex for the listener's log lines
+     * @return a regex for the listener's log lines
      */
     static String logFilter(final GenericKafkaListener listener) {
         int port = listener.getPort();
-        return String.format("(?i)\\b%s-%d\\b|:%d-", listener.getName().toUpperCase(Locale.ROOT), port, port);
+        return String.format("%s-%d|:%d-", listener.getName().toUpperCase(Locale.ROOT), port, port);
     }
 }

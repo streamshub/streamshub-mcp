@@ -37,7 +37,8 @@ public final class DiagnosticSteps {
 
     /**
      * Builds the step counts for a report message, for example
-     * {@code "5 steps succeeded, 1 step degraded, 1 step failed"}.
+     * {@code "5 steps succeeded, 1 steps degraded, 2 steps failed"}. The noun stays plural, as in the
+     * messages clients already match on.
      *
      * @param completed the completed steps, or null
      * @param degraded  the degraded steps, or null
@@ -61,6 +62,6 @@ public final class DiagnosticSteps {
     }
 
     private static String count(final int n, final String outcome) {
-        return n + (n == 1 ? " step " : " steps ") + outcome;
+        return n + " steps " + outcome;
     }
 }

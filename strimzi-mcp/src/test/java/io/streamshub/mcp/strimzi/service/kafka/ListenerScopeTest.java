@@ -62,7 +62,10 @@ class ListenerScopeTest {
 
     @Test
     void testLogFilterMatchesListenerNameAndChannelPort() {
-        Pattern filter = Pattern.compile(ListenerScope.logFilter(listener("tls", 9093)));
+        String regex = ListenerScope.logFilter(listener("tls", 9093));
+        // A plain alternation, so Loki (RE2) applies it exactly as Java regex does.
+        assertEquals("TLS-9093|:9093-", regex);
+        Pattern filter = Pattern.compile(regex);
 
         assertTrue(filter.matcher("[SocketServer listenerType=BROKER, nodeId=0] Failed authentication with "
             + "/10.0.0.7 (channelId=10.244.0.5:9093-10.244.0.1:45678-3)").find());

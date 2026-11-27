@@ -101,12 +101,13 @@ public class StrimziOperatorMetricsService {
         validatePodsFound(coPods, eoPods, ns);
 
         // Name the operator as list_strimzi_operators does: by its Deployment. The name argument
-        // only has to be a prefix of the pod names, so the pods decide when there are any.
+        // only has to be a prefix of the pod names, so the pods decide when there are any. The
+        // generic name is left only for the case with no Deployment-owned operator pod.
         String resolvedName = coPods.stream()
             .map(StrimziOperatorMetricsService::deploymentName)
             .filter(Objects::nonNull)
             .findFirst()
-            .orElse(name);
+            .orElse(name != null ? name : StrimziConstants.KindValues.CLUSTER_OPERATOR);
         LOG.infof("Getting metrics for operator '%s'%s (provider=%s)",
             resolvedName,
             cluster != null ? " with entity operator for Kafka cluster '" + cluster + "'" : "",

@@ -30,9 +30,9 @@ class DiagnosticStepsTest {
     void testSummaryCountsOnlyNonEmptyLists() {
         assertEquals("3 steps succeeded",
             DiagnosticSteps.summary(List.of("a", "b", "c"), List.of(), null));
-        assertEquals("1 step succeeded, 1 step degraded, 2 steps failed",
+        assertEquals("1 steps succeeded, 1 steps degraded, 2 steps failed",
             DiagnosticSteps.summary(List.of("a"), List.of("b: x"), List.of("c: y", "d: z")));
-        assertEquals("0 steps succeeded, 1 step failed",
+        assertEquals("0 steps succeeded, 1 steps failed",
             DiagnosticSteps.summary(null, null, List.of("a: x")));
     }
 }

@@ -84,7 +84,7 @@ class KafkaConnectivityDiagnosticStepsTest {
             List.of());
 
         assertEquals("Connectivity diagnostic completed for cluster 'unknown': "
-            + "2 steps succeeded, 1 step degraded", report.message());
+            + "2 steps succeeded, 1 steps degraded", report.message());
         assertEquals(1, report.stepsDegraded().size());
         assertNull(report.stepsFailed(), "An empty steps_failed is left out");
     }
