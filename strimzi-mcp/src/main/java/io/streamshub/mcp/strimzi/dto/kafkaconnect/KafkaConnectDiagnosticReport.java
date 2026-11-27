@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.dto.kafkaconnect;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.streamshub.mcp.common.service.DiagnosticSteps;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaConnectMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
 
@@ -67,10 +68,10 @@ public record KafkaConnectDiagnosticReport(
             final String analysis,
             final List<String> stepsCompleted,
             final List<String> stepsFailed) {
-        String msg = String.format(
-            "KafkaConnect cluster diagnostic completed: %d steps succeeded, %d steps failed",
-            stepsCompleted.size(), stepsFailed != null ? stepsFailed.size() : 0);
+        String msg = "KafkaConnect cluster diagnostic completed: "
+            + DiagnosticSteps.summary(stepsCompleted, null, stepsFailed);
         return new KafkaConnectDiagnosticReport(connectCluster, connectors, pods, logs,
-            connectMetrics, events, analysis, stepsCompleted, stepsFailed, Instant.now(), msg);
+            connectMetrics, events, analysis, stepsCompleted,
+            DiagnosticSteps.nonEmptyOrNull(stepsFailed), Instant.now(), msg);
     }
 }

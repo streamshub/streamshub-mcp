@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.dto.kafka;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.streamshub.mcp.common.service.DiagnosticSteps;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerLogsResponse;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerReadinessResponse;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
@@ -96,21 +97,13 @@ public record KafkaClusterDiagnosticReport(
                                                   String analysis,
                                                   List<String> stepsCompleted,
                                                   List<String> stepsFailed) {
-        int completed = stepsCompleted != null ? stepsCompleted.size() : 0;
-        int failed = stepsFailed != null ? stepsFailed.size() : 0;
         String clusterName = cluster != null ? cluster.name() : "unknown";
-
-        String msg;
-        if (failed == 0) {
-            msg = String.format("Diagnostic completed for cluster '%s': %d steps succeeded",
-                clusterName, completed);
-        } else {
-            msg = String.format("Diagnostic completed for cluster '%s': %d steps succeeded, %d steps failed",
-                clusterName, completed, failed);
-        }
+        String msg = String.format("Diagnostic completed for cluster '%s': %s",
+            clusterName, DiagnosticSteps.summary(stepsCompleted, null, stepsFailed));
 
         return new KafkaClusterDiagnosticReport(cluster, nodePools, pods, operator, operatorLogs,
             clusterLogs, events, users, metrics, drainCleaner, drainCleanerLogs,
-            analysis, stepsCompleted, stepsFailed, Instant.now(), msg);
+            analysis, stepsCompleted,
+            DiagnosticSteps.nonEmptyOrNull(stepsFailed), Instant.now(), msg);
     }
 }

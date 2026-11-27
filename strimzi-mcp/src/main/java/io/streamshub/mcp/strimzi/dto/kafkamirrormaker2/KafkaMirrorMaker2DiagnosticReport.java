@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.dto.kafkamirrormaker2;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.streamshub.mcp.common.service.DiagnosticSteps;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
 
 import java.time.Instant;
@@ -57,9 +58,10 @@ public record KafkaMirrorMaker2DiagnosticReport(
             final String analysis,
             final List<String> stepsCompleted,
             final List<String> stepsFailed) {
-        String msg = String.format("MirrorMaker2 diagnostic completed: %d steps succeeded, %d steps failed",
-            stepsCompleted.size(), stepsFailed != null ? stepsFailed.size() : 0);
+        String msg = "MirrorMaker2 diagnostic completed: "
+            + DiagnosticSteps.summary(stepsCompleted, null, stepsFailed);
         return new KafkaMirrorMaker2DiagnosticReport(mirrorMaker, pods, logs, events,
-            analysis, stepsCompleted, stepsFailed, Instant.now(), msg);
+            analysis, stepsCompleted,
+            DiagnosticSteps.nonEmptyOrNull(stepsFailed), Instant.now(), msg);
     }
 }

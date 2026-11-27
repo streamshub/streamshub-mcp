@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.dto.operator;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.streamshub.mcp.common.service.DiagnosticSteps;
 import io.streamshub.mcp.strimzi.dto.metrics.StrimziOperatorMetricsResponse;
 
 import java.time.Instant;
@@ -67,22 +68,12 @@ public record OperatorMetricsDiagnosticReport(
                                                      List<String> stepsCompleted,
                                                      List<String> stepsFailed) {
         String operatorName = operator != null ? operator.name() : "unknown";
-        int completed = stepsCompleted != null ? stepsCompleted.size() : 0;
-        int failed = stepsFailed != null ? stepsFailed.size() : 0;
-
-        String msg;
-        if (failed == 0) {
-            msg = String.format(
-                "Operator metrics diagnostic completed for '%s': %d steps succeeded",
-                operatorName, completed);
-        } else {
-            msg = String.format(
-                "Operator metrics diagnostic completed for '%s': %d steps succeeded, %d steps failed",
-                operatorName, completed, failed);
-        }
+        String msg = String.format("Operator metrics diagnostic completed for '%s': %s",
+            operatorName, DiagnosticSteps.summary(stepsCompleted, null, stepsFailed));
 
         return new OperatorMetricsDiagnosticReport(operator,
             reconciliationMetrics, resourceMetrics, jvmMetrics, operatorLogs,
-            analysis, stepsCompleted, stepsFailed, Instant.now(), msg);
+            analysis, stepsCompleted,
+            DiagnosticSteps.nonEmptyOrNull(stepsFailed), Instant.now(), msg);
     }
 }

@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.dto.kafka;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.streamshub.mcp.common.service.DiagnosticSteps;
 import io.streamshub.mcp.strimzi.dto.draincleaner.DrainCleanerReadinessResponse;
 import io.streamshub.mcp.strimzi.dto.kafkanodepool.KafkaNodePoolResponse;
 import io.streamshub.mcp.strimzi.dto.kafkarebalance.KafkaRebalanceResponse;
@@ -94,14 +95,15 @@ public record UpgradeReadinessReport(
                                              final String analysis,
                                              final List<String> stepsCompleted,
                                              final List<String> stepsFailed) {
-        String msg = String.format("Upgrade readiness check completed: %d steps succeeded, %d steps failed",
-            stepsCompleted.size(), stepsFailed != null ? stepsFailed.size() : 0);
+        String msg = "Upgrade readiness check completed: "
+            + DiagnosticSteps.summary(stepsCompleted, null, stepsFailed);
         List<KafkaRebalanceResponse> rebalances =
             activeRebalances != null && !activeRebalances.isEmpty() ? activeRebalances : null;
         return new UpgradeReadinessReport(cluster, operator, nodePools, pods,
             replicationMetrics, performanceMetrics, resourceMetrics,
             drainCleaner, certificates, events, rebalances,
             preflightFindings != null && !preflightFindings.isEmpty() ? preflightFindings : null,
-            analysis, stepsCompleted, stepsFailed, Instant.now(), msg);
+            analysis, stepsCompleted,
+            DiagnosticSteps.nonEmptyOrNull(stepsFailed), Instant.now(), msg);
     }
 }

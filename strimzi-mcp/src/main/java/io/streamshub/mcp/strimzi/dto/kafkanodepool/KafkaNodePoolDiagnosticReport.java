@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.dto.kafkanodepool;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.streamshub.mcp.common.service.DiagnosticSteps;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
 
 import java.time.Instant;
@@ -61,9 +62,10 @@ public record KafkaNodePoolDiagnosticReport(
             final String analysis,
             final List<String> stepsCompleted,
             final List<String> stepsFailed) {
-        String msg = String.format("KafkaNodePool diagnostic completed: %d steps succeeded, %d steps failed",
-            stepsCompleted.size(), stepsFailed != null ? stepsFailed.size() : 0);
+        String msg = "KafkaNodePool diagnostic completed: "
+            + DiagnosticSteps.summary(stepsCompleted, null, stepsFailed);
         return new KafkaNodePoolDiagnosticReport(nodePool, pods, pvcs, events, logs,
-            analysis, stepsCompleted, stepsFailed, Instant.now(), msg);
+            analysis, stepsCompleted,
+            DiagnosticSteps.nonEmptyOrNull(stepsFailed), Instant.now(), msg);
     }
 }

@@ -7,6 +7,7 @@ package io.streamshub.mcp.strimzi.dto.kafkatopic;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.streamshub.mcp.common.dto.PaginatedResponse;
+import io.streamshub.mcp.common.service.DiagnosticSteps;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.metrics.KafkaExporterMetricsResponse;
 import io.streamshub.mcp.strimzi.dto.operator.StrimziEventsResponse;
@@ -73,9 +74,10 @@ public record KafkaTopicDiagnosticReport(
                                                  final String analysis,
                                                  final List<String> stepsCompleted,
                                                  final List<String> stepsFailed) {
-        String msg = String.format("Diagnostic completed: %d steps succeeded, %d steps failed",
-            stepsCompleted.size(), stepsFailed != null ? stepsFailed.size() : 0);
+        String msg = "Diagnostic completed: "
+            + DiagnosticSteps.summary(stepsCompleted, null, stepsFailed);
         return new KafkaTopicDiagnosticReport(topic, relatedTopics, cluster, operatorLogs,
-            events, exporterMetrics, consumerLag, analysis, stepsCompleted, stepsFailed, Instant.now(), msg);
+            events, exporterMetrics, consumerLag, analysis, stepsCompleted,
+            DiagnosticSteps.nonEmptyOrNull(stepsFailed), Instant.now(), msg);
     }
 }
