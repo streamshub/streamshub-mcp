@@ -7,8 +7,8 @@ package io.streamshub.mcp.strimzi.service.kafkaconnect;
 import io.streamshub.mcp.common.dto.ImageBuildInspection;
 import io.streamshub.mcp.common.dto.ImageBuildStatus;
 import io.streamshub.mcp.common.service.ImageBuildInspectionService;
+import io.streamshub.mcp.common.service.KubernetesQueryException;
 import io.streamshub.mcp.common.service.OpenShiftDetector;
-import io.streamshub.mcp.common.util.ExceptionUtils;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectBuildInfo;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectBuildInfo.ArtifactInfo;
 import io.streamshub.mcp.strimzi.dto.kafkaconnect.KafkaConnectBuildInfo.PluginInfo;
@@ -105,8 +105,8 @@ public class KafkaConnectBuildService {
             // the problem through the message rather than letting the exception propagate.
             LOG.warnf(e, "Failed to introspect build for %s/%s", namespace, clusterName);
             message = isOpenShift
-                ? "Build configured; OpenShift Build introspection failed: " + ExceptionUtils.rootCauseMessage(e)
-                : "Build configured; builder introspection failed: " + ExceptionUtils.rootCauseMessage(e);
+                ? "Build configured; OpenShift Build introspection failed: " + introspectionFailure(e)
+                : "Build configured; builder introspection failed: " + introspectionFailure(e);
         }
 
         return KafkaConnectBuildInfo.of(
@@ -119,6 +119,23 @@ public class KafkaConnectBuildService {
             buildLogs,
             message
         );
+    }
+
+    /**
+     * Returns a short, client-safe reason for a failed build introspection. The raw Kubernetes
+     * client error carries the request URL (API server address) and, on RBAC denials, the
+     * service-account name, so it stays in the server log. A {@link KubernetesQueryException}
+     * message is already contextual (the query plus the HTTP status, for example
+     * {@code (403 Forbidden)}) and is passed through.
+     *
+     * @param e the introspection failure
+     * @return the reason to surface in {@code build.message}
+     */
+    private static String introspectionFailure(final Exception e) {
+        if (e instanceof KubernetesQueryException) {
+            return e.getMessage();
+        }
+        return "unexpected error, see the MCP server log";
     }
 
     /**

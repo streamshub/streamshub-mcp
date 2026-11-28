@@ -264,6 +264,9 @@ io.streamshub.mcp.strimzi.
   `error.data`; see [Error handling](#error-handling). Use plain `ToolCallException` only for errors that should
   remain failed tool responses (rate-limit, cancellation).
 - **Common services** are generic Kubernetes helpers shared across modules.
+  Never call `genericKubernetesResources(apiVersion, kind)` for a group whose subresources reuse a kind
+  (OpenShift `build.openshift.io`). fabric8 picks the first discovery match. Pass a `ResourceDefinitionContext`
+  with the plural.
 - **DTOs** are immutable `record` types. Use static factory methods (`of()`, `empty()`) not constructors directly.
 - **Metrics providers** implement `MetricsProvider` interface. Selected via `@LookupIfProperty` on `mcp.metrics.provider`.
   Domain services use `MetricsQueryService` (in common/) to query metrics — it handles provider lookup,
@@ -842,6 +845,7 @@ public record XxxResponse(
 - Use `@JsonInclude(JsonInclude.Include.NON_NULL)` to omit null fields
 - Provide static factory methods (`of()`, `empty()`) for construction
 - Record javadoc uses `@param` tags for each component
+- Do not add public `getX()`/`isX()` helpers to serialized records. Jackson serializes them as camelCase properties. Use a non-bean name, or `@JsonIgnore` if it must exist
 
 ## Constants
 

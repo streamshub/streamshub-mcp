@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodCondition;
 import io.fabric8.kubernetes.api.model.PodStatus;
+import io.fabric8.kubernetes.client.dsl.base.ResourceDefinitionContext;
 import io.streamshub.mcp.common.dto.ImageBuildInspection;
 import io.streamshub.mcp.common.dto.ImageBuildStatus;
 import io.streamshub.mcp.common.dto.LogCollectionParams;
@@ -62,6 +63,20 @@ public class ImageBuildInspectionService {
     private static final String BUILD_PHASE_ERROR = "Error";
     private static final String BUILD_PHASE_CANCELLED = "Cancelled";
 
+    /**
+     * The OpenShift {@code builds} resource, named by plural. A kind-based lookup
+     * ({@code genericKubernetesResources("build.openshift.io/v1", "Build")}) takes the first discovery
+     * entry with kind {@code Build}, which on OpenShift is the {@code buildconfigs/webhooks} subresource
+     * (create-only, so listing it is forbidden), not {@code builds}.
+     */
+    static final ResourceDefinitionContext OPENSHIFT_BUILD_CONTEXT = new ResourceDefinitionContext.Builder()
+        .withGroup("build.openshift.io")
+        .withVersion("v1")
+        .withKind("Build")
+        .withPlural("builds")
+        .withNamespaced(true)
+        .build();
+
     private static final String BUILD_CONFIG_NAME_LABEL = "openshift.io/build-config.name";
     private static final String BUILD_NUMBER_ANNOTATION = "openshift.io/build.number";
     private static final String OPENSHIFT_BUILD_POD_SUFFIX = "-build";
@@ -105,8 +120,7 @@ public class ImageBuildInspectionService {
      */
     public ImageBuildInspection inspectOpenShiftBuild(final String namespace, final String buildConfigName) {
         List<GenericKubernetesResource> builds = k8sService.queryGenericResourcesByLabel(
-            OpenShiftDetector.OPENSHIFT_BUILD_API_GROUP, OpenShiftDetector.OPENSHIFT_BUILD_KIND,
-            namespace, BUILD_CONFIG_NAME_LABEL, buildConfigName);
+            OPENSHIFT_BUILD_CONTEXT, namespace, BUILD_CONFIG_NAME_LABEL, buildConfigName);
 
         if (builds.isEmpty()) {
             return null;

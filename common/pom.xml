@@ -44,6 +44,11 @@
             <artifactId>quarkus-junit-mockito</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-server-mock</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

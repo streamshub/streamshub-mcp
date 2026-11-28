@@ -151,13 +151,4 @@ public record KafkaClusterResponse(
             creationTime, ageMinutes, managedBy, autoRebalance, clusterSecurity, reconciliation,
             warnings != null ? warnings.stream().filter(Objects::nonNull).toList() : List.of());
     }
-
-    /**
-     * Returns a human-readable display name for this cluster.
-     *
-     * @return the display name in "name (namespace: ns)" format
-     */
-    public String getDisplayName() {
-        return String.format("%s (namespace: %s)", name, namespace);
-    }
 }

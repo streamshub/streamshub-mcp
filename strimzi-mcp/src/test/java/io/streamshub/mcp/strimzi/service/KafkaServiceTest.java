@@ -7,19 +7,24 @@ package io.streamshub.mcp.strimzi.service;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicy;
 import io.fabric8.kubernetes.api.model.policy.v1.PodDisruptionBudget;
+import io.fabric8.kubernetes.api.model.storage.StorageClass;
+import io.fabric8.kubernetes.api.model.storage.StorageClassBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.AppsAPIGroupDSL;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterPodsResponse;
@@ -48,11 +53,14 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 /**
  * Service-level tests for {@link KafkaService} with mocked Kubernetes.
  */
@@ -280,7 +288,7 @@ class KafkaServiceTest {
      * (e.g. "strimzi-tls") rather than the Java enum constant name ("TLS").
      */
     @Test
-    void testGetClusterEnrichesClusterSecurityFromStatus() {
+    void testGetClusterEnrichesClusterSecurityFromTypedStatus() {
         ClusterSecurityStatus clusterSecurityStatus = new ClusterSecurityStatusBuilder()
             .withNewEncryption()
                 .withType(ClusterSecurityEncryptionType.TLS)
@@ -299,6 +307,147 @@ class KafkaServiceTest {
         assertNotNull(response.clusterSecurity());
         assertEquals("strimzi-tls", response.clusterSecurity().encryption());
         assertEquals("strimzi-mtls", response.clusterSecurity().authentication());
+    }
+
+    /**
+     * Verify cluster_security is read when the Kafka comes from the client's own
+     * deserializer, where status.clusterSecurity is an untyped map rather than a typed status.
+     */
+    @Test
+    void testGetClusterEnrichesClusterSecurityFromDeserializedStatus() {
+        String json = "{\"apiVersion\":\"kafka.strimzi.io/v1\",\"kind\":\"Kafka\","
+            + "\"metadata\":{\"name\":\"my-cluster\",\"namespace\":\"kafka\"},"
+            + "\"spec\":{\"kafka\":{\"version\":\"4.3.1\",\"listeners\":"
+            + "[{\"name\":\"tls\",\"port\":9093,\"type\":\"internal\",\"tls\":true}]}},"
+            + "\"status\":{\"clusterSecurity\":{\"authentication\":{\"type\":\"strimzi-mtls\"},"
+            + "\"encryption\":{\"type\":\"strimzi-tls\"}}}}";
+        Kafka kafka = Serialization.unmarshal(json, Kafka.class);
+        assertInstanceOf(Map.class, kafka.getStatus().getClusterSecurity());
+        mockKafkaResource(kafka);
+
+        KafkaClusterResponse response = kafkaService.getCluster(NAMESPACE, CLUSTER_NAME);
+
+        assertNotNull(response.clusterSecurity());
+        assertEquals("strimzi-tls", response.clusterSecurity().encryption());
+        assertEquals("strimzi-mtls", response.clusterSecurity().authentication());
+    }
+
+    /**
+     * Verify unknown future type strings are passed through unchanged and a missing
+     * block yields null.
+     */
+    @Test
+    void testGetClusterClusterSecurityPassesThroughUnknownTypes() {
+        String json = "{\"apiVersion\":\"kafka.strimzi.io/v1\",\"kind\":\"Kafka\","
+            + "\"metadata\":{\"name\":\"my-cluster\",\"namespace\":\"kafka\"},"
+            + "\"status\":{\"clusterSecurity\":{\"authentication\":{\"type\":\"custom-future\"}}}}";
+        Kafka kafka = Serialization.unmarshal(json, Kafka.class);
+        mockKafkaResource(kafka);
+
+        KafkaClusterResponse response = kafkaService.getCluster(NAMESPACE, CLUSTER_NAME);
+
+        assertNotNull(response.clusterSecurity());
+        assertEquals("custom-future", response.clusterSecurity().authentication());
+        assertNull(response.clusterSecurity().encryption());
+    }
+
+    /**
+     * Verify an empty deserialized clusterSecurity object yields no cluster_security.
+     */
+    @Test
+    void testGetClusterClusterSecurityIsNullForEmptyObject() {
+        Kafka kafka = deserializedKafka("{}");
+        assertInstanceOf(Map.class, kafka.getStatus().getClusterSecurity());
+        mockKafkaResource(kafka);
+
+        assertNull(kafkaService.getCluster(NAMESPACE, CLUSTER_NAME).clusterSecurity());
+    }
+
+    /**
+     * Verify a JSON null or absent clusterSecurity yields no cluster_security.
+     */
+    @Test
+    void testGetClusterClusterSecurityIsNullForJsonNullOrAbsent() {
+        assertNull(clusterSecurityOfDeserialized("null"));
+        assertNull(clusterSecurityOfDeserialized(null));
+    }
+
+    /**
+     * Verify encryption is reported on its own when the status carries no authentication.
+     */
+    @Test
+    void testGetClusterClusterSecurityWithEncryptionOnly() {
+        KafkaClusterResponse.ClusterSecurityInfo security =
+            clusterSecurityOfDeserialized("{\"encryption\":{\"type\":\"strimzi-tls\"}}");
+
+        assertNotNull(security);
+        assertEquals("strimzi-tls", security.encryption());
+        assertNull(security.authentication());
+    }
+
+    /**
+     * Verify a non-string type is dropped: the field is null, and the whole block is null when
+     * nothing else is set.
+     */
+    @Test
+    void testGetClusterClusterSecurityIgnoresNonStringType() {
+        assertNull(clusterSecurityOfDeserialized("{\"encryption\":{\"type\":42}}"));
+
+        KafkaClusterResponse.ClusterSecurityInfo security = clusterSecurityOfDeserialized(
+            "{\"encryption\":{\"type\":42},\"authentication\":{\"type\":\"strimzi-mtls\"}}");
+
+        assertNotNull(security);
+        assertNull(security.encryption());
+        assertEquals("strimzi-mtls", security.authentication());
+    }
+
+    /**
+     * Verify list_kafka_clusters reports cluster_security from the client's deserialized status.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void testListClustersEnrichesClusterSecurityFromDeserializedStatus() {
+        Kafka kafka = deserializedKafka(
+            "{\"authentication\":{\"type\":\"strimzi-mtls\"},\"encryption\":{\"type\":\"strimzi-tls\"}}");
+        KubernetesResourceList<Kafka> kafkaList = Mockito.mock(KubernetesResourceList.class);
+        when(kafkaList.getItems()).thenReturn(List.of(kafka));
+        when(kafkaNsOp.list()).thenReturn(kafkaList);
+
+        List<KafkaClusterResponse> result = kafkaService.listClusters(NAMESPACE);
+
+        assertEquals(1, result.size());
+        assertNotNull(result.getFirst().clusterSecurity());
+        assertEquals("strimzi-tls", result.getFirst().clusterSecurity().encryption());
+        assertEquals("strimzi-mtls", result.getFirst().clusterSecurity().authentication());
+    }
+
+    /**
+     * Runs get_kafka_cluster on a Kafka parsed by the client's deserializer and returns its cluster_security.
+     *
+     * @param clusterSecurityJson the raw {@code status.clusterSecurity} JSON value, or null to omit the field
+     * @return the cluster_security of the response
+     */
+    private KafkaClusterResponse.ClusterSecurityInfo clusterSecurityOfDeserialized(final String clusterSecurityJson) {
+        mockKafkaResource(deserializedKafka(clusterSecurityJson));
+        return kafkaService.getCluster(NAMESPACE, CLUSTER_NAME).clusterSecurity();
+    }
+
+    /**
+     * Parses a Kafka with the client's deserializer, as the API server would return it.
+     *
+     * @param clusterSecurityJson the raw {@code status.clusterSecurity} JSON value, or null to omit the field
+     * @return the deserialized Kafka
+     */
+    private Kafka deserializedKafka(final String clusterSecurityJson) {
+        String status = clusterSecurityJson != null
+            ? "{\"clusterSecurity\":" + clusterSecurityJson + "}"
+            : "{}";
+        String json = "{\"apiVersion\":\"kafka.strimzi.io/v1\",\"kind\":\"Kafka\","
+            + "\"metadata\":{\"name\":\"" + CLUSTER_NAME + "\",\"namespace\":\"" + NAMESPACE + "\"},"
+            + "\"spec\":{\"kafka\":{\"version\":\"4.3.1\",\"listeners\":"
+            + "[{\"name\":\"tls\",\"port\":9093,\"type\":\"internal\",\"tls\":true}]}},"
+            + "\"status\":" + status + "}";
+        return Serialization.unmarshal(json, Kafka.class);
     }
 
     /**
@@ -448,6 +597,98 @@ class KafkaServiceTest {
         KafkaClusterResponse response = kafkaService.getCluster(NAMESPACE, CLUSTER_NAME);
 
         assertTrue(response.unauthenticatedListeners().isEmpty());
+    }
+
+    @Test
+    void testGetClusterPvcsReportsAllowVolumeExpansion() {
+        mockPvcsWithStorageClass();
+
+        KafkaPvcResponse response = kafkaService.getClusterPvcs(NAMESPACE, CLUSTER_NAME);
+
+        assertEquals(2, response.pvcs().size());
+        assertEquals(Boolean.TRUE, response.pvcs().get(0).allowVolumeExpansion());
+        assertEquals(Boolean.TRUE, response.pvcs().get(1).allowVolumeExpansion());
+    }
+
+    @Test
+    void testGetClusterPvcsLooksUpEachStorageClassOnce() {
+        mockPvcsWithStorageClass();
+        Mockito.clearInvocations(kubernetesClient);
+
+        kafkaService.getClusterPvcs(NAMESPACE, CLUSTER_NAME);
+
+        Mockito.verify(kubernetesClient, Mockito.times(1)).resources(StorageClass.class);
+    }
+
+    @Test
+    void testGetClusterPvcsOmitsExpansionWhenStorageClassUnreadable() {
+        mockPvcsWithStorageClass();
+        when(kubernetesClient.resources(StorageClass.class))
+            .thenThrow(new KubernetesClientException("forbidden", 403, null));
+
+        KafkaPvcResponse response = kafkaService.getClusterPvcs(NAMESPACE, CLUSTER_NAME);
+
+        assertEquals(2, response.pvcs().size());
+        assertNull(response.pvcs().get(0).allowVolumeExpansion());
+        assertNull(response.pvcs().get(1).allowVolumeExpansion());
+    }
+
+    @Test
+    void testGetClusterPvcsReportsFalseWhenStorageClassLeavesExpansionUnset() {
+        mockPvcsWithStorageClass();
+        StorageClass sc = new StorageClassBuilder()
+            .withNewMetadata().withName("rook-ceph-block").endMetadata()
+            .withProvisioner("rook-ceph.rbd.csi.ceph.com")
+            .build();
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, StorageClass.class, List.of(sc));
+
+        KafkaPvcResponse response = kafkaService.getClusterPvcs(NAMESPACE, CLUSTER_NAME);
+
+        assertEquals(2, response.pvcs().size());
+        assertEquals(Boolean.FALSE, response.pvcs().get(0).allowVolumeExpansion());
+        assertEquals(Boolean.FALSE, response.pvcs().get(1).allowVolumeExpansion());
+    }
+
+    @Test
+    void testGetClusterPvcsOmitsExpansionOnlyForUnreadableStorageClass() {
+        mockPvcsWithStorageClass();
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, PersistentVolumeClaim.class, List.of(
+            pvcWithStorageClass("data-0-mcp-cluster-broker-0", "rook-ceph-block"),
+            pvcWithStorageClass("data-1-mcp-cluster-broker-0", "missing-class")));
+
+        KafkaPvcResponse response = kafkaService.getClusterPvcs(NAMESPACE, CLUSTER_NAME);
+
+        assertEquals(2, response.pvcs().size());
+        assertEquals(Boolean.TRUE, response.pvcs().get(0).allowVolumeExpansion());
+        assertNull(response.pvcs().get(1).allowVolumeExpansion());
+    }
+
+    private void mockPvcsWithStorageClass() {
+        mockKafkaResource(buildKafkaWithStatus(new KafkaStatusBuilder().build()));
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, PersistentVolumeClaim.class, List.of(
+            pvcWithStorageClass("data-0-mcp-cluster-broker-0"),
+            pvcWithStorageClass("data-1-mcp-cluster-broker-0")));
+        StorageClass sc = new StorageClassBuilder()
+            .withNewMetadata().withName("rook-ceph-block").endMetadata()
+            .withProvisioner("rook-ceph.rbd.csi.ceph.com")
+            .withAllowVolumeExpansion(true)
+            .build();
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, StorageClass.class, List.of(sc));
+    }
+
+    private PersistentVolumeClaim pvcWithStorageClass(final String name) {
+        return pvcWithStorageClass(name, "rook-ceph-block");
+    }
+
+    private PersistentVolumeClaim pvcWithStorageClass(final String name, final String storageClassName) {
+        return new PersistentVolumeClaimBuilder()
+            .withNewMetadata()
+                .withName(name)
+                .withNamespace(NAMESPACE)
+                .addToLabels("strimzi.io/cluster", CLUSTER_NAME)
+            .endMetadata()
+            .withNewSpec().withStorageClassName(storageClassName).endSpec()
+            .build();
     }
 
     @Test

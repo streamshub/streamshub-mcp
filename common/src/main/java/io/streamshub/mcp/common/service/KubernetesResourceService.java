@@ -8,6 +8,7 @@ import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.dsl.base.ResourceDefinitionContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
@@ -297,31 +298,36 @@ public class KubernetesResourceService {
      * Query generic (un-typed) resources by label in a namespace. Used for resources that have
      * no fabric8 model class on the classpath (for example OpenShift {@code build.openshift.io/v1}
      * Builds, which are read without an {@code openshift-client} dependency).
+     * <p>
+     * The resource is identified by an explicit {@link ResourceDefinitionContext} (group, version,
+     * plural) rather than by API version and kind. A kind-based lookup takes the first discovery entry
+     * with that kind, which can be a subresource that reuses the kind (on OpenShift,
+     * {@code buildconfigs/webhooks} reports kind {@code Build} and is listed before {@code builds}).
      *
-     * @param apiVersion the resource API version (for example {@code build.openshift.io/v1})
-     * @param kind       the resource kind (for example {@code Build})
+     * @param context    the resource definition (group, version, kind, plural, scope)
      * @param namespace  the namespace
      * @param labelKey   the label key
      * @param labelValue the label value
      * @return list of generic resources found
      */
-    public List<GenericKubernetesResource> queryGenericResourcesByLabel(final String apiVersion, final String kind,
+    public List<GenericKubernetesResource> queryGenericResourcesByLabel(final ResourceDefinitionContext context,
                                                                         final String namespace, final String labelKey,
                                                                         final String labelValue) {
         try {
             return kubernetesClient
-                .genericKubernetesResources(apiVersion, kind)
+                .genericKubernetesResources(context)
                 .inNamespace(namespace)
                 .withLabel(labelKey, labelValue)
                 .list()
                 .getItems();
         } catch (Exception e) {
             LOG.warnf(
-                "Error querying %s/%s by %s=%s in ns %s: %s",
-                apiVersion, kind, labelKey, labelValue, namespace, e.getMessage());
+                "Error querying %s.%s by %s=%s in ns %s: %s",
+                context.getPlural(), context.getGroup(), labelKey, labelValue, namespace, e.getMessage());
             throw new KubernetesQueryException(
-                String.format("Failed to query %s/%s by %s=%s in namespace '%s'%s",
-                    apiVersion, kind, labelKey, labelValue, namespace, formatStatusSuffix(e)), e);
+                String.format("Failed to query %s.%s by %s=%s in namespace '%s'%s",
+                    context.getPlural(), context.getGroup(), labelKey, labelValue, namespace,
+                    formatStatusSuffix(e)), e);
         }
     }
 }

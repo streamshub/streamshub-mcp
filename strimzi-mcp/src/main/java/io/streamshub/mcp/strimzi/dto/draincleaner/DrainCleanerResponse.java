@@ -79,13 +79,4 @@ public record DrainCleanerResponse(
             version, image, uptimeHours, status, mode,
             webhookConfigured, failurePolicy, denyEviction, drainKafka, watchedNamespaces);
     }
-
-    /**
-     * Returns a human-readable display name.
-     *
-     * @return the display name
-     */
-    public String getDisplayName() {
-        return String.format("%s (namespace: %s)", name, namespace);
-    }
 }

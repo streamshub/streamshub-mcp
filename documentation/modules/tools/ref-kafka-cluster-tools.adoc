@@ -186,7 +186,7 @@ Get PersistentVolumeClaims backing a Kafka cluster including capacity and storag
 
 * `cluster_name` -- Name of the Kafka cluster
 * `namespace` -- Kubernetes namespace
-* `pvcs` -- List of PVC objects with `name`, `namespace`, `phase`, `storage_class`, `requested_capacity`, `actual_capacity`, `volume_name`, `allow_volume_expansion`
+* `pvcs` -- List of PVC objects with `name`, `namespace`, `phase`, `storage_class`, `requested_capacity`, `actual_capacity`, `volume_name`, `allow_volume_expansion` (`false` when the StorageClass leaves expansion unset; omitted only when the StorageClass cannot be read or does not exist)
 
 .Example
 ----
