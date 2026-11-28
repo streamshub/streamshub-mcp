@@ -4,6 +4,8 @@
  */
 package io.streamshub.mcp.common.service;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.storage.StorageClass;
 import io.fabric8.kubernetes.api.model.storage.StorageClassBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -12,6 +14,7 @@ import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -48,5 +51,29 @@ class KubernetesResourceServiceMockServerTest {
         StorageClass sc = k8s.getClusterScopedResource(StorageClass.class, STORAGE_CLASS);
 
         assertTrue(Boolean.TRUE.equals(sc.getAllowVolumeExpansion()));
+    }
+
+    @Test
+    void testResourceExistsInNamespace() {
+        createConfigMap("a", "x");
+
+        assertTrue(k8s.resourceExists(ConfigMap.class, "a", "x"));
+        assertFalse(k8s.resourceExists(ConfigMap.class, "a", "y"));
+        assertFalse(k8s.resourceExists(ConfigMap.class, "b", "x"));
+    }
+
+    @Test
+    void testResourceExistsAcrossNamespaces() {
+        createConfigMap("a", "x");
+        createConfigMap("b", "x");
+
+        assertTrue(k8s.resourceExists(ConfigMap.class, null, "x"));
+        assertFalse(k8s.resourceExists(ConfigMap.class, null, "y"));
+    }
+
+    private void createConfigMap(final String namespace, final String name) {
+        client.resource(new ConfigMapBuilder()
+            .withNewMetadata().withNamespace(namespace).withName(name).endMetadata()
+            .build()).create();
     }
 }

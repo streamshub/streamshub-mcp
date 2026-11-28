@@ -347,10 +347,10 @@ class KafkaTopicToolsST extends AbstractST {
     }
 
     /**
-     * Verify list_kafka_topics returns empty for a non-existent cluster.
+     * Verify list_kafka_topics returns RESOURCE_NOT_FOUND for a non-existent cluster.
      */
     @Test
-    @Story("list_kafka_topics returns empty for non-existent cluster")
+    @Story("list_kafka_topics returns error for non-existent cluster")
     @Story("List Kafka Topics")
     void testListKafkaTopicsNonExistentCluster() {
         Map<String, Object> args = Map.of(
@@ -358,19 +358,11 @@ class KafkaTopicToolsST extends AbstractST {
             "namespace", kafkaNamespace.getMetadata().getName());
 
         mcpClient.when()
-            .toolsCall("list_kafka_topics", args, response -> {
-                JsonNode root = assertToolSuccess(response);
-
-                String json = response.content().getFirst().asText().text();
-                LOGGER.info("list_kafka_topics for non-existent cluster response:\n{}", json);
-                assertTrue(root.has("items"), "Response should have 'items' field");
-                JsonNode items = root.path("items");
-                assertTrue(items.isArray(), "items should be a JSON array");
-                assertEquals(0, items.size(),
-                    "Items should be empty for non-existent cluster");
-                assertEquals(0, root.path("total").asInt(),
-                    "Total should be 0 for non-existent cluster");
-            })
+            .toolsCall("list_kafka_topics")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "nonexistent-cluster"))
+            .send()
             .thenAssertResults();
     }
 

@@ -24,6 +24,8 @@ Returns paginated results.
 
 Filters are applied across all matching topics before pagination, so `total` and `has_more` reflect the filtered set.
 
+When the cluster has no topics and no Kafka cluster named `clusterName` exists (in `namespace`, or in any namespace when it is omitted), the call fails with a `RESOURCE_NOT_FOUND` error instead of returning an empty list. A cluster that exists but has no topics, or whose topics all miss the filters, returns an empty list.
+
 *Returns:* Paginated list of topics with name, configuration, partitions, replicas, status, a `managed` flag (`false` when annotated `strimzi.io/managed=false`), and pagination metadata
 
 .Example
@@ -68,6 +70,8 @@ List KafkaNodePools for a cluster showing roles, replicas, and storage configura
 * `clusterName` (required) -- Name of the Kafka cluster
 * `namespace` (optional) -- Kubernetes namespace
 
+When no node pools match and no Kafka cluster named `clusterName` exists, the call fails with a `RESOURCE_NOT_FOUND` error instead of returning an empty list.
+
 *Returns:* List of node pools with name, roles (broker/controller), replica counts, and storage configuration
 
 .Example
@@ -89,8 +93,8 @@ Get detailed information about a specific KafkaNodePool including roles, replica
 
 * *Spec* -- `roles` (spec-declared), `replicas` (desired)
 * *Status* -- `status_replicas` (actual), `status_roles` (assigned), `node_ids` (list of KRaft node IDs used by this pool)
-* *Storage* -- `storage_type` and `storage_size`
-* *Readiness* -- `ready` boolean and full `conditions` list
+* *Storage* -- `storage_type` and `storage_size`. `storage_size` is the per-node total across the persistent-claim volumes, so a JBOD pool with two 50Gi volumes reports `100Gi`. JBOD pools also list `volumes` (`id`, `type`, `size`, `delete_claim`)
+* *Readiness* -- `ready` boolean and full `conditions` list. `ready` is derived from the resource, because Strimzi sets no Ready condition on node pools: it is `true` when the operator has observed the current spec and assigned the desired number of nodes (an explicit Ready or NotReady condition wins), and pod readiness is reported separately
 * *Reconciliation* -- `reconciliation` object with `generation`, `observed_generation`, and `up_to_date` flag
 
 .Example

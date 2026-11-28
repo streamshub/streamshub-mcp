@@ -10,6 +10,7 @@ import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -35,7 +36,9 @@ import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerAuthenticationScramSha512;
 import io.strimzi.api.kafka.model.kafka.listener.KafkaListenerType;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
+import io.strimzi.api.kafka.model.nodepool.KafkaNodePoolBuilder;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePoolList;
+import io.strimzi.api.kafka.model.nodepool.ProcessRoles;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -152,6 +155,37 @@ class KafkaConfigServiceTest {
         assertEquals("tls", response.listeners().get(1).name());
         assertEquals(true, response.listeners().get(1).tls());
         assertEquals("scram-sha-512", response.listeners().get(1).authType());
+    }
+
+    @Test
+    void testNodePoolJbodStorageSizeIsTotal() {
+        Kafka kafka = new KafkaBuilder()
+            .withMetadata(new ObjectMetaBuilder().withName("my-cluster").withNamespace("kafka").build())
+            .withNewSpec()
+                .withNewKafka()
+                    .withVersion("4.2.0")
+                .endKafka()
+            .endSpec()
+            .build();
+        setupKafkaResource(kafka, "kafka", "my-cluster");
+        KafkaNodePool pool = new KafkaNodePoolBuilder()
+            .withNewMetadata().withName("broker-np1").withNamespace("kafka").endMetadata()
+            .withNewSpec()
+                .withReplicas(3)
+                .withRoles(ProcessRoles.BROKER)
+                .withNewJbodStorage()
+                    .addNewPersistentClaimStorageVolume().withId(0).withSize("50Gi")
+                    .endPersistentClaimStorageVolume()
+                    .addNewPersistentClaimStorageVolume().withId(1).withSize("50Gi")
+                    .endPersistentClaimStorageVolume()
+                .endJbodStorage()
+            .endSpec()
+            .build();
+        setupNodePools("kafka", pool);
+
+        KafkaEffectiveConfigResponse response = kafkaConfigService.getEffectiveConfig("kafka", "my-cluster");
+
+        assertEquals("100Gi", response.nodePools().get(0).storageSize());
     }
 
     @Test
@@ -584,21 +618,25 @@ class KafkaConfigServiceTest {
         when(kafkaResource.get()).thenReturn(kafka);
     }
 
-    @SuppressWarnings("unchecked")
     private void setupEmptyNodePools(final String namespace) {
+        setupNodePools(namespace);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void setupNodePools(final String namespace, final KafkaNodePool... pools) {
         MixedOperation nodePoolOp = Mockito.mock(MixedOperation.class);
         Mockito.lenient().when(kubernetesClient.resources(KafkaNodePool.class)).thenReturn(nodePoolOp);
 
         NonNamespaceOperation nsNodePoolOp = Mockito.mock(NonNamespaceOperation.class);
         Mockito.lenient().when(nodePoolOp.inNamespace(namespace)).thenReturn(nsNodePoolOp);
 
-        io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable filteredNodePools =
-            Mockito.mock(io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable.class);
+        FilterWatchListDeletable filteredNodePools =
+            Mockito.mock(FilterWatchListDeletable.class);
         Mockito.lenient().when(nsNodePoolOp.withLabel(anyString(), anyString())).thenReturn(filteredNodePools);
 
-        KafkaNodePoolList emptyList = new KafkaNodePoolList();
-        emptyList.setItems(List.of());
-        Mockito.lenient().when(filteredNodePools.list()).thenReturn(emptyList);
+        KafkaNodePoolList poolList = new KafkaNodePoolList();
+        poolList.setItems(List.of(pools));
+        Mockito.lenient().when(filteredNodePools.list()).thenReturn(poolList);
     }
 
     @SuppressWarnings("unchecked")

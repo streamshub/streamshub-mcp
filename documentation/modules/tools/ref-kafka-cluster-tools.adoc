@@ -56,7 +56,7 @@ Get detailed information about a specific Kafka cluster including status, versio
 * *Core identity* -- name, namespace, kind, `kafka_version` (spec), `running_kafka_version` (status), `kafka_metadata_version` (KRaft), `operator_last_successful_version`, `cluster_id`
 * *Readiness and conditions* -- readiness string and full conditions list
 * *Listeners* -- configured listeners with type and bootstrap address
-* *Replica info* -- separate `broker_replicas` and `controller_replicas` objects each with `expected`, `ready`, `storage_type`, and `storage_size`
+* *Replica info* -- separate `broker_replicas` and `controller_replicas` objects each with `expected`, `ready`, `storage_type`, and `storage_size` (the total across volumes for JBOD)
 * *Security flags* -- `external_access`, `authentication_enabled` (true when at least one listener has authentication), `unauthenticated_listeners` (names of listeners without authentication, omitted when there are none), `authorization_enabled`
 * *Age* -- `creation_time` and `age_minutes`
 * *Auto-rebalance status* -- `auto_rebalance` with `state`, `modes`, and `last_transition_time` (when Cruise Control auto-rebalance is configured)

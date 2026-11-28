@@ -77,7 +77,7 @@ Rules:
 - Normalize all user input with `InputUtils.normalizeInput()`
 - Null namespace means query all namespaces
 - Throw structured errors via `McpErrors`: `invalidParams(...)` for validation, `notFound(kind, name, namespace)` for not-found, `ambiguous(kind, name, candidates)` for multi-namespace matches (these become JSON-RPC errors with `error.data`). Reserve plain `ToolCallException` for rate-limit/cancellation.
-- Return empty list for zero results (not an error)
+- Return empty list for zero results (not an error), except `list_kafka_topics`, `list_kafka_node_pools`, `list_kafka_users` (with `clusterName`) and `get_kafka_user_acls_matrix`, which throw `KafkaClusterChecks.requireClusterExists` not-found for an unknown cluster
 - Use JBoss logging: `LOG.infof("Found %d items", count)`
 
 ---

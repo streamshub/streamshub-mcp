@@ -862,6 +862,8 @@ class KafkaClusterToolsST extends AbstractST {
                     LOGGER.info("list_kafka_node_pools entry:\n{}", pool);
                     assertFalse(pool.path("name").isMissingNode(), "Pool should have a name");
                     poolNames.add(pool.path("name").asText());
+                    assertTrue(pool.path("ready").asBoolean(),
+                        "Reconciled pool should be ready: " + pool.path("name").asText());
                 }
                 assertTrue(poolNames.contains("controller-np"),
                     "Should contain controller-np");

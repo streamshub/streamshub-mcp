@@ -179,22 +179,18 @@ class KafkaUserToolsST extends AbstractST {
     }
 
     @Test
-    @Story("list_kafka_users filtered by nonexistent cluster returns no users")
+    @Story("list_kafka_users filtered by nonexistent cluster returns error")
     void testListKafkaUsersFilteredByCluster() {
         Map<String, Object> args = Map.of(
             "clusterName", "nonexistent-cluster",
             "namespace", Environment.KAFKA_NAMESPACE);
 
         mcpClient.when()
-            .toolsCall("list_kafka_users", args, response -> {
-                JsonNode root = assertToolSuccess(response);
-
-                JsonNode items = root.path("items");
-                assertTrue(items.isArray(), "Response should have items array");
-                assertEquals(0, items.size(),
-                    "Should return empty items array for nonexistent cluster");
-                LOGGER.info("list_kafka_users (nonexistent cluster) returned empty items as expected");
-            })
+            .toolsCall("list_kafka_users")
+            .withArguments(args)
+            .withErrorAssert(error -> assertToolProtocolError(error, -32002, "RESOURCE_NOT_FOUND",
+                "not found", "nonexistent-cluster"))
+            .send()
             .thenAssertResults();
     }
 

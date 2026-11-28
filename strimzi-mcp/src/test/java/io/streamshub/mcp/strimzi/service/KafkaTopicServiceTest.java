@@ -26,6 +26,8 @@ import io.streamshub.mcp.common.util.NamespaceElicitationHelper;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.KafkaTopicResponse;
 import io.streamshub.mcp.strimzi.dto.kafkatopic.TopicStatusFilter;
 import io.streamshub.mcp.strimzi.service.kafkatopic.KafkaTopicService;
+import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
 import io.strimzi.api.kafka.model.topic.KafkaTopicBuilder;
 import jakarta.inject.Inject;
@@ -43,6 +45,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 /**
  * Service-level tests for {@link KafkaTopicService} with mocked Kubernetes.
@@ -72,6 +76,7 @@ class KafkaTopicServiceTest {
         Mockito.lenient().when(appsApi.deployments()).thenReturn(deploymentOp);
 
         KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, KafkaTopic.class);
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, Kafka.class, List.of(kafka("my-cluster", "kafka")));
     }
 
     @Test
@@ -105,6 +110,52 @@ class KafkaTopicServiceTest {
         PaginatedResponse<?> result = topicService.listTopics("kafka", "my-cluster", -1, null, null, null);
 
         assertEquals(0, result.offset());
+    }
+
+    @Test
+    void testListTopicsThrowsNotFoundForUnknownCluster() {
+        KubernetesMockHelper.setupEmptyResourceQuery(kubernetesClient, Kafka.class);
+
+        McpException ex = assertThrows(McpException.class,
+            () -> topicService.listTopics("kafka", "missing", null, null, null, null));
+
+        assertTrue(ex.getMessage().contains("Kafka cluster 'missing' not found in namespace kafka"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("omit namespace"), ex.getMessage());
+        assertEquals(McpErrorCategory.RESOURCE_NOT_FOUND, ((McpErrorData) ex.getData()).category());
+    }
+
+    @Test
+    void testListTopicsReturnsEmptyWhenClusterCheckIsForbidden() {
+        when(kubernetesClient.resources(Kafka.class)).thenThrow(new KubernetesClientException("forbidden", 403, null));
+
+        PaginatedResponse<?> result = topicService.listTopics("kafka", "my-cluster", null, null, null, null);
+
+        assertTrue(result.items().isEmpty());
+        assertEquals(0, result.total());
+    }
+
+    @Test
+    void testListTopicsAllNamespacesDuplicateClusterNameIsEmptyNotAmbiguous() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, Kafka.class, List.of(
+            kafka("my-cluster", "a"), kafka("my-cluster", "b")));
+
+        PaginatedResponse<?> result = topicService.listTopics(null, "my-cluster", null, null, null, null);
+
+        assertTrue(result.items().isEmpty());
+        assertEquals(0, result.total());
+    }
+
+    @Test
+    void testListTopicsNameFilterWithNoMatchStaysEmpty() {
+        KubernetesMockHelper.setupResourceQuery(kubernetesClient, KafkaTopic.class, List.of(
+            topic("orders", true, null)));
+        Mockito.clearInvocations(kubernetesClient);
+
+        PaginatedResponse<?> result = topicService.listTopics("kafka", "my-cluster", null, null, "zzz*", null);
+
+        assertTrue(result.items().isEmpty());
+        assertEquals(0, result.total());
+        verify(kubernetesClient, never()).resources(Kafka.class);
     }
 
     @Test
@@ -609,6 +660,12 @@ class KafkaTopicServiceTest {
             .withNewStatus()
                 .addNewCondition().withType("Warning").withStatus("True").endCondition()
             .endStatus()
+            .build();
+    }
+
+    private static Kafka kafka(final String name, final String namespace) {
+        return new KafkaBuilder()
+            .withNewMetadata().withName(name).withNamespace(namespace).endMetadata()
             .build();
     }
 

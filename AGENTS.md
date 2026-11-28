@@ -250,7 +250,7 @@ io.streamshub.mcp.strimzi.
 │   └── metrics/       → KafkaMetricCategories, KafkaExporterMetricCategories,
 │                        KafkaBridgeMetricCategories, KafkaConnectMetricCategories,
 │                        StrimziOperatorMetricCategories, CruiseControlMetricCategories (category constants + metric name mappings)
-└── util/              → MetricNameResolver, MetricsBackend
+└── util/              → MetricNameResolver, MetricsBackend, KafkaStorageUtils, KafkaClusterChecks
 ```
 
 ### Layer rules
@@ -819,7 +819,7 @@ Errors fall into two client-visible shapes:
   (`DiagnosticHelper`). `@WrapBusinessError` also wraps any uncaught infrastructure exception into this shape —
   notably `KubernetesResourceService` wraps Kubernetes failures (including **RBAC/403**) in `KubernetesQueryException`
   with a contextual message, which surfaces as a failed tool response and lets tools do graceful degradation.
-- **Empty list results**: return an empty list (not an error).
+- **Empty list results**: return an empty list (not an error). The exception is four tools (`list_kafka_topics`, `list_kafka_node_pools`, `list_kafka_users` with `clusterName`, `get_kafka_user_acls_matrix`): when their `clusterName` names no Kafka cluster, `McpErrors.notFound("Kafka cluster", ...)` via `KafkaClusterChecks.requireClusterExists` (checked only when the list is empty, best-effort: an unreadable Kafka CR keeps the empty list; a name in several namespaces is not AMBIGUOUS).
 - Never return error objects; always throw or return typed responses.
 
 `McpErrorData` (JSON-RPC `error.data`, snake_case, nulls omitted): `category`, `resource_kind`, `resource_name`,
