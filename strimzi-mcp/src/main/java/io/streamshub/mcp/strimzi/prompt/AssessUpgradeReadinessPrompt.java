@@ -231,6 +231,8 @@ public class AssessUpgradeReadinessPrompt {
             - Drain Cleaner deployed and ready (ensures graceful pod evictions)
             - Webhook active
             - TLS certificate valid
+            A check listed in `unverified_checks` could not be read (no sensitive Role); \
+            report it as unverified, not as NO-GO.
 
             **WARNING** (not a hard NO-GO but strongly recommended):
             - If Drain Cleaner is NOT deployed, pod evictions during node \

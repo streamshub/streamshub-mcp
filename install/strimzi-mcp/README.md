@@ -142,7 +142,7 @@ kubectl apply -f install/strimzi-mcp/optional/rolebinding-sensitive.yaml -n <kaf
 
 > **Note**: For the dev environment, `dev-deploy.sh --sensitive` applies this Role and RoleBinding in
 > `strimzi-kafka`, `strimzi-kafka-mirror` and `strimzi-drain-cleaner` (override with `SENSITIVE_NAMESPACES`).
-> Without it, certificate checks and the Drain Cleaner TLS check return `403 Forbidden`.
+> Without it, certificate checks return `403 Forbidden`, and the Drain Cleaner TLS check is reported as unverified (`unverified_checks`) and does not fail `overall_ready`.
 
 ## OpenSearch
 

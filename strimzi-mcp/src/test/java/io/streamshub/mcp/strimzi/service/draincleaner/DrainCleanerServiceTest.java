@@ -183,6 +183,7 @@ class DrainCleanerServiceTest {
         assertNotNull(result.certificateDaysUntilExpiry());
         assertTrue(result.certificateDaysUntilExpiry() > 30);
         assertTrue(result.overallReady());
+        assertNull(result.unverifiedChecks());
     }
 
     @Test
@@ -300,7 +301,9 @@ class DrainCleanerServiceTest {
         DrainCleanerReadinessResponse result = service.checkReadiness(NS);
 
         assertFalse(result.certificateValid());
+        assertNull(result.unverifiedChecks());
         assertTrue(check(result, "TLS certificate").detail().contains("not found"));
+        assertFalse(check(result, "TLS certificate").detail().contains("RBAC"));
         assertFalse(result.overallReady());
     }
 
@@ -327,18 +330,35 @@ class DrainCleanerServiceTest {
     }
 
     @Test
-    void testUnreadableSecretMentionsRbac() {
+    void testUnreadableSecretIsUnverifiedNotInvalid() {
         givenDeployment(readyDeployment());
+        givenUnreadableSecret();
+
+        DrainCleanerReadinessResponse result = service.checkReadiness(NS);
+
+        assertNull(result.certificateValid());
+        assertNull(check(result, "TLS certificate").passed());
+        assertTrue(check(result, "TLS certificate").detail().contains("RBAC"));
+        assertTrue(result.overallReady());
+        assertEquals(List.of("TLS certificate"), result.unverifiedChecks());
+    }
+
+    @Test
+    void testUnreadableSecretWithLegacyModeIsNotReady() {
+        givenDeployment(deployment(NS, 1, 1, "false"));
+        givenUnreadableSecret();
+
+        DrainCleanerReadinessResponse result = service.checkReadiness(NS);
+
+        assertNull(result.certificateValid());
+        assertFalse(result.overallReady());
+    }
+
+    private void givenUnreadableSecret() {
         when(k8sService.getClusterScopedResource(eq(ValidatingWebhookConfiguration.class), anyString()))
             .thenReturn(webhook());
         when(k8sService.getResource(eq(Secret.class), eq(NS), anyString()))
             .thenThrow(new KubernetesQueryException("forbidden", new RuntimeException("403")));
-
-        DrainCleanerReadinessResponse result = service.checkReadiness(NS);
-
-        assertFalse(result.certificateValid());
-        assertTrue(check(result, "TLS certificate").detail().contains("RBAC"));
-        assertFalse(result.overallReady());
     }
 
     @Test

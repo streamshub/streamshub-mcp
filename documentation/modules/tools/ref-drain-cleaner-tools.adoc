@@ -101,7 +101,10 @@ Check readiness of Strimzi Drain Cleaner. Runs a comprehensive assessment of the
 * *Webhook check* -- Is the `ValidatingWebhookConfiguration` present?
 * *Failure policy* -- What is the webhook failure policy (`Ignore` or `Fail`)?
 * *Operating mode* -- Standard (recommended) or legacy?
-* *TLS certificate* -- Is the webhook certificate valid and not expiring soon?
+* *TLS certificate* -- Is the webhook certificate valid and not expiring soon? This check has three outcomes:
+** *Valid* -- the certificate was read and has not expired.
+** *Invalid or expired* -- the Secret is missing, has no usable certificate, or the certificate has expired. `overall_ready` is `false`.
+** *Unverified* -- the Secret cannot be read, for example because the optional sensitive Role is not bound. `certificate_valid` is omitted, the check has no `passed` value, and `unverified_checks` lists `TLS certificate`. `overall_ready` ignores an unverified certificate.
 * *Namespace coverage* -- Which namespaces are monitored?
 
 If the drain cleaner is not deployed, the tool reports this as a critical finding.

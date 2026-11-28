@@ -6,6 +6,7 @@ package io.streamshub.mcp.strimzi.service;
 
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.streamshub.mcp.common.service.KubernetesQueryException;
 import io.streamshub.mcp.common.service.KubernetesResourceService;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaClusterResponse;
 import io.streamshub.mcp.strimzi.dto.kafka.KafkaFleetOverviewResponse;
@@ -180,6 +181,56 @@ class KafkaFleetOverviewServiceTest {
 
         assertEquals(1, response.totalClusters());
         assertEquals("kafka-prod", response.namespaceFilter());
+    }
+
+    @Test
+    void testNamespaceFilterCountsMirrorMakerFromOtherNamespace() {
+        when(kafkaService.listClusters("strimzi-kafka")).thenReturn(List.of(
+            buildCluster("mcp-cluster", "strimzi-kafka", "Ready", "4.2.0", 3, 3)
+        ));
+        when(mirrorMakerService.listMirrorMakers(null)).thenReturn(List.of(
+            KafkaMirrorMaker2Response.of(
+                "mcp-mirror-maker", "strimzi-mirror-maker", "Ready", null,
+                null, null, null, null, null,
+                null, "mcp-cluster-kafka-bootstrap.strimzi-kafka.svc:9093",
+                null, null, null, null)
+        ));
+        when(mirrorMakerService.listMirrorMakers("strimzi-kafka")).thenReturn(List.of());
+
+        KafkaFleetOverviewResponse response = fleetOverviewService.getFleetOverview("strimzi-kafka");
+
+        assertEquals(1, response.clusters().get(0).mirrorMakerCount());
+    }
+
+    @Test
+    void testNamespaceFilterFallsBackToNamespaceLocalWhenAllNamespaceListForbidden() {
+        when(kafkaService.listClusters("strimzi-kafka")).thenReturn(List.of(
+            buildCluster("mcp-cluster", "strimzi-kafka", "Ready", "4.2.0", 3, 3)
+        ));
+        when(connectService.listConnects(null)).thenThrow(
+            new KubernetesQueryException("Failed to list KafkaConnect (403 Forbidden)", null));
+        when(connectService.listConnects("strimzi-kafka")).thenReturn(List.of(
+            buildConnect("connect", "mcp-cluster-kafka-bootstrap.strimzi-kafka.svc:9093")
+        ));
+
+        KafkaFleetOverviewResponse response = fleetOverviewService.getFleetOverview("strimzi-kafka");
+
+        assertEquals(1, response.clusters().get(0).connectCount());
+        assertNull(response.resourceErrors());
+    }
+
+    @Test
+    void testNamespaceFilterRecordsErrorWhenBothListsFail() {
+        when(kafkaService.listClusters("strimzi-kafka")).thenReturn(List.of(
+            buildCluster("mcp-cluster", "strimzi-kafka", "Ready", "4.2.0", 3, 3)
+        ));
+        when(connectService.listConnects(any())).thenThrow(
+            new KubernetesQueryException("Failed to list KafkaConnect (403 Forbidden)", null));
+
+        KafkaFleetOverviewResponse response = fleetOverviewService.getFleetOverview("strimzi-kafka");
+
+        assertNotNull(response.resourceErrors());
+        assertTrue(response.resourceErrors().contains("KafkaConnect"));
     }
 
     @Test

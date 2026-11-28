@@ -35,7 +35,7 @@ for ns in strimzi-kafka strimzi-kafka-mirror strimzi-drain-cleaner; do
 done
 ```
 
-Without it, these checks return `403 Forbidden` entries in `errors` and the Drain Cleaner TLS check cannot pass.
+Without it, these checks return `403 Forbidden` entries in `errors` and the Drain Cleaner TLS check is reported as unverified (`unverified_checks`) and does not fail `overall_ready`.
 
 ### Namespaces
 
@@ -158,6 +158,7 @@ Parameters: { "namespace": "strimzi-kafka" }
 **Expected:**
 - [ ] Returns only `mcp-cluster`
 - [ ] `mcp-cluster-mirror` is NOT listed (it is in `strimzi-kafka-mirror`)
+- [ ] If `--mirror-maker`: `mcp-cluster` has `mirror_maker_count: 1` (the MM2 lives in `strimzi-mirror-maker`), the same as in T1.1
 
 ### T1.3 - List Kafka Clusters (all)
 
@@ -300,8 +301,8 @@ Parameters: { "clusterName": "mcp-cluster" }
 - [ ] Certificate is not expired
 - [ ] No private key material exposed
 - [ ] TLS listeners (`tls`, `route`, `console`) have certificate data
-- [ ] `cluster_ca_policy` present: `renewal_days`, `validity_days`, `generate_certificate_authority`, `certificate_expiration_policy`, `calculated_renewal_date` all populated
-- [ ] `clients_ca_policy` present: same sub-fields as `cluster_ca_policy`
+- [ ] `cluster_ca_policy` present: `renewal_days`, `validity_days`, `generate_certificate_authority`, `certificate_expiration_policy`, `calculated_renewal_date` all populated (effective values with Strimzi defaults applied; `defaulted_fields` lists the ones not set in the spec)
+- [ ] `clients_ca_policy` present: same sub-fields as `cluster_ca_policy` (present even when `spec.clientsCa` is omitted)
 
 ### T2.7 - Get Cluster Certificates (specific listener)
 
@@ -1165,8 +1166,9 @@ Parameters: {}
 **Expected:**
 - [ ] Deployment: healthy
 - [ ] Webhook: configured
-- [ ] Certificates: valid
+- [ ] Certificates: valid (`certificate_valid` true, no `unverified_checks`)
 - [ ] Overall verdict: ready
+- [ ] *(Only without the sensitive Role bound)* The TLS certificate check has no `passed` value, `certificate_valid` is omitted, `unverified_checks` is `["TLS certificate"]` and the overall verdict is still ready; a missing Secret (404) is still reported as invalid
 - [ ] *(Only with `valueFrom`/`envFrom` env, SKIP on the dev manifests)* When `STRIMZI_DENY_EVICTION` comes from `valueFrom` or a matching `envFrom` source, the Operating mode check fails with a recommendation naming the source; the `envFrom` case also notes that an unset variable means the default (standard mode)
 
 ### T9.4 - Get Drain Cleaner Logs
@@ -2157,7 +2159,7 @@ sequentially and verify cross-tool consistency.
 1. `get_kafka_cluster` for `mcp-cluster` - note version 4.3.1
 2. `get_kafka_cluster_pods` for `mcp-cluster` - verify all 12 pods healthy
 3. `get_kafka_metrics` with category `replication` - verify 0 offline partitions
-4. If `--drain-cleaner`: `check_drain_cleaner_readiness` - verify ready (requires the sensitive RBAC prerequisite)
+4. If `--drain-cleaner`: `check_drain_cleaner_readiness` - verify ready (without the sensitive Role the TLS check is listed in `unverified_checks` and does not fail `overall_ready`)
 5. `get_kafka_cluster_certificates` for `mcp-cluster` - verify certs not expired (requires the sensitive RBAC prerequisite)
 6. `assess_upgrade_readiness` for `mcp-cluster` - comprehensive assessment
 
