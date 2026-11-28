@@ -276,8 +276,8 @@ public class KafkaNodePoolService {
             }
         }
         Long generation = nodePool.getMetadata().getGeneration();
-        Long observed = nodePool.getStatus().getObservedGeneration();
-        if (observed != null && observed > 0 && generation != null && !observed.equals(generation)) {
+        long observed = nodePool.getStatus().getObservedGeneration();
+        if (observed > 0 && generation != null && observed != generation) {
             return false;
         }
         return Objects.equals(nodePool.getStatus().getReplicas(), nodePool.getSpec().getReplicas());
