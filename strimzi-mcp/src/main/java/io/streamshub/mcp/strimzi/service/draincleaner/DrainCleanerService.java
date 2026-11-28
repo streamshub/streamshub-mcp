@@ -45,6 +45,7 @@ public class DrainCleanerService {
     private static final double MINUTES_PER_HOUR = 60.0;
     private static final long CERT_EXPIRY_WARNING_DAYS = 30;
     private static final String TLS_CRT_KEY = "tls.crt";
+    private static final String TLS_CERTIFICATE_CHECK = "TLS certificate";
 
     @Inject
     KubernetesResourceService k8sService;
@@ -213,8 +214,8 @@ public class DrainCleanerService {
 
         String resolvedNs = deployment.getMetadata().getNamespace();
         CertificateInfo certInfo = parseTlsCertificate(resolvedNs);
-        checks.add(ReadinessCheck.of("TLS certificate", certInfo.valid,
-            certInfo.detail));
+        checks.add(ReadinessCheck.of(TLS_CERTIFICATE_CHECK, certInfo.valid(),
+            certInfo.detail()));
 
         EnvSetting watched = envSetting(deployment, StrimziConstants.DrainCleaner.ENV_DRAIN_NAMESPACES);
         boolean coverageKnown = !watched.unknown();
@@ -229,14 +230,16 @@ public class DrainCleanerService {
         checks.add(ReadinessCheck.of("Namespace coverage", coverageKnown,
             "Watching: " + coveredNamespaces));
 
-        boolean overallReady = allReplicasReady && webhookConfigured && certInfo.valid
+        boolean overallReady = allReplicasReady && webhookConfigured
+            && !Boolean.FALSE.equals(certInfo.valid())
             && operatingMode.ready && coverageKnown;
+        List<String> unverifiedChecks = certInfo.valid() == null ? List.of(TLS_CERTIFICATE_CHECK) : null;
 
         return DrainCleanerReadinessResponse.of(true, allReplicasReady,
             webhookConfigured, failurePolicy, failurePolicyRecommendation,
             operatingMode.mode, operatingMode.recommendation,
-            certInfo.valid, certInfo.daysUntilExpiry,
-            coveredNamespaces, checks, overallReady);
+            certInfo.valid(), certInfo.daysUntilExpiry(),
+            coveredNamespaces, checks, overallReady, unverifiedChecks);
     }
 
     /**
@@ -434,16 +437,16 @@ public class DrainCleanerService {
         } catch (KubernetesQueryException e) {
             LOG.warnf("Unable to check TLS certificate for Drain Cleaner in namespace %s: %s",
                 namespace, e.getMessage());
-            return new CertificateInfo(false, null,
-                "Unable to read TLS secret '" + secretName + "' in namespace '" + namespace
-                    + "': " + e.getMessage()
-                    + ". Ensure the MCP server has RBAC permissions to read Secrets in this namespace.");
+            return new CertificateInfo(null, null,
+                "Could not verify the TLS certificate: unable to read Secret '" + secretName
+                    + "' in namespace '" + namespace + "': " + e.getMessage()
+                    + ". Bind the optional sensitive RBAC Role to verify it.");
         }
 
         if (secret == null) {
             return new CertificateInfo(false, null,
                 "TLS secret '" + secretName + "' not found in namespace '" + namespace
-                    + "'. Ensure the sensitive RBAC Role is configured or the secret exists.");
+                    + "'.");
         }
 
         Map<String, String> data = secret.getData();
@@ -493,6 +496,6 @@ public class DrainCleanerService {
     private record OperatingMode(String mode, String recommendation, boolean ready) {
     }
 
-    private record CertificateInfo(boolean valid, Long daysUntilExpiry, String detail) {
+    private record CertificateInfo(Boolean valid, Long daysUntilExpiry, String detail) {
     }
 }

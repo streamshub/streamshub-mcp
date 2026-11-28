@@ -33,7 +33,7 @@ Get aggregated health overview across all Kafka clusters in a single call. Shows
 
 * *Total clusters and brokers* -- aggregate counts
 * *Status distribution* -- count of clusters by readiness (ready, not_ready, error, unknown)
-* *Clusters* -- per-cluster summary with name, namespace, readiness, Kafka version, broker counts, age, and relationship counts (topics, users, active rebalances, connected KafkaConnect/Bridge/MirrorMaker2 instances)
+* *Clusters* -- per-cluster summary with name, namespace, readiness, Kafka version, broker counts, age, and relationship counts (topics, users, active rebalances, connected KafkaConnect/Bridge/MirrorMaker2 instances in any namespace that point at the cluster, falling back to the filtered namespace when cluster-wide listing is not permitted)
 * *Warnings* -- clusters with health issues: NotReady, Error, or broker replica mismatch (capped at 20)
 * *Resource errors* -- resource types that failed to load (fleet-level and per-cluster), distinguishing "0 found" from "failed to read"
 
@@ -142,7 +142,7 @@ Get TLS certificate information for a Kafka cluster.
 
 *Returns:* Certificate details including:
 
-* *CA policies* -- `cluster_ca_policy` and `clients_ca_policy` objects, each with `renewal_days`, `validity_days`, `generate_certificate_authority`, `certificate_expiration_policy`, and a pre-calculated `calculated_renewal_date`
+* *CA policies* -- `cluster_ca_policy` and `clients_ca_policy` objects, each with `renewal_days`, `validity_days`, `generate_certificate_authority`, `certificate_expiration_policy`, a pre-calculated `calculated_renewal_date`, and `defaulted_fields`. The policies are effective values: Strimzi defaults (365 validity days, 30 renewal days, generate CA, `renew-certificate`) are applied for anything not set in the spec, and `defaulted_fields` names the fields that were defaulted (omitted when none). `generate_certificate_authority` is listed only when the whole CA block is omitted, because otherwise the setting cannot be told apart from its default. Policies are present even when `spec.clusterCa` or `spec.clientsCa` is omitted
 * *Certificates* -- metadata per Strimzi-managed secret (`secret_name`, `type`, `subject`, `issuer`, `not_before`, `not_after`, `days_until_expiry`, `expired`, and `san` Subject Alternative Names)
 * *Listener authentication* -- per-listener auth config (`listener_name`, `listener_type`, `tls_enabled`, `authentication_type`; `none` for a listener without authentication)
 * *Errors* -- list of any secrets that could not be read (requires sensitive RBAC permissions)

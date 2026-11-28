@@ -114,6 +114,8 @@ public class DiagnoseClusterIssuePrompt {
             - Webhook configured and active
             - Operating mode is "standard" (not "legacy")
             - TLS certificate valid and not expiring soon
+            A check listed in `unverified_checks` could not be read (no sensitive Role); \
+            report it as unverified, not as NO-GO.
 
             **If symptom involves node drain, rolling update, unexpected pod restarts, \
             or replicas out of sync, drain cleaner status is likely the root cause.**

@@ -18,11 +18,12 @@ import java.util.List;
  * @param failurePolicyRecommendation guidance if failure policy is not optimal
  * @param mode                       the operating mode ('standard', 'legacy' or 'unknown')
  * @param modeRecommendation         guidance if operating in legacy mode or the mode cannot be verified
- * @param certificateValid           whether the TLS certificate is valid
+ * @param certificateValid           whether the TLS certificate is valid; omitted when it could not be verified
  * @param certificateDaysUntilExpiry days until the TLS certificate expires
  * @param coveredNamespaces          namespaces covered by the webhook
  * @param checks                     individual readiness check results
- * @param overallReady               whether all checks pass
+ * @param overallReady               whether all verifiable checks pass
+ * @param unverifiedChecks           names of checks that could not be verified; omitted when empty
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record DrainCleanerReadinessResponse(
@@ -33,11 +34,12 @@ public record DrainCleanerReadinessResponse(
     @JsonProperty("failure_policy_recommendation") String failurePolicyRecommendation,
     @JsonProperty("mode") String mode,
     @JsonProperty("mode_recommendation") String modeRecommendation,
-    @JsonProperty("certificate_valid") boolean certificateValid,
+    @JsonProperty("certificate_valid") Boolean certificateValid,
     @JsonProperty("certificate_days_until_expiry") Long certificateDaysUntilExpiry,
     @JsonProperty("covered_namespaces") String coveredNamespaces,
     @JsonProperty("checks") List<ReadinessCheck> checks,
-    @JsonProperty("overall_ready") boolean overallReady
+    @JsonProperty("overall_ready") boolean overallReady,
+    @JsonProperty("unverified_checks") List<String> unverifiedChecks
 ) {
 
     /**
@@ -50,11 +52,12 @@ public record DrainCleanerReadinessResponse(
      * @param failurePolicyRecommendation failure policy guidance
      * @param mode                       the operating mode
      * @param modeRecommendation         mode guidance
-     * @param certificateValid           whether cert is valid
+     * @param certificateValid           whether cert is valid, or null when it could not be verified
      * @param certificateDaysUntilExpiry days until cert expiry
      * @param coveredNamespaces          covered namespaces
      * @param checks                     individual checks
      * @param overallReady               overall readiness
+     * @param unverifiedChecks           checks that could not be verified, or null
      * @return a new DrainCleanerReadinessResponse
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -62,16 +65,17 @@ public record DrainCleanerReadinessResponse(
                                                    boolean webhookConfigured, String failurePolicy,
                                                    String failurePolicyRecommendation,
                                                    String mode, String modeRecommendation,
-                                                   boolean certificateValid,
+                                                   Boolean certificateValid,
                                                    Long certificateDaysUntilExpiry,
                                                    String coveredNamespaces,
                                                    List<ReadinessCheck> checks,
-                                                   boolean overallReady) {
+                                                   boolean overallReady,
+                                                   List<String> unverifiedChecks) {
         return new DrainCleanerReadinessResponse(deployed, allReplicasReady,
             webhookConfigured, failurePolicy, failurePolicyRecommendation,
             mode, modeRecommendation, certificateValid,
             certificateDaysUntilExpiry,
-            coveredNamespaces, checks, overallReady);
+            coveredNamespaces, checks, overallReady, unverifiedChecks);
     }
 
     /**
@@ -87,20 +91,20 @@ public record DrainCleanerReadinessResponse(
         );
         return new DrainCleanerReadinessResponse(
             false, false, false, null, null, null, null,
-            false, null, null, checks, false);
+            false, null, null, checks, false, null);
     }
 
     /**
      * An individual readiness check result.
      *
      * @param name   the check name
-     * @param passed whether the check passed
+     * @param passed whether the check passed; null when it could not be verified
      * @param detail human-readable detail about the check result
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record ReadinessCheck(
         @JsonProperty("name") String name,
-        @JsonProperty("passed") boolean passed,
+        @JsonProperty("passed") Boolean passed,
         @JsonProperty("detail") String detail
     ) {
 
@@ -108,11 +112,11 @@ public record DrainCleanerReadinessResponse(
          * Creates a readiness check result.
          *
          * @param name   the check name
-         * @param passed whether it passed
+         * @param passed whether it passed, or null when not verified
          * @param detail the detail
          * @return a new ReadinessCheck
          */
-        public static ReadinessCheck of(String name, boolean passed, String detail) {
+        public static ReadinessCheck of(String name, Boolean passed, String detail) {
             return new ReadinessCheck(name, passed, detail);
         }
     }

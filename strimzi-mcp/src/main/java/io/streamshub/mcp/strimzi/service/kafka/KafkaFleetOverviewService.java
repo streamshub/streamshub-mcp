@@ -31,7 +31,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Supplier;
+import java.util.function.Function;
 /**
  * Service that aggregates health information across all Kafka clusters
  * into a single fleet-level overview with cross-resource relationship counts.
@@ -78,11 +78,11 @@ public class KafkaFleetOverviewService {
 
         List<String> fleetResourceErrors = new ArrayList<>();
         List<KafkaConnectResponse> allConnects = bulkFetch(
-            () -> connectService.listConnects(ns), "KafkaConnect", fleetResourceErrors);
+            connectService::listConnects, ns, "KafkaConnect", fleetResourceErrors);
         List<KafkaBridgeResponse> allBridges = bulkFetch(
-            () -> bridgeService.listBridges(ns), "KafkaBridge", fleetResourceErrors);
+            bridgeService::listBridges, ns, "KafkaBridge", fleetResourceErrors);
         List<KafkaMirrorMaker2Response> allMirrorMakers = bulkFetch(
-            () -> mirrorMakerService.listMirrorMakers(ns), "KafkaMirrorMaker2", fleetResourceErrors);
+            mirrorMakerService::listMirrorMakers, ns, "KafkaMirrorMaker2", fleetResourceErrors);
 
         int totalBrokers = 0;
         int[] statusCounts = new int[4];
@@ -230,12 +230,29 @@ public class KafkaFleetOverviewService {
 
     // ---- Bulk-fetched infrastructure (one query total, matched per cluster) ----
 
-    private <T> List<T> bulkFetch(final Supplier<List<T>> fetcher,
+    /**
+     * Lists related resources from every namespace, because they can point at a cluster
+     * in another namespace. When the all-namespace list fails and a namespace filter is
+     * set (for example namespace-scoped RBAC), falls back to the namespace-local list.
+     */
+    private <T> List<T> bulkFetch(final Function<String, List<T>> lister,
+                                   final String ns,
                                    final String resourceType,
                                    final List<String> errors) {
         try {
-            return fetcher.get();
+            return lister.apply(null);
         } catch (Exception e) {
+            if (ns != null) {
+                LOG.debugf("Cluster-wide %s listing failed (%s), falling back to namespace %s",
+                    resourceType, e.getMessage(), ns);
+                try {
+                    return lister.apply(ns);
+                } catch (Exception e2) {
+                    LOG.warnf("Could not list %s resources: %s", resourceType, e2.getMessage());
+                    errors.add(resourceType);
+                    return List.of();
+                }
+            }
             LOG.warnf("Could not list %s resources: %s", resourceType, e.getMessage());
             errors.add(resourceType);
             return List.of();

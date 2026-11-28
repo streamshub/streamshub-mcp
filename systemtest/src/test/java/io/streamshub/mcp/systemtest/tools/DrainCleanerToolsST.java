@@ -223,6 +223,8 @@ class DrainCleanerToolsST extends AbstractST {
                     "Certificate should be valid");
                 assertTrue(root.path("certificate_days_until_expiry").asLong() > 0,
                     "Certificate should not be expired");
+                assertTrue(root.path("unverified_checks").isMissingNode(),
+                    "No check should be unverified when the sensitive Role is bound");
                 assertFalse(root.path("covered_namespaces").isMissingNode(),
                     "Should have covered_namespaces");
                 JsonNode checks = root.path("checks");
