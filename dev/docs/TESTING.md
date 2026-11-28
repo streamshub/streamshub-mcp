@@ -22,7 +22,8 @@ Each domain service, diagnostic service, and tools class has a corresponding tes
 ### Real API shapes
 
 When a bug depends on fabric8 or the API server (discovery, resource scope, deserialization), do not reproduce it with a typed builder or a permissive Mockito chain, because those accept shapes the server never returns or rejects.
-Test against `@EnableKubernetesMockClient` (see `KubernetesResourceServiceMockServerTest`) or parse the real JSON with `Serialization.unmarshal(json, Type.class)`.
+Test against `@EnableKubernetesMockClient` or parse the real JSON with `Serialization.unmarshal(json, Type.class)`.
+For examples, see `OpenShiftBuildDiscoveryTest`, which serves the real OpenShift discovery order and fails on the old kind-based lookup, and `KafkaServicePvcMockServerTest`, which runs `KafkaService.getClusterPvcs` through a real `KubernetesResourceService` and fails when the cluster-scoped StorageClass is read through the namespaced lookup.
 
 ## Code coverage
 

@@ -352,6 +352,105 @@ class KafkaServiceTest {
     }
 
     /**
+     * Verify an empty deserialized clusterSecurity object yields no cluster_security.
+     */
+    @Test
+    void testGetClusterClusterSecurityIsNullForEmptyObject() {
+        Kafka kafka = deserializedKafka("{}");
+        assertInstanceOf(Map.class, kafka.getStatus().getClusterSecurity());
+        mockKafkaResource(kafka);
+
+        assertNull(kafkaService.getCluster(NAMESPACE, CLUSTER_NAME).clusterSecurity());
+    }
+
+    /**
+     * Verify a JSON null or absent clusterSecurity yields no cluster_security.
+     */
+    @Test
+    void testGetClusterClusterSecurityIsNullForJsonNullOrAbsent() {
+        assertNull(clusterSecurityOfDeserialized("null"));
+        assertNull(clusterSecurityOfDeserialized(null));
+    }
+
+    /**
+     * Verify encryption is reported on its own when the status carries no authentication.
+     */
+    @Test
+    void testGetClusterClusterSecurityWithEncryptionOnly() {
+        KafkaClusterResponse.ClusterSecurityInfo security =
+            clusterSecurityOfDeserialized("{\"encryption\":{\"type\":\"strimzi-tls\"}}");
+
+        assertNotNull(security);
+        assertEquals("strimzi-tls", security.encryption());
+        assertNull(security.authentication());
+    }
+
+    /**
+     * Verify a non-string type is dropped: the field is null, and the whole block is null when
+     * nothing else is set.
+     */
+    @Test
+    void testGetClusterClusterSecurityIgnoresNonStringType() {
+        assertNull(clusterSecurityOfDeserialized("{\"encryption\":{\"type\":42}}"));
+
+        KafkaClusterResponse.ClusterSecurityInfo security = clusterSecurityOfDeserialized(
+            "{\"encryption\":{\"type\":42},\"authentication\":{\"type\":\"strimzi-mtls\"}}");
+
+        assertNotNull(security);
+        assertNull(security.encryption());
+        assertEquals("strimzi-mtls", security.authentication());
+    }
+
+    /**
+     * Verify list_kafka_clusters reports cluster_security from the client's deserialized status.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void testListClustersEnrichesClusterSecurityFromDeserializedStatus() {
+        Kafka kafka = deserializedKafka(
+            "{\"authentication\":{\"type\":\"strimzi-mtls\"},\"encryption\":{\"type\":\"strimzi-tls\"}}");
+        KubernetesResourceList<Kafka> kafkaList = Mockito.mock(KubernetesResourceList.class);
+        when(kafkaList.getItems()).thenReturn(List.of(kafka));
+        when(kafkaNsOp.list()).thenReturn(kafkaList);
+
+        List<KafkaClusterResponse> result = kafkaService.listClusters(NAMESPACE);
+
+        assertEquals(1, result.size());
+        assertNotNull(result.getFirst().clusterSecurity());
+        assertEquals("strimzi-tls", result.getFirst().clusterSecurity().encryption());
+        assertEquals("strimzi-mtls", result.getFirst().clusterSecurity().authentication());
+    }
+
+    /**
+     * Runs get_kafka_cluster on a Kafka parsed by the client's deserializer and returns its cluster_security.
+     *
+     * @param clusterSecurityJson the raw {@code status.clusterSecurity} JSON value, or null to omit the field
+     * @return the cluster_security of the response
+     */
+    private KafkaClusterResponse.ClusterSecurityInfo clusterSecurityOfDeserialized(final String clusterSecurityJson) {
+        mockKafkaResource(deserializedKafka(clusterSecurityJson));
+        return kafkaService.getCluster(NAMESPACE, CLUSTER_NAME).clusterSecurity();
+    }
+
+    /**
+     * Parses a Kafka with the client's deserializer, as the API server would return it.
+     *
+     * @param clusterSecurityJson the raw {@code status.clusterSecurity} JSON value, or null to omit the field
+     * @return the deserialized Kafka
+     */
+    private Kafka deserializedKafka(final String clusterSecurityJson) {
+        String status = clusterSecurityJson != null
+            ? "{\"clusterSecurity\":" + clusterSecurityJson + "}"
+            : "{}";
+        String json = "{\"apiVersion\":\"kafka.strimzi.io/v1\",\"kind\":\"Kafka\","
+            + "\"metadata\":{\"name\":\"" + CLUSTER_NAME + "\",\"namespace\":\"" + NAMESPACE + "\"},"
+            + "\"spec\":{\"kafka\":{\"version\":\"4.3.1\",\"listeners\":"
+            + "[{\"name\":\"tls\",\"port\":9093,\"type\":\"internal\",\"tls\":true}]}},"
+            + "\"status\":" + status + "}";
+        return Serialization.unmarshal(json, Kafka.class);
+    }
+
+    /**
      * Verify reconciliation is populated from generation and observedGeneration.
      */
     @Test

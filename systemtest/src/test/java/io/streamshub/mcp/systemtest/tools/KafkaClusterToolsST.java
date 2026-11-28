@@ -499,8 +499,13 @@ class KafkaClusterToolsST extends AbstractST {
                     "namespace should match");
                 assertTrue(root.path("pvcs").isArray(), "pvcs should be an array");
                 for (JsonNode pvc : root.path("pvcs")) {
+                    // allow_volume_expansion is omitted for a PVC without a storage class, so only
+                    // PVCs that name one are expected to report it.
+                    if (pvc.path("storage_class").asText().isEmpty()) {
+                        continue;
+                    }
                     assertTrue(pvc.has("allow_volume_expansion") && pvc.get("allow_volume_expansion").isBoolean(),
-                        "every PVC should report a boolean allow_volume_expansion");
+                        "every PVC with a storage_class should report a boolean allow_volume_expansion");
                 }
             })
             .thenAssertResults();

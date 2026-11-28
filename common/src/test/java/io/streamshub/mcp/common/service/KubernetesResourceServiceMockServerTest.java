@@ -12,7 +12,6 @@ import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -49,11 +48,5 @@ class KubernetesResourceServiceMockServerTest {
         StorageClass sc = k8s.getClusterScopedResource(StorageClass.class, STORAGE_CLASS);
 
         assertTrue(Boolean.TRUE.equals(sc.getAllowVolumeExpansion()));
-    }
-
-    @Test
-    void testGetResourceWithNullNamespaceFailsForClusterScopedKind() {
-        assertThrows(KubernetesQueryException.class,
-            () -> k8s.getResource(StorageClass.class, null, STORAGE_CLASS));
     }
 }
